@@ -1,0 +1,13 @@
+
+# Archivos generados por .NET
+**/bin/
+**/obj/
+
+# Archivos de Visual Studio
+.vs/
+*.user
+
+# Archivos con configuraciones privadas
+.env
+.env.*
+**/appsettings.Development.json
