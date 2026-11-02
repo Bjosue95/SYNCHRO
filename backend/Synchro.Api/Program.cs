@@ -1,8 +1,63 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Synchro.Api.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "Synchro.Admin";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SoloAdministradores", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole("Administrador"));
+});
+
+builder.Services.AddScoped<
+    IPasswordHasher<Administrador>,
+    PasswordHasher<Administrador>>();
+
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("LoginLimitado", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey:
+                contexto.Connection.RemoteIpAddress?.ToString()
+                ?? "sin-ip",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
+
 var app = builder.Build();
+
+app.UseRouting();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => "Hello World!");
 
@@ -293,6 +348,7 @@ app.MapGet("/api/espacios-carga", async () =>
 
 app.MapPost("/api/espacios-carga/{codigo}/reservar", async (string codigo) =>
 {
+
     var cadena = app.Configuration.GetConnectionString("SynchroDB");
 
     using var conexion = new SqlConnection(cadena);
@@ -320,8 +376,16 @@ app.MapPost("/api/espacios-carga/{codigo}/reservar", async (string codigo) =>
     });
 });
 
-app.MapPost("/api/espacios-carga/{codigo}/iniciar", async (string codigo) =>
+app.MapPost("/api/espacios-carga/{codigo}/iniciar", async (string codigo, IniciarCargaSolicitud solicitud) =>
 {
+    if (solicitud.TipoDispositivo is not ("Celular" or "Laptop"))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "El dispositivo debe ser Celular o Laptop"
+        });
+    }
+
     var cadena = app.Configuration.GetConnectionString("SynchroDB");
 
     using var conexion = new SqlConnection(cadena);
@@ -345,9 +409,15 @@ app.MapPost("/api/espacios-carga/{codigo}/iniciar", async (string codigo) =>
         });
     }
 
-    using var insertar = new SqlCommand(@"INSERT INTO SesionesCarga (CodigoEspacio) OUTPUT INSERTED.Id Values (@Codigo)", conexion, transaccion);
+    using var insertar = new SqlCommand(@"
+    INSERT INTO dbo.SesionesCarga (CodigoEspacio, TipoDispositivo)
+    OUTPUT INSERTED.Id
+    VALUES (@codigo, @tipoDispositivo)",
+     conexion, transaccion);
 
     insertar.Parameters.Add("@codigo", System.Data.SqlDbType.NVarChar, 10).Value = codigo;
+
+    insertar.Parameters.Add("@tipoDispositivo", System.Data.SqlDbType.NVarChar, 20).Value = solicitud.TipoDispositivo!;
 
     var idSesion = Convert.ToInt32(await insertar.ExecuteScalarAsync());
 
@@ -403,14 +473,105 @@ app.MapPost("/api/sesiones-carga/{id}/finalizar", async (int id) =>
         });
     }
 
+
+    using var registrarCobro = new SqlCommand(@"
+    INSERT INTO dbo.CobrosCarga (
+        SesionCargaId,
+        TipoDispositivo,
+        MinutosFacturados,
+        MinutosBaseAplicados,
+        PrecioBaseAplicado,
+        MinutosAdicionalesAplicados,
+        PrecioAdicionalAplicado,
+        MontoTotal
+    )
+    OUTPUT INSERTED.MontoTotal
+    SELECT
+        S.Id,
+        S.TipoDispositivo,
+        T.MinutosBase + B.Bloques * T.MinutosAdicionales,
+        T.MinutosBase,
+        T.PrecioBase,
+        T.MinutosAdicionales,
+        T.PrecioAdicional,
+        T.PrecioBase + B.Bloques * T.PrecioAdicional
+    FROM dbo.SesionesCarga AS S
+    INNER JOIN dbo.TarifasCarga AS T
+        ON S.TipoDispositivo = T.TipoDispositivo
+    CROSS APPLY (
+        SELECT DATEDIFF_BIG(SECOND, S.Inicio, S.Fin)
+            AS Segundos
+    ) AS D
+    CROSS APPLY (
+        SELECT CASE
+            WHEN D.Segundos <= T.MinutosBase * 60
+                THEN 0
+            ELSE (
+                D.Segundos - T.MinutosBase * 60
+                + T.MinutosAdicionales * 60 - 1
+            ) / (T.MinutosAdicionales * 60)
+        END AS Bloques
+    ) AS B
+    WHERE S.Id = @id AND S.Fin IS NOT NULL",
+        conexion, transaccion);
+
+    registrarCobro.Parameters.Add(
+        "@id", System.Data.SqlDbType.Int).Value = id;
+
+    var monto = await registrarCobro.ExecuteScalarAsync();
+
+    if (monto == null)
+    {
+        transaccion.Rollback();
+
+        return Results.Conflict(new
+        {
+            mensaje = "No se pudo calcular el cobro. Verifique la tarifa."
+        });
+    }
+
+
+    using var registrarPago = new SqlCommand(@"
+    INSERT INTO dbo.Pagos (
+        SesionCargaId,
+        Monto,
+        Estado
+    )
+    SELECT
+        SesionCargaId,
+        MontoTotal,
+        N'Pendiente'
+    FROM dbo.CobrosCarga
+    WHERE SesionCargaId = @id",
+        conexion, transaccion);
+
+    registrarPago.Parameters.Add(
+        "@id", System.Data.SqlDbType.Int).Value = id;
+
+    var filasPago = await registrarPago.ExecuteNonQueryAsync();
+
+    if (filasPago != 1)
+    {
+        transaccion.Rollback();
+
+        return Results.Conflict(new
+        {
+            mensaje = "No se pudo registrar el pago pendiente."
+        });
+    }
+
+
     transaccion.Commit();
 
     return Results.Ok(new
     {
-        mensaje = " Sesion finalizada correctamente",
+        mensaje = "Sesion finalizada correctamente",
         idSesion = id,
-        estado = "Disponible"
+        estado = "Disponible",
+        montoTotal = Convert.ToDecimal(monto)
     });
+
+
 });
 
 app.MapGet("/api/tarifas-carga", async () =>
@@ -443,4 +604,129 @@ app.MapGet("/api/tarifas-carga", async () =>
 
 });
 
+
+app.MapPost("/api/admin/login", async (
+    LoginAdministradorSolicitud solicitud,
+    HttpContext contexto,
+    IPasswordHasher<Administrador> hasher) =>
+{
+    if (!contexto.Request.IsHttps)
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "El inicio de sesion requiere HTTPS."
+        });
+    }
+
+    if (string.IsNullOrWhiteSpace(solicitud.NombreUsuario) ||
+        string.IsNullOrWhiteSpace(solicitud.Contrasena) ||
+        solicitud.NombreUsuario.Length > 80)
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Datos de inicio de sesion invalidos."
+        });
+    }
+
+    var cadena = app.Configuration
+        .GetConnectionString("SynchroDB");
+
+    using var conexion = new SqlConnection(cadena);
+    await conexion.OpenAsync();
+
+    Administrador? administrador = null;
+
+    using (var comando = new SqlCommand(@"
+        SELECT Id, NombreUsuario, PasswordHash, Activo
+        FROM dbo.Administradores
+        WHERE NombreUsuario = @usuario",
+        conexion))
+    {
+        comando.Parameters.Add(
+            "@usuario",
+            System.Data.SqlDbType.NVarChar,
+            80).Value = solicitud.NombreUsuario;
+
+        using var lector = await comando.ExecuteReaderAsync();
+
+        if (await lector.ReadAsync())
+        {
+            administrador = new Administrador
+            {
+                Id = lector.GetInt32(0),
+                NombreUsuario = lector.GetString(1),
+                PasswordHash = lector.GetString(2),
+                Activo = lector.GetBoolean(3)
+            };
+        }
+    }
+
+    if (administrador == null || !administrador.Activo)
+    {
+        return Results.Unauthorized();
+    }
+
+    var resultado = hasher.VerifyHashedPassword(
+        administrador,
+        administrador.PasswordHash,
+        solicitud.Contrasena);
+
+    if (resultado == PasswordVerificationResult.Failed)
+    {
+        return Results.Unauthorized();
+    }
+
+    var claims = new List<Claim>
+    {
+        new Claim(
+            ClaimTypes.NameIdentifier,
+            administrador.Id.ToString()),
+
+        new Claim(
+            ClaimTypes.Name,
+            administrador.NombreUsuario),
+
+        new Claim(
+            ClaimTypes.Role,
+            "Administrador")
+    };
+
+    var identidad = new ClaimsIdentity(
+        claims,
+        CookieAuthenticationDefaults.AuthenticationScheme);
+
+    var principal = new ClaimsPrincipal(identidad);
+
+    await contexto.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        principal);
+
+    return Results.Ok(new
+    {
+        mensaje = "Inicio de sesion correcto",
+        usuario = administrador.NombreUsuario,
+        rol = "Administrador"
+    });
+}).RequireRateLimiting("LoginLimitado");
+
+
+app.MapGet("/api/admin/mi-sesion", (ClaimsPrincipal usuario) =>
+{
+    return Results.Ok(new
+    {
+        mensaje = "Acceso administrativo autorizado",
+        usuario = usuario.Identity?.Name,
+        rol = "Administrador"
+    });
+})
+.RequireAuthorization("SoloAdministradores");
+
+
 app.Run();
+
+public record IniciarCargaSolicitud(string? TipoDispositivo);
+
+public record LoginAdministradorSolicitud(
+    string? NombreUsuario,
+    string? Contrasena
+);
