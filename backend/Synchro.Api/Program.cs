@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Antiforgery;
 using Synchro.Api.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -12,13 +13,81 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+
     .AddCookie(options =>
     {
         options.Cookie.Name = "Synchro.Admin";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+
+
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var idTexto = context.Principal?
+                .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!int.TryParse(idTexto, out int id))
+            {
+                context.RejectPrincipal();
+
+                await context.HttpContext.SignOutAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+
+                return;
+            }
+
+            var configuracion = context.HttpContext
+                .RequestServices.GetRequiredService<IConfiguration>();
+
+            var cadena = configuracion.GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                context.RejectPrincipal();
+                return;
+            }
+
+            using var conexion = new SqlConnection(cadena);
+            await conexion.OpenAsync();
+
+            using var comando = new SqlCommand(@"
+        SELECT Activo
+        FROM dbo.Administradores
+        WHERE Id = @id", conexion);
+
+            comando.Parameters.Add(
+                "@id", System.Data.SqlDbType.Int).Value = id;
+
+            var resultado = await comando.ExecuteScalarAsync();
+
+            if (resultado is not bool activo || !activo)
+            {
+                context.RejectPrincipal();
+
+                await context.HttpContext.SignOutAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
+
+
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode =
+                StatusCodes.Status401Unauthorized;
+
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode =
+                StatusCodes.Status403Forbidden;
+
+            return Task.CompletedTask;
+        };
     });
+
 
 builder.Services.AddAuthorization(options =>
 {
@@ -51,6 +120,11 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
 
 var app = builder.Build();
 
@@ -58,8 +132,7 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapGet("/", () => "Hello World!");
+app.UseAntiforgery();
 
 app.MapGet("/api/estado", () => new
 {
@@ -722,6 +795,275 @@ app.MapGet("/api/admin/mi-sesion", (ClaimsPrincipal usuario) =>
 .RequireAuthorization("SoloAdministradores");
 
 
+app.MapPost("/api/admin/logout", async (
+    HttpContext contexto,
+    IAntiforgery antiforgery) =>
+{
+    if (!contexto.Request.IsHttps)
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Se requiere HTTPS."
+        });
+    }
+
+    if (!await antiforgery.IsRequestValidAsync(contexto))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Token CSRF invalido o ausente."
+        });
+    }
+
+    await contexto.SignOutAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme);
+
+    return Results.Ok(new
+    {
+        mensaje = "Sesion administrativa cerrada correctamente"
+    });
+})
+.RequireAuthorization("SoloAdministradores");
+
+
+
+app.MapGet("/api/admin/csrf-token",
+    (HttpContext contexto, IAntiforgery antiforgery) =>
+{
+    if (!contexto.Request.IsHttps)
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Se requiere HTTPS."
+        });
+    }
+
+    contexto.Response.Headers.CacheControl = "no-store";
+
+    var tokens = antiforgery.GetAndStoreTokens(contexto);
+
+    return Results.Ok(new
+    {
+        csrfToken = tokens.RequestToken
+    });
+})
+.RequireAuthorization("SoloAdministradores");
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/pagos/{id:int}/confirmar",
+        async (
+            int id,
+            ConfirmarPagoSimuladoSolicitud solicitud,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+            }
+
+            string? metodo = solicitud.CanalPago switch
+            {
+                "Tablet" => "NFC",
+                "Web" => "TarjetaWeb",
+                _ => null
+            };
+
+            if (metodo is null)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "El canal debe ser Tablet o Web."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion =
+                    new SqlConnection(cadena);
+
+                await conexion.OpenAsync();
+
+                await using var comando =
+                    new SqlCommand(
+                        "dbo.ConfirmarPagoSimulado",
+                        conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@PagoId",
+                    System.Data.SqlDbType.Int
+                ).Value = id;
+
+                comando.Parameters.Add(
+                    "@CanalPago",
+                    System.Data.SqlDbType.NVarChar,
+                    20
+                ).Value = solicitud.CanalPago;
+
+                comando.Parameters.Add(
+                    "@MetodoPago",
+                    System.Data.SqlDbType.NVarChar,
+                    30
+                ).Value = metodo;
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                {
+                    return Results.Problem(
+                        "No se obtuvo respuesta del pago.");
+                }
+
+                return Results.Ok(new
+                {
+                    id = lector["Id"],
+                    monto = lector["Monto"],
+                    estado = lector["Estado"],
+                    metodoPago = lector["MetodoPago"],
+                    canalPago = lector["CanalPago"],
+                    referenciaPago = lector["ReferenciaPago"],
+                    esSimulado = lector["EsSimulado"],
+                    fechaPago = lector["FechaPago"]
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50002)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "El pago no existe, ya fue confirmado o no es simulado."
+                });
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/pagos/{id:int}/rechazar",
+        async (
+            int id,
+            RegistrarRechazoPagoSimuladoSolicitud solicitud,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+            }
+
+            if (solicitud.CanalPago is not ("Tablet" or "Web"))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "El canal debe ser Tablet o Web."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    "dbo.RegistrarIntentoPagoRechazado",
+                    conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@PagoId",
+                    System.Data.SqlDbType.Int
+                ).Value = id;
+
+                comando.Parameters.Add(
+                    "@CanalPago",
+                    System.Data.SqlDbType.NVarChar,
+                    20
+                ).Value = solicitud.CanalPago;
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                {
+                    return Results.Problem(
+                        "No se obtuvo respuesta del intento de pago.");
+                }
+
+                return Results.Ok(new
+                {
+                    idIntento = lector["IdIntento"],
+                    pagoId = lector["PagoId"],
+                    canalPago = lector["CanalPago"],
+                    metodoPago = lector["MetodoPago"],
+                    resultado = lector["Resultado"],
+                    referenciaIntento = lector["ReferenciaIntento"],
+                    fechaIntento = lector["FechaIntento"],
+                    estadoPago = lector["EstadoPago"]
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50004)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "El pago no existe, no esta pendiente o no es simulado."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Ocurrio un error al registrar el intento de pago.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
 app.Run();
 
 public record IniciarCargaSolicitud(string? TipoDispositivo);
@@ -729,4 +1071,16 @@ public record IniciarCargaSolicitud(string? TipoDispositivo);
 public record LoginAdministradorSolicitud(
     string? NombreUsuario,
     string? Contrasena
+);
+
+public record ConfirmarPagoSolicitud(
+    string? MetodoPago
+);
+
+public record ConfirmarPagoSimuladoSolicitud(
+    string CanalPago
+);
+
+public record RegistrarRechazoPagoSimuladoSolicitud(
+    string? CanalPago
 );
