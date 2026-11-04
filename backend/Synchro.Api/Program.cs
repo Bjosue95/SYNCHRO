@@ -126,6 +126,120 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
+builder.Services
+    .AddAuthentication()
+    .AddCookie("Destinatarios", options =>
+    {
+        options.Cookie.Name = "SYNCHRO.Destinatarios";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+        options.SlidingExpiration = false;
+
+
+        options.Events.OnValidatePrincipal = async contexto =>
+        {
+            var personaTexto = contexto.Principal?
+                .FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier
+                )?.Value;
+
+            var tipoUsuario = contexto.Principal?
+                .FindFirst("tipo_usuario")?.Value;
+
+            if (!int.TryParse(personaTexto, out int personaId)
+                || personaId <= 0
+                || tipoUsuario != "Destinatario")
+            {
+                contexto.RejectPrincipal();
+
+                await contexto.HttpContext.SignOutAsync(
+                    "Destinatarios");
+
+                return;
+            }
+
+            string? cadena = builder.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                contexto.RejectPrincipal();
+                return;
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+
+                await conexion.OpenAsync(
+                    contexto.HttpContext.RequestAborted);
+
+                await using var comando = new SqlCommand(
+                    @"SELECT COUNT(1)
+              FROM dbo.Personas
+              WHERE Id = @PersonaId",
+                    conexion);
+
+                comando.Parameters.Add(
+                    "@PersonaId",
+                    System.Data.SqlDbType.Int
+                ).Value = personaId;
+
+                int encontrados = Convert.ToInt32(
+                    await comando.ExecuteScalarAsync(
+                        contexto.HttpContext.RequestAborted));
+
+                if (encontrados != 1)
+                {
+                    contexto.RejectPrincipal();
+
+                    await contexto.HttpContext.SignOutAsync(
+                        "Destinatarios");
+                }
+            }
+            catch (SqlException)
+            {
+                contexto.RejectPrincipal();
+            }
+        };
+
+        // Las API deben devolver errores HTTP,
+        // no redireccionar a una pagina de inicio de sesion.
+        options.Events.OnRedirectToLogin = contexto =>
+        {
+            contexto.Response.StatusCode =
+                StatusCodes.Status401Unauthorized;
+
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnRedirectToAccessDenied = contexto =>
+        {
+            contexto.Response.StatusCode =
+                StatusCodes.Status403Forbidden;
+
+            return Task.CompletedTask;
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SoloDestinatarios", policy =>
+    {
+        policy.AddAuthenticationSchemes("Destinatarios");
+
+        policy.RequireAuthenticatedUser();
+
+        policy.RequireClaim(
+            "tipo_usuario",
+            "Destinatario"
+        );
+    });
+});
+
 var app = builder.Build();
 
 app.UseRouting();
@@ -175,6 +289,8 @@ app.MapGet("/api/casilleros/{codigo}", (string codigo) =>
     }
     return Results.Ok(casillero);
 });
+
+#if false
 
 app.MapPost("/api/casilleros/{codigo}/reservar", (string codigo) =>
 {
@@ -264,6 +380,8 @@ app.MapPost("/api/casilleros/{codigo}/retirar", (String codigo) =>
     });
 });
 
+#endif
+
 app.MapGet("/api/prueba-bd", async () =>
 {
     var cadena = app.Configuration.GetConnectionString("SynchroDB");
@@ -307,6 +425,8 @@ app.MapGet("/api/casilleros-bd", async () =>
 
     return Results.Ok(lista);
 });
+
+#if false
 
 app.MapPost("/api/casilleros-bd/{codigo}/reservar", async (string codigo) =>
 {
@@ -393,6 +513,8 @@ app.MapPost("/api/casilleros-bd/{codigo}/retirar", async (string codigo) =>
         estado = "Disponible"
     });
 });
+
+#endif
 
 app.MapGet("/api/espacios-carga", async () =>
 {
@@ -1064,6 +1186,1506 @@ if (app.Environment.IsDevelopment())
         .RequireAuthorization("SoloAdministradores");
 }
 
+app.MapGet("/api/casilleros/{codigo}/cotizar",
+    async (string codigo, string tipoServicio, int minutos) =>
+    {
+        if (minutos <= 0)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "La duracion debe ser mayor que cero."
+            });
+        }
+
+        var cadena = app.Configuration
+            .GetConnectionString("SynchroDB");
+
+        if (string.IsNullOrWhiteSpace(cadena))
+        {
+            return Results.Problem(
+                "No se encontro la conexion a SynchroDB.");
+        }
+
+        try
+        {
+            await using var conexion = new SqlConnection(cadena);
+            await conexion.OpenAsync();
+
+            await using var comando = new SqlCommand(
+                "dbo.CotizarAlmacenamiento", conexion);
+
+            comando.CommandType =
+                System.Data.CommandType.StoredProcedure;
+
+            comando.Parameters.Add(
+                "@CodigoCasillero",
+                System.Data.SqlDbType.NVarChar, 10
+            ).Value = codigo;
+
+            comando.Parameters.Add(
+                "@TipoServicio",
+                System.Data.SqlDbType.NVarChar, 20
+            ).Value = tipoServicio;
+
+            comando.Parameters.Add(
+                "@MinutosSolicitados",
+                System.Data.SqlDbType.Int
+            ).Value = minutos;
+
+            await using var lector =
+                await comando.ExecuteReaderAsync();
+
+            if (!await lector.ReadAsync())
+            {
+                return Results.Problem(
+                    "No se obtuvo la cotizacion.");
+            }
+
+            return Results.Ok(new
+            {
+                codigoCasillero = lector["CodigoCasillero"],
+                tipoServicio = lector["TipoServicio"],
+                tipoCasillero = lector["TipoCasillero"],
+                tamano = lector["Tamano"],
+                minutosSolicitados = lector["MinutosSolicitados"],
+                precioBase = lector["PrecioBase"],
+                bloquesAdicionales = lector["BloquesAdicionales"],
+                precioAdicional = lector["PrecioAdicional"],
+                montoTotal = lector["MontoTotal"]
+            });
+        }
+        catch (SqlException ex) when (ex.Number == 50012)
+        {
+            return Results.NotFound(new
+            {
+                mensaje = "Casillero no encontrado."
+            });
+        }
+        catch (SqlException ex) when (
+            ex.Number == 50010 ||
+            ex.Number == 50011 ||
+            ex.Number == 50013 ||
+            ex.Number == 50015)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = ex.Message
+            });
+        }
+        catch (SqlException ex) when (ex.Number == 50014)
+        {
+            return Results.Conflict(new
+            {
+                mensaje = "No existe una tarifa activa unica."
+            });
+        }
+        catch (SqlException)
+        {
+            return Results.Problem(
+                "Error al consultar la tarifa.");
+        }
+    });
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/reservas/casilleros",
+        async (
+            ReservarCasilleroSolicitud solicitud,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+
+            if (string.IsNullOrWhiteSpace(solicitud.CodigoCasillero)
+                || string.IsNullOrWhiteSpace(solicitud.TipoServicio))
+                return Results.BadRequest(new
+                {
+                    mensaje = "Codigo y servicio son obligatorios."
+                });
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    "dbo.ReservarCasilleroSynchro", conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@CodigoCasillero",
+                    System.Data.SqlDbType.NVarChar, 10
+                ).Value = solicitud.CodigoCasillero;
+
+                comando.Parameters.Add(
+                    "@TipoServicio",
+                    System.Data.SqlDbType.NVarChar, 20
+                ).Value = solicitud.TipoServicio;
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                    return Results.Problem(
+                        "No se obtuvo la reserva.");
+
+                return Results.Ok(new
+                {
+                    idUso = lector["IdUso"],
+                    codigoCasillero = lector["CodigoCasillero"],
+                    tipoServicio = lector["TipoServicio"],
+                    tipoCasillero = lector["TipoCasillero"],
+                    tamano = lector["Tamano"],
+                    estado = lector["Estado"],
+                    fechaReserva = lector["FechaReserva"]
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50020 ||
+                ex.Number == 50021 ||
+                ex.Number == 50024)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = ex.Message
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50022)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "Casillero no encontrado."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50023 ||
+                ex.Number == 50025)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "Casillero no disponible."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al registrar la reserva.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/reservas/{id:int}/cancelar",
+        async (
+            int id,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+            }
+
+            if (id <= 0)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Identificador de reserva invalido."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    "dbo.CancelarReservaCasilleroSynchro",
+                    conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@UsoId",
+                    System.Data.SqlDbType.Int
+                ).Value = id;
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                {
+                    return Results.Problem(
+                        "No se obtuvo respuesta de la cancelacion.");
+                }
+
+                return Results.Ok(new
+                {
+                    idUso = lector["IdUso"],
+                    codigoCasillero = lector["CodigoCasillero"],
+                    tipoServicio = lector["TipoServicio"],
+                    estadoOperacion = lector["EstadoOperacion"],
+                    estadoCasillero = lector["EstadoCasillero"]
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50031)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "Reserva no encontrada."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50033 ||
+                ex.Number == 50034 ||
+                ex.Number == 50035)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "La reserva no puede cancelarse en su estado actual."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50030)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Identificador invalido."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al cancelar la reserva.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/reservas/{id:int}/depositar",
+        async (
+            int id,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+            }
+
+            if (id <= 0)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Identificador de operacion invalido."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    "dbo.RegistrarDepositoEncomiendaSynchro",
+                    conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@UsoId",
+                    System.Data.SqlDbType.Int
+                ).Value = id;
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                {
+                    return Results.Problem(
+                        "No se obtuvo respuesta del deposito.");
+                }
+
+                return Results.Ok(new
+                {
+                    idUso = lector["IdUso"],
+                    codigoCasillero = lector["CodigoCasillero"],
+                    tipoServicio = lector["TipoServicio"],
+                    tipoCasillero = lector["TipoCasillero"],
+                    estadoOperacion = lector["EstadoOperacion"],
+                    estadoCasillero = lector["EstadoCasillero"],
+                    fechaIngreso = lector["FechaIngreso"]
+                });
+            }
+
+            catch (SqlException ex) when (ex.Number == 50140)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No se puede depositar la encomienda porque faltan participantes."
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50141)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No se puede depositar la encomienda porque el consentimiento del destinatario no es valido."
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50142)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No se puede depositar la encomienda porque falta verificar el telefono del destinatario."
+                });
+            }
+
+            catch (SqlException ex) when (ex.Number == 50041)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "Reserva no encontrada."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50043 ||
+                ex.Number == 50044 ||
+                ex.Number == 50045 ||
+                ex.Number == 50046 ||
+                ex.Number == 50047 ||
+                ex.Number == 50048)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No se puede registrar el deposito en el estado actual."
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50040)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Identificador invalido."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al registrar el deposito.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/reservas/{id:int}/retirar",
+        async (
+            int id,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+            }
+
+            if (id <= 0)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Identificador de operacion invalido."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    "dbo.RegistrarRetiroEncomiendaSynchro",
+                    conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@UsoId",
+                    System.Data.SqlDbType.Int
+                ).Value = id;
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                {
+                    return Results.Problem(
+                        "No se obtuvo respuesta del retiro.");
+                }
+
+                return Results.Ok(new
+                {
+                    idUso = lector["IdUso"],
+                    codigoCasillero = lector["CodigoCasillero"],
+                    tipoServicio = lector["TipoServicio"],
+                    tipoCasillero = lector["TipoCasillero"],
+                    estadoOperacion = lector["EstadoOperacion"],
+                    estadoCasillero = lector["EstadoCasillero"],
+                    fechaIngreso = lector["FechaIngreso"],
+                    fechaRetiro = lector["FechaRetiro"]
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50051)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "Operacion no encontrada."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number >= 50053 &&
+                ex.Number <= 50058)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No se puede retirar la encomienda en su estado actual."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al registrar el retiro.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/reservas/{id:int}/participantes",
+        async (
+            int id,
+            AsignarParticipantesPeticion datos,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido o ausente."
+                });
+            }
+
+            if (id <= 0 ||
+                datos.RemitenteId <= 0 ||
+                datos.DestinatarioId <= 0)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Identificadores invalidos."
+                });
+            }
+
+            if (datos.RemitenteId == datos.DestinatarioId)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Remitente y destinatario deben ser distintos."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    "dbo.AsignarParticipantesEncomiendaSynchro",
+                    conexion);
+
+                comando.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                comando.Parameters.Add(
+                    "@UsoId",
+                    System.Data.SqlDbType.Int
+                ).Value = id;
+
+                comando.Parameters.Add(
+                    "@RemitenteId",
+                    System.Data.SqlDbType.Int
+                ).Value = datos.RemitenteId;
+
+                comando.Parameters.Add(
+                    "@DestinatarioId",
+                    System.Data.SqlDbType.Int
+                ).Value = datos.DestinatarioId;
+
+                var participantes = new List<object>();
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync();
+
+                while (await lector.ReadAsync())
+                {
+                    participantes.Add(new
+                    {
+                        usoId = Convert.ToInt32(lector["UsoId"]),
+                        personaId = Convert.ToInt32(lector["PersonaId"]),
+                        rol = lector["Rol"].ToString()
+                    });
+                }
+
+                return Results.Ok(new
+                {
+                    mensaje = "Participantes asignados correctamente.",
+                    idUso = id,
+                    participantes
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50060 ||
+                ex.Number == 50061)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Datos de participantes invalidos."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50062 ||
+                ex.Number == 50066 ||
+                ex.Number == 50067)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "Operacion o persona no encontrada."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50063 ||
+                ex.Number == 50064 ||
+                ex.Number == 50065 ||
+                ex.Number == 50068 ||
+                ex.Number == 2601 ||
+                ex.Number == 2627)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No se pueden asignar participantes a esta reserva."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al asignar participantes.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/demo/verificaciones-telefono",
+        async (
+            SolicitarVerificacionTelefonoPeticion datos,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido."
+                });
+            }
+
+            string? telefono = datos.Telefono?.Trim();
+
+            if (datos.PersonaId <= 0 ||
+                string.IsNullOrWhiteSpace(telefono) ||
+                telefono.Length > 20)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Datos de verificacion invalidos."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                string codigo =
+                    CodigoVerificacionTelefono.Generar();
+
+                byte[] hash =
+                    CodigoVerificacionTelefono.CalcularHash(
+                        codigo,
+                        datos.PersonaId,
+                        telefono,
+                        app.Configuration);
+
+                try
+                {
+                    await using var conexion =
+                        new SqlConnection(cadena);
+
+                    await conexion.OpenAsync();
+
+                    await using var comando = new SqlCommand(
+                        "dbo.CrearVerificacionTelefonoPendienteSynchro",
+                        conexion);
+
+                    comando.CommandType =
+                        System.Data.CommandType.StoredProcedure;
+
+                    comando.Parameters.Add(
+                        "@PersonaId",
+                        System.Data.SqlDbType.Int
+                    ).Value = datos.PersonaId;
+
+                    comando.Parameters.Add(
+                        "@Telefono",
+                        System.Data.SqlDbType.NVarChar,
+                        20
+                    ).Value = telefono;
+
+                    comando.Parameters.Add(
+                        "@CodigoHash",
+                        System.Data.SqlDbType.VarBinary,
+                        32
+                    ).Value = hash;
+
+                    await using var lector =
+                        await comando.ExecuteReaderAsync();
+
+                    if (!await lector.ReadAsync())
+                    {
+                        return Results.Problem(
+                            "No se registro la verificacion.");
+                    }
+
+                    return Results.Ok(new
+                    {
+                        id = Convert.ToInt32(lector["Id"]),
+                        personaId = Convert.ToInt32(
+                            lector["PersonaId"]),
+                        estado = lector["Estado"].ToString(),
+                        fechaSolicitud = lector["FechaSolicitud"],
+                        fechaExpiracion = lector["FechaExpiracion"],
+                        mensaje = "Verificacion pendiente registrada."
+                    });
+                }
+                finally
+                {
+                    System.Security.Cryptography
+                        .CryptographicOperations.ZeroMemory(hash);
+                }
+            }
+            catch (SqlException ex) when (
+                ex.Number >= 50100 &&
+                ex.Number <= 50104)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Persona o telefono invalido."
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50105)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "Ya existe una verificacion vigente."
+                });
+            }
+
+            catch (SqlException ex) when (
+                ex.Number == 50106 ||
+                ex.Number == 50107 ||
+                ex.Number == 50108)
+            {
+                return Results.Json(
+                    new
+                    {
+                        mensaje = "Demasiadas solicitudes de verificacion. Intenta mas tarde."
+                    },
+                    statusCode: StatusCodes.Status429TooManyRequests
+                );
+            }
+
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al registrar la verificacion.");
+            }
+            catch (FormatException)
+            {
+                return Results.Problem(
+                    "Configuracion de seguridad invalida.");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Problem(
+                    "No se pudo cargar la clave de seguridad.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost(
+        "/api/demo/verificaciones-telefono/{id:int}/validar",
+        async (
+            int id,
+            ValidarTelefonoPeticion datos,
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Se requiere HTTPS."
+                });
+            }
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Token CSRF invalido."
+                });
+            }
+
+            if (id <= 0 || datos.PersonaId <= 0 ||
+                string.IsNullOrWhiteSpace(datos.Codigo) ||
+                datos.Codigo.Length != 6 ||
+                !datos.Codigo.All(c => c >= '0' && c <= '9'))
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Datos de verificacion invalidos."
+                });
+            }
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                return Results.Problem(
+                    "No se encontro la conexion a SynchroDB.");
+            }
+
+            try
+            {
+                await using var conexion =
+                    new SqlConnection(cadena);
+
+                await conexion.OpenAsync();
+
+                // Obtener el telefono registrado para esta verificacion.
+                await using var buscar = new SqlCommand(
+                    @"SELECT Telefono
+                      FROM dbo.VerificacionesTelefono
+                      WHERE Id = @Id AND PersonaId = @PersonaId",
+                    conexion);
+
+                buscar.Parameters.Add(
+                    "@Id", System.Data.SqlDbType.Int
+                ).Value = id;
+
+                buscar.Parameters.Add(
+                    "@PersonaId", System.Data.SqlDbType.Int
+                ).Value = datos.PersonaId;
+
+                string? telefono =
+                    await buscar.ExecuteScalarAsync() as string;
+
+                if (telefono is null)
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "Verificacion no encontrada."
+                    });
+                }
+
+                byte[] hash =
+                    CodigoVerificacionTelefono.CalcularHash(
+                        datos.Codigo,
+                        datos.PersonaId,
+                        telefono,
+                        app.Configuration);
+
+                try
+                {
+                    await using var comando = new SqlCommand(
+                        "dbo.ValidarCodigoTelefonoSynchro",
+                        conexion);
+
+                    comando.CommandType =
+                        System.Data.CommandType.StoredProcedure;
+
+                    comando.Parameters.Add(
+                        "@VerificacionId",
+                        System.Data.SqlDbType.Int
+                    ).Value = id;
+
+                    comando.Parameters.Add(
+                        "@PersonaId",
+                        System.Data.SqlDbType.Int
+                    ).Value = datos.PersonaId;
+
+                    comando.Parameters.Add(
+                        "@CodigoHash",
+                        System.Data.SqlDbType.VarBinary,
+                        32
+                    ).Value = hash;
+
+                    await using var lector =
+                        await comando.ExecuteReaderAsync();
+
+                    if (!await lector.ReadAsync())
+                    {
+                        return Results.Problem(
+                            "No se obtuvo respuesta de SQL Server.");
+                    }
+
+                    string resultado =
+                        lector["Resultado"].ToString() ?? "";
+
+                    var respuesta = new
+                    {
+                        verificacionId = id,
+                        estado = lector["Estado"].ToString(),
+                        intentosFallidos = Convert.ToInt32(
+                            lector["IntentosFallidos"]),
+                        resultado
+                    };
+
+                    return resultado switch
+                    {
+                        "Verificado" => Results.Ok(respuesta),
+                        "Incorrecto" => Results.BadRequest(respuesta),
+                        "Bloqueado" => Results.Json(
+                            respuesta, statusCode: 423),
+                        "Vencido" => Results.Json(
+                            respuesta, statusCode: 410),
+                        "NoDisponible" => Results.Conflict(respuesta),
+                        _ => Results.Problem(
+                            "Resultado de verificacion desconocido.")
+                    };
+                }
+                finally
+                {
+                    System.Security.Cryptography
+                        .CryptographicOperations.ZeroMemory(hash);
+                }
+            }
+            catch (SqlException ex) when (ex.Number == 50122)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "Verificacion no encontrada."
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number == 50120 || ex.Number == 50121)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Parametros invalidos."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error al validar el codigo.");
+            }
+            catch (FormatException)
+            {
+                return Results.Problem(
+                    "Configuracion de seguridad invalida.");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Problem(
+                    "No se pudo cargar la configuracion de seguridad.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost(
+        "/api/demo/verificaciones-telefono/prueba-integracion",
+        async (
+            HttpContext contexto,
+            IAntiforgery antiforgery) =>
+        {
+            if (!contexto.Request.IsHttps)
+                return Results.BadRequest(
+                    new { mensaje = "Se requiere HTTPS." });
+
+            if (!await antiforgery.IsRequestValidAsync(contexto))
+                return Results.BadRequest(
+                    new { mensaje = "Token CSRF invalido." });
+
+            const int personaId = 2;
+            const string telefono = "+12025550142";
+
+            var cadena = app.Configuration
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+                return Results.Problem(
+                    "Conexion SQL no configurada.");
+
+            string codigo = CodigoVerificacionTelefono.Generar();
+
+            byte[] hash;
+
+            try
+            {
+                hash = CodigoVerificacionTelefono.CalcularHash(
+                    codigo, personaId, telefono, app.Configuration);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Problem(
+                    "Clave HMAC no configurada correctamente.");
+            }
+            catch (FormatException)
+            {
+                return Results.Problem(
+                    "Formato de clave HMAC invalido.");
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var transaccion =
+                    (SqlTransaction)await conexion.BeginTransactionAsync();
+
+                try
+                {
+                    int verificacionId;
+
+                    await using (var crear = new SqlCommand(
+                        "dbo.CrearVerificacionTelefonoPendienteSynchro",
+                        conexion,
+                        transaccion))
+                    {
+                        crear.CommandType =
+                            System.Data.CommandType.StoredProcedure;
+
+                        crear.Parameters.Add("@PersonaId",
+                            System.Data.SqlDbType.Int).Value = personaId;
+
+                        crear.Parameters.Add("@Telefono",
+                            System.Data.SqlDbType.NVarChar, 20)
+                            .Value = telefono;
+
+                        crear.Parameters.Add("@CodigoHash",
+                            System.Data.SqlDbType.VarBinary, 32)
+                            .Value = hash;
+
+                        await using var lector =
+                            await crear.ExecuteReaderAsync();
+
+                        if (!await lector.ReadAsync())
+                            throw new InvalidOperationException(
+                                "No se creo la verificacion.");
+
+                        verificacionId =
+                            Convert.ToInt32(lector["Id"]);
+                    }
+
+                    string resultado;
+
+                    await using (var validar = new SqlCommand(
+                        "dbo.ValidarCodigoTelefonoSynchro",
+                        conexion,
+                        transaccion))
+                    {
+                        validar.CommandType =
+                            System.Data.CommandType.StoredProcedure;
+
+                        validar.Parameters.Add("@VerificacionId",
+                            System.Data.SqlDbType.Int)
+                            .Value = verificacionId;
+
+                        validar.Parameters.Add("@PersonaId",
+                            System.Data.SqlDbType.Int)
+                            .Value = personaId;
+
+                        validar.Parameters.Add("@CodigoHash",
+                            System.Data.SqlDbType.VarBinary, 32)
+                            .Value = hash;
+
+                        await using var lector =
+                            await validar.ExecuteReaderAsync();
+
+                        if (!await lector.ReadAsync())
+                            throw new InvalidOperationException(
+                                "No se obtuvo resultado de validacion.");
+
+                        resultado =
+                            lector["Resultado"].ToString() ?? "";
+                    }
+
+                    // La prueba no debe dejar datos verificados.
+                    await transaccion.RollbackAsync();
+
+                    return Results.Ok(new
+                    {
+                        prueba = "Integracion C# y SQL Server",
+                        resultado,
+                        cambiosGuardados = false
+                    });
+                }
+                catch
+                {
+                    await transaccion.RollbackAsync();
+                    throw;
+                }
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    "Error SQL durante la prueba.");
+            }
+            finally
+            {
+                System.Security.Cryptography
+                    .CryptographicOperations.ZeroMemory(hash);
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+}
+
+app.MapGet(
+    "/api/destinatarios/mi-sesion",
+    (HttpContext contexto) =>
+    {
+        return Results.Ok(new
+        {
+            autenticado = true,
+            tipoUsuario = contexto.User
+                .FindFirst("tipo_usuario")?.Value
+        });
+    }
+)
+.RequireAuthorization("SoloDestinatarios");
+
+app.MapGet(
+    "/api/destinatarios/csrf-token",
+    async (HttpContext contexto, IAntiforgery antiforgery) =>
+    {
+        if (!contexto.Request.IsHttps)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "Se requiere HTTPS."
+            });
+        }
+
+        // Reconocer expresamente la sesion del destinatario.
+        var autenticacion =
+            await contexto.AuthenticateAsync("Destinatarios");
+
+        if (autenticacion.Succeeded &&
+            autenticacion.Principal is not null)
+        {
+            contexto.User = autenticacion.Principal;
+        }
+        else
+        {
+            // Antes del login, el token es anonimo.
+            contexto.User =
+                new System.Security.Claims.ClaimsPrincipal(
+                    new System.Security.Claims.ClaimsIdentity());
+        }
+
+        contexto.Response.Headers.CacheControl = "no-store";
+
+        var tokens =
+            antiforgery.GetAndStoreTokens(contexto);
+
+        return Results.Ok(new
+        {
+            csrfToken = tokens.RequestToken
+        });
+    }
+)
+.AllowAnonymous();
+
+app.MapPost("/api/destinatarios/login",
+    async (
+        InicioSesionDestinatarioPeticion datos,
+        HttpContext contexto,
+        IAntiforgery antiforgery) =>
+{
+    // Mantener deshabilitado el acceso en produccion
+    // hasta implementar la entrega real de codigos.
+    if (!app.Environment.IsDevelopment())
+        return Results.StatusCode(503);
+
+    if (!contexto.Request.IsHttps)
+        return Results.BadRequest(new
+        {
+            mensaje = "Se requiere HTTPS."
+        });
+
+    contexto.Response.Headers.CacheControl = "no-store";
+
+    if (!await antiforgery.IsRequestValidAsync(contexto))
+        return Results.BadRequest(new
+        {
+            mensaje = "Token CSRF invalido."
+        });
+
+    // Comprobar que el codigo contiene seis digitos.
+    if (datos.VerificacionId <= 0 ||
+        datos.Codigo is null ||
+        datos.Codigo.Length != 6 ||
+        datos.Codigo.Any(c => c < '0' || c > '9'))
+        return Results.Unauthorized();
+
+    string? cadena = app.Configuration
+        .GetConnectionString("SynchroDB");
+
+    if (string.IsNullOrWhiteSpace(cadena))
+        return Results.Problem(
+            "Conexion SQL no configurada.");
+
+    try
+    {
+        await using var conexion = new SqlConnection(cadena);
+        await conexion.OpenAsync();
+
+        int personaId;
+        string telefono;
+
+        // La identidad procede de SQL Server, no del usuario.
+        await using (var buscar = new SqlCommand(
+            @"SELECT PersonaId, Telefono
+              FROM dbo.VerificacionesTelefono
+              WHERE Id = @Id
+                AND Finalidad = N'InicioSesionDestinatario'",
+            conexion))
+        {
+            buscar.Parameters.Add(
+                "@Id", System.Data.SqlDbType.Int
+            ).Value = datos.VerificacionId;
+
+            await using var lector =
+                await buscar.ExecuteReaderAsync();
+
+            if (!await lector.ReadAsync())
+                return Results.Unauthorized();
+
+            personaId = lector.GetInt32(0);
+            telefono = lector.GetString(1);
+        }
+
+        byte[] hash =
+            CodigoVerificacionTelefono.CalcularHash(
+                datos.Codigo,
+                personaId,
+                telefono,
+                app.Configuration);
+
+        try
+        {
+            string resultado;
+
+            // Validar codigo y finalidad.
+            await using (var validar = new SqlCommand(
+                "dbo.ValidarCodigoTelefonoConFinalidadSynchro",
+                conexion))
+            {
+                validar.CommandType =
+                    System.Data.CommandType.StoredProcedure;
+
+                validar.Parameters.Add(
+                    "@VerificacionId",
+                    System.Data.SqlDbType.Int
+                ).Value = datos.VerificacionId;
+
+                validar.Parameters.Add(
+                    "@PersonaId",
+                    System.Data.SqlDbType.Int
+                ).Value = personaId;
+
+                validar.Parameters.Add(
+                    "@CodigoHash",
+                    System.Data.SqlDbType.VarBinary, 32
+                ).Value = hash;
+
+                validar.Parameters.Add(
+                    "@FinalidadEsperada",
+                    System.Data.SqlDbType.NVarChar, 40
+                ).Value = "InicioSesionDestinatario";
+
+                await using var lector =
+                    await validar.ExecuteReaderAsync();
+
+                if (!await lector.ReadAsync())
+                    return Results.Unauthorized();
+
+                resultado = lector["Resultado"].ToString() ?? "";
+            }
+
+            if (resultado != "Verificado")
+                return Results.Unauthorized();
+        }
+        finally
+        {
+            System.Security.Cryptography
+                .CryptographicOperations.ZeroMemory(hash);
+        }
+
+        // Impedir emitir dos sesiones con la misma verificacion.
+        await using (var consumir = new SqlCommand(
+            "dbo.ConsumirVerificacionInicioSesionSynchro",
+            conexion))
+        {
+            consumir.CommandType =
+                System.Data.CommandType.StoredProcedure;
+
+            consumir.Parameters.Add(
+                "@VerificacionId",
+                System.Data.SqlDbType.Int
+            ).Value = datos.VerificacionId;
+
+            consumir.Parameters.Add(
+                "@PersonaId",
+                System.Data.SqlDbType.Int
+            ).Value = personaId;
+
+            await using var lector =
+                await consumir.ExecuteReaderAsync();
+
+            if (!await lector.ReadAsync())
+                return Results.Unauthorized();
+        }
+
+        // Solo despues de validar y consumir el codigo
+        // creamos la identidad del destinatario.
+        var identidad = new System.Security.Claims.ClaimsIdentity(
+            new[]
+            {
+                new System.Security.Claims.Claim(
+                    System.Security.Claims.ClaimTypes.NameIdentifier,
+                    personaId.ToString()),
+
+                new System.Security.Claims.Claim(
+                    "tipo_usuario",
+                    "Destinatario")
+            },
+            "Destinatarios");
+
+        var usuario =
+            new System.Security.Claims.ClaimsPrincipal(identidad);
+
+        await contexto.SignInAsync(
+            "Destinatarios",
+            usuario,
+            new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(10)
+            });
+
+        return Results.Ok(new
+        {
+            mensaje = "Sesion de destinatario iniciada."
+        });
+    }
+    catch (SqlException ex) when (
+        ex.Number == 50222 ||
+        ex.Number == 50274 ||
+        ex.Number == 50275 ||
+        ex.Number == 50122)
+    {
+        return Results.Unauthorized();
+    }
+    catch (SqlException)
+    {
+        return Results.Problem(
+            "No se pudo completar el inicio de sesion.");
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.Problem(
+            "Configuracion de seguridad no disponible.");
+    }
+    catch (FormatException)
+    {
+        return Results.Problem(
+            "Configuracion de seguridad invalida.");
+    }
+})
+.AllowAnonymous();
+
+app.MapPost(
+    "/api/destinatarios/logout",
+    async (
+        HttpContext contexto,
+        IAntiforgery antiforgery) =>
+    {
+        if (!contexto.Request.IsHttps)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "Se requiere HTTPS."
+            });
+        }
+
+        if (!await antiforgery.IsRequestValidAsync(contexto))
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "Token CSRF invalido."
+            });
+        }
+
+        await contexto.SignOutAsync("Destinatarios");
+
+        contexto.Response.Headers.CacheControl = "no-store";
+
+        return Results.Ok(new
+        {
+            mensaje = "Sesion de destinatario cerrada."
+        });
+    }
+)
+.RequireAuthorization("SoloDestinatarios");
+
 app.Run();
 
 public record IniciarCargaSolicitud(string? TipoDispositivo);
@@ -1083,4 +2705,29 @@ public record ConfirmarPagoSimuladoSolicitud(
 
 public record RegistrarRechazoPagoSimuladoSolicitud(
     string? CanalPago
+);
+
+public record ReservarCasilleroSolicitud(
+    string? CodigoCasillero,
+    string? TipoServicio
+);
+
+record AsignarParticipantesPeticion(
+    int RemitenteId,
+    int DestinatarioId
+);
+
+record SolicitarVerificacionTelefonoPeticion(
+    int PersonaId,
+    string? Telefono
+);
+
+record ValidarTelefonoPeticion(
+    int PersonaId,
+    string Codigo
+);
+
+record InicioSesionDestinatarioPeticion(
+    int VerificacionId,
+    string? Codigo
 );
