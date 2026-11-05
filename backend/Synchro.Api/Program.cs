@@ -6,6 +6,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Synchro.Api.Models;
+using Synchro.Api.Endpoints;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -247,13 +248,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
-
-app.MapGet("/api/estado", () => new
-{
-    proyecto = "SYNCHRO",
-    estado = "en desarrollo"
-});
-
+app.MapEstadoEndpoints();
 
 var casilleros = new[]
 {
