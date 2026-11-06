@@ -11,3 +11,6 @@
 .env
 .env.*
 **/appsettings.Development.json
+
+# Respaldos locales de SQL Server
+/Respaldos/
