@@ -112,5 +112,113 @@ public static class DestinatariosEncomiendasEndpoints
             }
         )
         .RequireAuthorization("SoloDestinatarios");
+
+        // Consultar el detalle de una encomienda propia.
+        app.MapGet(
+            "/api/destinatarios/mis-encomiendas/{usoId:int}",
+            async (int usoId, HttpContext contexto) =>
+            {
+                if (!contexto.Request.IsHttps)
+                    return Results.BadRequest(new
+                    {
+                        mensaje = "Se requiere HTTPS."
+                    });
+
+                contexto.Response.Headers.CacheControl = "no-store";
+
+                if (usoId <= 0)
+                    return Results.NotFound(new
+                    {
+                        mensaje = "Encomienda no encontrada."
+                    });
+
+                string? personaTexto = contexto.User
+                    .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(personaTexto, out int personaId)
+                    || personaId <= 0)
+                    return Results.Unauthorized();
+
+                string? cadena = app.Configuration
+                    .GetConnectionString("SynchroDB");
+
+                if (string.IsNullOrWhiteSpace(cadena))
+                    return Results.Problem(
+                        "Conexion SQL no configurada.");
+
+                try
+                {
+                    await using var conexion = new SqlConnection(cadena);
+                    await conexion.OpenAsync();
+
+                    const string sql = """
+                        SELECT
+                            u.Id,
+                            u.CodigoCasillero,
+                            u.TipoServicio,
+                            u.Estado,
+                            u.FechaReserva,
+                            u.FechaIngreso,
+                            u.FechaRetiro,
+                            COALESCE(cw.Estado, N'Sin asociar')
+                        FROM dbo.UsosCasillero u
+                        INNER JOIN dbo.ParticipantesUso p
+                            ON p.UsoId = u.Id
+                            AND p.Rol = N'Destinatario'
+                        LEFT JOIN dbo.ConsentimientosUso cu
+                            ON cu.UsoId = u.Id
+                        LEFT JOIN dbo.ConsentimientosWhatsApp cw
+                            ON cw.Id = cu.ConsentimientoId
+                        WHERE u.Id = @UsoId
+                            AND p.PersonaId = @PersonaId
+                            AND u.TipoServicio = N'Encomienda';
+                        """;
+
+                    await using var comando =
+                        new SqlCommand(sql, conexion);
+
+                    comando.Parameters.Add(
+                        "@UsoId", System.Data.SqlDbType.Int
+                    ).Value = usoId;
+
+                    comando.Parameters.Add(
+                        "@PersonaId", System.Data.SqlDbType.Int
+                    ).Value = personaId;
+
+                    await using var lector =
+                        await comando.ExecuteReaderAsync();
+
+                    if (!await lector.ReadAsync())
+                        return Results.NotFound(new
+                        {
+                            mensaje = "Encomienda no encontrada."
+                        });
+
+                    var detalle = new
+                    {
+                        usoId = lector.GetInt32(0),
+                        codigoCasillero = lector.GetString(1),
+                        tipoServicio = lector.GetString(2),
+                        estado = lector.GetString(3),
+                        fechaReserva = lector.IsDBNull(4)
+                            ? (DateTime?)null : lector.GetDateTime(4),
+                        fechaIngreso = lector.IsDBNull(5)
+                            ? (DateTime?)null : lector.GetDateTime(5),
+                        fechaRetiro = lector.IsDBNull(6)
+                            ? (DateTime?)null : lector.GetDateTime(6),
+                        estadoConsentimiento = lector.GetString(7)
+                    };
+
+                    return Results.Ok(detalle);
+                }
+                catch (SqlException)
+                {
+                    return Results.Problem(
+                        "No se pudo consultar la encomienda.");
+                }
+            }
+        )
+        .RequireAuthorization("SoloDestinatarios");
+
     }
 }

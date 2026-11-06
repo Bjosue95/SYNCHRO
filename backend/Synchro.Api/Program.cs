@@ -314,3 +314,7 @@ record AceptarConsentimientoWhatsAppPeticion(
     int VerificacionTelefonoId,
     bool ConfirmacionExpresa
 );
+
+public partial class Program
+{
+}
