@@ -205,6 +205,53 @@ public sealed class EmisionPinAisladoTests
                 Convert.ToInt32(
                     await verificarEvidencia.ExecuteScalarAsync()));
 
+            // El PIN fue aprobado, pero no existe
+            // una verificacion facial aprobada.
+            // El retiro debe ser rechazado.
+            await using (var retiro = new SqlCommand(
+                "dbo.RegistrarRetiroEncomiendaSynchro",
+                conexion)
+            {
+                CommandType = CommandType.StoredProcedure
+            })
+            {
+                retiro.Parameters.Add(
+                    "@UsoId", SqlDbType.Int
+                ).Value = usoId;
+
+                SqlException error =
+                    await Assert.ThrowsAsync<SqlException>(
+                        async () =>
+                            await retiro.ExecuteNonQueryAsync());
+
+                Assert.Equal(50058, error.Number);
+                Assert.Contains(
+                    "PIN y facial",
+                    error.Message);
+            }
+
+            // Comprobar que la encomienda
+            // y su casillero siguen ocupados.
+            await using var comprobarEstado = new SqlCommand(
+                @"SELECT COUNT(*)
+                  FROM dbo.UsosCasillero u
+                  INNER JOIN dbo.Casilleros c
+                    ON c.Codigo = u.CodigoCasillero
+                  WHERE u.Id = @UsoId
+                    AND u.Estado = N'Ocupado'
+                    AND u.FechaRetiro IS NULL
+                    AND c.Estado = N'Ocupado'",
+                conexion);
+
+            comprobarEstado.Parameters.Add(
+                "@UsoId", SqlDbType.Int
+            ).Value = usoId;
+
+            Assert.Equal(
+                1,
+                Convert.ToInt32(
+                    await comprobarEstado.ExecuteScalarAsync()));
+
         }
         finally
         {

@@ -241,6 +241,10 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
+builder.Services.AddSingleton<
+    IVerificadorFacial,
+    VerificadorFacialNoDisponible>();
+
 var app = builder.Build();
 
 app.UseRouting();
