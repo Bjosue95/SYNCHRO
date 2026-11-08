@@ -95,7 +95,106 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("SoloAdministradores", policy =>
         policy.RequireAuthenticatedUser()
               .RequireRole("Administrador"));
+
+    options.AddPolicy("SoloTerminal", policy =>
+    {
+        policy.AddAuthenticationSchemes("Terminal");
+        policy.RequireAuthenticatedUser();
+    });
+
 });
+
+/* SYNCHRO | Autenticacion de terminal */
+
+builder.Services
+    .AddAuthentication()
+    .AddCookie("Terminal", options =>
+    {
+        options.Cookie.Name = "Synchro.Terminal";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+
+
+        options.ExpireTimeSpan = builder.Environment.IsDevelopment()
+            ? TimeSpan.FromHours(2)
+            : TimeSpan.FromMinutes(15);
+
+        options.SlidingExpiration = false;
+
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode =
+                StatusCodes.Status401Unauthorized;
+
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var idTexto = context.Principal?
+                .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!int.TryParse(idTexto, out int terminalId))
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync("Terminal");
+                return;
+            }
+
+            var configuracion = context.HttpContext
+                .RequestServices.GetRequiredService<IConfiguration>();
+
+            var cadena = configuracion
+                .GetConnectionString("SynchroDB");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                context.RejectPrincipal();
+                return;
+            }
+
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new SqlCommand(
+                    """
+            SELECT Activa
+            FROM dbo.Terminales
+            WHERE Id = @terminalId;
+            """,
+                    conexion);
+
+                comando.Parameters.Add(
+                    "@terminalId",
+                    System.Data.SqlDbType.Int
+                ).Value = terminalId;
+
+                var resultado = await comando.ExecuteScalarAsync();
+
+                if (resultado is not bool activa || !activa)
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync("Terminal");
+                }
+            }
+            catch (SqlException)
+            {
+                context.RejectPrincipal();
+            }
+        };
+
+
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode =
+                StatusCodes.Status403Forbidden;
+
+            return Task.CompletedTask;
+        };
+    });
 
 builder.Services.AddScoped<
     IPasswordHasher<Administrador>,
@@ -244,6 +343,25 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<
     IVerificadorFacial,
     VerificadorFacialNoDisponible>();
+builder.Services.AddHostedService<Synchro.Api.Services.VencimientoReservasService>();
+
+// SYNCHRO - Vencimiento automatico de reservas
+// Activado solamente en la base de pruebas
+
+var cadenaVencimiento = builder.Configuration
+    .GetConnectionString("SynchroDB");
+
+if (builder.Environment.IsDevelopment() &&
+    !string.IsNullOrWhiteSpace(cadenaVencimiento) &&
+    string.Equals(
+        new SqlConnectionStringBuilder(cadenaVencimiento)
+            .InitialCatalog,
+        "SynchroDB_Pruebas",
+        StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHostedService<
+        Synchro.Api.Services.VencimientoReservasService>();
+}
 
 var app = builder.Build();
 
@@ -267,6 +385,29 @@ app.MapVerificacionesDemoEndpoints();
 app.MapDestinatariosSesionEndpoints();
 app.MapDestinatariosConsentimientosEndpoints();
 app.MapDestinatariosEncomiendasEndpoints();
+
+// SYNCHRO - Vinculacion de terminales
+// Habilitada solo en desarrollo y base de pruebas
+
+var cadenaTerminales = app.Configuration
+    .GetConnectionString("SynchroDB");
+
+var nombreBaseTerminales = string.IsNullOrWhiteSpace(cadenaTerminales)
+    ? ""
+    : new SqlConnectionStringBuilder(cadenaTerminales)
+        .InitialCatalog;
+
+if (app.Environment.IsDevelopment() &&
+    string.Equals(
+        nombreBaseTerminales,
+        "SynchroDB_Pruebas",
+        StringComparison.OrdinalIgnoreCase))
+{
+    app.MapVinculacionTerminalEndpoints();
+    app.MapAprobacionTerminalEndpoints();
+    app.MapConfirmacionTerminalEndpoints();
+    app.MapReservasTerminalEndpoints();
+}
 
 app.Run();
 

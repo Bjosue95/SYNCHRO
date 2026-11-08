@@ -1,0 +1,38 @@
+/* =========================================
+   SYNCHRO | TRANSICIÓN DE NAVEGACIÓN
+   ========================================= */
+
+/* Desaparece la pantalla anterior */
+
+.navegacion-leave-active {
+  transition: opacity 120ms ease-in;
+}
+
+.navegacion-leave-to {
+  opacity: 0;
+}
+
+/* Aparece la pantalla siguiente */
+
+.navegacion-enter-active {
+  transition: opacity 220ms ease-out;
+}
+
+.navegacion-enter-from {
+  opacity: 0;
+}
+
+.navegacion-enter-to {
+  opacity: 1;
+}
+
+/* Sin desplazamientos ni superposición absoluta */
+
+/* Accesibilidad */
+
+@media (prefers-reduced-motion: reduce) {
+  .navegacion-enter-active,
+  .navegacion-leave-active {
+    transition: none;
+  }
+}

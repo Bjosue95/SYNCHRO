@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+
+    <meta name="theme-color" content="#061F36" />
+
+    <title>SYNCHRO | Terminal</title>
+
+    <link rel="stylesheet" href="reset.css" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <script src="app.js" defer></script>
+  </head>
+
+  <body>
+    <main id="app">
+      <button
+        type="button"
+        id="comenzar"
+        class="pantalla-bienvenida"
+        aria-label="Comenzar en SYNCHRO"
+      >
+        <div class="reloj" aria-hidden="true">
+          <time id="hora">--:--</time>
+          <span id="fecha"></span>
+        </div>
+
+        <div class="marca">
+          <img class="isotipo" src="assets/isotipo-fondo-oscuro.png" alt="" />
+
+          <img class="nombre" src="assets/nombre-blanco.png" alt="SYNCHRO" />
+
+          <p>El punto donde todo se conecta</p>
+        </div>
+
+        <span class="indicacion">
+          Toca cualquier parte de la pantalla para comenzar
+        </span>
+      </button>
+    </main>
+  </body>
+</html>
