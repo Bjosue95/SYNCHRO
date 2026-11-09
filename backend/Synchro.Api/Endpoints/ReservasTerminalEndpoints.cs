@@ -66,6 +66,9 @@ public static class ReservasTerminalEndpoints
 
                     await conexion.OpenAsync();
 
+                    var (tokenDeposito, hashDeposito) =
+                        Synchro.Api.Seguridad.TokenDeposito.Generar();
+
                     await using var comando = new SqlCommand(
                         "dbo.ReservarCasilleroSynchro",
                         conexion);
@@ -76,6 +79,15 @@ public static class ReservasTerminalEndpoints
                         "@CodigoCasillero",
                         SqlDbType.NVarChar,
                         10).Value = codigo;
+
+
+                    // Enviar la huella del token para guardarla con la reserva.
+                    comando.Parameters.Add(
+                        "@TokenDepositoHash",
+                        SqlDbType.VarBinary,
+                        32
+                    ).Value = hashDeposito;
+
 
                     // Por ahora, solo resguardo personal
                     comando.Parameters.Add(
@@ -102,6 +114,7 @@ public static class ReservasTerminalEndpoints
                     return Results.Ok(new
                     {
                         idUso = lector["IdUso"],
+                        tokenDeposito = tokenDeposito,
                         codigoCasillero = lector["CodigoCasillero"],
                         tipoServicio = lector["TipoServicio"],
                         tamano = lector["Tamano"],

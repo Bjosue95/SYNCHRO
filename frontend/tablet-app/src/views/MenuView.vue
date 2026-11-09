@@ -25,11 +25,13 @@ const servicios = [
     titulo: "Retirar",
     descripcion: "Recoge tus objetos",
     icono: "02_retirar",
+    ruta: "/retirar",
   },
   {
     titulo: "Tengo una reserva",
-    descripcion: "Continúa tu reserva web",
+    descripcion: "Deposita una encomienda ya reservada",
     icono: "03_reserva",
+    ruta: "/terminal/encomiendas/reserva",
   },
   {
     titulo: "Cargar dispositivo",

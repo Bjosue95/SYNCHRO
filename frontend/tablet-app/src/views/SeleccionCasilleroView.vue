@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import AppHeader from "../components/AppHeader.vue";
 import HelpDialog from "../components/HelpDialog.vue";
@@ -9,11 +9,14 @@ import CasilleroCard from "../components/CasilleroCard.vue";
 import { useTema } from "../composables/useTema";
 import { obtenerCasilleros } from "../services/casillerosApi";
 import { reservarCasilleroTerminal } from "../services/reservasTerminalApi";
+import { registrarDepositoPersonal } from "../services/depositosTerminalApi";
+import { retirarPertenenciasPersonales } from "../services/retirosPersonalesTerminalApi";
 
 // Componentes compartidos
 const { oscuro, cambiarTema } = useTema();
 const centroAyuda = ref(null);
 const route = useRoute();
+const router = useRouter();
 
 function abrirAyuda() {
   centroAyuda.value?.abrir();
@@ -170,6 +173,65 @@ function cambiarSeleccion() {
 const reservando = ref(false);
 const reservaConfirmada = ref(null);
 const errorReserva = ref("");
+const depositando = ref(false);
+const depositoConfirmado = ref(null);
+const errorDeposito = ref("");
+// El PIN solo vive en la memoria de esta pantalla; no se guarda en storage.
+const pinTemporal = ref("");
+let temporizadorPin = null;
+const retiroId = ref("");
+const retiroPin = ref("");
+const retirando = ref(false);
+const errorRetiro = ref("");
+const retiroConfirmado = ref(null);
+
+function abrirRetiro() {
+  if (reservando.value || depositando.value) return;
+  errorRetiro.value = "";
+  retiroConfirmado.value = null;
+  retiroId.value = "";
+  retiroPin.value = "";
+  paso.value = "retiro";
+}
+
+function volverASeleccion() {
+  retiroPin.value = "";
+  paso.value = "seleccion";
+}
+
+function finalizarDeposito() {
+  pinTemporal.value = "";
+  if (temporizadorPin !== null) clearTimeout(temporizadorPin);
+  temporizadorPin = null;
+  router.replace("/menu");
+}
+
+async function confirmarRetiro() {
+  if (retirando.value || retiroConfirmado.value) return;
+  const id = Number(retiroId.value);
+  if (!Number.isSafeInteger(id) || id <= 0 || !/^\d{6}$/.test(retiroPin.value)) {
+    errorRetiro.value = "Escribe el número de reserva y los seis dígitos del PIN.";
+    return;
+  }
+  retirando.value = true;
+  errorRetiro.value = "";
+  try {
+    const resultado = await retirarPertenenciasPersonales(id, retiroPin.value);
+    retiroPin.value = "";
+    retiroConfirmado.value = resultado;
+    casilleros.value = casilleros.value.map((casillero) =>
+      casillero.codigo === resultado.codigoCasillero
+        ? { ...casillero, estado: "Disponible" }
+        : casillero,
+    );
+  } catch (e) {
+    // Nunca registrar PINs en console.log o mensajes de error.
+    retiroPin.value = "";
+    errorRetiro.value = e.message || "No se pudo confirmar el retiro.";
+  } finally {
+    retirando.value = false;
+  }
+}
 
 // Contador basado en el vencimiento de SQL Server
 const ahora = ref(Date.now());
@@ -199,9 +261,10 @@ const tiempoRestante = computed(() => {
 });
 
 onUnmounted(() => {
-  if (intervaloReserva !== null) {
-    clearInterval(intervaloReserva);
-  }
+  if (intervaloReserva !== null) clearInterval(intervaloReserva);
+  if (temporizadorPin !== null) clearTimeout(temporizadorPin);
+  pinTemporal.value = "";
+  retiroPin.value = "";
 });
 
 async function confirmarReserva() {
@@ -246,6 +309,60 @@ async function confirmarReserva() {
     reservando.value = false;
   }
 }
+
+async function confirmarDeposito() {
+  if (
+    depositando.value ||
+    depositoConfirmado.value ||
+    !reservaConfirmada.value ||
+    segundosRestantes.value === null ||
+    segundosRestantes.value <= 0
+  ) {
+    return;
+  }
+
+  depositando.value = true;
+  errorDeposito.value = "";
+
+  try {
+    const { idUso, tokenDeposito } = reservaConfirmada.value;
+
+    const resultado = await registrarDepositoPersonal(idUso, tokenDeposito);
+
+    // Confirmación recibida desde SQL Server.
+    const { pinRetiro, ...depositoSinPin } = resultado;
+    if (typeof pinRetiro !== "string" || !/^\d{6}$/.test(pinRetiro)) {
+      throw new Error("El depósito fue recibido, pero no se pudo mostrar el PIN. Solicita ayuda al administrador.");
+    }
+    depositoConfirmado.value = depositoSinPin;
+    pinTemporal.value = pinRetiro;
+
+    // En un kiosco compartido, ocultar el secreto y volver al menú tras 2 min.
+    if (temporizadorPin !== null) clearTimeout(temporizadorPin);
+    temporizadorPin = setTimeout(finalizarDeposito, 120000);
+
+    // Detener el contador después del depósito.
+    if (intervaloReserva !== null) {
+      clearInterval(intervaloReserva);
+      intervaloReserva = null;
+    }
+
+    // El casillero ahora está ocupado.
+    casilleros.value = casilleros.value.map((casillero) =>
+      casillero.codigo === resultado.codigoCasillero
+        ? { ...casillero, estado: "Ocupado" }
+        : casillero,
+    );
+
+    // Ya no necesitamos conservar el token de depósito.
+    const { tokenDeposito: tokenDescartado, ...reservaSinToken } = reservaConfirmada.value;
+    reservaConfirmada.value = reservaSinToken;
+  } catch (error) {
+    errorDeposito.value = error.message || "No se pudo confirmar el depósito.";
+  } finally {
+    depositando.value = false;
+  }
+}
 </script>
 
 <template>
@@ -276,8 +393,61 @@ async function confirmarReserva() {
     </RouterLink>
 
     <section class="contenido">
+      <!-- Retiro personal en la terminal de pruebas; ruta propia en una fase posterior -->
+      <template v-if="paso === 'retiro'">
+        <h1>Retirar pertenencias personales</h1>
+        <div class="resumen grupo-retiro">
+          <template v-if="retiroConfirmado">
+            <p class="aviso" role="status">¡Retiro registrado correctamente!</p>
+            <p>Casillero: <strong>{{ retiroConfirmado.codigoCasillero }}</strong></p>
+            <p>Estado: <strong>{{ retiroConfirmado.estadoCasillero }}</strong></p>
+            <p class="mensaje">En el prototipo, abre manualmente el casillero y recoge tus pertenencias.</p>
+            <button type="button" class="boton-continuar" @click="router.replace('/menu')">
+              Finalizar
+            </button>
+          </template>
+          <template v-else>
+            <p class="mensaje">Introduce el número de reserva y el PIN que recibiste al depositar.</p>
+            <label for="retiro-uso">Número de reserva</label>
+            <input
+              id="retiro-uso"
+              v-model.trim="retiroId"
+              class="campo-retiro"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              autocomplete="off"
+              placeholder="Ejemplo: 17"
+            />
+            <label for="retiro-pin">PIN de retiro</label>
+            <input
+              id="retiro-pin"
+              v-model.trim="retiroPin"
+              class="campo-retiro"
+              type="password"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              autocomplete="off"
+              placeholder="6 dígitos"
+            />
+            <p v-if="errorRetiro" class="aviso" role="alert">{{ errorRetiro }}</p>
+            <button
+              type="button"
+              class="boton-continuar"
+              :disabled="retirando || !retiroId || retiroPin.length !== 6"
+              @click="confirmarRetiro"
+            >
+              {{ retirando ? "Validando retiro..." : "Confirmar retiro" }}
+            </button>
+            <button type="button" class="boton-secundario" @click="volverASeleccion">
+              Regresar a casilleros
+            </button>
+          </template>
+        </div>
+      </template>
+
       <!-- Tamaño inválido -->
-      <div v-if="!tamanoValido" class="mensaje">
+      <div v-else-if="!tamanoValido" class="mensaje">
         <h1>Selecciona primero un tamaño</h1>
         <p>
           Regresa a la pantalla anterior para elegir un casillero pequeño,
@@ -288,6 +458,10 @@ async function confirmarReserva() {
       <!-- Selección de casillero -->
       <template v-else-if="paso === 'seleccion'">
         <h1>Selecciona tu casillero</h1>
+
+        <button type="button" class="boton-secundario" @click="abrirRetiro">
+          ¿Ya tienes una reserva? Retirar pertenencias
+        </button>
 
         <p class="subtitulo">Tamaño elegido: {{ nombreTamano }}</p>
 
@@ -366,7 +540,7 @@ async function confirmarReserva() {
 
           <!-- Reserva registrada correctamente -->
           <template v-if="reservaConfirmada">
-            <p class="aviso" role="status">
+            <p v-if="!depositoConfirmado" class="aviso" role="status">
               ¡Reserva confirmada correctamente!
             </p>
 
@@ -380,19 +554,74 @@ async function confirmarReserva() {
               <strong>{{ reservaConfirmada.codigoCasillero }}</strong>
             </p>
 
-            <p v-if="segundosRestantes !== null" class="aviso" role="timer">
-              Tiempo restante para depositar:
-              <strong>{{ tiempoRestante }}</strong>
-            </p>
+            <!-- Depósito registrado correctamente -->
+            <template v-if="depositoConfirmado">
+              <p class="aviso" role="status">
+                ¡Depósito registrado correctamente!
+              </p>
 
-            <p v-if="segundosRestantes === 0" role="status">
-              El plazo de la reserva ha terminado. Consulta nuevamente la
-              disponibilidad.
-            </p>
+              <p>
+                Estado del casillero:
+                <strong>{{ depositoConfirmado.estadoCasillero }}</strong>
+              </p>
 
-            <p v-if="segundosRestantes === null" class="aviso">
-              No se pudo mostrar el tiempo restante.
-            </p>
+              <p class="mensaje">
+                Tus pertenencias han quedado registradas en SYNCHRO.
+              </p>
+              <p class="aviso">Anota el número de reserva y este PIN. El PIN se muestra una sola vez.</p>
+              <p class="pin-retiro" role="status">{{ pinTemporal }}</p>
+              <p class="mensaje">Por seguridad, esta pantalla se cerrará automáticamente después de dos minutos.</p>
+              <button type="button" class="boton-continuar" @click="finalizarDeposito">
+                Ya guardé el PIN · Finalizar
+              </button>
+            </template>
+
+            <!-- Reserva pendiente de depósito -->
+            <template v-else>
+              <p v-if="segundosRestantes !== null" class="aviso" role="timer">
+                Tiempo restante para depositar:
+                <strong>{{ tiempoRestante }}</strong>
+              </p>
+
+              <p v-if="segundosRestantes === 0" role="status">
+                El plazo de la reserva ha terminado. Consulta nuevamente la
+                disponibilidad.
+              </p>
+
+              <p v-if="segundosRestantes === null" class="aviso">
+                No se pudo mostrar el tiempo restante.
+              </p>
+
+              <template v-if="segundosRestantes > 0">
+                <p class="mensaje">
+                  Abre manualmente el casillero asignado, coloca tus
+                  pertenencias y cierra la puerta.
+                </p>
+
+                <p class="mensaje">
+                  Cuando hayas terminado, confirma el depósito.
+                </p>
+              </template>
+
+              <button
+                type="button"
+                class="boton-continuar"
+                :disabled="
+                  depositando ||
+                  segundosRestantes === null ||
+                  segundosRestantes <= 0
+                "
+                @click="confirmarDeposito"
+              >
+                {{
+                  depositando ? "Registrando depósito..." : "Confirmar depósito"
+                }}
+              </button>
+
+              <p v-if="errorDeposito" class="aviso" role="alert">
+                {{ errorDeposito }}
+              </p>
+            </template>
           </template>
 
           <!-- Antes de confirmar la reserva -->
@@ -413,15 +642,6 @@ async function confirmarReserva() {
               @click="confirmarReserva"
             >
               {{ reservando ? "Confirmando reserva..." : "Confirmar reserva" }}
-            </button>
-
-            <button
-              type="button"
-              class="boton-secundario"
-              :disabled="reservando"
-              @click="cambiarSeleccion"
-            >
-              Cambiar casillero
             </button>
           </template>
         </div>
@@ -663,6 +883,31 @@ button:focus-visible {
 .tema-oscuro .boton-continuar:disabled {
   background: #315573;
   color: #a7becd;
+}
+
+/* Controles del retiro táctiles y compatibles con ambos temas. */
+.grupo-retiro { display: flex; flex-direction: column; gap: 12px; }
+.campo-retiro {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid #7898ad;
+  border-radius: 12px;
+  background: #fff;
+  color: #01305c;
+  font-size: 18px;
+}
+.pin-retiro {
+  font-size: clamp(28px, 7vw, 42px);
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-align: center;
+  margin: 0;
+}
+.tema-oscuro .campo-retiro {
+  background: #103956;
+  border-color: #5f8ca8;
+  color: #fff;
 }
 
 /* Adaptación */

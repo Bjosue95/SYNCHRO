@@ -1,6 +1,14 @@
 -- SYNCHRO
 -- Actualizacion del procedimiento de reservas
 -- Conserva las validaciones y bloqueos existentes
+-- Impedir modificaciones en la base de datos principal.
+IF DB_NAME() <> N'SynchroDB_Pruebas'
+    BEGIN
+        THROW 51090, 'Esta actualizacion solo puede ejecutarse en SynchroDB_Pruebas.', 1;
+    END
+
+
+GO
 SET ANSI_NULLS ON;
 
 SET QUOTED_IDENTIFIER ON;
@@ -8,7 +16,7 @@ SET QUOTED_IDENTIFIER ON;
 
 GO
 CREATE OR ALTER PROCEDURE dbo.ReservarCasilleroSynchro
-@CodigoCasillero NVARCHAR (10), @TipoServicio NVARCHAR (20), @OrigenReserva NVARCHAR (20)=NULL
+@CodigoCasillero NVARCHAR (10), @TipoServicio NVARCHAR (20), @OrigenReserva NVARCHAR (20)=NULL, @TokenDepositoHash VARBINARY (32)=NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -22,6 +30,14 @@ BEGIN
     IF @OrigenReserva IS NOT NULL
        AND @OrigenReserva NOT IN (N'Terminal', N'Web')
         THROW 50026, 'Origen de reserva no permitido.', 1;
+    -- Exigir un token seguro para reservas personales desde la terminal.
+    IF @TipoServicio = N'ResguardoPersonal'
+       AND @OrigenReserva = N'Terminal'
+       AND (@TokenDepositoHash IS NULL
+            OR DATALENGTH(@TokenDepositoHash) <> 32)
+        BEGIN
+            THROW 50027, 'Se requiere un token de deposito valido.', 1;
+        END
     DECLARE @TipoCasillero AS NVARCHAR (20);
     DECLARE @Estado AS NVARCHAR (20);
     DECLARE @UsoId AS INT;
@@ -58,9 +74,10 @@ BEGIN
             FechaReserva,
             Estado,
             OrigenReserva,
-            FechaVencimiento
+            FechaVencimiento,
+            TokenDepositoHash
         )
-        VALUES                         (@CodigoCasillero, @TipoServicio, @FechaReserva, N'Reservado', @OrigenReserva, @FechaVencimiento);
+        VALUES                         (@CodigoCasillero, @TipoServicio, @FechaReserva, N'Reservado', @OrigenReserva, @FechaVencimiento, @TokenDepositoHash);
         SET @UsoId = CONVERT (INT, SCOPE_IDENTITY());
         COMMIT TRANSACTION;
         SELECT u.Id AS IdUso,

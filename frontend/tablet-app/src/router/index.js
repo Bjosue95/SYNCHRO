@@ -2,16 +2,22 @@ import { createRouter, createWebHistory } from "vue-router";
 
 import BienvenidaView from "../views/BienvenidaView.vue";
 import MenuView from "../views/MenuView.vue";
+import RetirarView from "../views/RetirarView.vue";
+import RetirarPertenenciasView from "../views/RetirarPertenenciasView.vue";
 import GuardarView from "../views/GuardarView.vue";
 import PertenenciasView from "../views/PertenenciasView.vue";
 import SeleccionTamanoView from "../views/SeleccionTamanoView.vue";
 import SeleccionCasilleroView from "../views/SeleccionCasilleroView.vue";
 import VinculacionTerminalView from "../views/VinculacionTerminalView.vue";
+import ReservaExistenteTerminalView from "../views/ReservaExistenteTerminalView.vue";
+import EncomiendaVisitanteTerminalView from "../views/EncomiendaVisitanteTerminalView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
 
   routes: [
+    { path: "/terminal/encomiendas/reserva", name: "terminal-reserva-encomienda", component: ReservaExistenteTerminalView },
+    { path: "/guardar/encomienda-visitante", name: "terminal-envio-visitante", component: EncomiendaVisitanteTerminalView },
     {
       path: "/",
       name: "bienvenida",
@@ -28,6 +34,16 @@ const router = createRouter({
       path: "/menu",
       name: "menu",
       component: MenuView,
+    },
+    {
+      path: "/retirar",
+      name: "retirar",
+      component: RetirarView,
+    },
+    {
+      path: "/retirar/pertenencias",
+      name: "retirar-pertenencias",
+      component: RetirarPertenenciasView,
     },
     {
       path: "/guardar",

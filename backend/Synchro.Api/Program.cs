@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
@@ -9,8 +9,16 @@ using Synchro.Api.Models;
 using Synchro.Api.Endpoints;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Synchro.Api.Services.WhatsApp;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient<
+    IWhatsAppCloudService,
+    WhatsAppCloudService>(cliente =>
+{
+    cliente.Timeout = TimeSpan.FromSeconds(15);
+});
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -343,7 +351,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<
     IVerificadorFacial,
     VerificadorFacialNoDisponible>();
-builder.Services.AddHostedService<Synchro.Api.Services.VencimientoReservasService>();
+// El servicio de vencimiento se registra solo bajo la condicion de pruebas indicada abajo.
 
 // SYNCHRO - Vencimiento automatico de reservas
 // Activado solamente en la base de pruebas
@@ -371,6 +379,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 app.MapEstadoEndpoints();
+app.MapWhatsAppWebhookEndpoints();
 
 // Modulos HTTP separados por funcionalidad.
 app.MapCasillerosDemoEndpoints();
@@ -407,6 +416,14 @@ if (app.Environment.IsDevelopment() &&
     app.MapAprobacionTerminalEndpoints();
     app.MapConfirmacionTerminalEndpoints();
     app.MapReservasTerminalEndpoints();
+    app.MapDepositosTerminalEndpoints();
+    app.MapRetirosPersonalesTerminalEndpoints();
+    app.MapRecuperacionPinPersonalEndpoints();
+    // Pre-reservas web de encomiendas: prototipo aislado y sin deposito.
+    app.MapPreReservasEncomiendaWebEndpoints();
+    app.MapConsentimientosPreReservaWhatsApp();
+    // Emision y consulta preliminar exclusivas de la terminal (sin deposito).
+    app.MapEncomiendasTerminalEndpoints();
 }
 
 app.Run();

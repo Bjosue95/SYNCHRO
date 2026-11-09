@@ -61,8 +61,9 @@ function abrirAyuda() {
 
       <ServiceCard
         titulo="Enviar encomienda"
-        descripcion="Depositar un paquete para otra persona"
+        descripcion="Solicita un envío desde la terminal"
         icono="/iconos/09_encomienda_paquete"
+        ruta="/guardar/encomienda-visitante"
         :oscuro="oscuro"
       />
     </div>
