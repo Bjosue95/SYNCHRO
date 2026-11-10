@@ -43,3 +43,14 @@ Validar desde la raíz con:
 ```powershell
 dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --filter FullyQualifiedName~SeguridadCargaHttpTests
 ```
+
+## Resultado observado en Codex Cloud
+
+Suite completa de esta rama: 120 casos, 88 aprobados, 32 fallidos y ninguno omitido.
+Los 110 casos originales conservaron exactamente sus resultados iniciales (78/32).
+Los diez casos nuevos aprobaron. Los 32 fallos iniciales dependen de LocalDB o configuración
+privada ausente; no se sustituyeron ni eliminaron sus aserciones. Compilación sin advertencias.
+
+Solicitud de incorporación prevista: base `refactor/arquitectura-backend`, rama
+`fix/seguridad-operaciones-carga`. La API de GitHub respondió `Forbidden`; la rama se pudo
+publicar mediante Git y la solicitud todavía requiere crearse. No hubo fusión automática.
