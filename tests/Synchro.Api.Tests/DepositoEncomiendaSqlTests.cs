@@ -53,7 +53,7 @@ public sealed class DepositoEncomiendaSqlTests
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] { "EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql" })
+        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql" })
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -231,6 +231,30 @@ public sealed class DepositoEncomiendaSqlTests
             Assert.False((bool)(await q.ExecuteScalarAsync())!);
         }
         finally { await LimpiarAsync(c, d); }
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task VisitaSqlConservaOrigenYTerminalSinHabilitarDeposito()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        int creada=0;
+        try
+        {
+            var resultado=await new PreReservaEncomiendaService(Configuracion()).CrearAsync("50499990001","+50499990002","Mediano",default,d.Terminal);
+            creada=resultado.Id;
+            await using var q=new SqlCommand("SELECT OrigenPreReserva,TerminalCreacionId,Estado,TokenGestionHash FROM dbo.PreReservasEncomiendasWeb WHERE Id=@id",c);
+            q.Parameters.Add("@id",SqlDbType.Int).Value=creada;
+            await using var r=await q.ExecuteReaderAsync();Assert.True(await r.ReadAsync());
+            Assert.Equal("Terminal",r.GetString(0));Assert.Equal(d.Terminal,r.GetInt32(1));Assert.Equal("PendienteConsentimiento",r.GetString(2));
+            Assert.Equal(SHA256.HashData(Convert.FromHexString(resultado.TokenGestion)),(byte[])r[3]);
+        }
+        finally
+        {
+            await using(var q=new SqlCommand("DELETE dbo.PreReservasEncomiendasWeb WHERE Id=@id AND TerminalCreacionId=@terminal",c))
+            {q.Parameters.Add("@id",SqlDbType.Int).Value=creada;q.Parameters.Add("@terminal",SqlDbType.Int).Value=d.Terminal;await q.ExecuteNonQueryAsync();}
+            await LimpiarAsync(c,d);
+        }
     }
 
     // Nuevos casos externos sin Skip: si se ejecutan sin la conexion SQL

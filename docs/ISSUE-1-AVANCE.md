@@ -85,3 +85,23 @@ frío/calor, administración/reportes, OpenAPI e instalación completa reproduci
 SQL nuevos requieren validación en la laptop; no se enviaron mensajes ni se simuló una entrega
 real de WhatsApp. Las restricciones de hardware/credenciales no se deben usar para habilitar
 aperturas sin verificación del servidor.
+
+## Etapa 2: visitante de tablet y pre-reserva compartida
+
+`POST /api/terminales/encomiendas/visitas` recibe `telefonoRemitente`,
+`telefonoDestinatario` y `tamanoSolicitado`. Exige sesión de terminal, CSRF y HTTPS;
+no recibe terminalId ni aprobación de consentimiento del navegador. Devuelve la credencial
+una sola vez y conserva `PendienteConsentimiento` / `depositoHabilitado=false`.
+El flujo web mantiene su contrato y usa el mismo servicio de creación, sin duplicar SQL.
+Los teléfonos se normalizan a formato internacional con `+`; no se inventa código de país.
+La reserva web existente no vuelve a solicitar el teléfono destinatario en el depósito.
+
+`20261110_OrigenPreReservaEncomienda_Pruebas.sql` agrega, de forma idempotente y exclusivamente
+en SynchroDB_Pruebas, el origen Web/Terminal y la terminal de creación. Los registros previos
+se conservan como Web. El visitante debe continuar con el consentimiento de WhatsApp existente;
+la creación por sí sola no verifica identidades, no genera biometría ni envía mensajes reales.
+
+Pruebas nuevas: 10 aprobadas para web/tablet, formatos inválidos, respuesta sin teléfonos,
+credencial protegida y rechazo de visitante anónimo. Tras añadir trazabilidad, las 30 pruebas
+HTTP/validación de ambas etapas volvieron a pasar. Se añadió un caso SQL externo de origen,
+terminal y hash de credencial, sin Skip: queda pendiente de ejecutar con conexión real.

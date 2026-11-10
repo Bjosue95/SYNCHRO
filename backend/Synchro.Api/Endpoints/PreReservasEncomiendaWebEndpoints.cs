@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Data.SqlClient;
+using Synchro.Api.Services;
 
 namespace Synchro.Api.Endpoints;
 
@@ -14,11 +15,6 @@ public record CrearPreReservaEncomiendaWebSolicitud(
 
 public static class PreReservasEncomiendaWebEndpoints
 {
-    private static readonly Regex TelefonoRegex = new(
-        @"^\+?[1-9][0-9]{7,14}$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(100));
-
     public static void MapPreReservasEncomiendaWebEndpoints(this WebApplication app)
     {
         // El modulo solo se registra desde Program.cs en Development + SynchroDB_Pruebas.
@@ -48,7 +44,8 @@ public static class PreReservasEncomiendaWebEndpoints
         app.MapPost("/api/web/encomiendas/pre-reservas", async (
             CrearPreReservaEncomiendaWebSolicitud solicitud,
             HttpContext contexto,
-            IAntiforgery antiforgery) =>
+            IAntiforgery antiforgery,
+            IPreReservasEncomienda servicio) =>
         {
             if (!contexto.Request.IsHttps)
                 return Results.BadRequest(new { mensaje = "HTTPS obligatorio." });
@@ -56,67 +53,21 @@ public static class PreReservasEncomiendaWebEndpoints
             if (!await antiforgery.IsRequestValidAsync(contexto))
                 return Results.BadRequest(new { mensaje = "CSRF invalido o ausente." });
 
-            var remitente = solicitud.TelefonoRemitente?.Trim();
-            var destinatario = solicitud.TelefonoDestinatario?.Trim();
-            var tamano = solicitud.TamanoSolicitado?.Trim();
-
-            if (remitente is null || destinatario is null ||
-                remitente.Length > 20 || destinatario.Length > 20 ||
-                !TelefonoRegex.IsMatch(remitente) || !TelefonoRegex.IsMatch(destinatario) ||
-                tamano is not ("Pequeno" or "Mediano" or "Grande"))
-                return Results.BadRequest(new {
-                    mensaje = "Telefonos o tamano invalidos. Indica telefonos con codigo de pais cuando corresponda."
-                });
-
-            var cadena = app.Configuration.GetConnectionString("SynchroDB");
-            if (string.IsNullOrWhiteSpace(cadena))
-                return Results.Problem("Conexion SQL no configurada.");
-
-            // Se entrega este token UNA vez; solo su SHA-256 se guarda en SQL.
-            byte[] bytesToken = RandomNumberGenerator.GetBytes(32);
-            string token = Convert.ToHexString(bytesToken);
-            byte[] hash = SHA256.HashData(bytesToken);
-            CryptographicOperations.ZeroMemory(bytesToken);
-
+            contexto.Response.Headers.CacheControl = "no-store";
             try
             {
-                await using var conexion = new SqlConnection(cadena);
-                await conexion.OpenAsync(contexto.RequestAborted);
-                await using var comando = new SqlCommand("""
-                    INSERT INTO dbo.PreReservasEncomiendasWeb
-                    (TokenGestionHash,TelefonoRemitente,TelefonoDestinatario,
-                     TamanoSolicitado,FechaExpiracion)
-                    OUTPUT INSERTED.Id, INSERTED.FechaExpiracion
-                    VALUES (@hash,@remitente,@destinatario,@tamano,
-                            DATEADD(HOUR,24,SYSUTCDATETIME()));
-                    """, conexion);
-                comando.Parameters.Add("@hash", SqlDbType.VarBinary, 32).Value = hash;
-                comando.Parameters.Add("@remitente", SqlDbType.NVarChar, 20).Value = remitente;
-                comando.Parameters.Add("@destinatario", SqlDbType.NVarChar, 20).Value = destinatario;
-                comando.Parameters.Add("@tamano", SqlDbType.NVarChar, 12).Value = tamano;
-
-                await using var lector = await comando.ExecuteReaderAsync(contexto.RequestAborted);
-                if (!await lector.ReadAsync(contexto.RequestAborted))
-                    return Results.Problem("No se pudo crear la pre-reserva.");
-
-                contexto.Response.Headers.CacheControl = "no-store";
-                return Results.Ok(new {
-                    id = lector.GetInt32(0),
-                    tokenGestion = token,
-                    estado = "PendienteConsentimiento",
-                    fechaExpiracion = DateTime.SpecifyKind(lector.GetDateTime(1),DateTimeKind.Utc),
-                    depositoHabilitado = false,
-                    mensaje = "Pre-reserva creada. No es un deposito ni una autorizacion de WhatsApp."
+                var creada=await servicio.CrearAsync(solicitud.TelefonoRemitente,solicitud.TelefonoDestinatario,
+                    solicitud.TamanoSolicitado,contexto.RequestAborted);
+                return Results.Ok(new
+                {
+                    id=creada.Id,tokenGestion=creada.TokenGestion,estado="PendienteConsentimiento",
+                    fechaExpiracion=creada.FechaExpiracion,depositoHabilitado=false,
+                    mensaje="Pre-reserva creada. No es un deposito ni una autorizacion de WhatsApp."
                 });
             }
-            catch (SqlException)
-            {
-                return Results.Problem("No se pudo registrar la pre-reserva en SQL Server.");
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(hash);
-            }
+            catch(ArgumentException){return Results.BadRequest(new{mensaje="Telefonos o tamano invalidos."});}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo registrar la pre-reserva.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Servicio de pre-reservas no disponible.");}
         }).RequireRateLimiting("LoginLimitado");
 
         app.MapGet("/api/web/encomiendas/pre-reservas/{id:int}", async (

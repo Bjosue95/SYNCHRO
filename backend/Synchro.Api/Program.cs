@@ -15,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<Synchro.Api.Services.IPreReservasEncomienda,Synchro.Api.Services.PreReservaEncomiendaService>();
 builder.Services.AddScoped<Synchro.Api.Services.PreparadorPinEncomienda>();
 builder.Services.AddScoped<Synchro.Api.Services.DepositoEncomiendaService>();
 builder.Services.AddScoped<Synchro.Api.Services.IFlujoEncomiendasTerminal,Synchro.Api.Services.FlujoEncomiendasTerminalSql>();

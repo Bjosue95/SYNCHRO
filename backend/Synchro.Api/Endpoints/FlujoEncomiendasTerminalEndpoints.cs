@@ -20,6 +20,21 @@ public static class FlujoEncomiendasTerminalEndpoints
             .RequireAuthorization("SoloTerminal").RequireRateLimiting("OperacionesTerminal")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>();
 
+        rutas.MapPost("/visitas",async(CrearPreReservaEncomiendaWebSolicitud datos,HttpContext http,IPreReservasEncomienda servicio)=>
+        {
+            if(Identidad(http.User)<=0)return Results.Unauthorized();
+            try
+            {
+                var creada=await servicio.CrearAsync(datos.TelefonoRemitente,datos.TelefonoDestinatario,datos.TamanoSolicitado,http.RequestAborted,Identidad(http.User));
+                return Results.Ok(new{id=creada.Id,tokenGestion=creada.TokenGestion,fechaExpiracion=creada.FechaExpiracion,
+                    estado="PendienteConsentimiento",depositoHabilitado=false,
+                    consentimientoRequerido=true});
+            }
+            catch(ArgumentException){return Results.BadRequest(new{mensaje="Telefonos o tamano invalidos."});}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo registrar la visita.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Servicio de visitas no disponible.");}
+        });
+
         rutas.MapPost("/reservas/{id:int}/evidencias-remitente",async(int id,HttpContext http,
             IFlujoEncomiendasTerminal flujo,IVerificadorFacial verificador,TimeProvider reloj)=>
         {
