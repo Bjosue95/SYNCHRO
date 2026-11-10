@@ -1,5 +1,7 @@
 # Avance actual en refactor/arquitectura-backend
 
+Última integración y suite completa: [INTEGRACION-RAMAS.md](INTEGRACION-RAMAS.md) (151 aprobadas, 32 fallidas y 4 omitidas).
+
 Esta es la rama de trabajo indicada por el propietario. Se trasladaron aquí los cambios
 anteriores de depósito atómico y seguridad de carga, conservándolos también en sus ramas
 anteriores. No se modificó main ni se realizó una fusión automática.

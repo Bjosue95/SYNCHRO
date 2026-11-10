@@ -1,0 +1,893 @@
+{
+  "fecha": "2026-11-10",
+  "rama": "refactor/arquitectura-backend",
+  "commit_codigo_probado": "ed029fb2227c142dbf74b20ebb464cb7484230de",
+  "merge_notificaciones": "d973238",
+  "comando": "dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --no-restore --logger \"trx;LogFileName=backend-completo.trx\" --results-directory /workspace/synchro-test-results/integracion-ramas-20261110",
+  "codigo_salida_tests": 1,
+  "total": 187,
+  "resumen": {
+    "aprobada": 151,
+    "fallida": 32,
+    "omitida": 4
+  },
+  "pruebas_originales_comparadas": 110,
+  "cambios_resultados_originales": [],
+  "sha256_trx": "afdde1c6bcbdc9249cea075daf583b8421be2ba8eba174d23070e9e6cedd5996",
+  "por_clase": {
+    "AutenticacionTerminalRealTests": {
+      "fallida": 2,
+      "aprobada": 2
+    },
+    "CodigoPinRetiroTests": {
+      "aprobada": 2
+    },
+    "ComparadorDescriptoresFacialesTests": {
+      "aprobada": 10
+    },
+    "ConfiguracionFacialServidorTests": {
+      "aprobada": 2
+    },
+    "ConsultaConsentimientoSqlTests": {
+      "fallida": 1
+    },
+    "ConsultaEstadosReservaHttpTests": {
+      "fallida": 7
+    },
+    "ConsultaReservaTerminalHttpTests": {
+      "fallida": 1,
+      "aprobada": 3
+    },
+    "ConsumoEvidenciaFacialSqlTests": {
+      "fallida": 1
+    },
+    "DepositoEncomiendaComandoTests": {
+      "aprobada": 17
+    },
+    "DepositoEncomiendaSqlTests": {
+      "omitida": 4
+    },
+    "DetalleEncomiendaAutorizacionTests": {
+      "fallida": 3
+    },
+    "DetalleEncomiendaTests": {
+      "aprobada": 1
+    },
+    "EmisionPinAisladoTests": {
+      "fallida": 1
+    },
+    "EvidenciaFacialRemitenteTests": {
+      "aprobada": 13
+    },
+    "OutboxWhatsAppTests": {
+      "aprobada": 18
+    },
+    "PinRetiroConexionTests": {
+      "fallida": 2,
+      "aprobada": 1
+    },
+    "PinRetiroDesarrolloAisladoTests": {
+      "aprobada": 1,
+      "fallida": 1
+    },
+    "PinRetiroIntegracionTests": {
+      "fallida": 1
+    },
+    "PoliticaDepositoEncomiendaTests": {
+      "aprobada": 10
+    },
+    "PreparadorEvidenciaFacialRemitenteTests": {
+      "aprobada": 10
+    },
+    "RechazosEvidenciaFacialSqlTests": {
+      "fallida": 10
+    },
+    "ResultadoFacialTests": {
+      "aprobada": 4
+    },
+    "RevocacionTerminalTests": {
+      "fallida": 1
+    },
+    "SeguridadCargaHttpTests": {
+      "aprobada": 10
+    },
+    "ValidacionDepositoEncomiendaTests": {
+      "aprobada": 17
+    },
+    "VerificadorFacialNoDisponibleTests": {
+      "aprobada": 2
+    },
+    "VinculacionTerminalCompletaTests": {
+      "fallida": 1
+    },
+    "WhatsAppCloudServiceTests": {
+      "aprobada": 28
+    }
+  },
+  "pruebas": [
+    {
+      "prueba": "Synchro.Api.Tests.AutenticacionTerminalRealTests.CookieFalsa_DebeDevolver401",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.AutenticacionTerminalRealTests.SinCookie_DebeDevolver401",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.AutenticacionTerminalRealTests.TerminalActiva_PuedeConsultarSesion",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.AutenticacionTerminalRealTests.TerminalInexistente_DebeDevolver401",
+      "resultado": "fallida",
+      "motivo": "HTTP 500 en lugar de 401/404; prueba conectada a LocalDB"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.CodigoPinRetiroTests.PinGeneradoTieneFormatoCorrecto",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.CodigoPinRetiroTests.PinSoloCoincideConSuEncomiendaYDestinatario",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.DimensionesIncorrectas_SeRechazan(longitudA: 0, longitudB: 1024)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.DimensionesIncorrectas_SeRechazan(longitudA: 1023, longitudB: 1024)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.DimensionesIncorrectas_SeRechazan(longitudA: 1024, longitudB: 1025)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.Distancia_DebeSerSimetrica",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.PatronTodoCeros_SeRechaza",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.PatronesDiferentes_DistanciaPositiva",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.PatronesIdenticos_DistanciaCero",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.ReferenciaNula_SeRechaza",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.ValoresInvalidos_SeRechazan(tipo: \"Infinito\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ComparadorDescriptoresFacialesTests.ValoresInvalidos_SeRechazan(tipo: \"NaN\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConfiguracionFacialServidorTests.ConfiguracionActual_NoEmiteEvidenciaFacial",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConfiguracionFacialServidorTests.Servidor_UtilizaVerificadorNoDisponible",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaConsentimientoSqlTests.ReservasSinConsentimientoValidoNoPuedenContinuar",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Confirmado\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Pendiente\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Rechazado\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Revocado\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"SinSolicitud\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"TelefonoDistinto\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Vencida\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaReservaTerminalHttpTests.ReservaInexistente_DebeDevolver404",
+      "resultado": "fallida",
+      "motivo": "HTTP 500 en lugar de 401/404; prueba conectada a LocalDB"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaReservaTerminalHttpTests.SinCsrf_DebeDevolver400",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaReservaTerminalHttpTests.SinSesion_DebeDevolver401",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaReservaTerminalHttpTests.TokenMalFormado_DebeDevolver400",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsumoEvidenciaFacialSqlTests.ConsumoUnicoYConcurrente_DebeSerSeguro",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.AceptaIdentificadoresValidos(codigo: \"S01\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.AceptaIdentificadoresValidos(codigo: \"TST-12\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.CancelacionNoIniciaUnaOperacion",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.ConexionSoloAdmiteBasesAisladas(nombre: \"SynchroDB_Detalle_Pruebas\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.ConexionSoloAdmiteBasesAisladas(nombre: \"SynchroDB_Pruebas\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.NoAbreUnaBaseAjena(nombre: \"SynchroDB\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.NoAbreUnaBaseAjena(nombre: \"SynchroDB_Detalle_Pruebas\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.NoAbreUnaBaseAjena(nombre: \"master\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.NoPermiteAdjuntarArchivoNiAutorizarBasePrincipal",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: -1, terminal: 1, codigo: \"S01\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: 0, terminal: 1, codigo: \"S01\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: 1, terminal: 0, codigo: \"S01\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: 1, terminal: 1, codigo: \" \")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: 1, terminal: 1, codigo: \"\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: 1, terminal: 1, codigo: \"S01';--\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaDatosInvalidos(reserva: 1, terminal: 1, codigo: \"S01234567890\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaComandoTests.RechazaEvidenciaVacia",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.DosSolicitudesConcurrentesSoloDepositanUnaVez",
+      "resultado": "omitida",
+      "motivo": "SYNCHRO_SQL_DEPOSITO_TEST no configurada; SQL aplazado a la laptop"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ErrorPosteriorAlConsumoRevierteTodo",
+      "resultado": "omitida",
+      "motivo": "SYNCHRO_SQL_DEPOSITO_TEST no configurada; SQL aplazado a la laptop"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.MigracionEsIdempotenteYDepositoConsumeUnaSolaVez",
+      "resultado": "omitida",
+      "motivo": "SYNCHRO_SQL_DEPOSITO_TEST no configurada; SQL aplazado a la laptop"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.RechazaCondicionesInvalidasSinConsumir",
+      "resultado": "omitida",
+      "motivo": "SYNCHRO_SQL_DEPOSITO_TEST no configurada; SQL aplazado a la laptop"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaAutorizacionTests.DestinatarioNoPuedeConsultarEncomiendaAjena",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaAutorizacionTests.DestinatarioPuedeConsultarSuEncomienda",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaAutorizacionTests.EncomiendaInexistenteDevuelve404",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaTests.SinSesion_NoPuedeConsultarDetalle",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EmisionPinAisladoTests.EmitePinEnBaseAislada",
+      "resultado": "fallida",
+      "motivo": "Configuración privada secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.EvidenciaConsumida_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.EvidenciaCorrecta_CumpleLasReglas",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.EvidenciaEmitidaEnElFuturo_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.EvidenciaVencida_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.ExpiracionExacta_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.IdentificadorVacio_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.OtraReservaPersonaOTerminal_DebeRechazar(reserva: 101, remitente: 201, terminal: 302)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.OtraReservaPersonaOTerminal_DebeRechazar(reserva: 101, remitente: 202, terminal: 301)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.OtraReservaPersonaOTerminal_DebeRechazar(reserva: 102, remitente: 201, terminal: 301)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.SinEvidencia_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.VerificacionFacialIncompleta_DebeRechazar(rostro: False, pruebaVida: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.VerificacionFacialIncompleta_DebeRechazar(rostro: True, pruebaVida: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EvidenciaFacialRemitenteTests.VigenciaSuperiorADosMinutos_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.CifradoAutenticaContenidoOperacionYReserva",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.ClavesDeOtroServidorNoPuedenAbrirElMensaje",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.ColaVaciaNoRealizaEnvios",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.EspaciaLosReintentos(intento: 1, segundos: 30)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.EspaciaLosReintentos(intento: 2, segundos: 60)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.EspaciaLosReintentos(intento: 3, segundos: 120)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.EspaciaLosReintentos(intento: 4, segundos: 240)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.LimiteDeMetaRespetaRetryAfterYLaCaducidad",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.NoReintentaResultadosInseguros(fallo: Configuracion, esperado: \"Fallido\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.NoReintentaResultadosInseguros(fallo: DatosInvalidos, esperado: \"Fallido\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.NoReintentaResultadosInseguros(fallo: Indeterminado, esperado: \"Indeterminado\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.NoReintentaResultadosInseguros(fallo: Rechazado, esperado: \"Fallido\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.PinEstaVinculadoAUsoYDestinatarioConVigenciaLimitada",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.PinRechazaVigenciaFueraDelLimite(minutos: \"0\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.PinRechazaVigenciaFueraDelLimite(minutos: \"1441\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.ProcesadorSoloEnviaMensajesVigentesYAutenticos(vencido: False, alterado: False, esperado: \"Aceptado\", intentos: 1)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.ProcesadorSoloEnviaMensajesVigentesYAutenticos(vencido: False, alterado: True, esperado: \"Fallido\", intentos: 0)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.OutboxWhatsAppTests.ProcesadorSoloEnviaMensajesVigentesYAutenticos(vencido: True, alterado: False, esperado: \"Caducado\", intentos: 0)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroConexionTests.PuedeConsultarSaltEnBaseDePruebas",
+      "resultado": "fallida",
+      "motivo": "Configuración privada secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroConexionTests.RechazarPinConFormatoIncorrecto",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroConexionTests.ValidarPinDeEncomiendaInexistente",
+      "resultado": "fallida",
+      "motivo": "Configuración privada secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroDesarrolloAisladoTests.PermiteConexionALaBaseAislada",
+      "resultado": "fallida",
+      "motivo": "Configuración privada secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroDesarrolloAisladoTests.RechazaInstanciaPrincipalEnTesting",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroIntegracionTests.PinGeneradoEnCSharpSeValidaUnaSolaVez",
+      "resultado": "fallida",
+      "motivo": "Configuración privada secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.FaltaUnaCondicion_DebeRechazar(reserva: False, consentimiento: True, terminal: True, remitente: True, casillero: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.FaltaUnaCondicion_DebeRechazar(reserva: True, consentimiento: False, terminal: True, remitente: True, casillero: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.FaltaUnaCondicion_DebeRechazar(reserva: True, consentimiento: True, terminal: False, remitente: True, casillero: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.FaltaUnaCondicion_DebeRechazar(reserva: True, consentimiento: True, terminal: True, remitente: False, casillero: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.FaltaUnaCondicion_DebeRechazar(reserva: True, consentimiento: True, terminal: True, remitente: True, casillero: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.SinVerificacionFacial_DebeRechazar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.TodasLasCondicionesValidas_ApruebaLaRegla",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.VerificacionFacialIncompleta_DebeRechazar(rostroCoincide: False, pruebaVida: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.VerificacionFacialIncompleta_DebeRechazar(rostroCoincide: False, pruebaVida: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PoliticaDepositoEncomiendaTests.VerificacionFacialIncompleta_DebeRechazar(rostroCoincide: True, pruebaVida: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.BiometriaIncompleta_NoDebeEmitir(rostro: False, pruebaVida: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.BiometriaIncompleta_NoDebeEmitir(rostro: False, pruebaVida: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.BiometriaIncompleta_NoDebeEmitir(rostro: True, pruebaVida: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.Cancelacion_NoDebeContinuar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.CapturaVacia_NoDebeEmitir",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.IdentificadoresInvalidos_NoDebeVerificar(reserva: 0, remitente: 201, terminal: 301)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.IdentificadoresInvalidos_NoDebeVerificar(reserva: 101, remitente: 0, terminal: 301)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.IdentificadoresInvalidos_NoDebeVerificar(reserva: 101, remitente: 201, terminal: 0)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.ResultadoSimuladoAprobado_PreparaDatosCorrectos",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PreparadorEvidenciaFacialRemitenteTests.SinProveedorReal_NoDebeEmitirEvidencia",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"EvidenciaFutura\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"EvidenciaVencida\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"PruebaDeVidaFallida\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"RemitenteAjeno\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"ReservaAjena\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"ReservaCancelada\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"ReservaVencida\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"RostroNoCoincide\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"TerminalAjena\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"TerminalDesactivada\")",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ResultadoFacialTests.SoloApruebaCuandoAmbasCondicionesSeCumplen(rostroCoincide: False, pruebaDeVidaSuperada: False, resultadoEsperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ResultadoFacialTests.SoloApruebaCuandoAmbasCondicionesSeCumplen(rostroCoincide: False, pruebaDeVidaSuperada: True, resultadoEsperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ResultadoFacialTests.SoloApruebaCuandoAmbasCondicionesSeCumplen(rostroCoincide: True, pruebaDeVidaSuperada: False, resultadoEsperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ResultadoFacialTests.SoloApruebaCuandoAmbasCondicionesSeCumplen(rostroCoincide: True, pruebaDeVidaSuperada: True, resultadoEsperado: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RevocacionTerminalTests.TerminalDesactivada_PierdeAccesoConCookieVigente",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.LimitaIntentosSinLlegarALaBaseDeDatos",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.SinTerminalAutenticadaNoModificaCarga(ruta: \"/api/espacios-carga/C01/iniciar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.SinTerminalAutenticadaNoModificaCarga(ruta: \"/api/espacios-carga/C01/reservar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.SinTerminalAutenticadaNoModificaCarga(ruta: \"/api/sesiones-carga/1/finalizar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.TerminalSinCsrfNoModificaCarga(ruta: \"/api/espacios-carga/C01/iniciar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.TerminalSinCsrfNoModificaCarga(ruta: \"/api/espacios-carga/C01/reservar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.TerminalSinCsrfNoModificaCarga(ruta: \"/api/sesiones-carga/1/finalizar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.TerminalSobreHttpNoModificaCarga(ruta: \"/api/espacios-carga/C01/iniciar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.TerminalSobreHttpNoModificaCarga(ruta: \"/api/espacios-carga/C01/reservar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.SeguridadCargaHttpTests.TerminalSobreHttpNoModificaCarga(ruta: \"/api/sesiones-carga/1/finalizar\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Consentimiento_ConfirmadoFueraDePlazo_DebeRechazarse",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Consentimiento_DebeEstarConfirmado(estado: \"Confirmado\", esperado: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Consentimiento_DebeEstarConfirmado(estado: \"Pendiente\", esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Consentimiento_DebeEstarConfirmado(estado: \"Rechazado\", esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Consentimiento_DebeEstarConfirmado(estado: \"Revocado\", esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Consentimiento_SinFechaConfirmacion_DebeRechazarse",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Continuar_RequiereAmbasCondiciones(reserva: False, consentimiento: False, esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Continuar_RequiereAmbasCondiciones(reserva: False, consentimiento: True, esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Continuar_RequiereAmbasCondiciones(reserva: True, consentimiento: False, esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Continuar_RequiereAmbasCondiciones(reserva: True, consentimiento: True, esperado: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeEstarDentroDeSuVigencia(minutos: -1, esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeEstarDentroDeSuVigencia(minutos: 0, esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeEstarDentroDeSuVigencia(minutos: 1, esperado: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeTenerEstadoValido(estado: \"Cancelada\", esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeTenerEstadoValido(estado: \"Confirmado\", esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeTenerEstadoValido(estado: \"PendienteConsentimiento\", esperado: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ValidacionDepositoEncomiendaTests.Reserva_DebeTenerEstadoValido(estado: \"Vencida\", esperado: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.VerificadorFacialNoDisponibleTests.BackendUtilizaVerificadorFacialSeguro",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.VerificadorFacialNoDisponibleTests.RechazaVerificacionSinProveedorBiometrico",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.VinculacionTerminalCompletaTests.VinculacionCompleta_ImpideReutilizarToken",
+      "resultado": "fallida",
+      "motivo": "LocalDB no soportado en Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.CancelacionDelLlamadorSePropaga",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ClasificaRechazoSinReintentarDentroDelCliente(codigo: 400, esperado: Rechazado)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ClasificaRechazoSinReintentarDentroDelCliente(codigo: 401, esperado: Rechazado)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ClasificaRechazoSinReintentarDentroDelCliente(codigo: 429, esperado: Reintentable)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ClasificaRechazoSinReintentarDentroDelCliente(codigo: 500, esperado: Indeterminado)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ClasificaRechazoSinReintentarDentroDelCliente(codigo: 503, esperado: Indeterminado)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ConfiguracionInvalidaNoRealizaPeticiones(clave: \"WhatsApp:AccessToken\", valor: \"token\\r\\nmalicioso\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ConfiguracionInvalidaNoRealizaPeticiones(clave: \"WhatsApp:AccessToken\", valor: null)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ConfiguracionInvalidaNoRealizaPeticiones(clave: \"WhatsApp:ApiVersion\", valor: \"v26.0\\n\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ConfiguracionInvalidaNoRealizaPeticiones(clave: \"WhatsApp:Idioma\", valor: \"es\\n\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.ConfiguracionInvalidaNoRealizaPeticiones(clave: \"WhatsApp:PhoneNumberId\", valor: \"../messages\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.DatosInvalidosNoRealizanPeticiones(telefono: \"+00000000\", plantilla: \"pin_retiro\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.DatosInvalidosNoRealizanPeticiones(telefono: \"+50499990001\", plantilla: \"../pin\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.DatosInvalidosNoRealizanPeticiones(telefono: \"+50499990001\", plantilla: \"PIN\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.DatosInvalidosNoRealizanPeticiones(telefono: \"+50499990001\", plantilla: \"pin_retiro\\n\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.DatosInvalidosNoRealizanPeticiones(telefono: \"+50499990001\\n\", plantilla: \"pin_retiro\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.DatosInvalidosNoRealizanPeticiones(telefono: \"50499990001\", plantilla: \"pin_retiro\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.EnviaSoloCloudApiYNoConfundeAceptacionConEntrega",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.FalloDeTransporteOTimeoutNoConfirmaNiReenvia(timeout: False)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.FalloDeTransporteOTimeoutNoConfirmaNiReenvia(timeout: True)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestaExcesivaQuedaIndeterminada",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"[]\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"no-json\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"null\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"{\\\"messages\\\":[]}\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"{\\\"messages\\\":[null]}\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"{\\\"messages\\\":[{\\\"id\\\":\\\"\\\"}]}\")",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.WhatsAppCloudServiceTests.RespuestasNoConfirmadasNoSeReenvianAutomaticamente(cuerpo: \"{\\\"messages\\\":[{\\\"id\\\":\\\"wamid.test\\\\n\\\"}]}\")",
+      "resultado": "aprobada"
+    }
+  ]
+}
