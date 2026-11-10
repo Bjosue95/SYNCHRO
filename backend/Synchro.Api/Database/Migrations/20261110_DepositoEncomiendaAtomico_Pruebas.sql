@@ -44,7 +44,8 @@ CREATE OR ALTER PROCEDURE dbo.DepositarEncomiendaReservaSynchro
     @ReservaId INT,
     @TerminalId INT,
     @EvidenciaId UNIQUEIDENTIFIER,
-    @CodigoCasillero NVARCHAR(10)
+    @CodigoCasillero NVARCHAR(10),
+    @TokenGestionHash VARBINARY(32)=NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -76,7 +77,8 @@ BEGIN
                @Telefono = CASE WHEN LEFT(TelefonoDestinatario,1) = N'+'
                                 THEN TelefonoDestinatario ELSE N'+' + TelefonoDestinatario END
         FROM dbo.PreReservasEncomiendasWeb WITH (UPDLOCK, HOLDLOCK)
-        WHERE Id = @ReservaId AND Estado = N'PendienteConsentimiento' AND FechaExpiracion > @Ahora;
+        WHERE Id = @ReservaId AND Estado = N'PendienteConsentimiento' AND FechaExpiracion > @Ahora
+          AND (@TokenGestionHash IS NULL OR (DATALENGTH(@TokenGestionHash)=32 AND TokenGestionHash=@TokenGestionHash));
         IF @Tamano IS NULL OR EXISTS (
             SELECT 1 FROM dbo.DepositosPreReservaEncomienda WITH (UPDLOCK, HOLDLOCK) WHERE ReservaId = @ReservaId)
             THROW 55606, 'Reserva no disponible.', 1;

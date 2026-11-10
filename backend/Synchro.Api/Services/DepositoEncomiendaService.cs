@@ -7,7 +7,10 @@ namespace Synchro.Api.Services;
 // Contrato interno: no acepta booleanos de aprobacion, telefonos ni identidad
 // de terminal enviados por el navegador. SQL vuelve a comprobar los vinculos.
 internal sealed record DepositoEncomiendaComando(
-    int ReservaId, int TerminalId, Guid EvidenciaId, string CodigoCasillero);
+    int ReservaId, int TerminalId, Guid EvidenciaId, string CodigoCasillero)
+{
+    public byte[]? TokenGestionHash { get; init; }
+}
 
 internal sealed record DepositoEncomiendaResultado(int UsoId, string CodigoCasillero);
 
@@ -19,6 +22,7 @@ internal sealed class DepositoEncomiendaService(IConfiguration configuracion,
         ArgumentNullException.ThrowIfNull(comando);
         if (comando.ReservaId <= 0 || comando.TerminalId <= 0 ||
             comando.EvidenciaId == Guid.Empty ||
+            (comando.TokenGestionHash is not null && comando.TokenGestionHash.Length != 32) ||
             string.IsNullOrWhiteSpace(comando.CodigoCasillero) ||
             comando.CodigoCasillero.Length > 10 ||
             comando.CodigoCasillero.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-'))
@@ -48,6 +52,7 @@ internal sealed class DepositoEncomiendaService(IConfiguration configuracion,
             CommandType = CommandType.StoredProcedure
         })
         {
+            consulta.Parameters.Add("@TokenGestionHash", SqlDbType.VarBinary,32).Value = (object?)comando.TokenGestionHash??DBNull.Value;
             consulta.Parameters.Add("@ReservaId", SqlDbType.Int).Value = comando.ReservaId;
             consulta.Parameters.Add("@TerminalId", SqlDbType.Int).Value = comando.TerminalId;
             consulta.Parameters.Add("@EvidenciaId", SqlDbType.UniqueIdentifier).Value = comando.EvidenciaId;

@@ -1,0 +1,87 @@
+# Issue #1: implementación por etapas
+
+Tarea: https://github.com/Bjosue95/SYNCHRO/issues/1
+Base actualizada: `refactor/arquitectura-backend`, `5f6cd39`.
+Rama de desarrollo: `feat/issue-1-encomiendas-end-to-end`, para revisión hacia esa base.
+Se conserva la corrección SQL de reversión del propietario y no se modifica main ni demos/.
+
+## Etapa 1: depósito y retiro conectados a HTTP
+
+Rutas registradas únicamente en Development + SynchroDB_Pruebas, con cookie de terminal,
+HTTPS, CSRF, rate limiting y respuestas `Cache-Control: no-store`:
+
+| POST | Entrada | Requisito adicional |
+|---|---|---|
+| `/api/terminales/encomiendas/reservas/{id}/evidencias-remitente` | Captura binaria `application/octet-stream`, máximo 256 KiB | Credencial `X-SYNCHRO-RESERVA`; identidad del remitente desde vínculo verificado en SQL |
+| `/api/terminales/encomiendas/reservas/{id}/depositar` | `{"evidenciaId":"GUID","codigoCasillero":"S01"}` | Misma credencial; el teléfono procede de la reserva, no se pide otra vez |
+| `/api/terminales/encomiendas/usos/{id}/evidencias-destinatario` | Captura binaria, máximo 256 KiB | Cookie de sesión Destinatarios, además de la terminal |
+| `/api/terminales/encomiendas/usos/{id}/retirar` | `{"evidenciaId":"GUID","pin":"PIN_TEMPORAL"}` | Sesión del destinatario propietario del uso |
+
+Obtener CSRF desde el flujo existente, enviando `X-CSRF-TOKEN` junto a su cookie. La
+terminal y el destinatario proceden de sus identidades autenticadas, nunca de IDs del JSON.
+La credencial de reserva es de 32 bytes en hexadecimal y no viaja en URLs ni logs.
+
+El contrato `IFlujoEncomiendasTerminal` tiene implementación SQL para estos endpoints y
+reutiliza el servicio existente de depósito, HMAC de PIN y outbox. El hash de la credencial
+se comprueba también dentro de la transacción SQL de depósito, evitando que una consulta
+preliminar sea la única autorización. El código anterior conserva su uso interno de confianza.
+
+El nuevo procedimiento de retiro comprueba terminal activa, pertenencia al destinatario,
+uso ocupado, PIN con salt vigente, máximo cinco intentos y evidencia facial de la misma
+persona/uso/terminal emitida después del depósito y durante un máximo de dos minutos.
+En una transacción consume PIN y rostro, finaliza el uso, libera el casillero, cancela la
+notificación pendiente y registra auditoría. Un fallo en auditoría debe revertir todos esos
+cambios. La hora definitiva se obtiene después de adquirir los bloqueos.
+
+La captura temporal se limita y se sobrescribe al salir; no se persisten imágenes ni
+resultados de aprobación enviados por el navegador. El proveedor facial normal sigue siendo
+`VerificadorFacialNoDisponible`: **las rutas sensibles devuelven 503 y no abren casilleros**.
+El verificador simulado y el repositorio en memoria están solo en el proyecto de pruebas,
+no son opciones activables en el binario de la API ni un sustituto de biometría real.
+En producción estas rutas de prototipo no se registran (404).
+
+### Migraciones / Windows
+
+Aplicar con parada al primer error, solo en la base aislada y después de sus prerrequisitos:
+
+1. Actualizar `20261110_DepositoEncomiendaAtomico_Pruebas.sql` (nuevo parámetro opcional de
+   hash de credencial; conserva compatibilidad con llamadas internas y exige transacción).
+2. Aplicar `20261110_RetiroEncomiendaTerminal_Pruebas.sql` (evidencias de retiro, auditoría y
+   procedimiento de consumo conjunto). La guardia rechaza SynchroDB y cualquier otra base.
+
+La fixture existente incorpora esta migración y limpia únicamente sus registros sintéticos.
+Los cuatro casos externos nuevos llevan `[Trait("Category","SqlAislado")]` y Fact normal,
+sin Skip añadido. Ejecutar en Windows con `SYNCHRO_SQL_DEPOSITO_TEST` configurada:
+
+```powershell
+dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --filter Category=SqlAislado
+```
+
+### Resultados ejecutados en Cloud (Linux)
+
+- Compilación de API y pruebas: sin errores ni advertencias.
+- Pruebas HTTP nuevas: **20 aprobadas**. Cubren recorrido de captura/depósito/retiro,
+  concurrencia simulada, consumo único, bloqueo de PIN, consentimiento y credencial ajenos,
+  rechazo facial, JSON booleano falso como evidencia, tamaño de captura, doble sesión,
+  CSRF/HTTPS y ausencia de rutas en Production.
+- Suite completa sin filtros: **211 casos: 171 aprobados, 36 fallidos, 4 omitidos**.
+- Los 32 fallos de LocalDB/configuración ya documentados permanecen. Los cuatro fallos
+  nuevos son exactamente los casos SQL externos sin conexión configurada: concurrencia
+  de retiro, bloqueo de PIN, reversión tras fallo de auditoría y credencial de reserva ajena.
+  Fallan por `Conexion de pruebas no configurada`; no se les atribuye resultado exitoso.
+- Las cuatro omisiones son las anteriores de la fixture. No se añadieron nuevas omisiones.
+- La tarea informa 196/196 aprobadas en Windows en 5f6cd39; esta máquina no ha reproducido
+  esa ejecución ni las migraciones nuevas. Los tests HTTP usan estado simulado en memoria;
+  no prueban persistencia ni aislamiento de transacciones de SQL Server.
+
+TRX/log de esta etapa: `/workspace/synchro-test-results/issue-1/`.
+
+## Pendientes del alcance global
+
+No se declara terminado el backend. Faltan enrolamiento/vinculación confiable de identidades,
+proveedor facial y prueba de vida reales, visitante integrado, reemisión segura de PIN,
+completar verificación/consentimiento/invitaciones WhatsApp, resguardo web, carga prepagada,
+frío/calor, administración/reportes, OpenAPI e instalación completa reproducible. Los casos
+SQL nuevos requieren validación en la laptop; no se enviaron mensajes ni se simuló una entrega
+real de WhatsApp. Las restricciones de hardware/credenciales no se deben usar para habilitar
+aperturas sin verificación del servidor.

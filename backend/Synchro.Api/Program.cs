@@ -17,6 +17,7 @@ builder.Services.AddDataProtection();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<Synchro.Api.Services.PreparadorPinEncomienda>();
 builder.Services.AddScoped<Synchro.Api.Services.DepositoEncomiendaService>();
+builder.Services.AddScoped<Synchro.Api.Services.IFlujoEncomiendasTerminal,Synchro.Api.Services.FlujoEncomiendasTerminalSql>();
 builder.Services.AddScoped<ProtectorMensajeWhatsApp>();
 builder.Services.AddScoped<SqlOutboxWhatsApp>();
 builder.Services.AddScoped<IAlmacenOutboxWhatsApp>(s => s.GetRequiredService<SqlOutboxWhatsApp>());
@@ -452,6 +453,7 @@ if (app.Environment.IsDevelopment() &&
     app.MapConsentimientosPreReservaWhatsApp();
     // Emision y consulta preliminar exclusivas de la terminal (sin deposito).
     app.MapEncomiendasTerminalEndpoints();
+    app.MapFlujoEncomiendasTerminalEndpoints();
 }
 
 app.Run();

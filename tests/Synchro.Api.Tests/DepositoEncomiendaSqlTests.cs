@@ -35,14 +35,16 @@ public sealed class DepositoEncomiendaSqlTests
 
     private static readonly IDataProtectionProvider Proteccion = new EphemeralDataProtectionProvider();
     private static readonly string ClavePrueba = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-    private static DepositoEncomiendaService Servicio()
-    {
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    private static IConfiguration Configuracion()
+        => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:SynchroDB"] = Cadena,
             ["RetiroPin:ClaveHmac"] = ClavePrueba,
             ["WhatsApp:PlantillaPinRetiro"] = "pin_retiro"
         }).Build();
+    private static DepositoEncomiendaService Servicio()
+    {
+        var config=Configuracion();
         return new(config, new PreparadorPinEncomienda(config, TimeProvider.System),
             new SqlOutboxWhatsApp(config, new ProtectorMensajeWhatsApp(Proteccion)));
     }
@@ -51,7 +53,7 @@ public sealed class DepositoEncomiendaSqlTests
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] { "EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql" })
+        foreach (string archivo in new[] { "EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql" })
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -113,6 +115,8 @@ public sealed class DepositoEncomiendaSqlTests
         await EjecutarAsync(c, d, """
             SET XACT_ABORT ON;
             BEGIN TRANSACTION;
+            DELETE dbo.EvidenciasFacialesRetiroEncomienda WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
+            DELETE dbo.AuditoriaEncomiendasPrototipo WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.OutboxWhatsApp WHERE ReservaId=@reserva;
             DELETE dbo.CodigosRetiroEncomiendaPrototipo WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.ParticipantesUso WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
@@ -227,6 +231,120 @@ public sealed class DepositoEncomiendaSqlTests
             Assert.False((bool)(await q.ExecuteScalarAsync())!);
         }
         finally { await LimpiarAsync(c, d); }
+    }
+
+    // Nuevos casos externos sin Skip: si se ejecutan sin la conexion SQL
+    // declarada deben fallar explicitamente, nunca aparentar validacion.
+    private static async Task<(int Uso,Guid Rostro,string Pin)> PrepararRetiroAsync(SqlConnection c,Datos d)
+    {
+        var deposito=await Servicio().DepositarAsync(Comando(d));
+        await using var q=new SqlCommand("SELECT ContenidoProtegido FROM dbo.OutboxWhatsApp WHERE ReservaId=@reserva",c);
+        q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
+        var cifrado=Assert.IsType<byte[]>(await q.ExecuteScalarAsync());
+        var mensaje=new ProtectorMensajeWhatsApp(Proteccion).Abrir(d.Evidencia,d.Reserva,cifrado);
+        var ahora=DateTimeOffset.UtcNow;Guid rostro=Guid.NewGuid();
+        await new FlujoEncomiendasTerminalSql(Configuracion(),Servicio(),TimeProvider.System)
+            .GuardarEvidenciaRetiroAsync(new(rostro,deposito.UsoId,d.Destinatario,d.Terminal,ahora,ahora.AddMinutes(2)),default);
+        return(deposito.UsoId,rostro,mensaje.Variables[0]);
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task RetiroSqlConcurrenteConsumePinYRostroUnaSolaVez()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var (uso,rostro,pin)=await PrepararRetiroAsync(c,d);
+            var flujo=new FlujoEncomiendasTerminalSql(Configuracion(),Servicio(),TimeProvider.System);
+            var comando=new RetirarEncomiendaComando(uso,d.Destinatario,d.Terminal,rostro,pin);
+            var resultados=await Task.WhenAll(flujo.RetirarAsync(comando,default),flujo.RetirarAsync(comando,default));
+            Assert.Single(resultados,r=>r==ResultadoRetiroEncomienda.Retirado);
+            Assert.Single(resultados,r=>r==ResultadoRetiroEncomienda.NoDisponible);
+            await using var q=new SqlCommand("""
+                SELECT u.Estado,c.Estado,p.Consumido,e.ConsumidaUtc,
+                    (SELECT COUNT(*) FROM dbo.AuditoriaEncomiendasPrototipo WHERE UsoId=@uso AND Accion=N'Retiro confirmado'),
+                    (SELECT Estado FROM dbo.OutboxWhatsApp WHERE ReservaId=@reserva)
+                FROM dbo.UsosCasillero u JOIN dbo.Casilleros c ON c.Codigo=u.CodigoCasillero
+                JOIN dbo.CodigosRetiroEncomiendaPrototipo p ON p.UsoId=u.Id
+                JOIN dbo.EvidenciasFacialesRetiroEncomienda e ON e.UsoId=u.Id
+                WHERE u.Id=@uso;
+                """,c);
+            q.Parameters.Add("@uso",SqlDbType.Int).Value=uso;q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
+            await using var r=await q.ExecuteReaderAsync();Assert.True(await r.ReadAsync());
+            Assert.Equal("Finalizado",r.GetString(0));Assert.Equal("Disponible",r.GetString(1));Assert.True(r.GetBoolean(2));
+            Assert.False(r.IsDBNull(3));Assert.Equal(1,r.GetInt32(4));Assert.Equal("Cancelado",r.GetString(5));
+        }
+        finally{await LimpiarAsync(c,d);}
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task RetiroSqlBloqueaPinSinConsumirBiometriaNiLiberarEquipo()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var(uso,rostro,pin)=await PrepararRetiroAsync(c,d);
+            var flujo=new FlujoEncomiendasTerminalSql(Configuracion(),Servicio(),TimeProvider.System);
+            string incorrecto=pin=="000000"?"000001":"000000";
+            var comando=new RetirarEncomiendaComando(uso,d.Destinatario,d.Terminal,rostro,incorrecto);
+            for(int i=1;i<=5;i++)
+                Assert.Equal(i<5?ResultadoRetiroEncomienda.PinIncorrecto:ResultadoRetiroEncomienda.PinBloqueado,
+                    await flujo.RetirarAsync(comando,default));
+            Assert.Equal(ResultadoRetiroEncomienda.PinBloqueado,await flujo.RetirarAsync(comando with{Pin=pin},default));
+            await using var q=new SqlCommand("SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",c);
+            q.Parameters.Add("@codigo",SqlDbType.NVarChar,10).Value=d.Codigo;
+            Assert.Equal("Ocupado",await q.ExecuteScalarAsync());
+        }
+        finally{await LimpiarAsync(c,d);}
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task RetiroSqlRevierteConsumosSiFallaAuditoria()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var(uso,rostro,pin)=await PrepararRetiroAsync(c,d);
+            await using(var q=new SqlCommand($"""
+                CREATE TRIGGER dbo.FalloRetiroFixture ON dbo.AuditoriaEncomiendasPrototipo
+                AFTER INSERT AS
+                BEGIN
+                    IF EXISTS(SELECT 1 FROM inserted WHERE UsoId={uso}) THROW 56090,'Fallo sintetico de auditoria.',1;
+                END;
+                """,c)){await q.ExecuteNonQueryAsync();}
+            var flujo=new FlujoEncomiendasTerminalSql(Configuracion(),Servicio(),TimeProvider.System);
+            var error=await Assert.ThrowsAsync<SqlException>(()=>flujo.RetirarAsync(new(uso,d.Destinatario,d.Terminal,rostro,pin),default));
+            Assert.Equal(56090,error.Number);
+            await using var q2=new SqlCommand("""
+                SELECT p.Consumido,e.ConsumidaUtc,u.Estado,c.Estado
+                FROM dbo.CodigosRetiroEncomiendaPrototipo p
+                JOIN dbo.EvidenciasFacialesRetiroEncomienda e ON e.UsoId=p.UsoId
+                JOIN dbo.UsosCasillero u ON u.Id=p.UsoId JOIN dbo.Casilleros c ON c.Codigo=u.CodigoCasillero
+                WHERE p.UsoId=@uso;
+                """,c);
+            q2.Parameters.Add("@uso",SqlDbType.Int).Value=uso;
+            await using var r=await q2.ExecuteReaderAsync();Assert.True(await r.ReadAsync());
+            Assert.False(r.GetBoolean(0));Assert.True(r.IsDBNull(1));Assert.Equal("Ocupado",r.GetString(2));Assert.Equal("Ocupado",r.GetString(3));
+        }
+        finally{await EjecutarAsync(c,d,"DROP TRIGGER IF EXISTS dbo.FalloRetiroFixture;");await LimpiarAsync(c,d);}
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task CredencialAjenaEnDepositoNoConsumeEvidencia()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var comando=Comando(d) with{TokenGestionHash=RandomNumberGenerator.GetBytes(32)};
+            var error=await Assert.ThrowsAsync<SqlException>(()=>Servicio().DepositarAsync(comando));Assert.Equal(55606,error.Number);
+            await using var q=new SqlCommand("SELECT Consumida FROM dbo.EvidenciasFacialesRemitente WHERE ReservaId=@reserva",c);
+            q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;Assert.False((bool)(await q.ExecuteScalarAsync())!);
+        }
+        finally{await LimpiarAsync(c,d);}
     }
 
     [SqlDepositoFact]
