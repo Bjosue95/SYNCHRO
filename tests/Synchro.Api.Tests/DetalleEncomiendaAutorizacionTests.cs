@@ -8,6 +8,7 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
+[Collection("SQL Detalle Pruebas")]
 public class DetalleEncomiendaAutorizacionTests
 {
     // Obtener identificadores de prueba sin modificar SQL Server.

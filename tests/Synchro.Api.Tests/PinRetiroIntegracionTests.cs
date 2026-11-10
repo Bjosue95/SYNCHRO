@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
+[Collection("SQL Detalle Pruebas")]
 public class PinRetiroIntegracionTests
 {
     [Fact]
