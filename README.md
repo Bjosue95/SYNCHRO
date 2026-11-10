@@ -22,3 +22,13 @@ resguardo temporal y carga de dispositivos.
 ## Estado del proyecto
 
 En desarrollo.
+
+## Desarrollo del backend (issue #1)
+
+- [Avance comprobado y resultados de pruebas](docs/ISSUE-1-AVANCE.md).
+- [API de servicios temporales, prepago y configuración](docs/SERVICIOS-TEMPORALES.md).
+- OpenAPI generado: `/openapi/v1.json`, solo administrador, HTTPS y entorno de pruebas.
+
+El hardware y los pagos del prototipo son simulados; las integraciones reales y la
+validación SQL pendientes están identificadas en el informe. No ejecutar migraciones
+de prueba contra la base principal `SynchroDB`.

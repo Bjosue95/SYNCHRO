@@ -49,6 +49,9 @@ public static class CargaDispositivosEndpoints
 
         operaciones.MapPost("/api/espacios-carga/{codigo}/reservar", async (string codigo) =>
         {
+            if(app.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado"))
+                return Results.Conflict(new {mensaje="Usa una reserva prepagada para esta operacion."});
+
 
             var cadena = app.Configuration.GetConnectionString("SynchroDB");
 
@@ -79,6 +82,9 @@ public static class CargaDispositivosEndpoints
 
         operaciones.MapPost("/api/espacios-carga/{codigo}/iniciar", async (string codigo, IniciarCargaSolicitud solicitud) =>
         {
+            if(app.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado"))
+                return Results.Conflict(new {mensaje="Usa una reserva prepagada para esta operacion."});
+
             if (solicitud.TipoDispositivo is not ("Celular" or "Laptop"))
             {
                 return Results.BadRequest(new
@@ -135,6 +141,9 @@ public static class CargaDispositivosEndpoints
 
         operaciones.MapPost("/api/sesiones-carga/{id}/finalizar", async (int id) =>
         {
+            if(app.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado"))
+                return Results.Conflict(new {mensaje="Usa una reserva prepagada para esta operacion."});
+
             var cadena = app.Configuration.GetConnectionString("SynchroDB");
 
             using var conexion = new SqlConnection(cadena);

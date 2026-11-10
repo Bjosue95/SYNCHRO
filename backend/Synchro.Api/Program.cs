@@ -13,6 +13,12 @@ using Synchro.Api.Services.WhatsApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<Synchro.Api.Services.Temporales.IRepositorioServicioTemporal,Synchro.Api.Services.Temporales.RepositorioServicioTemporalSql>();
+builder.Services.AddScoped<Synchro.Api.Services.Temporales.ServicioTemporal>();
+if(builder.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado")&&
+    builder.Configuration.GetValue("ServiciosTemporales:ProcesarVencimientos",true))
+    builder.Services.AddHostedService<Synchro.Api.Services.Temporales.VencimientoServiciosTemporalesWorker>();
+builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<Synchro.Api.Services.IPreReservasEncomienda,Synchro.Api.Services.PreReservaEncomiendaService>();
@@ -24,13 +30,7 @@ builder.Services.AddScoped<SqlOutboxWhatsApp>();
 builder.Services.AddScoped<IAlmacenOutboxWhatsApp>(s => s.GetRequiredService<SqlOutboxWhatsApp>());
 builder.Services.AddScoped<ProcesadorOutboxWhatsApp>();
 if (builder.Configuration.GetValue<bool>("WhatsApp:Outbox:Habilitado"))
-{
-    if (!builder.Environment.IsDevelopment())
-        throw new InvalidOperationException("La outbox del prototipo solo puede activarse en Development.");
-    Synchro.Api.Services.ConexionSqlAislada.Exigir(
-        builder.Configuration.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
     builder.Services.AddHostedService<OutboxWhatsAppWorker>();
-}
 
 builder.Services.AddHttpClient<
     IWhatsAppCloudService,
@@ -402,6 +402,21 @@ if (builder.Environment.IsDevelopment() &&
 }
 
 var app = builder.Build();
+// Validar tambien la configuracion final del host: incluye los proveedores
+// agregados al construirlo. Los trabajadores aun no han arrancado.
+foreach(string modulo in new[]{"ServiciosTemporales:Habilitado","WhatsApp:Outbox:Habilitado"})
+{
+    if(!app.Configuration.GetValue<bool>(modulo))continue;
+    if(!app.Environment.IsDevelopment())throw new InvalidOperationException("Los modulos de prototipo requieren Development.");
+    Synchro.Api.Services.ConexionSqlAislada.Exigir(app.Configuration.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");
+}
+
+if(app.Environment.IsDevelopment())
+    app.UseWhen(c=>c.Request.Path.StartsWithSegments("/openapi"),rama=>rama.Use(async(contexto,siguiente)=>
+    {
+        if(!contexto.Request.IsHttps){contexto.Response.StatusCode=400;return;}
+        await siguiente(contexto);
+    }));
 
 app.UseRouting();
 app.UseRateLimiter();
@@ -455,6 +470,8 @@ if (app.Environment.IsDevelopment() &&
     // Emision y consulta preliminar exclusivas de la terminal (sin deposito).
     app.MapEncomiendasTerminalEndpoints();
     app.MapFlujoEncomiendasTerminalEndpoints();
+    app.MapServiciosTemporalesEndpoints();
+    app.MapOpenApi().RequireAuthorization("SoloAdministradores");
 }
 
 app.Run();

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Synchro.Api.Services;
+using Synchro.Api.Services.Temporales;
 
 namespace Synchro.Api.Tests;
 
@@ -40,6 +41,7 @@ public sealed class DepositoEncomiendaSqlTests
         {
             ["ConnectionStrings:SynchroDB"] = Cadena,
             ["RetiroPin:ClaveHmac"] = ClavePrueba,
+            ["ServiciosTemporales:ClaveHmac"] = ClavePrueba,
             ["WhatsApp:PlantillaPinRetiro"] = "pin_retiro"
         }).Build();
     private static DepositoEncomiendaService Servicio()
@@ -53,7 +55,7 @@ public sealed class DepositoEncomiendaSqlTests
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql" })
+        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql", "ServiciosTemporales.sql" })
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -115,6 +117,10 @@ public sealed class DepositoEncomiendaSqlTests
         await EjecutarAsync(c, d, """
             SET XACT_ABORT ON;
             BEGIN TRANSACTION;
+            DELETE dbo.OperacionesServiciosTemporales WHERE Codigo=@codigo;
+            DELETE dbo.CompartimentosServiciosTemporales WHERE Codigo=@codigo;
+            DELETE dbo.AuditoriaServiciosTemporales WHERE Codigo=@codigo;
+            DELETE dbo.IncidenciasServiciosTemporales WHERE Codigo=@codigo;
             DELETE dbo.EvidenciasFacialesRetiroEncomienda WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.AuditoriaEncomiendasPrototipo WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.OutboxWhatsApp WHERE ReservaId=@reserva;
@@ -255,6 +261,80 @@ public sealed class DepositoEncomiendaSqlTests
             {q.Parameters.Add("@id",SqlDbType.Int).Value=creada;q.Parameters.Add("@terminal",SqlDbType.Int).Value=d.Terminal;await q.ExecuteNonQueryAsync();}
             await LimpiarAsync(c,d);
         }
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task ServicioTemporalSqlConectaPrepagoVencimientoYRetiro()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var reloj=new RelojServicioTemporal();
+            var repo=new RepositorioServicioTemporalSql(Configuracion());var servicio=new ServicioTemporal(repo,Configuracion(),reloj);
+            await servicio.ConfigurarAsync(ServiciosTemporalesTests.Compartimento(ClaseServicioTemporal.Personal)with{Codigo=d.Codigo},7,default);
+            var reserva=await servicio.ReservarAsync(d.Codigo,30,null,default);
+            var pago=await servicio.PagarAsync(d.Codigo,reserva.Operacion.Id,reserva.Credencial,Guid.NewGuid(),null,default);
+            await servicio.IniciarAsync(d.Codigo,reserva.Operacion.Id,reserva.Credencial,d.Terminal,true,default);
+            reloj.Avanzar(TimeSpan.FromMinutes(31));
+            Assert.Equal(EstadoServicioTemporal.Agotada,(await servicio.ConsultarAsync(d.Codigo,reserva.Operacion.Id,reserva.Credencial,default)).Estado);
+            Assert.True((await servicio.RetirarAsync(d.Codigo,reserva.Operacion.Id,reserva.Credencial,d.Terminal,pago.PinRetiro!,default)).Autorizado);
+            reloj.Avanzar(TimeSpan.FromMinutes(1));var reporte=await servicio.ReportarAsync(reloj.GetUtcNow().AddHours(-1),reloj.GetUtcNow(),default);
+            // La fixture puede conservar historiales ajenos: verificar solo nuestro registro abajo.
+            Assert.True(reporte.Finalizadas>=1);
+            await using var q=new SqlCommand("""
+                SELECT c.Estado,o.Estado,o.Monto,o.Pagado,o.PagoAnulado
+                FROM dbo.Casilleros c JOIN dbo.OperacionesServiciosTemporales o ON o.Codigo=c.Codigo WHERE o.Id=@id;
+                """,c);
+            q.Parameters.Add("@id",SqlDbType.UniqueIdentifier).Value=reserva.Operacion.Id;
+            await using var r=await q.ExecuteReaderAsync();Assert.True(await r.ReadAsync());
+            Assert.Equal("Disponible",r.GetString(0));Assert.Equal("Finalizada",r.GetString(1));Assert.Equal(10,r.GetDecimal(2));Assert.True(r.GetBoolean(3));Assert.False(r.GetBoolean(4));
+        }
+        finally{await LimpiarAsync(c,d);}
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task ServicioTemporalSqlNoDuplicaReservaConcurrente()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var servicio=new ServicioTemporal(new RepositorioServicioTemporalSql(Configuracion()),Configuracion(),TimeProvider.System);
+            await servicio.ConfigurarAsync(ServiciosTemporalesTests.Compartimento(ClaseServicioTemporal.Personal)with{Codigo=d.Codigo},7,default);
+            async Task<bool> Reservar()
+            {try{await servicio.ReservarAsync(d.Codigo,30,d.Terminal,default);return true;}catch(ServicioTemporalNoDisponibleException){return false;}}
+            var resultados=await Task.WhenAll(Reservar(),Reservar());Assert.Single(resultados,r=>r);
+            await using var q=new SqlCommand("SELECT COUNT(*) FROM dbo.OperacionesServiciosTemporales WHERE Codigo=@codigo",c);
+            q.Parameters.Add("@codigo",SqlDbType.NVarChar,10).Value=d.Codigo;Assert.Equal(1,Convert.ToInt32(await q.ExecuteScalarAsync()));
+        }
+        finally{await LimpiarAsync(c,d);}
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task ServicioTemporalSqlReviertePagoSiFallaAuditoria()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var servicio=new ServicioTemporal(new RepositorioServicioTemporalSql(Configuracion()),Configuracion(),TimeProvider.System);
+            await servicio.ConfigurarAsync(ServiciosTemporalesTests.Compartimento(ClaseServicioTemporal.Personal)with{Codigo=d.Codigo},7,default);
+            var reserva=await servicio.ReservarAsync(d.Codigo,30,d.Terminal,default);
+            await using(var q=new SqlCommand($"""
+                CREATE TRIGGER dbo.FalloServicioTemporalFixture ON dbo.AuditoriaServiciosTemporales AFTER INSERT AS
+                BEGIN
+                    IF EXISTS(SELECT 1 FROM inserted WHERE Codigo=N'{d.Codigo}' AND Accion=N'Pago simulado confirmado')
+                        THROW 56290,'Fallo sintetico de auditoria.',1;
+                END;
+                """,c)){await q.ExecuteNonQueryAsync();}
+            var error=await Assert.ThrowsAsync<SqlException>(()=>servicio.PagarAsync(d.Codigo,reserva.Operacion.Id,reserva.Credencial,Guid.NewGuid(),d.Terminal,default));
+            Assert.Equal(56290,error.Number);
+            await using var comprobar=new SqlCommand("SELECT Estado,Pagado FROM dbo.OperacionesServiciosTemporales WHERE Id=@id",c);
+            comprobar.Parameters.Add("@id",SqlDbType.UniqueIdentifier).Value=reserva.Operacion.Id;
+            await using var r=await comprobar.ExecuteReaderAsync();Assert.True(await r.ReadAsync());Assert.Equal("Reservada",r.GetString(0));Assert.False(r.GetBoolean(1));
+        }
+        finally{await EjecutarAsync(c,d,"DROP TRIGGER IF EXISTS dbo.FalloServicioTemporalFixture;");await LimpiarAsync(c,d);}
     }
 
     // Nuevos casos externos sin Skip: si se ejecutan sin la conexion SQL

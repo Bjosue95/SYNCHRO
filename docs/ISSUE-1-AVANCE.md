@@ -105,3 +105,47 @@ Pruebas nuevas: 10 aprobadas para web/tablet, formatos inválidos, respuesta sin
 credencial protegida y rechazo de visitante anónimo. Tras añadir trazabilidad, las 30 pruebas
 HTTP/validación de ambas etapas volvieron a pasar. Se añadió un caso SQL externo de origen,
 terminal y hash de credencial, sin Skip: queda pendiente de ejecutar con conexión real.
+
+## Etapa 3: servicios temporales prepagados y administración operativa
+
+Implementado un motor común y un repositorio SQL transaccional para CargaCelular,
+CargaLaptop, Frio, Calor y Personal, sin sustituir el inventario ni los procedimientos
+anteriores. Las rutas conectan web, tablet y administrador. Incluye tarifas validadas,
+precio congelado, pago simulado idempotente, PIN HMAC, arranque sin extender tiempo en
+reintentos, vencimiento automático, cancelación/anulación simulada, renovación y retiro
+incluso tras agotar el tiempo; incidencias térmicas simuladas, bloqueo, auditoría y reportes.
+Al activar el módulo se bloquea el POST postpago antiguo como vía para eludir el prepago.
+
+La activación requiere Development, SynchroDB_Pruebas, migración del módulo y clave HMAC;
+se rechaza en producción. El hardware, NFC, pagos y temperatura son explícitamente simulados.
+No se modificó ni se verificó el hardware físico. Configuración, contratos y sincronización
+funcional se detallan en [SERVICIOS-TEMPORALES.md](SERVICIOS-TEMPORALES.md).
+
+Se agregó OpenAPI oficial 10.0.14, generado por la aplicación y probado por HTTP; exige
+administrador y HTTPS. No se copiaron contratos estáticos ni se enviaron mensajes reales.
+
+Resultado de la suite completa tras esta etapa: **255 casos: 211 aprobados, 40 fallidos,
+4 omitidos**; salida 1. API y herramienta administrativa compilan con 0 advertencias/errores.
+Las 40 fallidas son las 32 previas más ocho casos externos nuevos sin conexión SQL: cuatro
+retiro/credencial, uno visitante y tres servicios temporales. No hay omisiones nuevas.
+El motor nuevo y sus recorridos HTTP suman 30 casos aprobados (19 de motor y 11 HTTP).
+El primer intento detectó un fallo en la guardia de producción; se corrigió validando la
+configuración final del host y la prueba ahora pasa. No se presenta como ejecución SQL ni
+como aprobación de las nuevas transacciones en Windows.
+
+Para ejecutar los servicios en VS Code, revisar la rama de esta tarea sin tocar main:
+
+```powershell
+git fetch origin
+git switch feat/issue-1-encomiendas-end-to-end
+git pull --ff-only origin feat/issue-1-encomiendas-end-to-end
+dotnet restore tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj
+dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj
+```
+
+Los pendientes globales anteriores se reducen con esta etapa: carga prepagada, resguardo
+web, frío/calor, métricas y gestión operativa ya tienen código y endpoints. Permanecen
+la validación SQL/Windows, integración con la base histórica, usuarios/roles granulares,
+enrolamiento/vinculación biométrica y verificación telefónica real, reemisión de PIN de
+encomiendas, invitaciones/entregas reales de WhatsApp y pruebas físicas. No está terminado
+el backend completo ni se han satisfecho todos los criterios de la issue.
