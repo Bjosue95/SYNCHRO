@@ -9,6 +9,7 @@ using Synchro.Api.Models;
 using Synchro.Api.Endpoints;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Synchro.Api.Services;
 
 namespace Synchro.Api.Endpoints;
 
@@ -16,6 +17,11 @@ public static class CargaDispositivosEndpoints
 {
     public static void MapCargaDispositivosEndpoints(this WebApplication app)
     {
+        var operaciones = app.MapGroup("")
+            .RequireAuthorization("SoloTerminal")
+            .RequireRateLimiting("OperacionesTerminal")
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>();
+
         app.MapGet("/api/espacios-carga", async () =>
         {
             var cadena = app.Configuration.GetConnectionString("SynchroDB");
@@ -41,7 +47,7 @@ public static class CargaDispositivosEndpoints
             return Results.Ok(lista);
         });
 
-        app.MapPost("/api/espacios-carga/{codigo}/reservar", async (string codigo) =>
+        operaciones.MapPost("/api/espacios-carga/{codigo}/reservar", async (string codigo) =>
         {
 
             var cadena = app.Configuration.GetConnectionString("SynchroDB");
@@ -71,7 +77,7 @@ public static class CargaDispositivosEndpoints
             });
         });
 
-        app.MapPost("/api/espacios-carga/{codigo}/iniciar", async (string codigo, IniciarCargaSolicitud solicitud) =>
+        operaciones.MapPost("/api/espacios-carga/{codigo}/iniciar", async (string codigo, IniciarCargaSolicitud solicitud) =>
         {
             if (solicitud.TipoDispositivo is not ("Celular" or "Laptop"))
             {
@@ -127,7 +133,7 @@ public static class CargaDispositivosEndpoints
             });
         });
 
-        app.MapPost("/api/sesiones-carga/{id}/finalizar", async (int id) =>
+        operaciones.MapPost("/api/sesiones-carga/{id}/finalizar", async (int id) =>
         {
             var cadena = app.Configuration.GetConnectionString("SynchroDB");
 
