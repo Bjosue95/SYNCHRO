@@ -118,3 +118,22 @@ la ejecución y eliminan solo sus registros sintéticos. No borran bases existen
 
 Este documento es un informe de avance y riesgos, no una certificación de seguridad ni una
 indicación de que el backend solicitado está completo.
+
+## Comprobación de la primera entrega
+
+En esta rama la suite completa terminó con 131 casos: 95 aprobados, 32 fallidos y 4
+pruebas SQL omitidas explícitamente. Se añadieron 17 casos unitarios aprobados; ninguna de
+las 110 pruebas originales cambió de resultado. Una de las cuatro pruebas omitidas es
+una teoría que ejecutará diez escenarios de rechazo cuando exista conexión SQL.
+Compilación sin advertencias. Las transacciones SQL siguen sin validación de ejecución.
+
+También se publicó la corrección independiente `fix/seguridad-operaciones-carga`, basada
+en el mismo commit inicial y sin fusiones: autorización de terminal, HTTPS, CSRF y límite
+por IP en las tres rutas POST heredadas. Sus diez pruebas nuevas aprobaron; la suite de
+esa rama terminó con 88 aprobadas y los mismos 32 fallos iniciales. Consultar su documento
+`docs/SEGURIDAD-CARGA.md`. Las ramas aún no están combinadas.
+
+El push de ambas ramas funcionó, pero `gh api` recibió `Forbidden` en `api.github.com`.
+No hay solicitudes de incorporación creadas. Permitir ese dominio para intentar crearlas
+con la autenticación existente; no se presupone que haga falta un token nuevo. Base prevista:
+`refactor/arquitectura-backend`. No se modificó `main` ni se fusionó ninguna rama.
