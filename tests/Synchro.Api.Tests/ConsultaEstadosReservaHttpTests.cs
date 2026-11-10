@@ -24,6 +24,8 @@ public class ConsultaEstadosReservaHttpTests
     [InlineData("Revocado")]
     [InlineData("Confirmado")]
     [InlineData("Vencida")]
+    [InlineData("TelefonoDistinto")]
+    [InlineData("Rechazado")]
     [Trait("Category", "LocalDb")]
     public async Task ConsultaDebeRespetarEstadoReal(
         string escenario)
@@ -86,11 +88,15 @@ public class ConsultaEstadosReservaHttpTests
             // salvo en el escenario SinSolicitud.
             if (escenario != "SinSolicitud")
             {
-                bool confirmado = escenario == "Confirmado";
+                bool confirmado =
+                    escenario is "Confirmado" or "TelefonoDistinto";
 
-                string estado = escenario == "Vencida"
-                    ? "Pendiente"
-                    : escenario;
+                string estado = escenario switch
+                {
+                    "Vencida" => "Pendiente",
+                    "TelefonoDistinto" => "Confirmado",
+                    _ => escenario
+                };
 
                 byte[] codigoHash =
                     RandomNumberGenerator.GetBytes(32);
@@ -113,7 +119,7 @@ public class ConsultaEstadosReservaHttpTests
                         VALUES
                         (
                             @Id,
-                            N'+50499990002',
+                           @TelefonoWhatsApp,
                             @CodigoHash,
                             @Estado,
                             DATEADD(MINUTE,-5,SYSUTCDATETIME()),
@@ -128,6 +134,14 @@ public class ConsultaEstadosReservaHttpTests
                     crearConsentimiento.Parameters.Add(
                         "@Id", SqlDbType.Int
                     ).Value = reservaId;
+
+                    crearConsentimiento.Parameters.Add(
+                        "@TelefonoWhatsApp",
+                        SqlDbType.NVarChar,
+                        20
+                    ).Value = escenario == "TelefonoDistinto"
+                        ? "+50499990003"
+                        : "+50499990002";
 
                     crearConsentimiento.Parameters.Add(
                         "@CodigoHash", SqlDbType.VarBinary, 32
