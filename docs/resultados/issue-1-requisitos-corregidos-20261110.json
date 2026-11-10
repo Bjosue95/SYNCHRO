@@ -1,0 +1,189 @@
+{
+  "rama": "feat/issue-1-encomiendas-end-to-end",
+  "base": "refactor/arquitectura-backend",
+  "entorno": "Cloud Linux; SQL no disponible",
+  "total": 295,
+  "aprobadas": 248,
+  "fallidas": 43,
+  "omitidas_anteriores": 4,
+  "codigo_salida": 1,
+  "fallos": [
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaAutorizacionTests.EncomiendaInexistenteDevuelve404",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.RetiroSqlBloqueaPinSinConsumirBiometriaNiLiberarEquipo",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.RetiroSqlConcurrenteConsumePinYRostroUnaSolaVez",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.EmisionPinAisladoTests.EmitePinEnBaseAislada",
+      "causa": "secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaAutorizacionTests.DestinatarioNoPuedeConsultarEncomiendaAjena",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ServicioTemporalSqlReviertePagoSiFallaAuditoria",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"SinSolicitud\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"ReservaAjena\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.VinculacionTerminalCompletaTests.VinculacionCompleta_ImpideReutilizarToken",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"TelefonoDistinto\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.AutenticacionTerminalRealTests.TerminalInexistente_DebeDevolver401",
+      "causa": "HTTP500 por LocalDB"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ServicioTemporalSqlConectaPrepagoVencimientoYRetiro",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.RetiroSqlRevierteConsumosSiFallaAuditoria",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaReservaTerminalHttpTests.ReservaInexistente_DebeDevolver404",
+      "causa": "HTTP500 por LocalDB"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Vencida\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Pendiente\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ReemisionSqlEsAtomicaIdempotenteYCancelaPinPrevio",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Rechazado\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"RostroNoCoincide\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"ReservaCancelada\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.AutenticacionTerminalRealTests.TerminalActiva_PuedeConsultarSesion",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.CredencialAjenaEnDepositoNoConsumeEvidencia",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"TerminalDesactivada\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DetalleEncomiendaAutorizacionTests.DestinatarioPuedeConsultarSuEncomienda",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"PruebaDeVidaFallida\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Revocado\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.NoDepositaReservasAntiguasSinCuentaInactivasNiCreadasDesdeTerminal",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsumoEvidenciaFacialSqlTests.ConsumoUnicoYConcurrente_DebeSerSeguro",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RevocacionTerminalTests.TerminalDesactivada_PierdeAccesoConCookieVigente",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"EvidenciaFutura\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"RemitenteAjeno\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"EvidenciaVencida\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaConsentimientoSqlTests.ReservasSinConsentimientoValidoNoPuedenContinuar",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroConexionTests.PuedeConsultarSaltEnBaseDePruebas",
+      "causa": "secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ClienteRegistradoCreaReservaSqlSoloWebSinAltaDesdeTerminal",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroConexionTests.ValidarPinDeEncomiendaInexistente",
+      "causa": "secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ServicioTemporalSqlNoDuplicaReservaConcurrente",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroDesarrolloAisladoTests.PermiteConexionALaBaseAislada",
+      "causa": "secrets.json ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.ConsultaEstadosReservaHttpTests.ConsultaDebeRespetarEstadoReal(escenario: \"Confirmado\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.DepositoEncomiendaSqlTests.ReemisionSqlReviertePinOutboxYRegistroSiFallaAuditoria",
+      "causa": "Conexion SQL aislada ausente"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"TerminalAjena\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.RechazosEvidenciaFacialSqlTests.EvidenciaInvalida_DebeRechazarse(escenario: \"ReservaVencida\")",
+      "causa": "LocalDB incompatible con Linux"
+    },
+    {
+      "prueba": "Synchro.Api.Tests.PinRetiroIntegracionTests.PinGeneradoEnCSharpSeValidaUnaSolaVez",
+      "causa": "secrets.json ausente"
+    }
+  ],
+  "backend_terminado": false,
+  "tablet_build": "aprobado",
+  "admin_setup_build": "0 errores, 0 advertencias",
+  "sql_real_ejecutado": false,
+  "whatsapp_real_enviado": false
+}

@@ -57,7 +57,7 @@ public sealed class DepositoEncomiendaSqlTests
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "ClientesWeb.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql", "ServiciosTemporales.sql", "UsuariosRoles.sql", "RostroSimulado.sql" })
+        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "ClientesWeb.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql", "ServiciosTemporales.sql", "UsuariosRoles.sql", "RostroSimulado.sql", "ReemisionPin.sql" })
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -130,6 +130,7 @@ public sealed class DepositoEncomiendaSqlTests
             DELETE dbo.EvidenciasFacialesRetiroEncomienda WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.AuditoriaEncomiendasPrototipo WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.OutboxWhatsApp WHERE ReservaId=@reserva;
+            DELETE dbo.ReemisionesPinEncomienda WHERE UsoId IN(SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.CodigosRetiroEncomiendaPrototipo WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.ParticipantesUso WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DECLARE @usos TABLE (Id INT);
@@ -384,6 +385,71 @@ public sealed class DepositoEncomiendaSqlTests
         await new FlujoEncomiendasTerminalSql(Configuracion(),Servicio(),TimeProvider.System)
             .GuardarEvidenciaRetiroAsync(new(rostro,deposito.UsoId,d.Destinatario,d.Terminal,ahora,ahora.AddMinutes(2)),default);
         return(deposito.UsoId,rostro,mensaje.Variables[0]);
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task ReemisionSqlReviertePinOutboxYRegistroSiFallaAuditoria()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        string trigger="TR_Reemision_"+Guid.NewGuid().ToString("N");
+        try
+        {
+            var(uso,_,pinAnterior)=await PrepararRetiroAsync(c,d);
+            await using(var q=new SqlCommand("UPDATE dbo.CodigosRetiroEncomiendaPrototipo SET CreadoUtc=DATEADD(MINUTE,-3,SYSUTCDATETIME()),IntentosFallidos=5 WHERE UsoId=@uso",c))
+            {q.Parameters.Add("@uso",SqlDbType.Int).Value=uso;await q.ExecuteNonQueryAsync();}
+            // CREATE TRIGGER debe ser la primera instruccion y no recibir los
+            // parametros auxiliares del fixture (correccion del propietario 5f6cd39).
+            await using(var q=new SqlCommand($"CREATE TRIGGER dbo.[{trigger}] ON dbo.AuditoriaEncomiendasPrototipo AFTER INSERT AS BEGIN IF EXISTS(SELECT 1 FROM inserted WHERE UsoId={uso} AND Accion=N'PIN reemitido') THROW 56599,'Fallo sintetico de auditoria.',1; END",c))
+                await q.ExecuteNonQueryAsync();
+            var config=Configuracion();var servicio=new ReemisionPinEncomiendaSql(config,new(config,TimeProvider.System),new(config,new(Proteccion)));
+            var error=await Assert.ThrowsAsync<SqlException>(()=>servicio.ReemitirAsync(new(uso,d.Destinatario,d.Terminal,Guid.NewGuid(),"+50499990002",DateTimeOffset.UtcNow.AddSeconds(-1)),default));
+            Assert.Equal(56599,error.Number);
+            await using var consulta=new SqlCommand("""
+                SELECT PinHash,PinSalt,IntentosFallidos,(SELECT COUNT(*)FROM dbo.ReemisionesPinEncomienda WHERE UsoId=@uso),
+                    (SELECT COUNT(*)FROM dbo.OutboxWhatsApp WHERE ReservaId=@reserva AND Estado=N'Pendiente')
+                FROM dbo.CodigosRetiroEncomiendaPrototipo WHERE UsoId=@uso
+                """,c);
+            consulta.Parameters.Add("@uso",SqlDbType.Int).Value=uso;consulta.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
+            await using var r=await consulta.ExecuteReaderAsync();Assert.True(await r.ReadAsync());
+            Assert.Equal(CodigoPinRetiro.CalcularHash(pinAnterior,uso,d.Destinatario,(byte[])r[1],config),(byte[])r[0]);
+            Assert.Equal(5,r.GetInt32(2));Assert.Equal(0,r.GetInt32(3));Assert.Equal(1,r.GetInt32(4));
+        }
+        finally
+        {
+            await using(var q=new SqlCommand($"DROP TRIGGER IF EXISTS dbo.[{trigger}]",c))await q.ExecuteNonQueryAsync();
+            await LimpiarAsync(c,d);
+        }
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task ReemisionSqlEsAtomicaIdempotenteYCancelaPinPrevio()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            var(uso,_,pinAnterior)=await PrepararRetiroAsync(c,d);
+            await using(var q=new SqlCommand("UPDATE dbo.CodigosRetiroEncomiendaPrototipo SET CreadoUtc=DATEADD(MINUTE,-3,SYSUTCDATETIME()),IntentosFallidos=5 WHERE UsoId=@uso",c))
+            {q.Parameters.Add("@uso",SqlDbType.Int).Value=uso;await q.ExecuteNonQueryAsync();}
+            var config=Configuracion();var protector=new ProtectorMensajeWhatsApp(Proteccion);
+            var servicio=new ReemisionPinEncomiendaSql(config,new(config,TimeProvider.System),new(config,protector));
+            var solicitud=new SolicitudReemisionPin(uso,d.Destinatario,d.Terminal,Guid.NewGuid(),"+50499990002",DateTimeOffset.UtcNow.AddSeconds(-1));
+            Assert.Equal(ResultadoReemisionPin.NoDisponible,await servicio.ReemitirAsync(solicitud with{OperacionId=d.Evidencia},default));
+            Assert.Equal(ResultadoReemisionPin.Encolado,await servicio.ReemitirAsync(solicitud,default));
+            Assert.Equal(ResultadoReemisionPin.YaEncolado,await servicio.ReemitirAsync(solicitud,default));
+            await using var q2=new SqlCommand("""
+                SELECT p.PinHash,p.PinSalt,p.IntentosFallidos,o.ContenidoProtegido,
+                    (SELECT COUNT(*)FROM dbo.ReemisionesPinEncomienda WHERE UsoId=@uso),
+                    (SELECT COUNT(*)FROM dbo.OutboxWhatsApp WHERE ReservaId=@reserva AND Estado=N'Cancelado')
+                FROM dbo.CodigosRetiroEncomiendaPrototipo p JOIN dbo.OutboxWhatsApp o ON o.Id=@operacion WHERE p.UsoId=@uso
+                """,c);
+            q2.Parameters.Add("@uso",SqlDbType.Int).Value=uso;q2.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;q2.Parameters.Add("@operacion",SqlDbType.UniqueIdentifier).Value=solicitud.OperacionId;
+            await using var r=await q2.ExecuteReaderAsync();Assert.True(await r.ReadAsync());Assert.Equal(0,r.GetInt32(2));Assert.Equal(1,r.GetInt32(4));Assert.Equal(1,r.GetInt32(5));
+            var mensaje=protector.Abrir(solicitud.OperacionId,d.Reserva,(byte[])r[3]);Assert.NotEqual(pinAnterior,mensaje.Variables[0]);
+            Assert.NotEqual(CodigoPinRetiro.CalcularHash(pinAnterior,uso,d.Destinatario,(byte[])r[1],config),(byte[])r[0]);
+        }
+        finally{await LimpiarAsync(c,d);}
     }
 
     [Fact]

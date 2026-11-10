@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
@@ -31,6 +31,7 @@ builder.Services.AddDataProtection();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<Synchro.Api.Services.IPreReservasEncomienda,Synchro.Api.Services.PreReservaEncomiendaService>();
 builder.Services.AddScoped<Synchro.Api.Services.PreparadorPinEncomienda>();
+builder.Services.AddScoped<Synchro.Api.Services.IReemisionPinEncomienda,Synchro.Api.Services.ReemisionPinEncomiendaSql>();
 builder.Services.AddScoped<Synchro.Api.Services.DepositoEncomiendaService>();
 builder.Services.AddScoped<Synchro.Api.Services.IFlujoEncomiendasTerminal,Synchro.Api.Services.FlujoEncomiendasTerminalSql>();
 builder.Services.AddScoped<ProtectorMensajeWhatsApp>();
@@ -469,7 +470,7 @@ app.MapAdministracionEndpoints();
 app.MapPagosDemoEndpoints();
 app.MapCotizacionesEndpoints();
 app.MapReservasDemoEndpoints();
-app.MapParticipantesDemoEndpoints();
+// No registrar asignacion arbitraria de participantes de encomiendas por ID.
 app.MapVerificacionesDemoEndpoints();
 app.MapDestinatariosSesionEndpoints();
 app.MapDestinatariosConsentimientosEndpoints();

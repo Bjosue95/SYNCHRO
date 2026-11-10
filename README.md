@@ -27,6 +27,7 @@ En desarrollo.
 
 - [Avance comprobado y resultados de pruebas](docs/ISSUE-1-AVANCE.md).
 - [Encomiendas de clientes y capturas de rostro simuladas](docs/ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md).
+- [Instalación de la base aislada](docs/INSTALACION-PROTOTIPO-AISLADO.md).
 - [API de servicios temporales, prepago y configuración](docs/SERVICIOS-TEMPORALES.md).
 - OpenAPI generado: `/openapi/v1.json`, solo administrador, HTTPS y entorno de pruebas.
 

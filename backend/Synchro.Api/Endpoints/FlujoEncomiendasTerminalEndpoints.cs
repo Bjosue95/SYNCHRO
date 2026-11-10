@@ -133,6 +133,31 @@ public static class FlujoEncomiendasTerminalEndpoints
             catch(SqlException){return Results.Problem(statusCode:503,title:"No fue posible verificar la operacion.");}
         });
 
+        rutas.MapPost("/usos/{id:int}/pin/reemitir",async(int id,HttpContext http,IReemisionPinEncomienda servicio)=>
+        {
+            int terminal=Identidad(http.User);var sesion=await http.AuthenticateAsync("Destinatarios");
+            int persona=Identidad(sesion.Principal);string? telefono=sesion.Principal?.FindFirstValue("telefono_verificado");
+            if(terminal<=0||!sesion.Succeeded||persona<=0||sesion.Principal?.FindFirstValue("tipo_usuario")!="Destinatario"||string.IsNullOrEmpty(telefono))return Results.Unauthorized();
+            if(id<=0||!Guid.TryParse(http.Request.Headers["Idempotency-Key"],out var operacion)||operacion==Guid.Empty)return Results.BadRequest();
+            if(!DateTimeOffset.TryParseExact(sesion.Principal?.FindFirstValue("sesion_verificada_utc"),"O",System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,out var verificado))return Results.StatusCode(403);
+            try
+            {
+                var resultado=await servicio.ReemitirAsync(new(id,persona,terminal,operacion,telefono,verificado),http.RequestAborted);
+                return resultado switch
+                {
+                    ResultadoReemisionPin.Encolado or ResultadoReemisionPin.YaEncolado=>Results.Ok(new{notificacion="Encolada",retiroAutorizado=false}),
+                    ResultadoReemisionPin.RequiereVerificacionReciente=>Results.StatusCode(403),
+                    ResultadoReemisionPin.LimiteAlcanzado=>Results.StatusCode(429),
+                    _=>Results.Conflict(new{mensaje="Reemision no disponible."})
+                };
+            }
+            catch(SqlException ex)when(ex.Number==56503){return Results.StatusCode(403);}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"Reemision no confirmada.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Reemision no configurada.");}
+            catch(FormatException){return Results.Problem(statusCode:503,title:"Reemision no configurada.");}
+        });
+
         rutas.MapPost("/usos/{id:int}/retirar",async(int id,RetirarEncomiendaTerminalSolicitud datos,
             HttpContext http,IFlujoEncomiendasTerminal flujo,IVerificadorFacial verificador)=>
         {

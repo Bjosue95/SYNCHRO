@@ -1,9 +1,30 @@
-﻿
+
 using System.Data;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Models;
+
+if(args.Length>0)
+{
+    if(args.Length!=1||args[0] is not("--plan-prototipo" or "--preparar-prototipo"))
+    {Console.Error.WriteLine("Modo no valido. Usar --plan-prototipo o --preparar-prototipo, sin argumentos adicionales.");Environment.ExitCode=2;return;}
+    if(args[0]=="--plan-prototipo")
+    {
+        Console.WriteLine("Destino exclusivo: SynchroDB_Pruebas vacia o marcada. No crea ni reinicia bases.");
+        foreach(string archivo in Synchro.Api.Database.InstalacionPrototipo.Archivos)Console.WriteLine(archivo);
+        return;
+    }
+    try
+    {
+        await Synchro.Api.Database.InstalacionPrototipo.AplicarAsync(Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST"),
+            Path.Combine(AppContext.BaseDirectory,"Database"),Console.WriteLine);
+        Console.WriteLine("Esquema aislado aplicado. No equivale al esquema historico completo ni a pruebas aprobadas.");
+    }
+    catch(Exception e)when(e is SqlException or InvalidOperationException or ArgumentException or IOException)
+    {Console.Error.WriteLine($"Instalacion detenida ({e.GetType().Name}). Revisar conexion aislada, marca, archivos y SQL Server; no se ejecutan lotes posteriores.");Environment.ExitCode=1;}
+    return;
+}
 
 Console.WriteLine("=== SYNCHRO | Configuración de administrador ===");
 

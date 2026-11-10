@@ -14,6 +14,20 @@ internal sealed class PinEncomiendaPreparado(string pin, byte[] hash, byte[] sal
 
 internal sealed class PreparadorPinEncomienda(IConfiguration configuracion,TimeProvider reloj)
 {
+    public PinEncomiendaPreparado CrearDistinto(int usoId,int destinatarioId,byte[] hashAnterior,byte[] saltAnterior)
+    {
+        for(int intento=0;intento<100;intento++)
+        {
+            var nuevo=Crear(usoId,destinatarioId);
+            byte[] comparacion=CodigoPinRetiro.CalcularHash(nuevo.Pin,usoId,destinatarioId,saltAnterior,configuracion);
+            bool distinto;
+            try{distinto=!CryptographicOperations.FixedTimeEquals(comparacion,hashAnterior);}
+            finally{CryptographicOperations.ZeroMemory(comparacion);}
+            if(distinto)return nuevo;
+            nuevo.Dispose();
+        }
+        throw new InvalidOperationException("No fue posible rotar el PIN.");
+    }
     public PinEncomiendaPreparado Crear(int usoId,int destinatarioId)
     {
         int minutos=configuracion.GetValue("RetiroPin:VigenciaMinutos",30);

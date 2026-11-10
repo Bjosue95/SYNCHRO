@@ -10,14 +10,13 @@ import SeleccionTamanoView from "../views/SeleccionTamanoView.vue";
 import SeleccionCasilleroView from "../views/SeleccionCasilleroView.vue";
 import VinculacionTerminalView from "../views/VinculacionTerminalView.vue";
 import ReservaExistenteTerminalView from "../views/ReservaExistenteTerminalView.vue";
-import EncomiendaVisitanteTerminalView from "../views/EncomiendaVisitanteTerminalView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
 
   routes: [
     { path: "/terminal/encomiendas/reserva", name: "terminal-reserva-encomienda", component: ReservaExistenteTerminalView },
-    { path: "/guardar/encomienda-visitante", name: "terminal-envio-visitante", component: EncomiendaVisitanteTerminalView },
+    { path: "/guardar/encomienda-visitante", redirect: "/terminal/encomiendas/reserva" },
     {
       path: "/",
       name: "bienvenida",

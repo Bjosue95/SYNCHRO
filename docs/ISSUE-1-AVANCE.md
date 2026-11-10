@@ -194,3 +194,43 @@ concurrencia en Windows, reemisión segura de PIN de encomiendas, instalación r
 ampliada y comprobar flujos telefónicos/WhatsApp completos con configuración del propietario.
 Las credenciales/plantillas y entrega real WhatsApp requieren validación externa; no se
 han enviado mensajes. Biometría profesional y visitantes NO son pendientes del proyecto.
+
+## Etapa 5: recuperación de PIN, instalación y cierre de vías antiguas
+
+Implementada reemisión de PIN con nueva verificación telefónica, frecuencia limitada,
+idempotencia, cancelación de mensajes pendientes y actualización conjunta de PIN/outbox/
+auditoría. No devuelve el PIN ni sustituye la captura de retiro. Se agregaron casos SQL
+para idempotencia y rollback ante fallo de auditoría, pendientes de ejecutar en Windows.
+La corrección del propietario sobre CREATE TRIGGER se conserva también en esos casos.
+
+Se retiraron las rutas demo de depósito/retiro/asignación arbitraria de participantes y
+se bloqueó la creación demo de Encomienda; la tablet dejó de ofrecer envío sin reserva.
+El cliente HTTP de consulta obtiene CSRF ligado a Terminal. Las pruebas manuales locales
+se adaptaron a clientes registrados mediante un helper común. No se tocaron demos/ ni main.
+
+AdminSetup incorpora `--plan-prototipo` (sin conexión) y `--preparar-prototipo`, que usa
+un solo esquema fuente y migraciones ordenadas, guarda de catálogo/marcador, bloqueo de
+instalación, parada al primer error y checksums del código. No inicializa bases históricas
+ni afirma reproducir todo el esquema que falta. Guía: INSTALACION-PROTOTIPO-AISLADO.md.
+
+Suite completa ejecutada: **295 casos: 248 aprobados, 43 fallidos, 4 omitidos**, salida 1.
+Desglose de fallos: 25 LocalDB incompatible con Linux, 5 secrets.json ausente, 2 HTTP500
+por LocalDB y 11 casos SQL externos sin conexión aislada. No se añadieron Skips.
+Se incluyen las 11 pruebas aprobadas de instalación/política/HTTP de reemisión y las
+16 de creación de reservas/cierre de vías alternativas. TRX `etapa-5-completa.trx` y log
+homónimo en `/workspace/synchro-test-results/issue-1/`. El informe JSON versionado enumera
+cada fallo; no presenta las pruebas SQL como aprobadas.
+
+API, tests y AdminSetup compilaron sin advertencias/errores. `--plan-prototipo` se ejecutó
+sin SQL y se comprobó la copia de scripts. Tablet: `npm ci --ignore-scripts` y
+`npm run build` aprobaron tras corregir Vite para que compilar no lea el certificado privado
+de Windows; para servir por HTTPS en Linux se admite SYNCHRO_CERT_PATH.
+No se desplegó la compilación ni se ejecutaron pruebas visuales de cámara/hardware.
+
+**Pendiente verificable:** ejecutar migraciones y los 11 casos SQL externos en la laptop;
+validar integración con el esquema inicial histórico (no entregado), especialmente las
+verificaciones telefónicas/procedimientos antiguos que no forman parte del esquema
+mínimo; configurar y comprobar WhatsApp con sus plantillas/credenciales. La UI completa
+para cámara/depósito/retiro también requiere conectar estos contratos y pruebas de navegador.
+No se declara terminado el backend ni lista para fusionar la rama con estas verificaciones
+pendientes. La biometría profesional y el alta de visitantes quedan fuera del alcance.

@@ -77,7 +77,7 @@ información personal en fixtures compartidas ni apuntar conexiones de prueba a 
 
 ### Fixture nueva, separada de las bases originales
 
-El esquema `tests/Synchro.Api.Tests/sql/aislado/EsquemaDeposito.sql` es **mínimo** y exclusivo del
+El esquema `backend/Synchro.Api/Database/Fixtures/EsquemaPrototipo.sql` es **mínimo** y exclusivo del
 contrato de depósito; no reconstruye toda la aplicación ni permite ejecutar los 110 casos
 antiguos. Usar otra instancia LocalDB (o contenedor SQL) dedicada a este contrato, con una
 base vacía llamada `SynchroDB_Pruebas`. Por ejemplo, sin tocar `MSSQLLocalDB`:

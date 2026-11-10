@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -71,6 +72,29 @@ public sealed class PreReservasWebTabletTests
         cliente.DefaultRequestHeaders.Add("X-Synchro-Test-Terminal","autorizada");
         using var respuesta=await cliente.PostAsJsonAsync("/api/terminales/encomiendas/"+ruta,new{telefonoRemitente="+50499990001",telefonoDestinatario="+50499990002",tamanoSolicitado="Mediano"});
         Assert.Equal(HttpStatusCode.NotFound,respuesta.StatusCode);Assert.Equal(0,datos.Guardadas);
+    }
+    [Theory]
+    [InlineData("depositar")]
+    [InlineData("retirar")]
+    [InlineData("participantes")]
+    public async Task RutasDemoNoPermitenEludirReservaClienteConsentimientoNiIdentidad(string operacion)
+    {
+        using var fabrica=Fabrica(new(),new());
+        using var cliente=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost"),AllowAutoRedirect=false});
+        using var respuesta=await cliente.PostAsJsonAsync("/api/demo/reservas/1/"+operacion,new{remitenteId=1,destinatarioId=2});
+        Assert.Equal(HttpStatusCode.NotFound,respuesta.StatusCode);
+    }
+    [Fact]
+    public async Task AltaDemoAdministrativaTampocoCreaEncomiendasFueraDelFlujoWeb()
+    {
+        using var fabrica=Fabrica(new(),new()).WithWebHostBuilder(b=>b.ConfigureTestServices(s=>
+            s.AddAuthentication(o=>{o.DefaultAuthenticateScheme="AdminReservaTest";o.DefaultChallengeScheme="AdminReservaTest";})
+                .AddScheme<AuthenticationSchemeOptions,AdministradorTemporalPruebas>("AdminReservaTest",_=>{})));
+        using var cliente=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost"),AllowAutoRedirect=false});
+        cliente.DefaultRequestHeaders.Add("X-Test-Admin","si");
+        await CsrfAsync(cliente,"/api/web/encomiendas/csrf-token");
+        using var respuesta=await cliente.PostAsJsonAsync("/api/demo/reservas/casilleros",new{codigoCasillero="S01",tipoServicio="Encomienda"});
+        Assert.Equal(HttpStatusCode.BadRequest,respuesta.StatusCode);
     }
     [Theory]
     [InlineData(0,"+50499990002","Mediano")]

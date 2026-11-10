@@ -12,7 +12,7 @@ async function leer(respuesta) {
 }
 
 async function enviarProtegido(ruta, datos) {
-  const { csrfToken } = await leer(await fetch("/api/terminales/csrf-token", {
+  const { csrfToken } = await leer(await fetch("/api/terminales/encomiendas/csrf-token", {
     credentials: "same-origin", cache: "no-store",
   }));
   if (!csrfToken) throw new Error("No se recibió el token CSRF.");
@@ -27,8 +27,4 @@ export async function consultarReservaDesdeTerminal(referencia, tokenGestion) {
   return enviarProtegido("/api/terminales/encomiendas/reservas/consultar", {
     referencia, tokenGestion,
   });
-}
-
-export async function solicitarEnvioVisitante(datos) {
-  return enviarProtegido("/api/terminales/encomiendas/visitantes/solicitar", datos);
 }

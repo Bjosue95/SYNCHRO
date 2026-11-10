@@ -56,7 +56,7 @@ async function consultar() {
         <input id="referencia" v-model.trim="referencia" type="number" min="1" inputmode="numeric" autocomplete="off" required />
         <label for="credencial">Credencial privada de la pre-reserva</label>
         <input id="credencial" v-model.trim="tokenGestion" type="password" minlength="64" maxlength="64" autocomplete="off" required />
-        <p class="nota">Prueba temporal con referencia y credencial. La identificación facial del remitente aún no está integrada.</p>
+        <p class="nota">La consulta requiere una reserva de cliente web. Para depositar se comprobarán el consentimiento por WhatsApp y una captura de rostro simulada.</p>
         <button type="submit" :disabled="consultando">{{ consultando ? 'Consultando...' : 'Consultar reserva' }}</button>
       </form>
       <div v-if="reserva" class="resultado" role="status">

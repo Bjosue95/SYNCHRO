@@ -117,3 +117,32 @@ los tests visuales ejecutan el comparador real de demostración con PNG sintéti
 Los tests SQL de transacciones/rollback/concurrencia requieren
 `SYNCHRO_SQL_DEPOSITO_TEST` y SQL Server de la laptop. No se ejecutó hardware ni entrega
 real de WhatsApp. Ver resultados consolidados en ISSUE-1-AVANCE.md.
+
+## Reemisión del PIN de encomiendas
+
+`POST /api/terminales/encomiendas/usos/{id}/pin/reemitir` requiere ambas cookies
+Terminal/Destinatarios, CSRF de terminal e `Idempotency-Key: <GUID nuevo>`.
+La identidad, teléfono y fecha de verificación se extraen de la sesión firmada, nunca
+ del cuerpo. El destinatario debe volver a iniciar sesión mediante código telefónico:
+la verificación debe ser posterior a la creación del PIN y tener máximo dos minutos.
+No se permite reemitir durante los primeros dos minutos ni más de tres veces por uso.
+
+En SQL se comprueban terminal, uso ocupado, participante, PIN no consumido,
+consentimiento firmado y teléfono de destino. Se bloquea la rotación si un mensaje
+anterior está Enviando. La transacción rota valor/salt/hash, reinicia intentos, cancela
+mensajes pendientes antiguos, registra la clave de idempotencia y auditoría, y encola
+el nuevo PIN cifrado. Un reintento con la misma clave no vuelve a rotar/enviar.
+No se devuelve el PIN en HTTP ni se abre el casillero. Un fallo revierte la operación.
+Se requieren de nuevo captura simulada vigente y nuevo PIN para retirar.
+La migración ReemisionPinEncomienda va después de PIN/retiro.
+
+## Vías antiguas retiradas
+
+Las rutas demo `/api/demo/reservas/{id}/depositar`, `/retirar` y `/participantes`
+ya no se registran. El POST demo genérico de casilleros admite exclusivamente
+ResguardoPersonal y rechaza Encomienda antes de tocar SQL, incluso para administrador.
+En la tablet se retiraron formulario, enlace y cliente HTTP de visitantes; la URL
+antigua redirige a consultar una reserva existente. No se borraron archivos de demos/.
+Los cuatro scripts manuales Probar*WhatsApp usan ahora el helper ClienteWebSintetico
+para crear una cuenta ficticia y obtener CSRF autenticado; no se ejecutaron en Cloud,
+porque requieren API y SQL locales. Conservan sus datos ficticios para inspección.

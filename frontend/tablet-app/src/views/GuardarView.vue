@@ -60,10 +60,10 @@ function abrirAyuda() {
       />
 
       <ServiceCard
-        titulo="Enviar encomienda"
-        descripcion="Solicita un envío desde la terminal"
+        titulo="Depositar encomienda reservada"
+        descripcion="Usa la reserva creada desde tu cuenta web"
         icono="/iconos/09_encomienda_paquete"
-        ruta="/guardar/encomienda-visitante"
+        ruta="/terminal/encomiendas/reserva"
         :oscuro="oscuro"
       />
     </div>

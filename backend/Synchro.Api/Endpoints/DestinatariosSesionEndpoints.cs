@@ -236,7 +236,8 @@ public static class DestinatariosSesionEndpoints
                             "tipo_usuario",
                             "Destinatario"),
                         new System.Security.Claims.Claim("telefono_verificado","+"+telefono.TrimStart('+')),
-                        new System.Security.Claims.Claim("verificacion_telefono_id",datos.VerificacionId.ToString())
+                        new System.Security.Claims.Claim("verificacion_telefono_id",datos.VerificacionId.ToString()),
+                        new System.Security.Claims.Claim("sesion_verificada_utc",DateTimeOffset.UtcNow.ToString("O",System.Globalization.CultureInfo.InvariantCulture))
                     },
                     "Destinatarios");
 

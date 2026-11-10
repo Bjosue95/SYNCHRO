@@ -124,21 +124,16 @@ function Enviar-EventoFirmado {
         -UseBasicParsing | Out-Null
 }
 
-Write-Host "1. Obteniendo CSRF..."
-
-$csrfRespuesta = Invoke-RestMethod `
-    -Uri "$base/api/web/encomiendas/csrf-token" `
-    -SessionVariable sesion `
-    -UseBasicParsing
-
-$headers = @{
-    "X-CSRF-TOKEN" = $csrfRespuesta.csrfToken
-}
+Write-Host "1. Creando sesion de cliente ficticio..."
+. "$PSScriptRoot/ClienteWebSintetico.ps1"
+$clientePrueba = Nueva-SesionClienteSintetico -Base $base -Telefono $telefonoRemitente
+$sesion = $clientePrueba.Sesion
+$csrfRespuesta = @{ csrfToken = $clientePrueba.CsrfToken }
+$headers = @{ "X-CSRF-TOKEN" = $csrfRespuesta.csrfToken }
 
 Write-Host "2. Creando pre-reserva ficticia..."
 
 $cuerpoReserva = @{
-    telefonoRemitente = $telefonoRemitente
     telefonoDestinatario = $telefonoDestinatario
     tamanoSolicitado = "Mediano"
 } | ConvertTo-Json -Compress
