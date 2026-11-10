@@ -13,6 +13,23 @@ using Synchro.Api.Services.WhatsApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<Synchro.Api.Services.PreparadorPinEncomienda>();
+builder.Services.AddScoped<Synchro.Api.Services.DepositoEncomiendaService>();
+builder.Services.AddScoped<ProtectorMensajeWhatsApp>();
+builder.Services.AddScoped<SqlOutboxWhatsApp>();
+builder.Services.AddScoped<IAlmacenOutboxWhatsApp>(s => s.GetRequiredService<SqlOutboxWhatsApp>());
+builder.Services.AddScoped<ProcesadorOutboxWhatsApp>();
+if (builder.Configuration.GetValue<bool>("WhatsApp:Outbox:Habilitado"))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("La outbox del prototipo solo puede activarse en Development.");
+    Synchro.Api.Services.ConexionSqlAislada.Exigir(
+        builder.Configuration.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
+    builder.Services.AddHostedService<OutboxWhatsAppWorker>();
+}
+
 builder.Services.AddHttpClient<
     IWhatsAppCloudService,
     WhatsAppCloudService>(cliente =>
@@ -213,6 +230,17 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("OperacionesTerminal", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 
     options.AddPolicy("LoginLimitado", contexto =>
         RateLimitPartition.GetFixedWindowLimiter(

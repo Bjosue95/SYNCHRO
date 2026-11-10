@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
+using Synchro.Api.Services.WhatsApp;
 
 namespace Synchro.Api.Endpoints;
 
@@ -208,6 +209,12 @@ public static class WhatsAppWebhookEndpoints
                         bool nuevo = Convert.ToBoolean(
                             await comando.ExecuteScalarAsync(
                                 http.RequestAborted));
+
+                        if (nuevo && evento.Tipo == "Estado" && config.GetValue<bool>("WhatsApp:Outbox:Habilitado"))
+                        {
+                            await SqlOutboxWhatsApp.ConciliarAsync(conexion,transaccion,
+                                evento.Id,evento.WaId,evento.Estado!,http.RequestAborted);
+                        }
 
                         if (nuevo && evento.Tipo == "Mensaje")
                         {
