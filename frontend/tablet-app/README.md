@@ -3,6 +3,9 @@
 Vue 3 + Vue Router + Vite. Mantiene los componentes, logotipos, iconos y colores del
 proyecto. Guía de implementación y pruebas: [INTERFAZ-TABLET.md](../../docs/INTERFAZ-TABLET.md).
 
+El menú principal conserva cuatro opciones: **Guardar**, **Retirar**,
+**Tengo una reserva web** y **Cargar dispositivo**. Guardar abre la pantalla existente `/guardar`.
+
 ## Ver y recorrer la demostración
 
 ```bash
@@ -15,13 +18,16 @@ al backend, abre casilleros, cobra dinero ni envía WhatsApp. No necesita SQL ni
 Para la cámara, usar localhost o un contexto HTTPS con permiso del navegador. También
 hay una captura de ejemplo, exclusivamente en demo.
 
-- Depósito: «Tengo una reserva» → «Rellenar datos de ejemplo» → continuar → aceptar
+- Depósito: «Tengo una reserva web» → «Encomienda» → «Rellenar datos de ejemplo» → continuar → aceptar
   captura → usar ejemplo → confirmar casillero E01.
 - Retiro de encomienda: Retirar → Una encomienda → rellenar ejemplo → verificar acceso
   → continuar → captura → PIN ficticio **654321**.
-- Carga, Personal, frío/calor: elegir espacio/tiempo → pago simulado → confirmar objetos
-  guardados (laptop cerrada si aplica) → comenzar. Guardar datos de recuperación antes
-  de finalizar. El PIN de las fixtures es **654321**, no es una credencial real.
+- Cargar dispositivo abre el flujo de carga. Para pruebas de pertenencias también se
+  conserva `/servicios/personal`: espacio/tiempo → pago simulado → inicio.
+- Frío/calor: «Tengo una reserva web» → «Reserva de frío» o «Reserva de calor» →
+  «Usar reserva web de ejemplo» → consultar → confirmar objetos guardados → comenzar.
+  Son reservas YA creadas y pagadas en la web; esta tablet no permite contratarlas.
+  Las antiguas rutas `/servicios/frio` y `/servicios/calor` redirigen a reservas existentes.
 - Retiro temporal: Retirar → Mis objetos o dispositivo → rellenar ejemplo → confirmar.
 
 ## Conectar la API

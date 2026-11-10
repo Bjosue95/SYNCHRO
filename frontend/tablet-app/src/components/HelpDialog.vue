@@ -35,7 +35,7 @@ defineExpose({ abrir, cerrar });
       <details>
         <summary>¿Cómo guardo mis pertenencias?</summary>
         <p>
-          Selecciona Guardar pertenencias, elige el compartimento y la duración, confirma el pago simulado y guarda tus objetos. Conserva el PIN y los datos de recuperación.
+          Selecciona Guardar y después Mis pertenencias. Sigue las instrucciones de la terminal.
         </p>
       </details>
 

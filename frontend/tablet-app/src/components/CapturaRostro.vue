@@ -98,9 +98,10 @@ onBeforeUnmount(() => {
         aria-label="Vista de la cámara"
       />
       <div v-if="!activa" class="camera-placeholder">
-        <img src="/iconos/complementarios/38_escanear_rostro.svg" alt="" /><span
-          >Coloca tu rostro dentro del marco</span
-        >
+        <img
+          src="/iconos/complementarios/38_escanear_rostro-oscuro.svg"
+          alt=""
+        /><span>Coloca tu rostro dentro del marco</span>
       </div>
       <div class="camera-frame"></div>
       <span class="camera-label">Verificación simulada</span>
@@ -184,7 +185,6 @@ onBeforeUnmount(() => {
 .camera-placeholder img {
   width: 80px;
   height: 80px;
-  filter: brightness(0) invert(1);
   opacity: 0.8;
 }
 .camera-frame {

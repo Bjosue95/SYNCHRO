@@ -10,6 +10,8 @@ import SeleccionTamanoView from "../views/SeleccionTamanoView.vue";
 import SeleccionCasilleroView from "../views/SeleccionCasilleroView.vue";
 import VinculacionTerminalView from "../views/VinculacionTerminalView.vue";
 import EncomiendaTerminalView from "../views/EncomiendaTerminalView.vue";
+import ReservaWebTerminalView from "../views/ReservaWebTerminalView.vue";
+import ReservaTermicaTerminalView from "../views/ReservaTermicaTerminalView.vue";
 import ServicioTemporalView from "../views/ServicioTemporalView.vue";
 import RetiroTemporalView from "../views/RetiroTemporalView.vue";
 
@@ -17,8 +19,11 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
 
   routes: [
+    { path: "/terminal/reserva-web", component: ReservaWebTerminalView },
+    { path: "/terminal/reservas/:tipo(frio|calor)", component: ReservaTermicaTerminalView },
+    { path: "/servicios/:tipo(frio|calor)", redirect: "/terminal/reserva-web" },
     { path: "/terminal/encomiendas/retiro", component: EncomiendaTerminalView, meta: { retiro: true } },
-    { path: "/servicios/:tipo(carga|personal|frio|calor)", component: ServicioTemporalView },
+    { path: "/servicios/:tipo(carga|personal)", component: ServicioTemporalView },
     { path: "/retirar/servicios", component: RetiroTemporalView },
     { path: "/terminal/encomiendas/reserva", name: "terminal-reserva-encomienda", component: EncomiendaTerminalView },
     { path: "/guardar/encomienda-visitante", redirect: "/terminal/encomiendas/reserva" },

@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Synchro.Api.Services.Temporales;
+using Synchro.Api.Services.Clientes;
 
 namespace Synchro.Api.Tests;
 
@@ -45,6 +46,7 @@ public sealed class ServiciosTemporalesHttpTests
                 b.ConfigureTestServices(s=>
                 {
                     s.RemoveAll<IRepositorioServicioTemporal>();s.AddSingleton<IRepositorioServicioTemporal>(Repo);
+                    s.RemoveAll<IRepositorioClientesWeb>();s.AddSingleton<IRepositorioClientesWeb>(new ClientesWebSimulados());
                     s.RemoveAll<TimeProvider>();s.AddSingleton<TimeProvider>(Reloj);
                     s.AddAuthentication(o=>{o.DefaultScheme="SelectorTemporalTest";o.DefaultAuthenticateScheme="SelectorTemporalTest";o.DefaultChallengeScheme="SelectorTemporalTest";})
                         .AddPolicyScheme("SelectorTemporalTest",null,o=>o.ForwardDefaultSelector=h=>h.Request.Headers.ContainsKey("X-Test-Admin")?"AdminTemporalTest":AutenticacionTerminalHttpPruebas.Esquema)
@@ -66,6 +68,12 @@ public sealed class ServiciosTemporalesHttpTests
             }
             return c;
         }
+        public async Task<HttpClient> ClienteRegistradoAsync(string nombre="cliente_termico")
+        {
+            var c=Servidor.CreateClient(new(){BaseAddress=new Uri("https://localhost"),HandleCookies=true,AllowAutoRedirect=false});
+            await PreReservasWebTabletTests.RegistrarAsync(c,nombre);
+            return c;
+        }
         public void Dispose()=>Servidor.Dispose();
     }
     [Theory]
@@ -76,7 +84,7 @@ public sealed class ServiciosTemporalesHttpTests
     [InlineData(ClaseServicioTemporal.Personal)]
     public async Task RecorridoWebATerminalPersisteEstadoYRecuperaContenidoTrasVencimientoSimulado(ClaseServicioTemporal clase)
     {
-        using var e=new Escenario(clase);using var web=await e.ClienteAsync();using var terminal=await e.ClienteAsync("terminal");
+        using var e=new Escenario(clase);using var web=clase is ClaseServicioTemporal.Frio or ClaseServicioTemporal.Calor?await e.ClienteRegistradoAsync():await e.ClienteAsync();using var terminal=await e.ClienteAsync("terminal");
         using var reserva=await web.PostAsJsonAsync("/api/web/servicios/C01/reservas",new{minutos=30});reserva.EnsureSuccessStatusCode();
         var r=(await reserva.Content.ReadFromJsonAsync<ReservaServicioTemporal>())!;
         web.DefaultRequestHeaders.Add("X-SYNCHRO-SERVICIO",r.Credencial);terminal.DefaultRequestHeaders.Add("X-SYNCHRO-SERVICIO",r.Credencial);
@@ -94,6 +102,27 @@ public sealed class ServiciosTemporalesHttpTests
         Assert.Equal("Disponible",e.Repo.Datos["C01"].EstadoInventario);
         using var repetida=await terminal.PostAsJsonAsync($"/api/terminales/servicios/C01/reservas/{r.Operacion.Id}/retirar",new{pin=p.PinRetiro});
         Assert.Equal(HttpStatusCode.Conflict,repetida.StatusCode);
+    }
+    [Theory]
+    [InlineData(ClaseServicioTemporal.Frio)]
+    [InlineData(ClaseServicioTemporal.Calor)]
+    public async Task TermicoRechazaAltaTerminalAnonimoYOtroClienteAunquePoseaLaCredencial(ClaseServicioTemporal clase)
+    {
+        using var e=new Escenario(clase);using var anonimo=await e.ClienteAsync();using var terminal=await e.ClienteAsync("terminal");
+        using var rechazado=await terminal.PostAsJsonAsync("/api/terminales/servicios/C01/reservas",new{minutos=30,clientePersonaId=41,origen="Web"});
+        Assert.Equal(HttpStatusCode.Forbidden,rechazado.StatusCode);Assert.Empty(e.Repo.Datos["C01"].Operaciones);
+        using var sinCuenta=await anonimo.PostAsJsonAsync("/api/web/servicios/C01/reservas",new{minutos=30,clientePersonaId=41});
+        Assert.Equal(HttpStatusCode.Unauthorized,sinCuenta.StatusCode);Assert.Empty(e.Repo.Datos["C01"].Operaciones);
+        using var cliente=await e.ClienteRegistradoAsync();using var ajeno=await e.ClienteRegistradoAsync("otro_cliente");
+        using var creada=await cliente.PostAsJsonAsync("/api/web/servicios/C01/reservas",new{minutos=30,clientePersonaId=42,origen="Terminal"});creada.EnsureSuccessStatusCode();
+        var r=(await creada.Content.ReadFromJsonAsync<ReservaServicioTemporal>())!;
+        var almacenada=e.Repo.Datos["C01"].Operaciones[r.Operacion.Id];Assert.Equal(41,almacenada.ClientePersonaId);Assert.Equal("Web",almacenada.OrigenReserva);Assert.Null(almacenada.TerminalId);
+        ajeno.DefaultRequestHeaders.Add("X-SYNCHRO-SERVICIO",r.Credencial);terminal.DefaultRequestHeaders.Add("X-SYNCHRO-SERVICIO",r.Credencial);
+        using var pagoAjeno=await ajeno.PostAsJsonAsync($"/api/web/servicios/C01/reservas/{r.Operacion.Id}/pagar",new{idOperacion=Guid.NewGuid()});Assert.Equal(HttpStatusCode.NotFound,pagoAjeno.StatusCode);
+        using var cancelarAjena=await ajeno.PostAsync($"/api/web/servicios/C01/reservas/{r.Operacion.Id}/cancelar",null);Assert.Equal(HttpStatusCode.NotFound,cancelarAjena.StatusCode);
+        using var pagoTerminal=await terminal.PostAsJsonAsync($"/api/terminales/servicios/C01/reservas/{r.Operacion.Id}/pagar",new{idOperacion=Guid.NewGuid()});Assert.Equal(HttpStatusCode.Forbidden,pagoTerminal.StatusCode);
+        using var inicioSinPago=await terminal.PostAsJsonAsync($"/api/terminales/servicios/C01/reservas/{r.Operacion.Id}/iniciar",new{equipoCerrado=true});Assert.Equal(HttpStatusCode.Conflict,inicioSinPago.StatusCode);
+        Assert.Equal(EstadoServicioTemporal.Reservada,e.Repo.Datos["C01"].Operaciones[r.Operacion.Id].Estado);
     }
     [Fact]
     public async Task AdministradorConfiguraReportaYBloqueaPorIncidenciaMientrasOtrosRolesSeRechazan()

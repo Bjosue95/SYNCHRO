@@ -269,9 +269,12 @@
   font-size: 14px;
 }
 .tablet-checks li::before {
-  content: "✓";
-  color: var(--teal);
-  font-weight: 700;
+  content: "";
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  background: url("/iconos/complementarios/30_confirmar.svg") center/contain
+    no-repeat;
 }
 .tablet-receipt {
   max-width: 660px;
@@ -323,14 +326,7 @@
   border-color: var(--line);
   box-shadow: 0 4px 15px #01305c03;
 }
-.tablet-layout .tarjeta-servicio::after {
-  content: "→";
-  position: absolute;
-  right: 23px;
-  top: 24px;
-  color: var(--muted);
-  font-size: 23px;
-}
+
 .tablet-layout .tarjeta-servicio .icono-par {
   width: 54px;
   height: 54px;
@@ -396,4 +392,12 @@
     transition: none !important;
     animation: none !important;
   }
+}
+
+.tablet-back {
+  gap: 10px;
+}
+
+.tema-oscuro .tablet-checks li::before {
+  background-image: url("/iconos/complementarios/30_confirmar-oscuro.svg");
 }

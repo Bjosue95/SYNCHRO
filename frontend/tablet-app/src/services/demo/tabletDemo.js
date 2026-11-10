@@ -48,6 +48,30 @@ export function crearEscenarioDemo() {
     intentos: 0,
   });
   espacios.find((x) => x.configuracion.codigo === "P01").estado = "Ocupado";
+  for (const [codigo, clase, id] of [
+    ["F01", "Frio", "00000000-0000-4000-8000-000000000002"],
+    ["H01", "Calor", "00000000-0000-4000-8000-000000000003"],
+  ]) {
+    operaciones.set(id, {
+      operacion: {
+        id,
+        codigo,
+        clase,
+        estado: "Pagada",
+        minutos: 60,
+        monto: 25,
+        moneda: "HNL",
+        hardwareSimulado: true,
+      },
+      credencial: credencialEjemplo,
+      pin: "654321",
+      intentos: 0,
+      origenReserva: "Web",
+      clientePersonaId: 41,
+    });
+    espacios.find((x) => x.configuracion.codigo === codigo).estado =
+      "Reservado";
+  }
   let sesion = false,
     depositada = false,
     retirada = false,
@@ -140,6 +164,19 @@ export function crearEscenarioDemo() {
         hardwareSimulado: true,
       };
     }
+    const consulta = path.match(
+      /^\/api\/servicios\/([A-Za-z0-9-]+)\/reservas\/([a-f0-9-]+)$/,
+    );
+    if (consulta && metodo === "GET") {
+      const r = operaciones.get(consulta[2]);
+      if (
+        !r ||
+        r.operacion.codigo !== consulta[1] ||
+        r.credencial !== encabezados["X-SYNCHRO-SERVICIO"]
+      )
+        fallo("Reserva web de ejemplo no disponible.", 404);
+      return clonar(r.operacion);
+    }
     const match = path.match(
       /^\/api\/terminales\/servicios\/([A-Za-z0-9-]+)\/reservas(?:\/([a-f0-9-]+)(?:\/(pagar|iniciar|retirar|cancelar))?)?$/,
     );
@@ -148,6 +185,11 @@ export function crearEscenarioDemo() {
         espacio = espacios.find((x) => x.configuracion.codigo === codigo);
       if (!espacio) fallo("Compartimento no disponible.", 404);
       if (!id) {
+        if (["Frio", "Calor"].includes(espacio.configuracion.clase))
+          fallo(
+            "Frio y calor solo se reservan desde la cuenta web del cliente.",
+            403,
+          );
         if (
           espacio.estado !== "Disponible" ||
           !Object.hasOwn(espacio.configuracion.tarifas, datos?.minutos)
@@ -186,6 +228,8 @@ export function crearEscenarioDemo() {
       )
         fallo("Datos de reserva incorrectos.", 404);
       if (accion === "pagar") {
+        if (["Frio", "Calor"].includes(r.operacion.clase))
+          fallo("Completa el pago desde tu cuenta web.", 403);
         if (r.pagoId === datos?.idOperacion)
           return clonar({
             operacion: r.operacion,
@@ -203,6 +247,11 @@ export function crearEscenarioDemo() {
         });
       }
       if (accion === "iniciar") {
+        if (
+          ["Frio", "Calor"].includes(r.operacion.clase) &&
+          (r.origenReserva !== "Web" || !r.clientePersonaId)
+        )
+          fallo("Se requiere una reserva web de cliente.");
         if (
           r.operacion.estado !== "Pagada" ||
           (r.operacion.clase === "CargaLaptop" && !datos?.equipoCerrado)

@@ -8,7 +8,7 @@
     "fallidas": 0
   },
   "navegador": {
-    "aprobadas": 16,
+    "aprobadas": 18,
     "fallidas": 0,
     "omitidas": 0,
     "casos": [
@@ -53,14 +53,6 @@
         "resultado": "aprobada"
       },
       {
-        "prueba": "reserva, prepago e inicio de frio",
-        "resultado": "aprobada"
-      },
-      {
-        "prueba": "reserva, prepago e inicio de calor",
-        "resultado": "aprobada"
-      },
-      {
         "prueba": "laptop requiere confirmar que está cerrada",
         "resultado": "aprobada"
       },
@@ -75,11 +67,35 @@
       {
         "prueba": "compilación normal no activa demo ni aprueba una reserva si falla la API",
         "resultado": "aprobada"
+      },
+      {
+        "prueba": "la terminal usa una reserva web de frio sin contratarla",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "ruta de contratar frio redirige a reservas existentes",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "la terminal usa una reserva web de calor sin contratarla",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "ruta de contratar calor redirige a reservas existentes",
+        "resultado": "aprobada"
       }
     ]
   },
   "entorno": "Chromium headless; fixtures y video sinteticos",
   "sql_real_verificado": false,
   "whatsapp_real_enviado": false,
-  "hardware_fisico_verificado": false
+  "hardware_fisico_verificado": false,
+  "menu": [
+    "Guardar",
+    "Retirar",
+    "Tengo una reserva web",
+    "Cargar dispositivo"
+  ],
+  "icono_carga": "04_carga_inalambrica",
+  "frio_calor_solo_reserva_web": true
 }

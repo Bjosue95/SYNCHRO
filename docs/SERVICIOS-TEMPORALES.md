@@ -1,5 +1,11 @@
 # Servicios temporales del prototipo
 
+> Corrección del propietario: frío/calor se reservan y pagan solo desde la cuenta web
+> de un cliente registrado. La tablet únicamente utiliza o retira reservas web existentes.
+> Los ejemplos anteriores de contratación térmica desde terminal quedan sustituidos
+> por [esta corrección](CORRECCION-TABLET-Y-RESERVAS-TERMICAS.md).
+
+
 Módulo aditivo para carga prepagada, resguardo personal y casilleros de frío/calor.
 Solo se registra en Development con SynchroDB_Pruebas. No controla hardware real.
 Los contratos siempre identifican el hardware como simulado. Las pruebas no demuestran

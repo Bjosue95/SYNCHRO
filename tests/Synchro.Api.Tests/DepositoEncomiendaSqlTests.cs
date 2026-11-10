@@ -300,6 +300,35 @@ public sealed class DepositoEncomiendaSqlTests
 
     [Fact]
     [Trait("Category","SqlAislado")]
+    public async Task ReservaTermicaSqlPersisteClienteWebYRechazaCuentaInactivaYTerminal()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
+        try
+        {
+            await EjecutarAsync(c,d,"UPDATE dbo.Casilleros SET Tipo=N'Refrigerado' WHERE Codigo=@codigo;");
+            var servicio=new ServicioTemporal(new RepositorioServicioTemporalSql(Configuracion()),Configuracion(),TimeProvider.System);
+            await servicio.ConfigurarAsync(ServiciosTemporalesTests.Compartimento(ClaseServicioTemporal.Frio)with{Codigo=d.Codigo},7,default);
+            await Assert.ThrowsAsync<ReservaSoloWebException>(()=>servicio.ReservarAsync(d.Codigo,30,d.Terminal,default));
+            await Assert.ThrowsAsync<ClienteWebRequeridoException>(()=>servicio.ReservarAsync(d.Codigo,30,null,default));
+            await EjecutarAsync(c,d,"UPDATE dbo.ClientesWebPrototipo SET Activa=0 WHERE PersonaId=@remitente;");
+            await Assert.ThrowsAsync<ClienteWebRequeridoException>(()=>servicio.ReservarAsync(d.Codigo,30,null,default,d.Remitente));
+            await EjecutarAsync(c,d,"UPDATE dbo.ClientesWebPrototipo SET Activa=1 WHERE PersonaId=@remitente;");
+            var r=await servicio.ReservarAsync(d.Codigo,30,null,default,d.Remitente);
+            await using(var q=new SqlCommand("SELECT JSON_VALUE(DatosJson,'$.ClientePersonaId'),JSON_VALUE(DatosJson,'$.OrigenReserva'),TerminalId FROM dbo.OperacionesServiciosTemporales WHERE Id=@id",c))
+            {
+                q.Parameters.Add("@id",SqlDbType.UniqueIdentifier).Value=r.Operacion.Id;await using var lector=await q.ExecuteReaderAsync();Assert.True(await lector.ReadAsync());
+                Assert.Equal(d.Remitente.ToString(),lector.GetString(0));Assert.Equal("Web",lector.GetString(1));Assert.True(lector.IsDBNull(2));
+            }
+            var p=await servicio.PagarAsync(d.Codigo,r.Operacion.Id,r.Credencial,Guid.NewGuid(),null,default,d.Remitente);
+            var otraInstancia=new ServicioTemporal(new RepositorioServicioTemporalSql(Configuracion()),Configuracion(),TimeProvider.System);
+            await otraInstancia.IniciarAsync(d.Codigo,r.Operacion.Id,r.Credencial,d.Terminal,true,default);
+            Assert.True((await otraInstancia.RetirarAsync(d.Codigo,r.Operacion.Id,r.Credencial,d.Terminal,p.PinRetiro!,default)).Autorizado);
+        }
+        finally{await LimpiarAsync(c,d);}
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
     public async Task ServicioTemporalSqlConectaPrepagoVencimientoYRetiro()
     {
         await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);

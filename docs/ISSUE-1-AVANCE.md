@@ -234,3 +234,24 @@ mínimo; configurar y comprobar WhatsApp con sus plantillas/credenciales. La UI 
 para cámara/depósito/retiro también requiere conectar estos contratos y pruebas de navegador.
 No se declara terminado el backend ni lista para fusionar la rama con estas verificaciones
 pendientes. La biometría profesional y el alta de visitantes quedan fuera del alcance.
+
+## Corrección: menú original, recursos gráficos y frío/calor solo web
+
+Se restauró el menú de cuatro accesos y el icono original de Cargar dispositivo
+(04_carga_inalambrica, claro/oscuro). Los controles reutilizan los recursos de
+iconos/complementarios. No se añadieron accesos principales de frío/calor.
+
+Frío/calor solo se reservan y pagan desde la cuenta web del cliente registrado.
+La tablet consulta e inicia reservas web previas desde Tengo una reserva web;
+no contrata esos servicios ni ofrece pago térmico. La restricción se comprobó
+además en el motor/HTTP, con propietario autenticado y guardado en la transacción.
+Los ejemplos anteriores de contratación térmica presencial quedan sustituidos.
+
+Backend: **300 casos: 252 aprobados, 44 fallidos, 4 omisiones anteriores**. Los 44
+son 25 LocalDB, 5 secrets.json ausente, 2 HTTP500 derivados de LocalDB y 12 externos
+sin SQL aislado (uno nuevo para persistencia del cliente/origen térmico). No hay Skips
+nuevos. TRX/log: termicos-corregido-completa en el directorio de resultados de Cloud.
+Interfaz: compilación correcta, 2 pruebas de fixtures y 18 de navegador aprobadas.
+No se atribuyen a estas pruebas una ejecución de SQL, WhatsApp o hardware físicos.
+Detalle: CORRECCION-TABLET-Y-RESERVAS-TERMICAS.md. El backend completo sigue pendiente
+ de validación SQL/Windows e integraciones ya documentadas.

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
+import IconoSynchro from "../components/IconoSynchro.vue";
 import TabletLayout from "../components/TabletLayout.vue";
 import { solicitar, esDemo } from "../services/tabletApi";
 const codigo = ref(""),
@@ -119,7 +120,9 @@ onBeforeUnmount(() => {
       </aside>
     </div>
     <section v-else class="tablet-panel tablet-receipt" role="status">
-      <div class="tablet-receipt-icon">✓</div>
+      <div class="tablet-receipt-icon">
+        <IconoSynchro nombre="30_confirmar" :tamano="36" />
+      </div>
       <h2>Retiro registrado</h2>
       <p class="tablet-muted">
         La operación terminó y el compartimento vuelve a estar disponible.

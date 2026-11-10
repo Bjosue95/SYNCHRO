@@ -1,44 +1,33 @@
 <script setup>
 import TabletLayout from "../components/TabletLayout.vue";
+import IconoSynchro from "../components/IconoSynchro.vue";
 import ServiceCard from "../components/ServiceCard.vue";
 import { useTema } from "../composables/useTema";
 const { oscuro } = useTema();
 const servicios = [
   {
-    titulo: "Guardar pertenencias",
-    descripcion: "Un espacio para tus objetos personales.",
-    icono: "10_mochila_bolso",
-    ruta: "/servicios/personal",
+    titulo: "Guardar",
+    descripcion: "Encomiendas y pertenencias",
+    icono: "01_guardar_depositar",
+    ruta: "/guardar",
   },
   {
     titulo: "Retirar",
-    descripcion: "Recoge tus objetos o una encomienda.",
+    descripcion: "Recoge tus objetos",
     icono: "02_retirar",
     ruta: "/retirar",
   },
   {
-    titulo: "Tengo una reserva",
-    descripcion: "Deposita tu encomienda reservada en la web.",
+    titulo: "Tengo una reserva web",
+    descripcion: "Utiliza tu reserva creada desde la web",
     icono: "03_reserva",
-    ruta: "/terminal/encomiendas/reserva",
+    ruta: "/terminal/reserva-web",
   },
   {
     titulo: "Cargar dispositivo",
-    descripcion: "Energía para tu celular o tu laptop.",
-    icono: "05_carga_por_cable",
+    descripcion: "Celular o laptop",
+    icono: "04_carga_inalambrica",
     ruta: "/servicios/carga",
-  },
-  {
-    titulo: "Mantener en frío",
-    descripcion: "Resguardo en un compartimento frío.",
-    icono: "07_frio",
-    ruta: "/servicios/frio",
-  },
-  {
-    titulo: "Mantener caliente",
-    descripcion: "Un espacio para conservar el calor.",
-    icono: "08_caliente",
-    ruta: "/servicios/calor",
   },
 ];
 </script>
@@ -51,7 +40,7 @@ const servicios = [
     <template #heading
       ><span class="tablet-badge">Fácil · Seguro · A tu ritmo</span></template
     >
-    <div class="tablet-grid">
+    <div class="tablet-grid menu-original">
       <ServiceCard
         v-for="s in servicios"
         :key="s.ruta"
@@ -63,17 +52,27 @@ const servicios = [
       />
     </div>
     <div class="menu-reminder">
-      <img :src="`/iconos/complementarios/41_privacidad${oscuro ? '-oscuro' : ''}.svg`" alt="" />
+      <IconoSynchro nombre="41_privacidad" />
       <p>
-        Tu encomienda comienza en la web.<span>
-          Reserva desde tu cuenta; en esta terminal puedes depositarla o
-          retirarla.</span
+        Encomiendas, frío y calor se reservan en la web.<span>
+          En esta terminal puedes utilizar tu reserva existente.</span
         >
       </p>
     </div>
   </TabletLayout>
 </template>
 <style scoped>
+.menu-original {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 840px);
+  margin: 0 auto;
+}
+@media (max-width: 500px) {
+  .menu-original {
+    grid-template-columns: 1fr;
+  }
+}
+
 .menu-reminder {
   display: flex;
   align-items: center;

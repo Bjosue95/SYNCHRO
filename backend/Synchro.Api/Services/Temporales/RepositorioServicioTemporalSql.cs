@@ -16,7 +16,7 @@ internal sealed class RepositorioServicioTemporalSql(IConfiguration config) : IR
         q.Parameters.Add("@codigo",SqlDbType.NVarChar,10).Value=config.Codigo;
         return await q.ExecuteScalarAsync(token) as string??throw new ServicioTemporalNoDisponibleException();
     }
-    public async Task<T> TransaccionAsync<T>(string codigo,Guid? operacion,int? terminal,Func<DatosServicioTemporal,T> cambio,CancellationToken token)
+    public async Task<T> TransaccionAsync<T>(string codigo,Guid? operacion,int? terminal,Func<DatosServicioTemporal,T> cambio,CancellationToken token,int? clientePersonaId=null)
     {
         if(string.IsNullOrWhiteSpace(codigo)||codigo.Length>10)throw new ArgumentException("Codigo invalido.");
         await using var c=new SqlConnection(Cadena);await c.OpenAsync(token);
@@ -26,6 +26,12 @@ internal sealed class RepositorioServicioTemporalSql(IConfiguration config) : IR
             await using var q=new SqlCommand("SELECT Activa FROM dbo.Terminales WITH(UPDLOCK,HOLDLOCK) WHERE Id=@terminal",c,t);
             q.Parameters.Add("@terminal",SqlDbType.Int).Value=terminal;
             if(await q.ExecuteScalarAsync(token) is not true)throw new ServicioTemporalNoDisponibleException();
+        }
+        if(clientePersonaId is not null)
+        {
+            await using var q=new SqlCommand("SELECT Activa FROM dbo.ClientesWebPrototipo WITH(UPDLOCK,HOLDLOCK)WHERE PersonaId=@cliente",c,t);
+            q.Parameters.Add("@cliente",SqlDbType.Int).Value=clientePersonaId;
+            if(await q.ExecuteScalarAsync(token) is not true)throw new ClienteWebRequeridoException();
         }
         ConfiguracionServicioTemporal configuracion;
         await using(var q=new SqlCommand("SELECT ConfiguracionJson FROM dbo.CompartimentosServiciosTemporales WITH(UPDLOCK,HOLDLOCK) WHERE Codigo=@codigo",c,t))

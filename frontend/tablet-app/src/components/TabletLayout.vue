@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppHeader from "./AppHeader.vue";
+import IconoSynchro from "./IconoSynchro.vue";
 import HelpDialog from "./HelpDialog.vue";
 import { useTema } from "../composables/useTema";
 import { esDemo } from "../services/tabletApi";
@@ -25,7 +26,7 @@ const ayuda = ref(null);
     <div class="tablet-content">
       <div class="tablet-context">
         <RouterLink v-if="volver" :to="volver" class="tablet-back"
-          >← Volver</RouterLink
+          ><IconoSynchro nombre="28_regresar" /> Volver</RouterLink
         ><span class="tablet-station"
           ><span class="status-dot"></span
           >{{
@@ -50,7 +51,13 @@ const ayuda = ref(null);
           :class="{ actual: i === paso, completo: i < paso }"
           :aria-current="i === paso ? 'step' : undefined"
         >
-          <span>{{ i < paso ? "✓" : i + 1 }}</span
+          <span
+            ><IconoSynchro
+              v-if="i < paso"
+              nombre="30_confirmar"
+              :tema="oscuro ? 'claro' : 'oscuro'"
+              :tamano="18"
+            /><template v-else>{{ i + 1 }}</template></span
           >{{ nombre }}
         </li>
       </ol>

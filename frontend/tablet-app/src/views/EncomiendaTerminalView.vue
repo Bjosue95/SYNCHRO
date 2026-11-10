@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onBeforeUnmount } from "vue";
 import { useRoute, RouterLink } from "vue-router";
+import IconoSynchro from "../components/IconoSynchro.vue";
 import TabletLayout from "../components/TabletLayout.vue";
 import CapturaRostro from "../components/CapturaRostro.vue";
 import { solicitar, esDemo } from "../services/tabletApi";
@@ -206,7 +207,12 @@ onBeforeUnmount(() => {
               >La recibiste al crear la reserva. No la compartas.</small
             ></label
           ><button class="tablet-button" :disabled="ocupado">
-            {{ ocupado ? "Consultando…" : "Continuar →" }}
+            {{ ocupado ? "Consultando…" : "Continuar"
+            }}<IconoSynchro
+              v-if="!ocupado"
+              nombre="29_continuar"
+              tema="claro"
+            />
           </button>
         </form>
         <button
@@ -359,7 +365,9 @@ onBeforeUnmount(() => {
       </aside>
     </div>
     <section v-else class="tablet-panel tablet-receipt" role="status">
-      <div class="tablet-receipt-icon">✓</div>
+      <div class="tablet-receipt-icon">
+        <IconoSynchro nombre="30_confirmar" :tamano="36" />
+      </div>
       <h2>{{ retiro ? "Retiro registrado" : "Depósito registrado" }}</h2>
       <p class="tablet-muted">
         {{

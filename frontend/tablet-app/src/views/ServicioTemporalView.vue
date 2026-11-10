@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, RouterLink } from "vue-router";
+import IconoSynchro from "../components/IconoSynchro.vue";
 import TabletLayout from "../components/TabletLayout.vue";
 import { solicitar } from "../services/tabletApi";
 const route = useRoute();
@@ -8,8 +9,6 @@ const tipo = computed(() => route.params.tipo);
 const nombres = {
   carga: "Carga tu dispositivo",
   personal: "Un espacio para tus pertenencias",
-  frio: "Resguardo en frío",
-  calor: "Resguardo en caliente",
 };
 const paso = ref(0),
   error = ref(""),
@@ -30,8 +29,7 @@ const disponibles = computed(() =>
       x.configuracion.habilitado &&
       (tipo.value === "carga"
         ? ["CargaCelular", "CargaLaptop"].includes(x.configuracion.clase)
-        : x.configuracion.clase ===
-          { personal: "Personal", frio: "Frio", calor: "Calor" }[tipo.value]),
+        : x.configuracion.clase === { personal: "Personal" }[tipo.value]),
   ),
 );
 const compartimento = computed(
@@ -171,7 +169,10 @@ onBeforeUnmount(() => {
               ><small>{{ s.configuracion.conector || "Disponible" }}</small>
             </button>
           </div>
-          <h2 class="section-spacing">2. ¿Cuánto tiempo necesitas?</h2>
+          <h2 class="section-spacing">
+            <IconoSynchro nombre="21_tiempo_tarifa" /> 2. ¿Cuánto tiempo
+            necesitas?
+          </h2>
           <div class="tablet-choices">
             <button
               v-for="m in duraciones"
@@ -225,7 +226,7 @@ onBeforeUnmount(() => {
           :disabled="ocupado || !compartimento"
           @click="reservar"
         >
-          Continuar al pago →
+          Continuar al pago <IconoSynchro nombre="29_continuar" tema="claro" />
         </button>
         <p class="tablet-muted fine-print">
           El tiempo comienza después del pago y al confirmar que guardaste tus
@@ -247,7 +248,7 @@ onBeforeUnmount(() => {
         </p>
       </section>
       <aside class="tablet-panel">
-        <h2>Total a pagar</h2>
+        <h2><IconoSynchro nombre="22_pagos" /> Total a pagar</h2>
         <div class="tablet-total">
           <strong>{{ dinero(reserva.operacion.monto) }}</strong>
         </div>
@@ -310,7 +311,9 @@ onBeforeUnmount(() => {
       </aside>
     </div>
     <section v-else class="tablet-panel tablet-receipt" role="status">
-      <div class="tablet-receipt-icon">✓</div>
+      <div class="tablet-receipt-icon">
+        <IconoSynchro nombre="30_confirmar" :tamano="36" />
+      </div>
       <h2>Todo listo en {{ reserva.operacion.codigo }}</h2>
       <p class="tablet-muted">
         Tu tiempo de {{ reserva.operacion.minutos }} minutos ha comenzado.

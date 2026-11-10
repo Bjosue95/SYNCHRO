@@ -25,7 +25,7 @@ internal sealed class RepositorioTemporalSimulado : IRepositorioServicioTemporal
         var copia=new DatosServicioTemporal{Configuracion=Copia(d.Configuracion),EstadoInventario=d.EstadoInventario};
         foreach(var o in d.Operaciones.Values)copia.Operaciones.Add(o.Id,Copia(o));return copia;
     }
-    public Task<T> TransaccionAsync<T>(string codigo,Guid? id,int? terminal,Func<DatosServicioTemporal,T> cambio,CancellationToken token)
+    public Task<T> TransaccionAsync<T>(string codigo,Guid? id,int? terminal,Func<DatosServicioTemporal,T> cambio,CancellationToken token,int? clientePersonaId=null)
     {
         token.ThrowIfCancellationRequested();
         lock(_sync)
@@ -85,19 +85,30 @@ public sealed class ServiciosTemporalesTests
     [InlineData(ClaseServicioTemporal.Personal)]
     public async Task ReservaPagoDepositoVencimientoYRetiroSeConectanSinCobroPosterior(ClaseServicioTemporal clase)
     {
-        var(s,repo,reloj)=await Crear(clase);var reserva=await s.ReservarAsync("C01",30,null,default);var id=reserva.Operacion.Id;
+        var(s,repo,reloj)=await Crear(clase);var reserva=await s.ReservarAsync("C01",30,null,default,41);var id=reserva.Operacion.Id;
         await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.IniciarAsync("C01",id,reserva.Credencial,1,true,default));
-        var pago=await s.PagarAsync("C01",id,reserva.Credencial,Guid.NewGuid(),null,default);
+        var pago=await s.PagarAsync("C01",id,reserva.Credencial,Guid.NewGuid(),null,default,41);
         Assert.NotNull(pago.PinRetiro);Assert.Equal(10,pago.Operacion.Monto);
         await s.IniciarAsync("C01",id,reserva.Credencial,1,true,default);reloj.Avanzar(TimeSpan.FromMinutes(31));
         var agotada=await s.ConsultarAsync("C01",id,reserva.Credencial,default);Assert.Equal(EstadoServicioTemporal.Agotada,agotada.Estado);
         Assert.Equal("Ocupado",repo.Datos["C01"].EstadoInventario);
-        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.CancelarAsync("C01",id,reserva.Credencial,default));
+        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.CancelarAsync("C01",id,reserva.Credencial,default,41));
         var retiro=await s.RetirarAsync("C01",id,reserva.Credencial,1,pago.PinRetiro!,default);
         Assert.True(retiro.Autorizado);Assert.Equal(10,retiro.Operacion.Monto);Assert.Equal("Disponible",repo.Datos["C01"].EstadoInventario);
         await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.RetirarAsync("C01",id,reserva.Credencial,1,pago.PinRetiro!,default));
         reloj.Avanzar(TimeSpan.FromMinutes(1));var reporte=await s.ReportarAsync(reloj.GetUtcNow().AddHours(-1),reloj.GetUtcNow(),default);
         Assert.Equal(10,reporte.IngresosSimuladosHnl);Assert.Equal(31,reporte.MinutosOcupadosSimulados);Assert.Equal(1,reporte.Finalizadas);
+    }
+    [Theory]
+    [InlineData(ClaseServicioTemporal.Frio)]
+    [InlineData(ClaseServicioTemporal.Calor)]
+    public async Task ReservaTermicaAntiguaSinClienteNiOrigenWebNoInicia(ClaseServicioTemporal clase)
+    {
+        var(s,repo,_)=await Crear(clase);var r=await s.ReservarAsync("C01",30,null,default,41);
+        await s.PagarAsync("C01",r.Operacion.Id,r.Credencial,Guid.NewGuid(),null,default,41);
+        repo.Datos["C01"].Operaciones[r.Operacion.Id]=repo.Datos["C01"].Operaciones[r.Operacion.Id]with{ClientePersonaId=null,OrigenReserva=null};
+        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.IniciarAsync("C01",r.Operacion.Id,r.Credencial,1,true,default));
+        Assert.Equal("Reservado",repo.Datos["C01"].EstadoInventario);Assert.Equal(EstadoServicioTemporal.Pagada,repo.Datos["C01"].Operaciones[r.Operacion.Id].Estado);
     }
     [Fact]
     public async Task ReintentoPagoNoDuplicaNiRevelaPinOtraVez()
@@ -156,9 +167,9 @@ public sealed class ServiciosTemporalesTests
     {
         var(s,repo,_)=await Crear(ClaseServicioTemporal.Frio);
         await s.ConfigurarAsync(Compartimento(ClaseServicioTemporal.Frio)with{TemperaturaSimulada=20},9,default);
-        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.ReservarAsync("C01",30,null,default));
+        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.ReservarAsync("C01",30,null,default,41));
         await s.ConfigurarAsync(Compartimento(ClaseServicioTemporal.Frio),9,default);
-        var r=await s.ReservarAsync("C01",30,1,default);var p=await s.PagarAsync("C01",r.Operacion.Id,r.Credencial,Guid.NewGuid(),1,default);
+        var r=await s.ReservarAsync("C01",30,null,default,41);var p=await s.PagarAsync("C01",r.Operacion.Id,r.Credencial,Guid.NewGuid(),null,default,41);
         await s.IniciarAsync("C01",r.Operacion.Id,r.Credencial,1,true,default);await s.RegistrarIncidenciaAsync("C01","Simulacion de fallo de sensor",9,default);
         Assert.Equal("Ocupado",repo.Datos["C01"].EstadoInventario);
         Assert.True((await s.RetirarAsync("C01",r.Operacion.Id,r.Credencial,1,p.PinRetiro!,default)).Autorizado);

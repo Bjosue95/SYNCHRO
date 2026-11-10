@@ -36,6 +36,17 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
         return o;
     }
     private static void Terminal(int id){if(id<=0)throw new ArgumentException("Terminal invalida.");}
+    private static bool Termico(ClaseServicioTemporal clase)=>clase is ClaseServicioTemporal.Frio or ClaseServicioTemporal.Calor;
+    private static void ExigirReservaWeb(OperacionServicioTemporal o)
+    {if(Termico(o.Clase)&&(o.ClientePersonaId is not >0||o.OrigenReserva!="Web"))throw new ServicioTemporalNoDisponibleException(true);}
+    private static void GestionTermica(OperacionServicioTemporal o,int? cliente,int? terminal=null)
+    {
+        if(!Termico(o.Clase))return;
+        if(terminal is not null)throw new ReservaSoloWebException();
+        if(cliente is not >0)throw new ClienteWebRequeridoException();
+        ExigirReservaWeb(o);
+        if(o.ClientePersonaId!=cliente)throw new ServicioTemporalNoDisponibleException();
+    }
     private string CrearPin(OperacionServicioTemporal o)
     {
         string pin;
@@ -46,40 +57,46 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
         try{o.PinSalt=Convert.ToBase64String(salt);o.PinHash=CredencialesServicioTemporal.HashPin(pin,o.Id,o.PinSalt,config);o.IntentosPin=0;return pin;}
         finally{CryptographicOperations.ZeroMemory(salt);}
     }
-    public Task<ReservaServicioTemporal> ReservarAsync(string codigo,int minutos,int? terminal,CancellationToken token)
+    public Task<ReservaServicioTemporal> ReservarAsync(string codigo,int minutos,int? terminal,CancellationToken token,int? clientePersonaId=null)
     {
         if(terminal is not null)Terminal(terminal.Value);
         if(minutos is <1 or >1440)throw new ArgumentException("Duracion invalida.");
         return repo.TransaccionAsync(codigo,null,terminal,d=>Aplicar(d,()=>
         {
             var c=d.Configuracion;c.Validar();
+            if(Termico(c.Clase))
+            {
+                if(terminal is not null)throw new ReservaSoloWebException();
+                if(clientePersonaId is not >0)throw new ClienteWebRequeridoException();
+            }
             if(!c.Tarifas.TryGetValue(minutos,out decimal precio))throw new ArgumentException("Duracion no disponible.");
             if(!c.Habilitado||!c.TemperaturaApta||d.EstadoInventario!="Disponible"||d.Operaciones.Values.Any(o=>o.Ocupa))
                 throw new ServicioTemporalNoDisponibleException(true);
             byte[] secreto=RandomNumberGenerator.GetBytes(32);
             string credencial;
             try{credencial=Convert.ToHexString(secreto);}finally{CryptographicOperations.ZeroMemory(secreto);}
-            var o=new OperacionServicioTemporal{Id=Guid.NewGuid(),Codigo=c.Codigo,Clase=c.Clase,TerminalId=terminal,
+            var o=new OperacionServicioTemporal{Id=Guid.NewGuid(),Codigo=c.Codigo,Clase=c.Clase,TerminalId=terminal,ClientePersonaId=clientePersonaId,OrigenReserva=terminal is null?"Web":"Terminal",
                 Minutos=minutos,Monto=precio,TokenHash=CredencialesServicioTemporal.HashToken(credencial),CreadaUtc=Ahora,VenceReservaUtc=Ahora.AddMinutes(10)};
             d.Operaciones.Add(o.Id,o);d.EstadoInventario="Reservado";
             d.Eventos.Add(new(o.Id,"Reserva creada",terminal is null?"Web":"Terminal:"+terminal,Ahora));
             return new ReservaServicioTemporal(Vista(o),credencial);
-        }),token);
+        }),token,clientePersonaId);
     }
-    public Task<PagoServicioTemporal> PagarAsync(string codigo,Guid id,string credencial,Guid pagoId,int? terminal,CancellationToken token)
+    public Task<PagoServicioTemporal> PagarAsync(string codigo,Guid id,string credencial,Guid pagoId,int? terminal,CancellationToken token,int? clientePersonaId=null)
     {
         if(pagoId==Guid.Empty)throw new ArgumentException("Identificador de pago invalido.");
         if(terminal is not null)Terminal(terminal.Value);
         return repo.TransaccionAsync(codigo,id,terminal,d=>Aplicar(d,()=>
         {
             var o=Propietario(d,id,credencial,terminal);
+            GestionTermica(o,clientePersonaId,terminal);
             string canal=terminal is not null?"NfcSimulado":"WebSimulado";
             if(o.PagoId==pagoId&&!o.PagoAnulado&&o.CanalPago==canal)return new PagoServicioTemporal(Vista(o),null,true);
             if(o.Estado!=EstadoServicioTemporal.Reservada)throw new ServicioTemporalNoDisponibleException(true);
             string pin=CrearPin(o);o.Estado=EstadoServicioTemporal.Pagada;o.PagoId=pagoId;o.PagoUtc=Ahora;o.CanalPago=canal;
             d.Eventos.Add(new(o.Id,"Pago simulado confirmado",canal,Ahora));
             return new PagoServicioTemporal(Vista(o),pin,false);
-        }),token);
+        }),token,clientePersonaId);
     }
     public Task<ResumenServicioTemporal> IniciarAsync(string codigo,Guid id,string credencial,int terminal,bool equipoCerrado,CancellationToken token)
     {
@@ -87,6 +104,7 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
         return repo.TransaccionAsync(codigo,id,terminal,d=>Aplicar(d,()=>
         {
             var o=Propietario(d,id,credencial,terminal);
+            ExigirReservaWeb(o);
             if((o.Estado is EstadoServicioTemporal.Activa or EstadoServicioTemporal.Agotada)&&d.EstadoInventario=="Ocupado")return Vista(o);
             if(o.Estado!=EstadoServicioTemporal.Pagada||!d.Configuracion.Habilitado||!d.Configuracion.TemperaturaApta||
                 d.EstadoInventario!="Reservado"||o.Clase==ClaseServicioTemporal.CargaLaptop&&!equipoCerrado)
@@ -126,16 +144,17 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
             return new PagoServicioTemporal(Vista(o),pin,false);
         }),token);
     }
-    public Task<ResumenServicioTemporal> CancelarAsync(string codigo,Guid id,string credencial,CancellationToken token)
+    public Task<ResumenServicioTemporal> CancelarAsync(string codigo,Guid id,string credencial,CancellationToken token,int? clientePersonaId=null)
         =>repo.TransaccionAsync(codigo,id,null,d=>Aplicar(d,()=>
         {
             var o=Propietario(d,id,credencial);
+            GestionTermica(o,clientePersonaId);
             if(o.Estado==EstadoServicioTemporal.Cancelada)return Vista(o);
             if(o.Estado is not(EstadoServicioTemporal.Reservada or EstadoServicioTemporal.Pagada))throw new ServicioTemporalNoDisponibleException(true);
             o.Estado=EstadoServicioTemporal.Cancelada;o.PagoAnulado=o.PagoId is not null;o.PinHash=null;o.PinSalt=null;
             d.EstadoInventario=d.Configuracion.Habilitado&&d.Configuracion.TemperaturaApta?"Disponible":"Bloqueado";
             d.Eventos.Add(new(o.Id,"Reserva cancelada con credencial","Web o terminal",Ahora));return Vista(o);
-        }),token);
+        }),token,clientePersonaId);
     public Task<ResumenServicioTemporal> ConsultarAsync(string codigo,Guid id,string credencial,CancellationToken token)
         =>repo.TransaccionAsync(codigo,id,null,d=>Aplicar(d,()=>Vista(Propietario(d,id,credencial))),token);
     public async Task<IReadOnlyList<DisponibilidadServicioTemporal>> DisponibilidadAsync(CancellationToken token)

@@ -47,6 +47,8 @@ internal sealed record OperacionServicioTemporal
     public string Codigo {get;init;}="";
     public ClaseServicioTemporal Clase {get;init;}
     public int? TerminalId {get;set;}
+    public int? ClientePersonaId {get;init;}
+    public string? OrigenReserva {get;init;}
     public int Minutos {get;init;}
     public decimal Monto {get;init;}
     public string TokenHash {get;init;}="";
@@ -93,7 +95,7 @@ public sealed record ReporteServiciosTemporales(int Reservas,int EnUso,int Final
 internal interface IRepositorioServicioTemporal
 {
     Task<T> TransaccionAsync<T>(string codigo,Guid? operacionId,int? terminalId,
-        Func<DatosServicioTemporal,T> cambio,CancellationToken token);
+        Func<DatosServicioTemporal,T> cambio,CancellationToken token,int? clientePersonaId=null);
     Task ConfigurarAsync(ConfiguracionServicioTemporal config,int administradorId,CancellationToken token);
     Task<IReadOnlyList<string>> CodigosAsync(CancellationToken token);
     Task<ReporteServiciosTemporales> ReportarAsync(DateTimeOffset desde,DateTimeOffset hasta,CancellationToken token);
@@ -131,3 +133,6 @@ internal static class CredencialesServicioTemporal
         finally{CryptographicOperations.ZeroMemory(x);CryptographicOperations.ZeroMemory(y);}
     }
 }
+
+internal sealed class ClienteWebRequeridoException : Exception;
+internal sealed class ReservaSoloWebException : Exception;

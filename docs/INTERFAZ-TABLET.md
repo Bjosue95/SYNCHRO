@@ -31,8 +31,8 @@ labels, mensajes con role=alert/status, movimiento reducido y rejillas adaptable
 - `components/CapturaRostro.vue`: permiso explícito, getUserMedia sin audio, captura PNG
   512x384 (por debajo del límite de 1 MiB), apagado de pistas al capturar/salir e imágenes
   transitorias. Denegar permiso impide avanzar. La simulación no es biometría profesional.
-- `views/`: menú de seis servicios; EncomiendaTerminalView para depósito/retiro;
-  ServicioTemporalView compartida por Personal/carga/frío/calor; RetiroTemporalView.
+- `views/`: menú original de cuatro opciones; EncomiendaTerminalView para depósito/retiro;
+  ServicioTemporalView para Personal/carga; ReservaWebTerminalView y ReservaTermicaTerminalView para utilizar reservas térmicas previas; RetiroTemporalView.
 - `services/tabletApi.js`: fetch con cookies, CSRF ligado al esquema correspondiente,
   encabezados de credenciales, cancelación y mensajes de error. Las vistas no envían
   identidades, aprobaciones de rostro, precios ni terminalId como autoridad al servidor.
@@ -43,14 +43,25 @@ labels, mensajes con role=alert/status, movimiento reducido y rejillas adaptable
 
 ## Rutas y comportamiento
 
+Corrección del propietario: se restauran las cuatro opciones originales del menú.
+Guardar vuelve a `/guardar`. Cargar dispositivo recupera su icono original
+`04_carga_inalambrica` (claro/oscuro). Frío y calor son exclusivos de reservas web de
+clientes registrados: se accede a reservas existentes desde Tengo una reserva web.
+No se pueden reservar ni pagar desde la terminal, tampoco usando rutas directas.
+`IconoSynchro` reutiliza los archivos de complementarios para volver/continuar,
+confirmación, privacidad, tiempo y pago; la cámara usa el icono 38 existente.
+
+
 | Ruta | Interfaz |
 |---|---|
-| /menu | Pertenencias, retirar, reserva existente, carga, frío y calor |
+| /menu | Guardar, Retirar, Tengo una reserva web y Cargar dispositivo (rejilla 2×2) |
 | /terminal/encomiendas/reserva | Consultar reserva → captura remitente → confirmar depósito |
 | /terminal/encomiendas/retiro | Acceso destinatario → captura destinatario → PIN → retiro |
 | /servicios/personal | Compartimento → tarifa/tiempo → prepago → inicio y comprobante |
 | /servicios/carga | Celular/laptop y conector → 30/60/90 min → prepago → guardar cerrado |
-| /servicios/frio y /servicios/calor | Disponibilidad, temperatura simulada, tarifa e inicio |
+| /terminal/reserva-web | Elegir reserva ya creada: encomienda, frío o calor |
+| /terminal/reservas/frio y /terminal/reservas/calor | Consultar reserva web, comprobar pago e iniciar uso; sin crear ni pagar |
+| /servicios/frio y /servicios/calor | Redirigen a Tengo una reserva web |
 | /retirar | Elegir encomienda u objetos/dispositivo |
 | /retirar/servicios | Retiro con compartimento, referencia, credencial y PIN |
 
@@ -84,16 +95,19 @@ Validación ejecutada en Cloud:
 - `npm run build`: aprobado.
 - `npm test`: 2 pruebas aprobadas de fixtures (fallos, ocupación única, pago idempotente,
   PIN incorrecto y consumo único).
-- `npm run test:e2e`: **16 aprobadas, 0 fallidas, 0 omitidas**. Navegación responsive,
+- `npm run test:e2e`: **18 aprobadas, 0 fallidas, 0 omitidas**. Navegación responsive,
   imágenes, tema/ayuda, visitantes retirados, depósito, retiro con PIN fallido/correcto,
   captura mediante API del navegador, rechazo de permiso, servicios temporales, laptop
   cerrada, cancelación, borrado de secretos y fallo cerrado en la compilación normal.
 - La cámara de Playwright usa vídeo sintético. Se comprobaron recursos MediaStream y
   apagado, no una cámara física ni reconocimiento biométrico de personas.
-- No se repitió la suite .NET porque esta etapa no cambia código del backend. Su última
-  ejecución y bloqueos SQL constan en ISSUE-1-AVANCE.md; no se atribuye a estos tests de UI
-  una integración SQL real. Los scripts de PowerShell tampoco se ejecutaron aquí.
+- La restricción térmica también se aplica en el motor y la API. Suite .NET completa:
+  300 casos, 252 aprobados, 44 fallidos por SQL/configuración ausentes y 4 omisiones
+  anteriores. Se agregaron pruebas de cliente propietario, prohibición de contratación
+  desde terminal y rechazo de reservas históricas sin cuenta/origen. La prueba SQL nueva
+  queda pendiente de la laptop. Los scripts de PowerShell tampoco se ejecutaron aquí.
 
 Capturas reales del navegador, con datos ficticios:
 [menú](capturas/tablet-menu.png), [oscuro](capturas/tablet-menu-oscuro.png),
-[cámara](capturas/tablet-camara.png), [carga](capturas/tablet-carga.png).
+[cámara](capturas/tablet-camara.png), [carga](capturas/tablet-carga.png),
+[reservas web](capturas/tablet-reserva-web.png) y [uso térmico](capturas/tablet-reserva-termica.png).

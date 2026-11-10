@@ -15,7 +15,20 @@ for (const viewport of [
     await expect(
       page.getByRole("heading", { name: "¿Qué deseas hacer?" }),
     ).toBeVisible();
-    await expect(page.locator(".tablet-grid a")).toHaveCount(6);
+    await expect(page.locator(".tablet-grid a")).toHaveCount(4);
+    await expect(page.locator(".tablet-grid h2")).toHaveText([
+      "Guardar",
+      "Retirar",
+      "Tengo una reserva web",
+      "Cargar dispositivo",
+    ]);
+    await expect(
+      page.getByRole("link", { name: /Mantener en frío|Mantener caliente/ }),
+    ).toHaveCount(0);
+    await expect(page.locator(".tablet-grid a").first()).toHaveAttribute(
+      "href",
+      "/guardar",
+    );
     for (const tarjeta of await page.locator(".tablet-grid a").all())
       await expect(tarjeta).toHaveAttribute("href", /\//);
     expect(
@@ -28,6 +41,9 @@ for (const viewport of [
         .locator("img")
         .evaluateAll((xs) => xs.every((x) => x.complete && x.naturalWidth > 0)),
     ).toBe(true);
+    await expect(
+      page.locator(".tablet-grid a").nth(3).locator("img.icono-claro"),
+    ).toHaveAttribute("src", "/iconos/04_carga_inalambrica.svg");
     expect(errores).toEqual([]);
   });
 }
@@ -51,7 +67,7 @@ test("tema oscuro, ayuda y ruta visitante conducen a reserva existente", async (
 async function prepararDeposito(page) {
   await page.goto("/terminal/encomiendas/reserva");
   await page.getByRole("button", { name: "Rellenar datos de ejemplo" }).click();
-  await page.getByRole("button", { name: "Continuar →", exact: true }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Verifiquemos al remitente" }),
   ).toBeVisible();
@@ -86,7 +102,7 @@ test("retira encomienda solo con acceso, captura y PIN correcto", async ({
   await page.goto("/terminal/encomiendas/retiro");
   await page.getByRole("button", { name: "Rellenar datos de ejemplo" }).click();
   await page.getByRole("button", { name: "Verificar mi acceso" }).click();
-  await page.getByRole("button", { name: "Continuar →", exact: true }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await muestra(page);
   await page.getByLabel("PIN recibido por WhatsApp").fill("000000");
   await page
@@ -151,12 +167,12 @@ test("permiso de cámara denegado no permite avanzar", async ({ page }) => {
     page.getByRole("heading", { name: "Confirma el casillero" }),
   ).toHaveCount(0);
 });
-for (const tipo of ["personal", "carga", "frio", "calor"]) {
+for (const tipo of ["personal", "carga"]) {
   test(`reserva, prepago e inicio de ${tipo}`, async ({ page }) => {
     await page.goto(`/servicios/${tipo}`);
     await expect(page.locator(".compartimento").first()).toBeVisible();
     await page.getByRole("button", { name: "60 min", exact: true }).click();
-    await page.getByRole("button", { name: "Continuar al pago →" }).click();
+    await page.getByRole("button", { name: "Continuar al pago" }).click();
     await expect(page.locator("main")).toContainText("60 minutos de uso");
     await page.getByRole("button", { name: "Confirmar pago simulado" }).click();
     await page
@@ -186,7 +202,7 @@ for (const tipo of ["personal", "carga", "frio", "calor"]) {
 test("laptop requiere confirmar que está cerrada", async ({ page }) => {
   await page.goto("/servicios/carga");
   await page.getByRole("button", { name: /L01/ }).click();
-  await page.getByRole("button", { name: "Continuar al pago →" }).click();
+  await page.getByRole("button", { name: "Continuar al pago" }).click();
   await page.getByRole("button", { name: "Confirmar pago simulado" }).click();
   await page
     .getByRole("checkbox", {
@@ -205,7 +221,7 @@ test("cancelar libera el espacio y permite una nueva selección", async ({
   page,
 }) => {
   await page.goto("/servicios/personal");
-  await page.getByRole("button", { name: "Continuar al pago →" }).click();
+  await page.getByRole("button", { name: "Continuar al pago" }).click();
   await page
     .getByRole("button", { name: "Cancelar reserva", exact: true })
     .click();
@@ -213,7 +229,7 @@ test("cancelar libera el espacio y permite una nueva selección", async ({
     page.getByRole("heading", { name: "1. Elige tu compartimento" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Continuar al pago →" }),
+    page.getByRole("button", { name: "Continuar al pago" }),
   ).toBeEnabled();
 });
 test("retiro temporal no muestra PIN ni credencial al finalizar", async ({
@@ -255,9 +271,60 @@ test("compilación normal no activa demo ni aprueba una reserva si falla la API"
   await page
     .getByLabel("Credencial de tu reserva", { exact: false })
     .fill("A".repeat(64));
-  await page.getByRole("button", { name: "Continuar →", exact: true }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Verifiquemos al remitente" }),
   ).toHaveCount(0);
 });
+
+for (const tipo of ["frio", "calor"]) {
+  test(`la terminal usa una reserva web de ${tipo} sin contratarla`, async ({
+    page,
+  }) => {
+    const peticiones = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST") peticiones.push(r.url());
+    });
+    await page.goto("/menu");
+    await page.getByRole("link", { name: /Tengo una reserva web/ }).click();
+    await page
+      .getByRole("link", {
+        name: tipo === "frio" ? /Reserva de frío/ : /Reserva de calor/,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Usar reserva web de ejemplo" })
+      .click();
+    await page
+      .getByRole("button", { name: "Consultar reserva", exact: true })
+      .click();
+    await expect(
+      page.getByText("Reserva web comprobada", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("checkbox", { name: "Guardé mis objetos y cerré la puerta." })
+      .check();
+    await page
+      .getByRole("button", { name: "Comenzar uso de mi reserva" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Tu reserva está en uso" }),
+    ).toBeVisible();
+    expect(peticiones.filter((x) => /\/reservas$|\/pagar$/.test(x))).toEqual(
+      [],
+    );
+  });
+  test(`ruta de contratar ${tipo} redirige a reservas existentes`, async ({
+    page,
+  }) => {
+    await page.goto(`/servicios/${tipo}`);
+    await expect(page).toHaveURL(/\/terminal\/reserva-web$/);
+    await expect(
+      page.getByRole("heading", { name: "Tengo una reserva web" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Continuar al pago/ }),
+    ).toHaveCount(0);
+  });
+}

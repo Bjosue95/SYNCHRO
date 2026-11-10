@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { crearEscenarioDemo } from "../src/services/demo/tabletDemo.js";
 test("demo no fabrica un exito para rutas desconocidas o credenciales incorrectas", async () => {
   const api = crearEscenarioDemo();
+  await assert.rejects(api('/api/terminales/servicios/F02/reservas',{metodo:'POST',datos:{minutos:30}}), e=>e.estado===403);
+  await assert.rejects(api('/api/terminales/servicios/H02/reservas',{metodo:'POST',datos:{minutos:30}}), e=>e.estado===403);
   await assert.rejects(
     api("/api/terminales/encomiendas/visitas", { metodo: "POST", datos: {} }),
   );

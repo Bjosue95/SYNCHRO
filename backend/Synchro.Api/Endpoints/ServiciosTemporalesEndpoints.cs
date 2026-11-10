@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Services;
 using Synchro.Api.Services.Temporales;
@@ -28,13 +29,21 @@ public static class ServiciosTemporalesEndpoints
             Ejecutar(http,()=>servicio.ConsultarAsync(codigo,id,Credencial(http),http.RequestAborted)));
 
         var web=app.MapGroup("/api/web/servicios").AddEndpointFilter(new ModuloPrototipoHabilitadoFilter(app.Configuration,"ServiciosTemporales:Habilitado"))
-            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
+            .AddEndpointFilter(async(context,next)=>
+            {
+                var http=context.HttpContext;var cuenta=await http.AuthenticateAsync("Clientes");
+                if(cuenta.Succeeded&&cuenta.Principal?.IsInRole("Cliente")==true&&
+                    int.TryParse(cuenta.Principal.FindFirstValue(ClaimTypes.NameIdentifier),out int cliente)&&cliente>0)
+                {http.User=cuenta.Principal;http.Items["Synchro.ClienteWebAutenticado"]=cliente;}
+                return await next(context);
+            }).AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
+        web.MapGet("/csrf-token",(HttpContext http,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(http).RequestToken}));
         web.MapPost("/{codigo}/reservas",(string codigo,ReservarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
-            Ejecutar(http,()=>servicio.ReservarAsync(codigo,datos.Minutos,null,http.RequestAborted)));
+            Ejecutar(http,()=>servicio.ReservarAsync(codigo,datos.Minutos,null,http.RequestAborted,ClienteWeb(http))));
         web.MapPost("/{codigo}/reservas/{id:guid}/pagar",(string codigo,Guid id,PagarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
-            Ejecutar(http,()=>servicio.PagarAsync(codigo,id,Credencial(http),datos.IdOperacion,null,http.RequestAborted)));
+            Ejecutar(http,()=>servicio.PagarAsync(codigo,id,Credencial(http),datos.IdOperacion,null,http.RequestAborted,ClienteWeb(http))));
         web.MapPost("/{codigo}/reservas/{id:guid}/cancelar",(string codigo,Guid id,HttpContext http,ServicioTemporal servicio)=>
-            Ejecutar(http,()=>servicio.CancelarAsync(codigo,id,Credencial(http),http.RequestAborted)));
+            Ejecutar(http,()=>servicio.CancelarAsync(codigo,id,Credencial(http),http.RequestAborted,ClienteWeb(http))));
 
         var terminal=app.MapGroup("/api/terminales/servicios").RequireAuthorization("SoloTerminal")
             .AddEndpointFilter(new ModuloPrototipoHabilitadoFilter(app.Configuration,"ServiciosTemporales:Habilitado")).AddEndpointFilter<OperacionTerminalSeguraFilter>()
@@ -67,11 +76,14 @@ public static class ServiciosTemporalesEndpoints
     }
     private static int Identidad(HttpContext http)=>int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out var id)&&id>0?id:
         throw new ServicioTemporalNoDisponibleException();
+    private static int? ClienteWeb(HttpContext http)=>http.Items["Synchro.ClienteWebAutenticado"]is int id?id:null;
     private static string Credencial(HttpContext http)=>http.Request.Headers["X-SYNCHRO-SERVICIO"].ToString();
     private static async Task<IResult> Ejecutar<T>(HttpContext http,Func<Task<T>> accion,Func<T,IResult>? representar=null)
     {
         http.Response.Headers.CacheControl="no-store";
         try{T resultado=await accion();return representar is null?Results.Ok(resultado):representar(resultado);}
+        catch(ClienteWebRequeridoException){return Results.Unauthorized();}
+        catch(ReservaSoloWebException){return Results.Json(new{mensaje="Frio y calor se reservan y pagan exclusivamente desde la cuenta web del cliente."},statusCode:403);}
         catch(ServicioTemporalNoDisponibleException ex)
         {return ex.Conflicto?Results.Conflict(new{mensaje="El estado actual no permite esta operacion."}):Results.NotFound(new{mensaje="Operacion o compartimento no disponible."});}
         catch(ArgumentException){return Results.BadRequest(new{mensaje="Datos de servicio invalidos."});}
