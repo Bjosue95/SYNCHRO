@@ -9,13 +9,18 @@ import PertenenciasView from "../views/PertenenciasView.vue";
 import SeleccionTamanoView from "../views/SeleccionTamanoView.vue";
 import SeleccionCasilleroView from "../views/SeleccionCasilleroView.vue";
 import VinculacionTerminalView from "../views/VinculacionTerminalView.vue";
-import ReservaExistenteTerminalView from "../views/ReservaExistenteTerminalView.vue";
+import EncomiendaTerminalView from "../views/EncomiendaTerminalView.vue";
+import ServicioTemporalView from "../views/ServicioTemporalView.vue";
+import RetiroTemporalView from "../views/RetiroTemporalView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
 
   routes: [
-    { path: "/terminal/encomiendas/reserva", name: "terminal-reserva-encomienda", component: ReservaExistenteTerminalView },
+    { path: "/terminal/encomiendas/retiro", component: EncomiendaTerminalView, meta: { retiro: true } },
+    { path: "/servicios/:tipo(carga|personal|frio|calor)", component: ServicioTemporalView },
+    { path: "/retirar/servicios", component: RetiroTemporalView },
+    { path: "/terminal/encomiendas/reserva", name: "terminal-reserva-encomienda", component: EncomiendaTerminalView },
     { path: "/guardar/encomienda-visitante", redirect: "/terminal/encomiendas/reserva" },
     {
       path: "/",
@@ -67,6 +72,7 @@ const router = createRouter({
       name: "seleccion-casillero",
       component: SeleccionCasilleroView,
     },
+    { path: "/:pathMatch(.*)*", redirect: "/menu" },
   ],
 });
 

@@ -25,6 +25,7 @@ En desarrollo.
 
 ## Desarrollo del backend (issue #1)
 
+- [Interfaz de tablet y capturas](docs/INTERFAZ-TABLET.md).
 - [Avance comprobado y resultados de pruebas](docs/ISSUE-1-AVANCE.md).
 - [Encomiendas de clientes y capturas de rostro simuladas](docs/ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md).
 - [Instalación de la base aislada](docs/INSTALACION-PROTOTIPO-AISLADO.md).

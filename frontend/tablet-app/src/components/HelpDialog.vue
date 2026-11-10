@@ -35,24 +35,21 @@ defineExpose({ abrir, cerrar });
       <details>
         <summary>¿Cómo guardo mis pertenencias?</summary>
         <p>
-          Selecciona Guardar y después Mis pertenencias. Sigue las instrucciones
-          de la terminal.
+          Selecciona Guardar pertenencias, elige el compartimento y la duración, confirma el pago simulado y guarda tus objetos. Conserva el PIN y los datos de recuperación.
         </p>
       </details>
 
       <details>
         <summary>¿Cómo envío una encomienda?</summary>
         <p>
-          Selecciona Guardar y después Enviar encomienda. El destinatario deberá
-          aceptar por WhatsApp antes de completar el depósito.
+          Crea la reserva desde tu cuenta de cliente en la web. En la terminal, selecciona Tengo una reserva. El destinatario debe aceptar por WhatsApp antes del depósito.
         </p>
       </details>
 
       <details>
         <summary>¿Cómo retiro una encomienda?</summary>
         <p>
-          Selecciona Retirar. El proceso previsto requiere verificación facial y
-          un PIN enviado por WhatsApp.
+          Selecciona Retirar. El proceso requiere una captura de rostro simulada del destinatario y un PIN temporal enviado por WhatsApp.
         </p>
       </details>
 

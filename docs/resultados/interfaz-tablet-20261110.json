@@ -1,0 +1,85 @@
+{
+  "rama": "feat/issue-1-encomiendas-end-to-end",
+  "fecha_local": "2026-11-10",
+  "zona_horaria": "America/Tegucigalpa",
+  "build": "aprobado",
+  "unitarias_demo": {
+    "aprobadas": 2,
+    "fallidas": 0
+  },
+  "navegador": {
+    "aprobadas": 16,
+    "fallidas": 0,
+    "omitidas": 0,
+    "casos": [
+      {
+        "prueba": "menú accesible sin desbordamiento 1280",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "menú accesible sin desbordamiento 768",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "menú accesible sin desbordamiento 390",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "tema oscuro, ayuda y ruta visitante conducen a reserva existente",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "depósito de encomienda con captura y sin pedir de nuevo el teléfono",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "retira encomienda solo con acceso, captura y PIN correcto",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "cámara real del navegador detiene las pistas después de capturar",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "permiso de cámara denegado no permite avanzar",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "reserva, prepago e inicio de personal",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "reserva, prepago e inicio de carga",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "reserva, prepago e inicio de frio",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "reserva, prepago e inicio de calor",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "laptop requiere confirmar que está cerrada",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "cancelar libera el espacio y permite una nueva selección",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "retiro temporal no muestra PIN ni credencial al finalizar",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "compilación normal no activa demo ni aprueba una reserva si falla la API",
+        "resultado": "aprobada"
+      }
+    ]
+  },
+  "entorno": "Chromium headless; fixtures y video sinteticos",
+  "sql_real_verificado": false,
+  "whatsapp_real_enviado": false,
+  "hardware_fisico_verificado": false
+}

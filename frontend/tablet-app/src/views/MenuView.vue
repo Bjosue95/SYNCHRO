@@ -1,150 +1,98 @@
 <script setup>
-import { ref } from "vue";
-
-import AppHeader from "../components/AppHeader.vue";
-import HelpDialog from "../components/HelpDialog.vue";
+import TabletLayout from "../components/TabletLayout.vue";
 import ServiceCard from "../components/ServiceCard.vue";
-
 import { useTema } from "../composables/useTema";
-
-// Tema compartido en toda la aplicación
-const { oscuro, cambiarTema } = useTema();
-
-// Centro de ayuda
-const centroAyuda = ref(null);
-
-// Servicios de SYNCHRO
+const { oscuro } = useTema();
 const servicios = [
   {
-    titulo: "Guardar",
-    descripcion: "Encomiendas y pertenencias",
-    icono: "01_guardar_depositar",
-    ruta: "/guardar",
+    titulo: "Guardar pertenencias",
+    descripcion: "Un espacio para tus objetos personales.",
+    icono: "10_mochila_bolso",
+    ruta: "/servicios/personal",
   },
   {
     titulo: "Retirar",
-    descripcion: "Recoge tus objetos",
+    descripcion: "Recoge tus objetos o una encomienda.",
     icono: "02_retirar",
     ruta: "/retirar",
   },
   {
     titulo: "Tengo una reserva",
-    descripcion: "Deposita una encomienda ya reservada",
+    descripcion: "Deposita tu encomienda reservada en la web.",
     icono: "03_reserva",
     ruta: "/terminal/encomiendas/reserva",
   },
   {
     titulo: "Cargar dispositivo",
-    descripcion: "Celular o laptop",
-    icono: "04_carga_inalambrica",
+    descripcion: "Energía para tu celular o tu laptop.",
+    icono: "05_carga_por_cable",
+    ruta: "/servicios/carga",
+  },
+  {
+    titulo: "Mantener en frío",
+    descripcion: "Resguardo en un compartimento frío.",
+    icono: "07_frio",
+    ruta: "/servicios/frio",
+  },
+  {
+    titulo: "Mantener caliente",
+    descripcion: "Un espacio para conservar el calor.",
+    icono: "08_caliente",
+    ruta: "/servicios/calor",
   },
 ];
-
-function abrirAyuda() {
-  centroAyuda.value?.abrir();
-}
 </script>
-
 <template>
-  <main class="pantalla-menu" :class="{ 'tema-oscuro': oscuro }">
-    <!-- Encabezado reutilizable -->
-    <AppHeader
-      :oscuro="oscuro"
-      @cambiar-tema="cambiarTema"
-      @abrir-ayuda="abrirAyuda"
-    />
-
-    <!-- Título -->
-    <h1 class="titulo-menu">¿Qué deseas hacer?</h1>
-
-    <!-- Tarjetas reutilizables -->
-    <div class="servicios">
+  <TabletLayout
+    titulo="¿Qué deseas hacer?"
+    descripcion="Elige un servicio. Nosotros te acompañamos paso a paso."
+    volver="/"
+  >
+    <template #heading
+      ><span class="tablet-badge">Fácil · Seguro · A tu ritmo</span></template
+    >
+    <div class="tablet-grid">
       <ServiceCard
-        v-for="servicio in servicios"
-        :key="servicio.titulo"
-        :titulo="servicio.titulo"
-        :descripcion="servicio.descripcion"
-        :icono="`/iconos/${servicio.icono}`"
-        :ruta="servicio.ruta || ''"
+        v-for="s in servicios"
+        :key="s.ruta"
+        :titulo="s.titulo"
+        :descripcion="s.descripcion"
+        :icono="`/iconos/${s.icono}`"
+        :ruta="s.ruta"
         :oscuro="oscuro"
       />
     </div>
-
-    <!-- Centro de ayuda -->
-    <HelpDialog ref="centroAyuda" :oscuro="oscuro" />
-  </main>
+    <div class="menu-reminder">
+      <img :src="`/iconos/complementarios/41_privacidad${oscuro ? '-oscuro' : ''}.svg`" alt="" />
+      <p>
+        Tu encomienda comienza en la web.<span>
+          Reserva desde tu cuenta; en esta terminal puedes depositarla o
+          retirarla.</span
+        >
+      </p>
+    </div>
+  </TabletLayout>
 </template>
-
 <style scoped>
-/* SYNCHRO | MENÚ PRINCIPAL */
-
-.pantalla-menu {
+.menu-reminder {
   display: flex;
-  flex-direction: column;
-  gap: 22px;
-
-  width: 100%;
-  height: 100dvh;
-  min-height: 0;
-  padding: 20px 26px;
-  overflow: hidden;
-
-  background: #f2f7fa;
-  color: #01305c;
-
-  transition:
-    background-color 150ms ease,
-    color 150ms ease;
+  align-items: center;
+  gap: 13px;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 22px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
 }
-
-/* Título */
-
-.titulo-menu {
-  margin: 0;
-  font-size: clamp(24px, 3vw, 34px);
-  font-weight: 700;
-  text-align: center;
+.menu-reminder img {
+  width: 25px;
+  height: 25px;
 }
-
-/* Distribución de las tarjetas */
-
-.servicios {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-
-  width: min(100%, 840px);
-  min-height: 0;
-  flex: 1;
-  margin: 0 auto;
+.menu-reminder p {
+  font-weight: 600;
 }
-
-/* Tema oscuro */
-
-.pantalla-menu.tema-oscuro {
-  background: #061f36;
-  color: #ffffff;
-}
-
-/* Tablets compactas */
-
-@media (max-height: 550px) {
-  .pantalla-menu {
-    gap: 12px;
-    padding: 12px 20px;
-  }
-
-  .servicios {
-    gap: 12px;
-  }
-}
-
-/* Movimiento reducido */
-
-@media (prefers-reduced-motion: reduce) {
-  .pantalla-menu {
-    transition: none;
-  }
+.menu-reminder span {
+  font-weight: 400;
 }
 </style>

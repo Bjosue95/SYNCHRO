@@ -13,9 +13,11 @@ export function useReloj() {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
+      timeZone: "America/Tegucigalpa",
     }).format(ahora);
 
     const textoFecha = new Intl.DateTimeFormat("es-HN", {
+      timeZone: "America/Tegucigalpa",
       weekday: "long",
       day: "numeric",
       month: "long",
