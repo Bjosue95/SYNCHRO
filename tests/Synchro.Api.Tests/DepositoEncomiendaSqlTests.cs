@@ -1,4 +1,7 @@
 using System.Data;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.DataProtection;
+using Synchro.Api.Services.WhatsApp;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -30,17 +33,25 @@ public sealed class DepositoEncomiendaSqlTests
     private static string Cadena => ConexionSqlAislada.Exigir(
         Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST"), "SynchroDB_Pruebas");
 
+    private static readonly IDataProtectionProvider Proteccion = new EphemeralDataProtectionProvider();
+    private static readonly string ClavePrueba = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
     private static DepositoEncomiendaService Servicio()
-        => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:SynchroDB"] = Cadena
-        }).Build());
+            ["ConnectionStrings:SynchroDB"] = Cadena,
+            ["RetiroPin:ClaveHmac"] = ClavePrueba,
+            ["WhatsApp:PlantillaPinRetiro"] = "pin_retiro"
+        }).Build();
+        return new(config,new PreparadorPinEncomienda(config,TimeProvider.System),
+            new SqlOutboxWhatsApp(config,new ProtectorMensajeWhatsApp(Proteccion)));
+    }
 
     private static async Task PrepararAsync()
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] {"EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql"})
+        foreach (string archivo in new[] {"EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql"})
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -102,6 +113,8 @@ public sealed class DepositoEncomiendaSqlTests
         await EjecutarAsync(c,d,"""
             SET XACT_ABORT ON;
             BEGIN TRANSACTION;
+            DELETE dbo.OutboxWhatsApp WHERE ReservaId=@reserva;
+            DELETE dbo.CodigosRetiroEncomiendaPrototipo WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DELETE dbo.ParticipantesUso WHERE UsoId IN (SELECT UsoId FROM dbo.DepositosPreReservaEncomienda WHERE ReservaId=@reserva);
             DECLARE @usos TABLE (Id INT);
             DELETE dbo.DepositosPreReservaEncomienda OUTPUT DELETED.UsoId INTO @usos WHERE ReservaId=@reserva;
@@ -143,7 +156,9 @@ public sealed class DepositoEncomiendaSqlTests
                 JOIN dbo.Casilleros c ON c.Codigo=u.CodigoCasillero
                 WHERE d.ReservaId=@reserva AND e.Consumida=1 AND e.FechaConsumoUtc IS NOT NULL
                   AND u.Estado=N'Ocupado' AND c.Estado=N'Ocupado'
-                  AND (SELECT COUNT(*) FROM dbo.ParticipantesUso p WHERE p.UsoId=u.Id)=2;
+                  AND (SELECT COUNT(*) FROM dbo.ParticipantesUso p WHERE p.UsoId=u.Id)=2
+                  AND (SELECT COUNT(*) FROM dbo.CodigosRetiroEncomiendaPrototipo p WHERE p.UsoId=u.Id AND p.Consumido=0)=1
+                  AND (SELECT COUNT(*) FROM dbo.OutboxWhatsApp o WHERE o.ReservaId=d.ReservaId AND o.Estado=N'Pendiente' AND o.ContenidoProtegido IS NOT NULL)=1;
                 """,c);
             q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
             Assert.Equal(1,Convert.ToInt32(await q.ExecuteScalarAsync()));
@@ -225,7 +240,7 @@ public sealed class DepositoEncomiendaSqlTests
         try
         {
             await EjecutarAsync(c,d,$"""
-                CREATE OR ALTER TRIGGER dbo.FalloDepositoFixture ON dbo.DepositosPreReservaEncomienda
+                CREATE OR ALTER TRIGGER dbo.FalloDepositoFixture ON dbo.OutboxWhatsApp
                 AFTER INSERT AS
                 BEGIN
                     IF EXISTS (SELECT 1 FROM inserted WHERE ReservaId={d.Reserva})

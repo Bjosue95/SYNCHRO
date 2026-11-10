@@ -5,10 +5,17 @@ using System.Threading.Tasks;
 
 namespace Synchro.Api.Services.WhatsApp;
 
+public enum FalloWhatsApp
+{
+    Ninguno, DatosInvalidos, Configuracion, Rechazado, Reintentable, Indeterminado
+}
+
 public sealed record WhatsAppResultado(
     bool AceptadoPorMeta,
     string? IdMensaje,
-    string Mensaje
+    string Mensaje,
+    FalloWhatsApp Fallo = FalloWhatsApp.Ninguno,
+    TimeSpan? ReintentarDespues = null
 );
 
 public interface IWhatsAppCloudService

@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261110_OutboxWhatsApp_Pruebas.sql" Link="sql/aislado/Outbox.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261110_PinEncomienda_Pruebas.sql" Link="sql/aislado/PinEncomienda.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Update="sql/aislado/EsquemaDeposito.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../backend/Synchro.Api/Database/Migrations/20261109_ConsentimientoReservaWhatsApp_Pruebas.sql" Link="sql/aislado/Consentimiento.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../backend/Synchro.Api/Database/Migrations/20261109_EvidenciasFacialesRemitente_Pruebas.sql" Link="sql/aislado/Evidencias.sql" CopyToOutputDirectory="PreserveNewest" />

@@ -55,14 +55,14 @@ BEGIN
        OR @EvidenciaId IS NULL OR @EvidenciaId = '00000000-0000-0000-0000-000000000000'
        OR NULLIF(LTRIM(RTRIM(@CodigoCasillero)), N'') IS NULL
         THROW 55602, 'Datos invalidos.', 1;
-    -- La transaccion pertenece al procedimiento; no confirmar una transaccion ajena.
-    IF @@TRANCOUNT <> 0
-        THROW 55603, 'Se requiere una conexion sin transaccion activa.', 1;
+    -- La aplicacion confirma deposito, PIN y outbox juntos. No permitir un
+    -- deposito autonomo que pueda confirmarse sin crear sus credenciales.
+    IF @@TRANCOUNT <> 1
+        THROW 55603, 'Se requiere una transaccion de la aplicacion.', 1;
 
     DECLARE @Ahora DATETIME2(3), @Tamano NVARCHAR(12), @Remitente INT, @Destinatario INT,
             @Telefono NVARCHAR(20), @UsoId INT;
     BEGIN TRY
-        BEGIN TRANSACTION;
         -- Orden estable: terminal, casillero, reserva, participantes, consentimiento, evidencia.
         IF NOT EXISTS (SELECT 1 FROM dbo.Terminales WITH (UPDLOCK, HOLDLOCK)
                        WHERE Id = @TerminalId AND Activa = 1)
@@ -137,11 +137,11 @@ BEGIN
             THROW 55605, 'Casillero no disponible.', 1;
         INSERT INTO dbo.DepositosPreReservaEncomienda (ReservaId,UsoId,EvidenciaId,TerminalId,FechaDepositoUtc)
         VALUES (@ReservaId,@UsoId,@EvidenciaId,@TerminalId,@Ahora);
-        COMMIT TRANSACTION;
         SELECT @UsoId AS UsoId, @CodigoCasillero AS CodigoCasillero;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        -- La aplicacion revierte tambien PIN y outbox. XACT_ABORT impide
+        -- confirmar una transaccion abortada por una violacion SQL.
         THROW;
     END CATCH;
 END;
