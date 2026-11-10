@@ -7,7 +7,7 @@ const { oscuro } = useTema();
 const servicios = [
   {
     titulo: "Guardar",
-    descripcion: "Encomiendas y pertenencias",
+    descripcion: "Guarda tus pertenencias personales",
     icono: "01_guardar_depositar",
     ruta: "/guardar",
   },

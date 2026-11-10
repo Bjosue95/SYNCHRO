@@ -47,7 +47,7 @@ function abrirAyuda() {
     </RouterLink>
 
     <!-- TÍTULO -->
-    <h1>¿Qué deseas guardar?</h1>
+    <h1>Guardar pertenencias</h1>
 
     <!-- TARJETAS REUTILIZABLES -->
     <div class="opciones-guardar">
@@ -55,15 +55,7 @@ function abrirAyuda() {
         titulo="Mis pertenencias"
         descripcion="Mochilas, compras, bolsos y objetos personales"
         icono="/iconos/10_mochila_bolso"
-        ruta="/guardar/pertenencias"
-        :oscuro="oscuro"
-      />
-
-      <ServiceCard
-        titulo="Depositar encomienda reservada"
-        descripcion="Usa la reserva creada desde tu cuenta web"
-        icono="/iconos/09_encomienda_paquete"
-        ruta="/terminal/encomiendas/reserva"
+        ruta="/servicios/personal"
         :oscuro="oscuro"
       />
     </div>
@@ -140,10 +132,10 @@ h1 {
 
 .opciones-guardar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 
-  width: min(100%, 840px);
+  width: min(100%, 600px);
   flex: 1;
   margin: 0 auto;
 }

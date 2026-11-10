@@ -10,13 +10,13 @@ const { oscuro } = useTema();
     descripcion="Elige tu servicio y ten a mano los datos de tu reserva."
     ><div class="tablet-two">
       <ServiceCard
-        titulo="Mis objetos o dispositivo"
+        titulo="Pertenencias y dispositivos"
         descripcion="Pertenencias, carga y compartimentos de frío o calor."
         icono="/iconos/10_mochila_bolso"
         ruta="/retirar/servicios"
         :oscuro="oscuro"
       /><ServiceCard
-        titulo="Una encomienda"
+        titulo="Encomiendas"
         descripcion="Verifica tu rostro y utiliza el PIN de WhatsApp."
         icono="/iconos/09_encomienda_paquete"
         ruta="/terminal/encomiendas/retiro"

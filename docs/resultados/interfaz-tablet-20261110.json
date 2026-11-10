@@ -8,7 +8,7 @@
     "fallidas": 0
   },
   "navegador": {
-    "aprobadas": 18,
+    "aprobadas": 20,
     "fallidas": 0,
     "omitidas": 0,
     "casos": [
@@ -83,6 +83,14 @@
       {
         "prueba": "ruta de contratar calor redirige a reservas existentes",
         "resultado": "aprobada"
+      },
+      {
+        "prueba": "Guardar solo ofrece pertenencias y el deposito de encomiendas esta en reservas web",
+        "resultado": "aprobada"
+      },
+      {
+        "prueba": "Retirar mantiene un acceso con opciones distintas para pertenencias y encomiendas",
+        "resultado": "aprobada"
       }
     ]
   },
@@ -97,5 +105,7 @@
     "Cargar dispositivo"
   ],
   "icono_carga": "04_carga_inalambrica",
-  "frio_calor_solo_reserva_web": true
+  "frio_calor_solo_reserva_web": true,
+  "guardar_solo_pertenencias": true,
+  "deposito_encomiendas_solo_reserva_web": true
 }

@@ -62,7 +62,8 @@ confirmación, privacidad, tiempo y pago; la cámara usa el icono 38 existente.
 | /terminal/reserva-web | Elegir reserva ya creada: encomienda, frío o calor |
 | /terminal/reservas/frio y /terminal/reservas/calor | Consultar reserva web, comprobar pago e iniciar uso; sin crear ni pagar |
 | /servicios/frio y /servicios/calor | Redirigen a Tengo una reserva web |
-| /retirar | Elegir encomienda u objetos/dispositivo |
+| /guardar | Solo pertenencias; sin depósito de encomiendas |
+| /retirar | Un acceso con dos opciones internas: Pertenencias y dispositivos / Encomiendas |
 | /retirar/servicios | Retiro con compartimento, referencia, credencial y PIN |
 
 La ruta anterior de visitantes redirige a reserva existente. No se añade ninguna creación
@@ -95,7 +96,7 @@ Validación ejecutada en Cloud:
 - `npm run build`: aprobado.
 - `npm test`: 2 pruebas aprobadas de fixtures (fallos, ocupación única, pago idempotente,
   PIN incorrecto y consumo único).
-- `npm run test:e2e`: **18 aprobadas, 0 fallidas, 0 omitidas**. Navegación responsive,
+- `npm run test:e2e`: **20 aprobadas, 0 fallidas, 0 omitidas**. Navegación responsive,
   imágenes, tema/ayuda, visitantes retirados, depósito, retiro con PIN fallido/correcto,
   captura mediante API del navegador, rechazo de permiso, servicios temporales, laptop
   cerrada, cancelación, borrado de secretos y fallo cerrado en la compilación normal.
@@ -111,3 +112,15 @@ Capturas reales del navegador, con datos ficticios:
 [menú](capturas/tablet-menu.png), [oscuro](capturas/tablet-menu-oscuro.png),
 [cámara](capturas/tablet-camara.png), [carga](capturas/tablet-carga.png),
 [reservas web](capturas/tablet-reserva-web.png) y [uso térmico](capturas/tablet-reserva-termica.png).
+
+## Separación de Guardar y Retirar
+
+Guardar es exclusivamente para pertenencias personales y enlaza al flujo Personal.
+El depósito de encomiendas se ofrece solo en Tengo una reserva web → Encomienda.
+Retirar mantiene un único acceso principal y dos opciones internas, porque cada una
+solicita datos diferentes: pertenencias/dispositivos usa reserva y PIN; encomiendas
+usa acceso de destinatario, captura simulada y PIN de WhatsApp.
+
+Comprobación de esta corrección: las 20 pruebas de navegador aprobaron, incluyendo
+el recorrido Guardar → Mis pertenencias y el depósito de encomiendas únicamente
+desde reservas web. No se cambió el backend en esta corrección.

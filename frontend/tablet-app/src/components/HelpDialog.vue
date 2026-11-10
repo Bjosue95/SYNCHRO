@@ -42,14 +42,14 @@ defineExpose({ abrir, cerrar });
       <details>
         <summary>¿Cómo envío una encomienda?</summary>
         <p>
-          Crea la reserva desde tu cuenta de cliente en la web. En la terminal, selecciona Tengo una reserva. El destinatario debe aceptar por WhatsApp antes del depósito.
+          Crea la reserva desde tu cuenta de cliente en la web. En la terminal, selecciona Tengo una reserva web y después Encomienda. El destinatario debe aceptar por WhatsApp antes del depósito.
         </p>
       </details>
 
       <details>
         <summary>¿Cómo retiro una encomienda?</summary>
         <p>
-          Selecciona Retirar. El proceso requiere una captura de rostro simulada del destinatario y un PIN temporal enviado por WhatsApp.
+          Selecciona Retirar y después Encomiendas. El proceso requiere una captura de rostro simulada del destinatario y un PIN temporal enviado por WhatsApp.
         </p>
       </details>
 

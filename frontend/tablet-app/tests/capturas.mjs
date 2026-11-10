@@ -41,8 +41,16 @@ try {
   await page.getByRole("button", { name: "60 min", exact: true }).click();
   await captura("tablet-carga");
   await page.goto("http://127.0.0.1:4173/terminal/reservas/frio");
-  await page.getByRole("heading", { name: "Utiliza tu reserva de frío" }).waitFor();
+  await page
+    .getByRole("heading", { name: "Utiliza tu reserva de frío" })
+    .waitFor();
   await captura("tablet-reserva-termica");
+  await page.goto("http://127.0.0.1:4173/guardar");
+  await page.getByRole("heading", { name: "Guardar pertenencias" }).waitFor();
+  await captura("tablet-guardar");
+  await page.goto("http://127.0.0.1:4173/retirar");
+  await page.getByRole("heading", { name: "¿Qué deseas retirar?" }).waitFor();
+  await captura("tablet-retirar");
   console.log(`Capturas guardadas en ${destino}`);
 } finally {
   await browser.close();

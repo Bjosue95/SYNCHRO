@@ -328,3 +328,47 @@ for (const tipo of ["frio", "calor"]) {
     ).toHaveCount(0);
   });
 }
+
+test("Guardar solo ofrece pertenencias y el deposito de encomiendas esta en reservas web", async ({
+  page,
+}) => {
+  await page.goto("/menu");
+  await page.getByRole("link", { name: /^Guardar / }).click();
+  await expect(
+    page.getByRole("heading", { name: "Guardar pertenencias" }),
+  ).toBeVisible();
+  await expect(
+    page.locator('a[href="/terminal/encomiendas/reserva"]'),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: /Mis pertenencias/ }),
+  ).toHaveAttribute("href", "/servicios/personal");
+  await page.getByRole("link", { name: /Mis pertenencias/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Un espacio para tus pertenencias" }),
+  ).toBeVisible();
+  await page.goto("/menu");
+  await page.getByRole("link", { name: /Tengo una reserva web/ }).click();
+  await page.getByRole("link", { name: /Encomienda/ }).click();
+  await expect(page).toHaveURL(/\/terminal\/encomiendas\/reserva$/);
+});
+test("Retirar mantiene un acceso con opciones distintas para pertenencias y encomiendas", async ({
+  page,
+}) => {
+  await page.goto("/menu");
+  await page.getByRole("link", { name: /^Retirar / }).click();
+  await expect(
+    page.getByRole("heading", { name: "¿Qué deseas retirar?" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Pertenencias y dispositivos/ }),
+  ).toHaveAttribute("href", "/retirar/servicios");
+  await expect(page.getByRole("link", { name: /Encomiendas/ })).toHaveAttribute(
+    "href",
+    "/terminal/encomiendas/retiro",
+  );
+  await page.getByRole("link", { name: /Encomiendas/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Retira tu encomienda" }),
+  ).toBeVisible();
+});

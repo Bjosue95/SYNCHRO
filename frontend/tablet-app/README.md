@@ -4,7 +4,7 @@ Vue 3 + Vue Router + Vite. Mantiene los componentes, logotipos, iconos y colores
 proyecto. Guía de implementación y pruebas: [INTERFAZ-TABLET.md](../../docs/INTERFAZ-TABLET.md).
 
 El menú principal conserva cuatro opciones: **Guardar**, **Retirar**,
-**Tengo una reserva web** y **Cargar dispositivo**. Guardar abre la pantalla existente `/guardar`.
+**Tengo una reserva web** y **Cargar dispositivo**. Guardar abre `/guardar` exclusivamente para pertenencias; las encomiendas se depositan desde Tengo una reserva web.
 
 ## Ver y recorrer la demostración
 
@@ -20,7 +20,7 @@ hay una captura de ejemplo, exclusivamente en demo.
 
 - Depósito: «Tengo una reserva web» → «Encomienda» → «Rellenar datos de ejemplo» → continuar → aceptar
   captura → usar ejemplo → confirmar casillero E01.
-- Retiro de encomienda: Retirar → Una encomienda → rellenar ejemplo → verificar acceso
+- Retiro de encomienda: Retirar → Encomiendas → rellenar ejemplo → verificar acceso
   → continuar → captura → PIN ficticio **654321**.
 - Cargar dispositivo abre el flujo de carga. Para pruebas de pertenencias también se
   conserva `/servicios/personal`: espacio/tiempo → pago simulado → inicio.
@@ -28,7 +28,7 @@ hay una captura de ejemplo, exclusivamente en demo.
   «Usar reserva web de ejemplo» → consultar → confirmar objetos guardados → comenzar.
   Son reservas YA creadas y pagadas en la web; esta tablet no permite contratarlas.
   Las antiguas rutas `/servicios/frio` y `/servicios/calor` redirigen a reservas existentes.
-- Retiro temporal: Retirar → Mis objetos o dispositivo → rellenar ejemplo → confirmar.
+- Retiro temporal: Retirar → Pertenencias y dispositivos → rellenar ejemplo → confirmar.
 
 ## Conectar la API
 
