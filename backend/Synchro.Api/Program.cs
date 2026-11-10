@@ -10,6 +10,9 @@ using Synchro.Api.Endpoints;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Synchro.Api.Services.WhatsApp;
+using Synchro.Api.Services.Administracion;
+using Synchro.Api.Services.Clientes;
+using Synchro.Api.Services.RostroSimulado;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +21,11 @@ builder.Services.AddScoped<Synchro.Api.Services.Temporales.ServicioTemporal>();
 if(builder.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado")&&
     builder.Configuration.GetValue("ServiciosTemporales:ProcesarVencimientos",true))
     builder.Services.AddHostedService<Synchro.Api.Services.Temporales.VencimientoServiciosTemporalesWorker>();
+builder.Services.AddScoped<IRepositorioUsuariosAdministrativos,RepositorioUsuariosAdministrativosSql>();
+builder.Services.AddScoped<GestionUsuariosAdministrativos>();
+builder.Services.AddScoped<IRepositorioClientesWeb,RepositorioClientesWebSql>();
+builder.Services.AddScoped<CuentasClientesWeb>();
+builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>,PasswordHasher<CuentaClienteWeb>>();
 builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -76,26 +84,21 @@ builder.Services
                 return;
             }
 
-            using var conexion = new SqlConnection(cadena);
-            await conexion.OpenAsync();
-
-            using var comando = new SqlCommand(@"
-        SELECT Activo
-        FROM dbo.Administradores
-        WHERE Id = @id", conexion);
-
-            comando.Parameters.Add(
-                "@id", System.Data.SqlDbType.Int).Value = id;
-
-            var resultado = await comando.ExecuteScalarAsync();
-
-            if (resultado is not bool activo || !activo)
+            try
             {
-                context.RejectPrincipal();
-
-                await context.HttpContext.SignOutAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme);
+                await using var conexion=new SqlConnection(cadena);await conexion.OpenAsync(context.HttpContext.RequestAborted);
+                await using var comando=new SqlCommand("SELECT Activo FROM dbo.Administradores WHERE Id=@id",conexion);
+                comando.Parameters.Add("@id",System.Data.SqlDbType.Int).Value=id;
+                if(await comando.ExecuteScalarAsync(context.HttpContext.RequestAborted) is not true)
+                {
+                    context.RejectPrincipal();await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);return;
+                }
+                var acceso=await AccesoAdministrativoSql.ObtenerAsync(conexion,id,context.HttpContext.RequestAborted);
+                if(!ValidadorSesionAdministrativa.Aplicar(context.Principal!,acceso))
+                {context.RejectPrincipal();await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);}
             }
+            catch(Exception ex)when(ex is SqlException or InvalidOperationException or PlatformNotSupportedException)
+            {context.RejectPrincipal();}
         };
 
 
@@ -123,6 +126,10 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser()
               .RequireRole("Administrador"));
 
+    options.AddPolicy("SesionAdministrativa",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador","Auditor"));
+    options.AddPolicy("OperarServicios",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador"));
+    options.AddPolicy("VerReportes",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Auditor"));
+
     options.AddPolicy("SoloTerminal", policy =>
     {
         policy.AddAuthenticationSchemes("Terminal");
@@ -130,6 +137,27 @@ builder.Services.AddAuthorization(options =>
     });
 
 });
+
+builder.Services.AddAuthentication().AddCookie("Clientes",o=>
+{
+    o.Cookie.Name="SYNCHRO.ClienteWeb";o.Cookie.HttpOnly=true;o.Cookie.SecurePolicy=CookieSecurePolicy.Always;
+    o.Cookie.SameSite=SameSiteMode.Lax;o.ExpireTimeSpan=TimeSpan.FromMinutes(30);o.SlidingExpiration=false;
+    o.Events.OnRedirectToLogin=c=>{c.Response.StatusCode=401;return Task.CompletedTask;};
+    o.Events.OnRedirectToAccessDenied=c=>{c.Response.StatusCode=403;return Task.CompletedTask;};
+    o.Events.OnValidatePrincipal=async c=>
+    {
+        if(!int.TryParse(c.Principal?.FindFirstValue(ClaimTypes.NameIdentifier),out int id)||id<=0)
+        {c.RejectPrincipal();return;}
+        try
+        {
+            var cuenta=await c.HttpContext.RequestServices.GetRequiredService<CuentasClientesWeb>().ObtenerAsync(id,c.HttpContext.RequestAborted);
+            if(cuenta is null||!cuenta.Activa||c.Principal?.FindFirstValue("cliente_version")!=cuenta.VersionSesion.ToString())
+            {c.RejectPrincipal();await c.HttpContext.SignOutAsync("Clientes");}
+        }
+        catch(Exception e)when(e is SqlException or InvalidOperationException or PlatformNotSupportedException){c.RejectPrincipal();}
+    };
+});
+builder.Services.AddAuthorization(o=>o.AddPolicy("SoloClientes",p=>p.AddAuthenticationSchemes("Clientes").RequireAuthenticatedUser().RequireRole("Cliente")));
 
 /* SYNCHRO | Autenticacion de terminal */
 
@@ -378,9 +406,16 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-builder.Services.AddSingleton<
-    IVerificadorFacial,
-    VerificadorFacialNoDisponible>();
+builder.Services.AddSingleton<IReferenciasRostroSimulado,ReferenciasRostroSimuladoSql>();
+builder.Services.AddSingleton<IVerificadorFacial>(s=>
+{
+    var c=s.GetRequiredService<IConfiguration>();var entorno=s.GetRequiredService<IHostEnvironment>();
+    if(!ConfiguracionRostroSimulado.EntornoPermitido(entorno,c))return new VerificadorFacialNoDisponible();
+    return new VerificadorFacialSimulado(s.GetRequiredService<IReferenciasRostroSimulado>(),c,s.GetRequiredService<TimeProvider>());
+});
+if(ConfiguracionRostroSimulado.EntornoPermitido(builder.Environment,builder.Configuration)&&
+    builder.Configuration.GetValue("RostroSimulado:LimpiarVencidas",true))
+    builder.Services.AddHostedService<LimpiezaRostroSimuladoWorker>();
 // El servicio de vencimiento se registra solo bajo la condicion de pruebas indicada abajo.
 
 // SYNCHRO - Vencimiento automatico de reservas
@@ -404,7 +439,7 @@ if (builder.Environment.IsDevelopment() &&
 var app = builder.Build();
 // Validar tambien la configuracion final del host: incluye los proveedores
 // agregados al construirlo. Los trabajadores aun no han arrancado.
-foreach(string modulo in new[]{"ServiciosTemporales:Habilitado","WhatsApp:Outbox:Habilitado"})
+foreach(string modulo in new[]{"ServiciosTemporales:Habilitado","WhatsApp:Outbox:Habilitado","Administracion:UsuariosHabilitados","RostroSimulado:Habilitado","RostroSimulado:LimpiarVencidas"})
 {
     if(!app.Configuration.GetValue<bool>(modulo))continue;
     if(!app.Environment.IsDevelopment())throw new InvalidOperationException("Los modulos de prototipo requieren Development.");
@@ -465,12 +500,15 @@ if (app.Environment.IsDevelopment() &&
     app.MapRetirosPersonalesTerminalEndpoints();
     app.MapRecuperacionPinPersonalEndpoints();
     // Pre-reservas web de encomiendas: prototipo aislado y sin deposito.
+    app.MapClientesWebEndpoints();
+    app.MapRostroSimuladoEndpoints();
     app.MapPreReservasEncomiendaWebEndpoints();
     app.MapConsentimientosPreReservaWhatsApp();
     // Emision y consulta preliminar exclusivas de la terminal (sin deposito).
     app.MapEncomiendasTerminalEndpoints();
     app.MapFlujoEncomiendasTerminalEndpoints();
     app.MapServiciosTemporalesEndpoints();
+    app.MapUsuariosAdministrativosEndpoints();
     app.MapOpenApi().RequireAuthorization("SoloAdministradores");
 }
 

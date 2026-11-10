@@ -1,5 +1,9 @@
 # Issue #1: implementación por etapas
 
+> Requisitos vigentes: [clientes registrados y rostro simulado](ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md).
+> Los apartados Etapa 1/2 y sus pendientes son históricos: la ruta de visitantes fue retirada,
+> el alta web exige cuenta y NO se requiere biometría profesional. Ver Etapa 4 al final.
+
 Tarea: https://github.com/Bjosue95/SYNCHRO/issues/1
 Base actualizada: `refactor/arquitectura-backend`, `5f6cd39`.
 Rama de desarrollo: `feat/issue-1-encomiendas-end-to-end`, para revisión hacia esa base.
@@ -76,7 +80,7 @@ dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --filter Category=S
 
 TRX/log de esta etapa: `/workspace/synchro-test-results/issue-1/`.
 
-## Pendientes del alcance global
+## Pendientes históricos al cerrar Etapa 1 (sustituidos por etapas posteriores)
 
 No se declara terminado el backend. Faltan enrolamiento/vinculación confiable de identidades,
 proveedor facial y prueba de vida reales, visitante integrado, reemisión segura de PIN,
@@ -86,7 +90,7 @@ SQL nuevos requieren validación en la laptop; no se enviaron mensajes ni se sim
 real de WhatsApp. Las restricciones de hardware/credenciales no se deben usar para habilitar
 aperturas sin verificación del servidor.
 
-## Etapa 2: visitante de tablet y pre-reserva compartida
+## Etapa 2 histórica: visitante de tablet (RETIRADO por corrección del propietario)
 
 `POST /api/terminales/encomiendas/visitas` recibe `telefonoRemitente`,
 `telefonoDestinatario` y `tamanoSolicitado`. Exige sesión de terminal, CSRF y HTTPS;
@@ -149,3 +153,44 @@ la validación SQL/Windows, integración con la base histórica, usuarios/roles 
 enrolamiento/vinculación biométrica y verificación telefónica real, reemisión de PIN de
 encomiendas, invitaciones/entregas reales de WhatsApp y pruebas físicas. No está terminado
 el backend completo ni se han satisfecho todos los criterios de la issue.
+
+## Etapa 4: requisitos corregidos y administración de usuarios
+
+Se retiró el alta de encomiendas de visitantes/tablet. La reserva web ahora exige una
+cuenta Cliente activa, creada/autenticada con contraseña y cookie firmada. El servidor
+obtiene remitente/teléfono desde esa cuenta; el depósito SQL rechaza registros sin
+cuenta, cuentas inactivas y origen Terminal. No se convierten registros antiguos ni se
+eliminan sus datos. Los demás servicios presenciales continúan funcionando.
+
+El adaptador de rostro predeterminado en Development + SynchroDB_Pruebas es simulado,
+con capturas PNG y referencias independientes del remitente/destinatario. Incluye
+consentimiento de captura, cifrado, vencimiento, eliminación y limpieza automática.
+No requiere proveedor externo ni afirma biometría segura o prueba de vida física.
+El consentimiento firmado WhatsApp y el PIN de retiro continúan siendo obligatorios.
+Se conectó la vinculación de destinatario desde su sesión telefónica verificada.
+
+También se implementó gestión administrativa de usuarios/roles, bloqueo del último
+administrador, revocación de cookies por versión y permisos Operador/Auditor para
+incidencias/reportes. Contratos, migraciones y limitaciones en
+[guía actual](ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md).
+
+Suite completa ejecutada tras las correcciones: **278 casos: 233 aprobados, 41 fallidos,
+4 omitidos**, salida 1. Los 41 fallos se clasifican exactamente en 25 LocalDB no soportado,
+5 secrets.json ausente, 2 HTTP 500 derivados de LocalDB y 9 casos SQL externos sin
+`SYNCHRO_SQL_DEPOSITO_TEST`. Las cuatro omisiones son anteriores; no se añadieron Skips.
+TRX: `correccion-final.trx`, log `correccion-final.log` en
+`/workspace/synchro-test-results/issue-1/`.
+
+Entre las aprobadas: 47 seleccionadas de reservas/terminal/administración, 2 nuevas de
+cuentas con cookies reales y 4 de PNG/comparador/enrolamiento/recorrido HTTP con ambos
+participantes. La suite detectó y se corrigió que solicitar CSRF consumía cuota de login;
+las escrituras conservan su límite y el GET tiene su propio límite de operaciones.
+El recorrido PNG prueba que la captura del remitente no autoriza retirar como destinatario,
+que el consentimiento sigue siendo necesario y que un PIN incorrecto no libera el casillero.
+Los repositorios HTTP son de prueba; no se atribuye a esos casos una ejecución SQL real.
+
+No está terminado el backend completo. Permanecen la verificación SQL de migraciones y
+concurrencia en Windows, reemisión segura de PIN de encomiendas, instalación reproducible
+ampliada y comprobar flujos telefónicos/WhatsApp completos con configuración del propietario.
+Las credenciales/plantillas y entrega real WhatsApp requieren validación externa; no se
+han enviado mensajes. Biometría profesional y visitantes NO son pendientes del proyecto.

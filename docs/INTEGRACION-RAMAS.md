@@ -1,5 +1,7 @@
 # Integración de ramas del backend — 10 de noviembre de 2026
 
+> Las reglas de encomiendas se actualizaron: [clientes web y rostro simulado](ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md). Las referencias anteriores a visitantes o biometría profesional quedan sustituidas.
+
 Rama de destino: `refactor/arquitectura-backend`.
 Punto de partida local y remoto: `ed029fb2227c142dbf74b20ebb464cb7484230de`.
 No se modificó `main`, no se eliminaron ramas y los commits/push de esta revisión

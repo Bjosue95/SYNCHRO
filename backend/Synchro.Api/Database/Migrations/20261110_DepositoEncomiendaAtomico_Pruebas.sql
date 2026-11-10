@@ -62,7 +62,7 @@ BEGIN
         THROW 55603, 'Se requiere una transaccion de la aplicacion.', 1;
 
     DECLARE @Ahora DATETIME2(3), @Tamano NVARCHAR(12), @Remitente INT, @Destinatario INT,
-            @Telefono NVARCHAR(20), @UsoId INT;
+            @Telefono NVARCHAR(20), @UsoId INT, @ClientePersonaId INT;
     BEGIN TRY
         -- Orden estable: terminal, casillero, reserva, participantes, consentimiento, evidencia.
         IF NOT EXISTS (SELECT 1 FROM dbo.Terminales WITH (UPDLOCK, HOLDLOCK)
@@ -73,15 +73,19 @@ BEGIN
             THROW 55605, 'Casillero no disponible.', 1;
 
         SET @Ahora = SYSUTCDATETIME();
-        SELECT @Tamano = TamanoSolicitado,
+        SELECT @Tamano = TamanoSolicitado,@ClientePersonaId=ClientePersonaId,
                @Telefono = CASE WHEN LEFT(TelefonoDestinatario,1) = N'+'
                                 THEN TelefonoDestinatario ELSE N'+' + TelefonoDestinatario END
         FROM dbo.PreReservasEncomiendasWeb WITH (UPDLOCK, HOLDLOCK)
         WHERE Id = @ReservaId AND Estado = N'PendienteConsentimiento' AND FechaExpiracion > @Ahora
+          AND OrigenPreReserva=N'Web'
           AND (@TokenGestionHash IS NULL OR (DATALENGTH(@TokenGestionHash)=32 AND TokenGestionHash=@TokenGestionHash));
         IF @Tamano IS NULL OR EXISTS (
             SELECT 1 FROM dbo.DepositosPreReservaEncomienda WITH (UPDLOCK, HOLDLOCK) WHERE ReservaId = @ReservaId)
             THROW 55606, 'Reserva no disponible.', 1;
+        IF @ClientePersonaId IS NULL OR NOT EXISTS(SELECT 1 FROM dbo.ClientesWebPrototipo WITH(UPDLOCK,HOLDLOCK)
+            WHERE PersonaId=@ClientePersonaId AND Activa=1)
+            THROW 55606,'Reserva no vinculada a un cliente registrado activo.',1;
         IF NOT EXISTS (SELECT 1 FROM dbo.Casilleros
                        WHERE Codigo = @CodigoCasillero AND
                              (Tamano = @Tamano OR (Tamano = N'Pequeño' AND @Tamano = N'Pequeno')))
@@ -89,7 +93,7 @@ BEGIN
 
         SELECT @Remitente = RemitenteId, @Destinatario = DestinatarioId
         FROM dbo.ParticipantesPreReservaVerificados WITH (UPDLOCK, HOLDLOCK)
-        WHERE ReservaId = @ReservaId AND FechaVerificacionUtc <= @Ahora AND FechaExpiracionUtc > @Ahora;
+        WHERE ReservaId = @ReservaId AND RemitenteId=@ClientePersonaId AND FechaVerificacionUtc <= @Ahora AND FechaExpiracionUtc > @Ahora;
         IF @Remitente IS NULL OR @Destinatario IS NULL
             THROW 55608, 'Participantes no verificados.', 1;
         IF NOT EXISTS (

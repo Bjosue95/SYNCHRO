@@ -26,9 +26,11 @@ En desarrollo.
 ## Desarrollo del backend (issue #1)
 
 - [Avance comprobado y resultados de pruebas](docs/ISSUE-1-AVANCE.md).
+- [Encomiendas de clientes y capturas de rostro simuladas](docs/ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md).
 - [API de servicios temporales, prepago y configuración](docs/SERVICIOS-TEMPORALES.md).
 - OpenAPI generado: `/openapi/v1.json`, solo administrador, HTTPS y entorno de pruebas.
 
-El hardware y los pagos del prototipo son simulados; las integraciones reales y la
+Las encomiendas se reservan solo desde cuentas web registradas; la terminal deposita y
+retira reservas existentes. El rostro, hardware y pagos del prototipo son simulados; las integraciones reales y la
 validación SQL pendientes están identificadas en el informe. No ejecutar migraciones
 de prueba contra la base principal `SynchroDB`.

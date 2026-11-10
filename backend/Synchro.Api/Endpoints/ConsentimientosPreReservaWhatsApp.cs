@@ -1,5 +1,6 @@
 
 using System.Data;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -101,9 +102,10 @@ public static class ConsentimientosPreReservaWhatsApp
                         FROM dbo.PreReservasEncomiendasWeb
                              WITH (UPDLOCK, HOLDLOCK)
                         WHERE Id = @Id
-                          AND TokenGestionHash = @Hash;
+                          AND TokenGestionHash = @Hash AND ClientePersonaId=@cliente AND OrigenPreReserva=N'Web';
                         """, conexion, tx))
                     {
+                        cmd.Parameters.Add("@cliente",SqlDbType.Int).Value=int.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
                         cmd.Parameters.Add(
                             "@Id", SqlDbType.Int).Value = id;
 
@@ -297,7 +299,7 @@ public static class ConsentimientosPreReservaWhatsApp
                     CryptographicOperations.ZeroMemory(hashToken);
                 }
             })
-            .RequireRateLimiting("LoginLimitado");
+            .RequireAuthorization("SoloClientes").RequireRateLimiting("LoginLimitado");
     }
 
     // Llamar solamente despues de verificar la firma de Meta.

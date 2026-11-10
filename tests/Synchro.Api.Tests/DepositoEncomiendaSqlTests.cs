@@ -7,6 +7,8 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Synchro.Api.Services;
 using Synchro.Api.Services.Temporales;
+using Synchro.Api.Services.Clientes;
+using Microsoft.AspNetCore.Identity;
 
 namespace Synchro.Api.Tests;
 
@@ -55,7 +57,7 @@ public sealed class DepositoEncomiendaSqlTests
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql", "ServiciosTemporales.sql" })
+        foreach (string archivo in new[] { "EsquemaDeposito.sql", "OrigenPreReserva.sql", "ClientesWeb.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql", "RetiroEncomienda.sql", "ServiciosTemporales.sql", "UsuariosRoles.sql", "RostroSimulado.sql" })
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -82,9 +84,10 @@ public sealed class DepositoEncomiendaSqlTests
             DECLARE @remitente INT = SCOPE_IDENTITY();
             INSERT dbo.Personas DEFAULT VALUES;
             DECLARE @destinatario INT = SCOPE_IDENTITY();
+            INSERT dbo.ClientesWebPrototipo(PersonaId,NombreUsuario,Telefono,PasswordHash)VALUES(@remitente,N'SQL-'+@codigo,N'+50499990001',@passwordHash);
             INSERT dbo.Casilleros VALUES (@codigo,N'Normal',N'Mediano',N'Disponible');
-            INSERT dbo.PreReservasEncomiendasWeb(TokenGestionHash,TelefonoRemitente,TelefonoDestinatario,TamanoSolicitado,FechaExpiracion)
-            VALUES (CRYPT_GEN_RANDOM(32),N'+50499990001',N'+50499990002',N'Mediano',DATEADD(HOUR,1,SYSUTCDATETIME()));
+            INSERT dbo.PreReservasEncomiendasWeb(TokenGestionHash,TelefonoRemitente,TelefonoDestinatario,TamanoSolicitado,FechaExpiracion,ClientePersonaId)
+            VALUES (CRYPT_GEN_RANDOM(32),N'+50499990001',N'+50499990002',N'Mediano',DATEADD(HOUR,1,SYSUTCDATETIME()),@remitente);
             DECLARE @reserva INT = SCOPE_IDENTITY();
             INSERT dbo.ParticipantesPreReservaVerificados VALUES (@reserva,@remitente,@destinatario,DATEADD(MINUTE,-1,SYSUTCDATETIME()),DATEADD(HOUR,1,SYSUTCDATETIME()));
             INSERT dbo.ConsentimientosPreReservaWhatsApp
@@ -96,6 +99,7 @@ public sealed class DepositoEncomiendaSqlTests
             COMMIT TRANSACTION;
             SELECT @reserva,@terminal,@remitente,@destinatario;
             """, c);
+        q.Parameters.Add("@passwordHash",SqlDbType.NVarChar,500).Value=new PasswordHasher<CuentaClienteWeb>().HashPassword(new(){NombreUsuario="SQL-"+codigo},"Clave-cliente-SQL-solo-pruebas-123");
         q.Parameters.Add("@codigo", SqlDbType.NVarChar, 10).Value = codigo;
         q.Parameters.Add("@evidencia", SqlDbType.UniqueIdentifier).Value = evidencia;
         await using var r = await q.ExecuteReaderAsync();
@@ -106,6 +110,8 @@ public sealed class DepositoEncomiendaSqlTests
     private static async Task EjecutarAsync(SqlConnection c, Datos d, string sql)
     {
         await using var q = new SqlCommand(sql, c);
+        q.Parameters.Add("@remitente",SqlDbType.Int).Value=d.Remitente;
+        q.Parameters.Add("@destinatario",SqlDbType.Int).Value=d.Destinatario;
         q.Parameters.Add("@reserva", SqlDbType.Int).Value = d.Reserva;
         q.Parameters.Add("@codigo", SqlDbType.NVarChar, 10).Value = d.Codigo;
         q.Parameters.Add("@terminal", SqlDbType.Int).Value = d.Terminal;
@@ -133,6 +139,8 @@ public sealed class DepositoEncomiendaSqlTests
             DELETE dbo.ParticipantesPreReservaVerificados WHERE ReservaId=@reserva;
             DELETE dbo.ConsentimientosPreReservaWhatsApp WHERE ReservaId=@reserva;
             DELETE dbo.PreReservasEncomiendasWeb WHERE Id=@reserva;
+            DELETE dbo.ReferenciasRostroSimulado WHERE PersonaId IN(@remitente,@destinatario);
+            DELETE dbo.ClientesWebPrototipo WHERE PersonaId=@remitente;
             DELETE dbo.Casilleros WHERE Codigo=@codigo;
             DELETE dbo.Terminales WHERE Id=@terminal AND Nombre=N'TEST_DEPOSITO';
             COMMIT TRANSACTION;
@@ -241,24 +249,50 @@ public sealed class DepositoEncomiendaSqlTests
 
     [Fact]
     [Trait("Category","SqlAislado")]
-    public async Task VisitaSqlConservaOrigenYTerminalSinHabilitarDeposito()
+    public async Task NoDepositaReservasAntiguasSinCuentaInactivasNiCreadasDesdeTerminal()
+    {
+        await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();
+        foreach(string escenario in new[]{"SinCuenta","Inactiva","Terminal"})
+        {
+            Datos d=await CrearAsync(c);
+            try
+            {
+                await EjecutarAsync(c,d,escenario switch
+                {
+                    "SinCuenta"=>"UPDATE dbo.PreReservasEncomiendasWeb SET ClientePersonaId=NULL WHERE Id=@reserva;",
+                    "Inactiva"=>"UPDATE dbo.ClientesWebPrototipo SET Activa=0 WHERE PersonaId=@remitente;",
+                    _=>"UPDATE dbo.PreReservasEncomiendasWeb SET OrigenPreReserva=N'Terminal',TerminalCreacionId=@terminal WHERE Id=@reserva;"
+                });
+                var error=await Assert.ThrowsAsync<SqlException>(()=>Servicio().DepositarAsync(Comando(d)));
+                Assert.Equal(55606,error.Number);
+                await using var q=new SqlCommand("SELECT Consumida FROM dbo.EvidenciasFacialesRemitente WHERE EvidenciaId=@id",c);
+                q.Parameters.Add("@id",SqlDbType.UniqueIdentifier).Value=d.Evidencia;
+                Assert.False((bool)(await q.ExecuteScalarAsync())!);
+            }
+            finally{await LimpiarAsync(c,d);}
+        }
+    }
+
+    [Fact]
+    [Trait("Category","SqlAislado")]
+    public async Task ClienteRegistradoCreaReservaSqlSoloWebSinAltaDesdeTerminal()
     {
         await PrepararAsync();await using var c=new SqlConnection(Cadena);await c.OpenAsync();Datos d=await CrearAsync(c);
         int creada=0;
         try
         {
-            var resultado=await new PreReservaEncomiendaService(Configuracion()).CrearAsync("50499990001","+50499990002","Mediano",default,d.Terminal);
+            var resultado=await new PreReservaEncomiendaService(Configuracion()).CrearAsync(d.Remitente,"+50499990002","Mediano",default);
             creada=resultado.Id;
-            await using var q=new SqlCommand("SELECT OrigenPreReserva,TerminalCreacionId,Estado,TokenGestionHash FROM dbo.PreReservasEncomiendasWeb WHERE Id=@id",c);
+            await using var q=new SqlCommand("SELECT OrigenPreReserva,TerminalCreacionId,Estado,TokenGestionHash,ClientePersonaId FROM dbo.PreReservasEncomiendasWeb WHERE Id=@id",c);
             q.Parameters.Add("@id",SqlDbType.Int).Value=creada;
             await using var r=await q.ExecuteReaderAsync();Assert.True(await r.ReadAsync());
-            Assert.Equal("Terminal",r.GetString(0));Assert.Equal(d.Terminal,r.GetInt32(1));Assert.Equal("PendienteConsentimiento",r.GetString(2));
+            Assert.Equal("Web",r.GetString(0));Assert.True(r.IsDBNull(1));Assert.Equal("PendienteConsentimiento",r.GetString(2));Assert.Equal(d.Remitente,r.GetInt32(4));
             Assert.Equal(SHA256.HashData(Convert.FromHexString(resultado.TokenGestion)),(byte[])r[3]);
         }
         finally
         {
-            await using(var q=new SqlCommand("DELETE dbo.PreReservasEncomiendasWeb WHERE Id=@id AND TerminalCreacionId=@terminal",c))
-            {q.Parameters.Add("@id",SqlDbType.Int).Value=creada;q.Parameters.Add("@terminal",SqlDbType.Int).Value=d.Terminal;await q.ExecuteNonQueryAsync();}
+            await using(var q=new SqlCommand("DELETE dbo.PreReservasEncomiendasWeb WHERE Id=@id AND ClientePersonaId=@cliente",c))
+            {q.Parameters.Add("@id",SqlDbType.Int).Value=creada;q.Parameters.Add("@cliente",SqlDbType.Int).Value=d.Remitente;await q.ExecuteNonQueryAsync();}
             await LimpiarAsync(c,d);
         }
     }

@@ -1,15 +1,16 @@
 using System.Data;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Services;
+using Synchro.Api.Services.RostroSimulado;
 
 namespace Synchro.Api.Endpoints;
 
 // Pre-reserva, no asignacion de casillero. No autoriza deposito.
 public record CrearPreReservaEncomiendaWebSolicitud(
-    string? TelefonoRemitente,
     string? TelefonoDestinatario,
     string? TamanoSolicitado);
 
@@ -30,14 +31,16 @@ public static class PreReservasEncomiendaWebEndpoints
             });
         }).RequireRateLimiting("LoginLimitado");
 
-        app.MapGet("/api/web/encomiendas/integraciones", (HttpContext contexto) =>
+        app.MapGet("/api/web/encomiendas/integraciones", (HttpContext contexto, IVerificadorFacial verificador) =>
         {
             contexto.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new {
                 whatsappRealConectado = false,
-                reconocimientoFacialConectado = false,
+                reconocimientoFacialConectado = verificador is VerificadorFacialSimulado,
+                reconocimientoFacialSimulado = true,
+                reservasSoloClientesWeb = true,
                 depositoHabilitado = false,
-                mensaje = "Pre-reservas de prueba. Falta consentimiento y verificacion reales por WhatsApp."
+                mensaje = "Prototipo: rostro simulado; cada deposito exige reserva web de cliente, consentimiento WhatsApp y referencias de identidad."
             });
         });
 
@@ -56,7 +59,8 @@ public static class PreReservasEncomiendaWebEndpoints
             contexto.Response.Headers.CacheControl = "no-store";
             try
             {
-                var creada=await servicio.CrearAsync(solicitud.TelefonoRemitente,solicitud.TelefonoDestinatario,
+                int cliente=int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var creada=await servicio.CrearAsync(cliente,solicitud.TelefonoDestinatario,
                     solicitud.TamanoSolicitado,contexto.RequestAborted);
                 return Results.Ok(new
                 {
@@ -65,10 +69,11 @@ public static class PreReservasEncomiendaWebEndpoints
                     mensaje="Pre-reserva creada. No es un deposito ni una autorizacion de WhatsApp."
                 });
             }
-            catch(ArgumentException){return Results.BadRequest(new{mensaje="Telefonos o tamano invalidos."});}
+            catch(EncomiendaNoDisponibleException){return Results.NotFound();}
+            catch(ArgumentException){return Results.BadRequest(new{mensaje="Telefono destinatario o tamano invalidos."});}
             catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo registrar la pre-reserva.");}
             catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Servicio de pre-reservas no disponible.");}
-        }).RequireRateLimiting("LoginLimitado");
+        }).RequireAuthorization("SoloClientes").RequireRateLimiting("LoginLimitado");
 
         app.MapGet("/api/web/encomiendas/pre-reservas/{id:int}", async (
             int id, HttpContext contexto) =>
@@ -97,8 +102,9 @@ public static class PreReservasEncomiendaWebEndpoints
                 await using var comando = new SqlCommand("""
                     SELECT TamanoSolicitado, Estado, FechaExpiracion
                     FROM dbo.PreReservasEncomiendasWeb
-                    WHERE Id = @id AND TokenGestionHash = @hash;
+                    WHERE Id = @id AND TokenGestionHash = @hash AND ClientePersonaId=@cliente;
                     """, conexion);
+                comando.Parameters.Add("@cliente",SqlDbType.Int).Value=int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
                 comando.Parameters.Add("@id", SqlDbType.Int).Value = id;
                 comando.Parameters.Add("@hash", SqlDbType.VarBinary, 32).Value = hash;
                 await using var lector = await comando.ExecuteReaderAsync(contexto.RequestAborted);
@@ -114,7 +120,7 @@ public static class PreReservasEncomiendaWebEndpoints
                     estado = vence <= DateTime.UtcNow ? "Vencida" : estado,
                     fechaExpiracion = vence,
                     depositoHabilitado = false,
-                    mensaje = "Pendiente de integracion real de WhatsApp y verificacion facial."
+                    mensaje = "El deposito requiere consentimiento WhatsApp e identidad del remitente comprobada mediante captura simulada."
                 });
             }
             catch (SqlException)
@@ -125,7 +131,7 @@ public static class PreReservasEncomiendaWebEndpoints
             {
                 CryptographicOperations.ZeroMemory(hash);
             }
-        }).RequireRateLimiting("LoginLimitado");
+        }).RequireAuthorization("SoloClientes").RequireRateLimiting("LoginLimitado");
 
         app.MapGet("/api/admin/encomiendas/pre-reservas", async (
             HttpContext contexto) =>

@@ -1,25 +1,26 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using Synchro.Api.Services.RostroSimulado;
 
 namespace Synchro.Api.Tests;
 
 public class ConfiguracionFacialServidorTests
 {
     [Fact]
-    public void Servidor_UtilizaVerificadorNoDisponible()
+    public void Servidor_UsaSimulacionSinProveedorExterno()
     {
         using var fabrica = new FabricaTerminalCookieReal();
 
         var verificador = fabrica.Services
             .GetRequiredService<IVerificadorFacial>();
 
-        Assert.IsType<VerificadorFacialNoDisponible>(
+        Assert.IsType<VerificadorFacialSimulado>(
             verificador);
     }
 
     [Fact]
-    public async Task ConfiguracionActual_NoEmiteEvidenciaFacial()
+    public async Task CapturaQueNoEsImagenNoEmiteEvidenciaFacial()
     {
         using var fabrica = new FabricaTerminalCookieReal();
 

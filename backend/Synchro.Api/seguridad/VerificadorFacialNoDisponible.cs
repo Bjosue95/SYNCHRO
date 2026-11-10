@@ -13,8 +13,8 @@ internal sealed class VerificadorFacialNoDisponible
 
         cancelacion.ThrowIfCancellationRequested();
 
-        // Sin un proveedor biometrico confiable,
-        // ninguna verificacion puede aprobarse.
+        // Se usa fuera de la demostracion o cuando el modo simulado se
+        // deshabilita expresamente. No representa una dependencia externa.
         return Task.FromResult(
             new ResultadoFacial(false, false));
     }

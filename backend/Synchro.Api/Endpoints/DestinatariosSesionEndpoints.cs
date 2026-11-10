@@ -234,7 +234,9 @@ public static class DestinatariosSesionEndpoints
 
                         new System.Security.Claims.Claim(
                             "tipo_usuario",
-                            "Destinatario")
+                            "Destinatario"),
+                        new System.Security.Claims.Claim("telefono_verificado","+"+telefono.TrimStart('+')),
+                        new System.Security.Claims.Claim("verificacion_telefono_id",datos.VerificacionId.ToString())
                     },
                     "Destinatarios");
 

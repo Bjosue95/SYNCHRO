@@ -22,7 +22,8 @@ public sealed class AdministradorTemporalPruebas(IOptionsMonitor<AuthenticationS
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if(!Request.Headers.ContainsKey("X-Test-Admin"))return Task.FromResult(AuthenticateResult.NoResult());
-        var identidad=new ClaimsIdentity([new(ClaimTypes.NameIdentifier,"7"),new(ClaimTypes.Role,Request.Headers["X-Test-Admin"]=="si"?"Administrador":"Lector")],"AdminTemporalTest");
+        string rol=Request.Headers["X-Test-Admin"].ToString() switch{"si"=>"Administrador","operador"=>"Operador","auditor"=>"Auditor",_=>"Lector"};
+        var identidad=new ClaimsIdentity([new(ClaimTypes.NameIdentifier,"7"),new(ClaimTypes.Role,rol)],"AdminTemporalTest");
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identidad),"AdminTemporalTest")));
     }
 }
@@ -107,6 +108,19 @@ public sealed class ServiciosTemporalesHttpTests
         string desde=Uri.EscapeDataString(e.Reloj.GetUtcNow().AddHours(-1).ToString("O")),hasta=Uri.EscapeDataString(e.Reloj.GetUtcNow().ToString("O"));
         using var reporte=await admin.GetAsync($"/api/admin/servicios/reportes?desde={desde}&hasta={hasta}");reporte.EnsureSuccessStatusCode();
         Assert.Equal(1,(await reporte.Content.ReadFromJsonAsync<ReporteServiciosTemporales>())!.Incidencias);
+    }
+    [Fact]
+    public async Task OperadorGestionaIncidenciasYAuditorReportesSinPoderCambiarPrecios()
+    {
+        using var e=new Escenario();using var operador=await e.ClienteAsync("operador");using var auditor=await e.ClienteAsync("auditor");
+        using var precio=await operador.PutAsJsonAsync("/api/admin/servicios/compartimentos/C01",ServiciosTemporalesTests.Compartimento());
+        Assert.Equal(HttpStatusCode.Forbidden,precio.StatusCode);
+        using var incidencia=await operador.PostAsJsonAsync("/api/admin/servicios/compartimentos/C01/incidencias",new{descripcion="Revision del modulo simulado"});
+        incidencia.EnsureSuccessStatusCode();
+        string desde=Uri.EscapeDataString(e.Reloj.GetUtcNow().AddHours(-1).ToString("O")),hasta=Uri.EscapeDataString(e.Reloj.GetUtcNow().ToString("O"));
+        using var reporte=await auditor.GetAsync($"/api/admin/servicios/reportes?desde={desde}&hasta={hasta}");reporte.EnsureSuccessStatusCode();
+        using var cambio=await auditor.PutAsJsonAsync("/api/admin/servicios/compartimentos/C01",ServiciosTemporalesTests.Compartimento());
+        Assert.Equal(HttpStatusCode.Forbidden,cambio.StatusCode);
     }
     [Fact]
     public async Task AdminSinCsrfNoCambiaPrecios()

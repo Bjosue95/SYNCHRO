@@ -1,5 +1,7 @@
 # Desarrollo integral: auditoría y punto de continuación
 
+> Las reglas de encomiendas se actualizaron: [clientes web y rostro simulado](ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md). Las referencias anteriores a visitantes o biometría profesional quedan sustituidas.
+
 Estado histórico de la primera entrega. Para el avance en la rama solicitada, ver [AVANCE-REFACTOR.md](AVANCE-REFACTOR.md).
 
 Base revisada: `refactor/arquitectura-backend`, commit `de977cd`.

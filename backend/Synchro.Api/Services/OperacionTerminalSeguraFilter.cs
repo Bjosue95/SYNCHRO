@@ -12,7 +12,8 @@ internal sealed class OperacionTerminalSeguraFilter(IAntiforgery antiforgery) : 
         contexto.Response.Headers.CacheControl = "no-store";
         if (!contexto.Request.IsHttps)
             return Results.BadRequest(new { mensaje = "Se requiere HTTPS." });
-        if (!await antiforgery.IsRequestValidAsync(contexto))
+        if (!HttpMethods.IsGet(contexto.Request.Method) && !HttpMethods.IsHead(contexto.Request.Method) &&
+            !HttpMethods.IsOptions(contexto.Request.Method) && !await antiforgery.IsRequestValidAsync(contexto))
             return Results.BadRequest(new { mensaje = "Token CSRF invalido o ausente." });
         return await next(invocation);
     }

@@ -1,5 +1,7 @@
 # Avance actual en refactor/arquitectura-backend
 
+> Las reglas de encomiendas se actualizaron: [clientes web y rostro simulado](ENCOMIENDAS-CLIENTES-Y-ROSTRO-SIMULADO.md). Las referencias anteriores a visitantes o biometría profesional quedan sustituidas.
+
 Última integración y suite completa: [INTEGRACION-RAMAS.md](INTEGRACION-RAMAS.md) (151 aprobadas, 32 fallidas y 4 omitidas).
 
 Esta es la rama de trabajo indicada por el propietario. Se trasladaron aquí los cambios

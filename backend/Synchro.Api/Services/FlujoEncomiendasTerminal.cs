@@ -17,6 +17,7 @@ internal enum ResultadoRetiroEncomienda { Retirado,NoDisponible,PinIncorrecto,Pi
 
 internal interface IFlujoEncomiendasTerminal
 {
+    Task<bool> VincularDestinatarioAsync(int reservaId,int destinatarioId,string telefonoVerificado,CancellationToken token);
     Task<ContextoReservaEncomienda?> ObtenerReservaAsync(int reservaId,int terminalId,byte[] tokenHash,CancellationToken token);
     Task GuardarEvidenciaRemitenteAsync(EvidenciaFacialRemitente evidencia,byte[] tokenHash,CancellationToken token);
     Task<DepositoEncomiendaResultado> DepositarAsync(DepositoEncomiendaComando comando,CancellationToken token);
@@ -29,15 +30,54 @@ internal sealed class FlujoEncomiendasTerminalSql(IConfiguration config,Deposito
 {
     private string Cadena=>ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");
 
+    public async Task<bool> VincularDestinatarioAsync(int reservaId,int destinatarioId,string telefonoVerificado,CancellationToken token)
+    {
+        await using var c=new SqlConnection(Cadena);await c.OpenAsync(token);await using var t=(SqlTransaction)await c.BeginTransactionAsync(token);
+        int remitente;DateTime vence;
+        await using(var q=new SqlCommand("""
+            SELECT r.ClientePersonaId,r.FechaExpiracion FROM dbo.PreReservasEncomiendasWeb r WITH(UPDLOCK,HOLDLOCK)
+            JOIN dbo.ClientesWebPrototipo cliente ON cliente.PersonaId=r.ClientePersonaId AND cliente.Activa=1
+            JOIN dbo.ConsentimientosPreReservaWhatsApp w WITH(UPDLOCK,HOLDLOCK) ON w.ReservaId=r.Id
+            WHERE r.Id=@reserva AND r.OrigenPreReserva=N'Web' AND r.Estado=N'PendienteConsentimiento'
+                AND r.FechaExpiracion>SYSUTCDATETIME() AND w.Estado=N'Confirmado'
+                AND w.TelefonoWhatsApp=@telefono
+                AND w.TelefonoWhatsApp=CASE WHEN LEFT(r.TelefonoDestinatario,1)=N'+'THEN r.TelefonoDestinatario ELSE N'+'+r.TelefonoDestinatario END
+                AND w.FechaConfirmacionUtc BETWEEN w.FechaCreacionUtc AND w.FechaExpiracionUtc
+                AND w.FechaConfirmacionUtc<=SYSUTCDATETIME() AND NULLIF(w.MensajeIdConfirmacion,N'')IS NOT NULL;
+            """,c,t))
+        {
+            q.Parameters.Add("@reserva",SqlDbType.Int).Value=reservaId;q.Parameters.Add("@telefono",SqlDbType.NVarChar,20).Value=telefonoVerificado;
+            await using var r=await q.ExecuteReaderAsync(token);if(!await r.ReadAsync(token))return false;
+            remitente=r.GetInt32(0);vence=r.GetDateTime(1);
+        }
+        if(remitente==destinatarioId)return false;
+        await using(var q=new SqlCommand("""
+            IF EXISTS(SELECT 1 FROM dbo.ParticipantesPreReservaVerificados WITH(UPDLOCK,HOLDLOCK)WHERE ReservaId=@reserva)
+            BEGIN
+                IF NOT EXISTS(SELECT 1 FROM dbo.ParticipantesPreReservaVerificados WHERE ReservaId=@reserva AND RemitenteId=@remitente AND DestinatarioId=@destinatario)
+                    THROW 56001,'Identidades incompatibles.',1;
+            END
+            ELSE INSERT dbo.ParticipantesPreReservaVerificados(ReservaId,RemitenteId,DestinatarioId,FechaVerificacionUtc,FechaExpiracionUtc)
+                 VALUES(@reserva,@remitente,@destinatario,SYSUTCDATETIME(),@vence);
+            """,c,t))
+        {
+            q.Parameters.Add("@reserva",SqlDbType.Int).Value=reservaId;q.Parameters.Add("@remitente",SqlDbType.Int).Value=remitente;
+            q.Parameters.Add("@destinatario",SqlDbType.Int).Value=destinatarioId;q.Parameters.Add("@vence",SqlDbType.DateTime2).Value=vence;
+            await q.ExecuteNonQueryAsync(token);
+        }
+        await t.CommitAsync(token);return true;
+    }
+
     public async Task<ContextoReservaEncomienda?> ObtenerReservaAsync(int reservaId,int terminalId,byte[] tokenHash,CancellationToken token)
     {
         await using var c=new SqlConnection(Cadena);await c.OpenAsync(token);
         await using var q=new SqlCommand("""
             SELECT p.RemitenteId FROM dbo.PreReservasEncomiendasWeb r
-            JOIN dbo.ParticipantesPreReservaVerificados p ON p.ReservaId=r.Id
+            JOIN dbo.ClientesWebPrototipo cliente ON cliente.PersonaId=r.ClientePersonaId AND cliente.Activa=1
+            JOIN dbo.ParticipantesPreReservaVerificados p ON p.ReservaId=r.Id AND p.RemitenteId=cliente.PersonaId
             JOIN dbo.ConsentimientosPreReservaWhatsApp w ON w.ReservaId=r.Id
             WHERE r.Id=@reserva AND r.TokenGestionHash=@hash AND r.Estado=N'PendienteConsentimiento'
-              AND r.FechaExpiracion>SYSUTCDATETIME()
+              AND r.FechaExpiracion>SYSUTCDATETIME() AND r.OrigenPreReserva=N'Web'
               AND p.FechaVerificacionUtc<=SYSUTCDATETIME() AND p.FechaExpiracionUtc>SYSUTCDATETIME()
               AND w.Estado=N'Confirmado' AND w.MensajeIdConfirmacion IS NOT NULL
               AND w.FechaConfirmacionUtc BETWEEN w.FechaCreacionUtc AND w.FechaExpiracionUtc
@@ -65,9 +105,10 @@ internal sealed class FlujoEncomiendasTerminalSql(IConfiguration config,Deposito
                 (EvidenciaId,ReservaId,RemitenteId,TerminalId,FechaEmisionUtc,FechaExpiracionUtc,RostroCoincide,PruebaDeVidaSuperada)
             SELECT @id,r.Id,@persona,@terminal,@emision,@vence,1,1
             FROM dbo.PreReservasEncomiendasWeb r
-            JOIN dbo.ParticipantesPreReservaVerificados p ON p.ReservaId=r.Id AND p.RemitenteId=@persona
+            JOIN dbo.ClientesWebPrototipo cliente ON cliente.PersonaId=r.ClientePersonaId AND cliente.Activa=1
+            JOIN dbo.ParticipantesPreReservaVerificados p ON p.ReservaId=r.Id AND p.RemitenteId=@persona AND p.RemitenteId=cliente.PersonaId
             WHERE r.Id=@reserva AND r.TokenGestionHash=@hash AND r.Estado=N'PendienteConsentimiento'
-              AND r.FechaExpiracion>SYSUTCDATETIME() AND p.FechaExpiracionUtc>SYSUTCDATETIME()
+              AND r.OrigenPreReserva=N'Web' AND r.FechaExpiracion>SYSUTCDATETIME() AND p.FechaExpiracionUtc>SYSUTCDATETIME()
               AND EXISTS(SELECT 1 FROM dbo.Terminales WHERE Id=@terminal AND Activa=1);
             IF @@ROWCOUNT<>1 THROW 56001,'Reserva no disponible.',1;
             """,c);

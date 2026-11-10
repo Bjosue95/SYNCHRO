@@ -9,6 +9,7 @@ using Synchro.Api.Models;
 using Synchro.Api.Endpoints;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Synchro.Api.Services.Administracion;
 
 namespace Synchro.Api.Endpoints;
 
@@ -87,6 +88,8 @@ public static class AdministracionEndpoints
                 return Results.Unauthorized();
             }
 
+            var acceso=await AccesoAdministrativoSql.ObtenerAsync(conexion,administrador.Id,contexto.RequestAborted);
+            if(acceso.Roles.Length==0)return Results.Unauthorized();
             var claims = new List<Claim>
             {
                 new Claim(
@@ -97,11 +100,10 @@ public static class AdministracionEndpoints
                     ClaimTypes.Name,
                     administrador.NombreUsuario),
 
-                new Claim(
-                    ClaimTypes.Role,
-                    "Administrador")
+                new Claim(AccesoAdministrativoSql.ClaimVersion,acceso.VersionSesion.ToString())
             };
 
+            claims.AddRange(acceso.Roles.Select(rol=>new Claim(ClaimTypes.Role,rol)));
             var identidad = new ClaimsIdentity(
                 claims,
                 CookieAuthenticationDefaults.AuthenticationScheme);
@@ -116,7 +118,7 @@ public static class AdministracionEndpoints
             {
                 mensaje = "Inicio de sesion correcto",
                 usuario = administrador.NombreUsuario,
-                rol = "Administrador"
+                rol = acceso.Roles[0],roles=acceso.Roles
             });
         }).RequireRateLimiting("LoginLimitado");
 
@@ -127,10 +129,11 @@ public static class AdministracionEndpoints
             {
                 mensaje = "Acceso administrativo autorizado",
                 usuario = usuario.Identity?.Name,
-                rol = "Administrador"
+                rol = usuario.FindFirstValue(ClaimTypes.Role),
+                roles=usuario.FindAll(ClaimTypes.Role).Select(c=>c.Value).ToArray()
             });
         })
-        .RequireAuthorization("SoloAdministradores");
+        .RequireAuthorization("SesionAdministrativa");
 
 
         app.MapPost("/api/admin/logout", async (
@@ -161,7 +164,7 @@ public static class AdministracionEndpoints
                 mensaje = "Sesion administrativa cerrada correctamente"
             });
         })
-        .RequireAuthorization("SoloAdministradores");
+        .RequireAuthorization("SesionAdministrativa");
 
 
 
@@ -185,6 +188,6 @@ public static class AdministracionEndpoints
                 csrfToken = tokens.RequestToken
             });
         })
-        .RequireAuthorization("SoloAdministradores");
+        .RequireAuthorization("SesionAdministrativa");
     }
 }

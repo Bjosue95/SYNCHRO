@@ -96,10 +96,11 @@ public static class EncomiendasTerminalEndpoints
                             c.FechaConfirmacionUtc,
                             c.MensajeIdConfirmacion
                         FROM dbo.PreReservasEncomiendasWeb r
+                        INNER JOIN dbo.ClientesWebPrototipo cliente ON cliente.PersonaId=r.ClientePersonaId AND cliente.Activa=1
                         LEFT JOIN dbo.ConsentimientosPreReservaWhatsApp c
                             ON c.ReservaId = r.Id
                         WHERE r.Id = @Referencia
-                          AND r.TokenGestionHash = @TokenHash;
+                          AND r.TokenGestionHash = @TokenHash AND r.OrigenPreReserva=N'Web';
                         """;
 
                     await using var comando = new SqlCommand(
@@ -222,8 +223,9 @@ public static class EncomiendasTerminalEndpoints
                         consentimientoConfirmado,
                         puedeContinuarVerificacion,
 
-                        // Mantener bloqueado el deposito.
+                        // Consultar no abre: el deposito requiere evidencia simulada y transaccion.
                         depositoHabilitado = false,
+                        reconocimientoFacialSimulado = true,
                         mensaje
                     });
                 }

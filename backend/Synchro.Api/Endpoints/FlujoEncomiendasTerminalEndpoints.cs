@@ -16,24 +16,27 @@ public static class FlujoEncomiendasTerminalEndpoints
 {
     public static void MapFlujoEncomiendasTerminalEndpoints(this WebApplication app)
     {
+        app.MapPost("/api/web/destinatarios/encomiendas/{id:int}/vincular",async(int id,HttpContext http,IFlujoEncomiendasTerminal flujo)=>
+        {
+            if(id<=0||!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int destinatario))return Results.Unauthorized();
+            string? telefono=http.User.FindFirstValue("telefono_verificado");if(string.IsNullOrEmpty(telefono))return Results.Unauthorized();
+            try
+            {
+                bool vinculado=await flujo.VincularDestinatarioAsync(id,destinatario,telefono,http.RequestAborted);
+                return vinculado?Results.Ok(new{vinculado=true,consentimientoWhatsAppRequerido=true}):Results.NotFound();
+            }
+            catch(SqlException ex)when(ex.Number==56001){return Results.Conflict();}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No fue posible vincular la identidad.");}
+        }).RequireAuthorization("SoloDestinatarios").AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
+
         var rutas=app.MapGroup("/api/terminales/encomiendas")
             .RequireAuthorization("SoloTerminal").RequireRateLimiting("OperacionesTerminal")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>();
 
-        rutas.MapPost("/visitas",async(CrearPreReservaEncomiendaWebSolicitud datos,HttpContext http,IPreReservasEncomienda servicio)=>
-        {
-            if(Identidad(http.User)<=0)return Results.Unauthorized();
-            try
-            {
-                var creada=await servicio.CrearAsync(datos.TelefonoRemitente,datos.TelefonoDestinatario,datos.TamanoSolicitado,http.RequestAborted,Identidad(http.User));
-                return Results.Ok(new{id=creada.Id,tokenGestion=creada.TokenGestion,fechaExpiracion=creada.FechaExpiracion,
-                    estado="PendienteConsentimiento",depositoHabilitado=false,
-                    consentimientoRequerido=true});
-            }
-            catch(ArgumentException){return Results.BadRequest(new{mensaje="Telefonos o tamano invalidos."});}
-            catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo registrar la visita.");}
-            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Servicio de visitas no disponible.");}
-        });
+        // Encomiendas exclusivamente reservadas por clientes en la web. No hay
+        // ruta de alta de visitas ni de reservas desde la terminal.
+        rutas.MapGet("/csrf-token",(HttpContext http,Microsoft.AspNetCore.Antiforgery.IAntiforgery csrf)=>
+            Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(http).RequestToken}));
 
         rutas.MapPost("/reservas/{id:int}/evidencias-remitente",async(int id,HttpContext http,
             IFlujoEncomiendasTerminal flujo,IVerificadorFacial verificador,TimeProvider reloj)=>
@@ -47,7 +50,7 @@ public static class FlujoEncomiendasTerminalEndpoints
                 if(verificador is VerificadorFacialNoDisponible)return NoBiometria();
                 var reserva=await flujo.ObtenerReservaAsync(id,terminal,hash,http.RequestAborted);
                 if(reserva is null)return Results.NotFound();
-                var (captura,error)=await LeerCapturaAsync(http);
+                var (captura,error)=await CapturaRostroHttp.LeerAsync(http);
                 if(error is not null)return error;
                 using(captura)
                 {
@@ -57,13 +60,15 @@ public static class FlujoEncomiendasTerminalEndpoints
                             .PrepararAsync(id,reserva.RemitenteId,terminal,captura!,http.RequestAborted);
                         if(evidencia is null)return Results.StatusCode(403);
                         await flujo.GuardarEvidenciaRemitenteAsync(evidencia.Value,hash,http.RequestAborted);
-                        return Results.Ok(new{evidenciaId=evidencia.Value.EvidenciaId,venceUtc=evidencia.Value.FechaExpiracionUtc});
+                        return Results.Ok(new{evidenciaId=evidencia.Value.EvidenciaId,venceUtc=evidencia.Value.FechaExpiracionUtc,simulado=true});
                     }
-                    finally { Limpiar(captura!); }
+                    finally { CapturaRostroHttp.Limpiar(captura!); }
                 }
             }
             catch(EncomiendaNoDisponibleException){return Results.NotFound();}
-            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Servicio de verificacion no disponible.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Simulacion de captura no disponible.");}
+            catch(System.Text.Json.JsonException){return Results.Problem(statusCode:503,title:"Referencia simulada no disponible.");}
+            catch(CryptographicException){return Results.Problem(statusCode:503,title:"Referencia simulada no disponible.");}
             catch(SqlException ex)when(ex.Number is >=55600 and <=56099){return Results.Conflict(new{mensaje="Reserva no disponible."});}
             catch(SqlException){return Results.Problem(statusCode:503,title:"No fue posible verificar la reserva.");}
             finally{CryptographicOperations.ZeroMemory(hash);}
@@ -104,7 +109,7 @@ public static class FlujoEncomiendasTerminalEndpoints
             try
             {
                 if(!await flujo.PuedeRetirarAsync(id,destinatario,terminal,http.RequestAborted))return Results.NotFound();
-                var(captura,error)=await LeerCapturaAsync(http);
+                var(captura,error)=await CapturaRostroHttp.LeerAsync(http);
                 if(error is not null)return error;
                 using(captura)
                 {
@@ -115,13 +120,15 @@ public static class FlujoEncomiendasTerminalEndpoints
                         var ahora=reloj.GetUtcNow();
                         var evidencia=new EvidenciaRetiroEncomienda(Guid.NewGuid(),id,destinatario,terminal,ahora,ahora.AddMinutes(2));
                         await flujo.GuardarEvidenciaRetiroAsync(evidencia,http.RequestAborted);
-                        return Results.Ok(new{evidenciaId=evidencia.Id,venceUtc=evidencia.VenceUtc});
+                        return Results.Ok(new{evidenciaId=evidencia.Id,venceUtc=evidencia.VenceUtc,simulado=true});
                     }
-                    finally{Limpiar(captura!);}
+                    finally{CapturaRostroHttp.Limpiar(captura!);}
                 }
             }
             catch(EncomiendaNoDisponibleException){return Results.NotFound();}
-            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Servicio de verificacion no disponible.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Simulacion de captura no disponible.");}
+            catch(System.Text.Json.JsonException){return Results.Problem(statusCode:503,title:"Referencia simulada no disponible.");}
+            catch(CryptographicException){return Results.Problem(statusCode:503,title:"Referencia simulada no disponible.");}
             catch(SqlException ex)when(ex.Number==56001){return Results.NotFound();}
             catch(SqlException){return Results.Problem(statusCode:503,title:"No fue posible verificar la operacion.");}
         });
@@ -162,30 +169,5 @@ public static class FlujoEncomiendasTerminalEndpoints
         byte[] bytes=Convert.FromHexString(texto);
         try{return SHA256.HashData(bytes);}finally{CryptographicOperations.ZeroMemory(bytes);}
     }
-    private static IResult NoBiometria()=>Results.Problem(statusCode:503,title:"Verificacion facial confiable no disponible.");
-    private static async Task<(MemoryStream? Captura,IResult? Error)> LeerCapturaAsync(HttpContext http)
-    {
-        const int maximo=256*1024;
-        if(!string.Equals(http.Request.ContentType?.Split(';')[0].Trim(),"application/octet-stream",StringComparison.OrdinalIgnoreCase))
-            return(null,Results.StatusCode(415));
-        if(http.Request.ContentLength>maximo)return(null,Results.StatusCode(413));
-        var memoria=new MemoryStream();byte[] buffer=new byte[8192];
-        try
-        {
-            int leidos;
-            while((leidos=await http.Request.Body.ReadAsync(buffer,http.RequestAborted))>0)
-            {
-                if(memoria.Length+leidos>maximo){Limpiar(memoria);memoria.Dispose();return(null,Results.StatusCode(413));}
-                memoria.Write(buffer,0,leidos);
-            }
-            if(memoria.Length==0){memoria.Dispose();return(null,Results.BadRequest());}
-            memoria.Position=0;return(memoria,null);
-        }
-        catch{Limpiar(memoria);memoria.Dispose();throw;}
-        finally{CryptographicOperations.ZeroMemory(buffer);}
-    }
-    private static void Limpiar(MemoryStream memoria)
-    {
-        if(memoria.TryGetBuffer(out var buffer))CryptographicOperations.ZeroMemory(buffer.AsSpan());
-    }
+    private static IResult NoBiometria()=>Results.Problem(statusCode:503,title:"Captura facial simulada no disponible en este entorno.");
 }

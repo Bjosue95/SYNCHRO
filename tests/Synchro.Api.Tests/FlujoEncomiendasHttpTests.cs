@@ -18,7 +18,7 @@ using Synchro.Api.Services;
 
 namespace Synchro.Api.Tests;
 
-// Solo pruebas: ni este repositorio ni el verificador simulado se distribuyen con la API.
+// Dobles de protocolo exclusivos de tests. La API tiene su propio comparador PNG de demostracion.
 internal sealed class RepositorioEncomiendasSimulado : IFlujoEncomiendasTerminal
 {
     private readonly object _sync=new();
@@ -31,6 +31,8 @@ internal sealed class RepositorioEncomiendasSimulado : IFlujoEncomiendasTerminal
     public Dictionary<Guid,EvidenciaFacialRemitente> Remitentes {get;}=[];
     public Dictionary<Guid,EvidenciaRetiroEncomienda> Destinatarios {get;}=[];
     private static readonly byte[] TokenHash=SHA256.HashData(Convert.FromHexString(new string('A',64)));
+    public Task<bool> VincularDestinatarioAsync(int reservaId,int destinatarioId,string telefono,CancellationToken token)
+        =>Task.FromResult(reservaId==1&&destinatarioId==42&&telefono=="+50499990002"&&Consentimiento);
     public Task<ContextoReservaEncomienda?> ObtenerReservaAsync(int reserva,int terminal,byte[] hash,CancellationToken token)
     {
         lock(_sync)return Task.FromResult(reserva==1&&terminal==99999&&Consentimiento&&!Ocupado&&!Retirado&&CryptographicOperations.FixedTimeEquals(hash,TokenHash)
@@ -91,7 +93,7 @@ public sealed class FlujoEncomiendasHttpTests
             Servidor=new FabricaTerminalHttpPruebas().WithWebHostBuilder(b=>b.ConfigureTestServices(s=>
             {
                 s.RemoveAll<IFlujoEncomiendasTerminal>();s.AddSingleton<IFlujoEncomiendasTerminal>(Repo);
-                if(verificador){s.RemoveAll<IVerificadorFacial>();s.AddSingleton<IVerificadorFacial>(new VerificadorFacialSoloPruebas(aprobar));}
+                s.RemoveAll<IVerificadorFacial>();s.AddSingleton<IVerificadorFacial>(verificador?new VerificadorFacialSoloPruebas(aprobar):new VerificadorFacialNoDisponible());
                 s.PostConfigure<CookieAuthenticationOptions>("Destinatarios",o=>o.Events.OnValidatePrincipal=_=>Task.CompletedTask);
             }));
             Cliente=Servidor.CreateClient(new(){BaseAddress=new Uri(esquema+"://localhost"),HandleCookies=false,AllowAutoRedirect=false});
@@ -201,7 +203,7 @@ public sealed class FlujoEncomiendasHttpTests
     [Fact]
     public async Task CapturaDemasiadoGrandeSeRechaza()
     {
-        using var e=new Escenario();await e.CsrfAsync();using var captura=new ByteArrayContent(new byte[256*1024+1]);
+        using var e=new Escenario();await e.CsrfAsync();using var captura=new ByteArrayContent(new byte[1024*1024+1]);
         captura.Headers.ContentType=new("application/octet-stream");
         using var r=await e.Cliente.PostAsync("/api/terminales/encomiendas/reservas/1/evidencias-remitente",captura);
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge,r.StatusCode);Assert.Empty(e.Repo.Remitentes);
