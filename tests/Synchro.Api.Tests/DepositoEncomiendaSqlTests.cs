@@ -43,15 +43,15 @@ public sealed class DepositoEncomiendaSqlTests
             ["RetiroPin:ClaveHmac"] = ClavePrueba,
             ["WhatsApp:PlantillaPinRetiro"] = "pin_retiro"
         }).Build();
-        return new(config,new PreparadorPinEncomienda(config,TimeProvider.System),
-            new SqlOutboxWhatsApp(config,new ProtectorMensajeWhatsApp(Proteccion)));
+        return new(config, new PreparadorPinEncomienda(config, TimeProvider.System),
+            new SqlOutboxWhatsApp(config, new ProtectorMensajeWhatsApp(Proteccion)));
     }
 
     private static async Task PrepararAsync()
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
-        foreach (string archivo in new[] {"EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql"})
+        foreach (string archivo in new[] { "EsquemaDeposito.sql", "Consentimiento.sql", "Evidencias.sql", "Deposito.sql", "PinEncomienda.sql", "Outbox.sql" })
         {
             string sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo));
             foreach (string lote in Regex.Split(sql, @"^\s*GO\s*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
@@ -92,25 +92,25 @@ public sealed class DepositoEncomiendaSqlTests
             COMMIT TRANSACTION;
             SELECT @reserva,@terminal,@remitente,@destinatario;
             """, c);
-        q.Parameters.Add("@codigo", SqlDbType.NVarChar,10).Value=codigo;
-        q.Parameters.Add("@evidencia", SqlDbType.UniqueIdentifier).Value=evidencia;
+        q.Parameters.Add("@codigo", SqlDbType.NVarChar, 10).Value = codigo;
+        q.Parameters.Add("@evidencia", SqlDbType.UniqueIdentifier).Value = evidencia;
         await using var r = await q.ExecuteReaderAsync();
         Assert.True(await r.ReadAsync());
-        return new(r.GetInt32(0),r.GetInt32(1),r.GetInt32(2),r.GetInt32(3),evidencia,codigo);
+        return new(r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), evidencia, codigo);
     }
 
     private static async Task EjecutarAsync(SqlConnection c, Datos d, string sql)
     {
-        await using var q = new SqlCommand(sql,c);
-        q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
-        q.Parameters.Add("@codigo",SqlDbType.NVarChar,10).Value=d.Codigo;
-        q.Parameters.Add("@terminal",SqlDbType.Int).Value=d.Terminal;
+        await using var q = new SqlCommand(sql, c);
+        q.Parameters.Add("@reserva", SqlDbType.Int).Value = d.Reserva;
+        q.Parameters.Add("@codigo", SqlDbType.NVarChar, 10).Value = d.Codigo;
+        q.Parameters.Add("@terminal", SqlDbType.Int).Value = d.Terminal;
         await q.ExecuteNonQueryAsync();
     }
 
     private static async Task LimpiarAsync(SqlConnection c, Datos d)
     {
-        await EjecutarAsync(c,d,"""
+        await EjecutarAsync(c, d, """
             SET XACT_ABORT ON;
             BEGIN TRANSACTION;
             DELETE dbo.OutboxWhatsApp WHERE ReservaId=@reserva;
@@ -127,13 +127,13 @@ public sealed class DepositoEncomiendaSqlTests
             DELETE dbo.Terminales WHERE Id=@terminal AND Nombre=N'TEST_DEPOSITO';
             COMMIT TRANSACTION;
             """);
-        await using var personas = new SqlCommand("DELETE dbo.Personas WHERE Id IN (@remitente,@destinatario)",c);
-        personas.Parameters.Add("@remitente",SqlDbType.Int).Value=d.Remitente;
-        personas.Parameters.Add("@destinatario",SqlDbType.Int).Value=d.Destinatario;
+        await using var personas = new SqlCommand("DELETE dbo.Personas WHERE Id IN (@remitente,@destinatario)", c);
+        personas.Parameters.Add("@remitente", SqlDbType.Int).Value = d.Remitente;
+        personas.Parameters.Add("@destinatario", SqlDbType.Int).Value = d.Destinatario;
         await personas.ExecuteNonQueryAsync();
     }
 
-    private static DepositoEncomiendaComando Comando(Datos d) => new(d.Reserva,d.Terminal,d.Evidencia,d.Codigo);
+    private static DepositoEncomiendaComando Comando(Datos d) => new(d.Reserva, d.Terminal, d.Evidencia, d.Codigo);
 
     [SqlDepositoFact]
     [Trait("Category", "SqlAislado")]
@@ -146,9 +146,9 @@ public sealed class DepositoEncomiendaSqlTests
         try
         {
             var resultado = await Servicio().DepositarAsync(Comando(d));
-            Assert.True(resultado.UsoId > 0); Assert.Equal(d.Codigo,resultado.CodigoCasillero);
+            Assert.True(resultado.UsoId > 0); Assert.Equal(d.Codigo, resultado.CodigoCasillero);
             var error = await Assert.ThrowsAsync<SqlException>(() => Servicio().DepositarAsync(Comando(d)));
-            Assert.Contains(error.Number,new[]{55605,55606,55610});
+            Assert.Contains(error.Number, new[] { 55605, 55606, 55610 });
             await using var q = new SqlCommand("""
                 SELECT COUNT(*) FROM dbo.DepositosPreReservaEncomienda d
                 JOIN dbo.EvidenciasFacialesRemitente e ON e.EvidenciaId=d.EvidenciaId
@@ -159,11 +159,11 @@ public sealed class DepositoEncomiendaSqlTests
                   AND (SELECT COUNT(*) FROM dbo.ParticipantesUso p WHERE p.UsoId=u.Id)=2
                   AND (SELECT COUNT(*) FROM dbo.CodigosRetiroEncomiendaPrototipo p WHERE p.UsoId=u.Id AND p.Consumido=0)=1
                   AND (SELECT COUNT(*) FROM dbo.OutboxWhatsApp o WHERE o.ReservaId=d.ReservaId AND o.Estado=N'Pendiente' AND o.ContenidoProtegido IS NOT NULL)=1;
-                """,c);
-            q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
-            Assert.Equal(1,Convert.ToInt32(await q.ExecuteScalarAsync()));
+                """, c);
+            q.Parameters.Add("@reserva", SqlDbType.Int).Value = d.Reserva;
+            Assert.Equal(1, Convert.ToInt32(await q.ExecuteScalarAsync()));
         }
-        finally { await LimpiarAsync(c,d); }
+        finally { await LimpiarAsync(c, d); }
     }
 
     [SqlDepositoFact]
@@ -180,53 +180,53 @@ public sealed class DepositoEncomiendaSqlTests
                 try { await Servicio().DepositarAsync(Comando(d)); return true; }
                 catch (SqlException e) when (e.Number is 55605 or 55606 or 55610) { return false; }
             }
-            var resultados = await Task.WhenAll(Intentar(),Intentar());
-            Assert.Single(resultados,x=>x);
+            var resultados = await Task.WhenAll(Intentar(), Intentar());
+            Assert.Single(resultados, x => x);
         }
-        finally { await LimpiarAsync(c,d); }
+        finally { await LimpiarAsync(c, d); }
     }
 
     [SqlDepositoTheory]
     [Trait("Category", "SqlAislado")]
-    [InlineData("TerminalRevocada",55604)]
-    [InlineData("ReservaVencida",55606)]
-    [InlineData("TamanoDistinto",55607)]
-    [InlineData("ParticipantesNoVerificados",55608)]
-    [InlineData("ConsentimientoRevocado",55609)]
-    [InlineData("TelefonoAjeno",55609)]
-    [InlineData("ConfirmacionFutura",55609)]
-    [InlineData("EvidenciaVencida",55610)]
-    [InlineData("EvidenciaAjena",55610)]
-    [InlineData("SinPruebaDeVida",55610)]
-    public async Task RechazaCondicionesInvalidasSinConsumir(string escenario,int esperado)
+    [InlineData("TerminalRevocada", 55604)]
+    [InlineData("ReservaVencida", 55606)]
+    [InlineData("TamanoDistinto", 55607)]
+    [InlineData("ParticipantesNoVerificados", 55608)]
+    [InlineData("ConsentimientoRevocado", 55609)]
+    [InlineData("TelefonoAjeno", 55609)]
+    [InlineData("ConfirmacionFutura", 55609)]
+    [InlineData("EvidenciaVencida", 55610)]
+    [InlineData("EvidenciaAjena", 55610)]
+    [InlineData("SinPruebaDeVida", 55610)]
+    public async Task RechazaCondicionesInvalidasSinConsumir(string escenario, int esperado)
     {
         await PrepararAsync();
         await using var c = new SqlConnection(Cadena); await c.OpenAsync();
         Datos d = await CrearAsync(c);
         try
         {
-            string sql=escenario switch
+            string sql = escenario switch
             {
-                "TerminalRevocada"=>"UPDATE dbo.Terminales SET Activa=0 WHERE Id=@terminal;",
-                "ReservaVencida"=>"UPDATE dbo.PreReservasEncomiendasWeb SET FechaExpiracion=DATEADD(SECOND,-1,SYSUTCDATETIME()) WHERE Id=@reserva;",
-                "TamanoDistinto"=>"UPDATE dbo.Casilleros SET Tamano=N'Grande' WHERE Codigo=@codigo;",
-                "ParticipantesNoVerificados"=>"DELETE dbo.ParticipantesPreReservaVerificados WHERE ReservaId=@reserva;",
-                "ConsentimientoRevocado"=>"UPDATE dbo.ConsentimientosPreReservaWhatsApp SET Estado=N'Revocado' WHERE ReservaId=@reserva;",
-                "TelefonoAjeno"=>"UPDATE dbo.ConsentimientosPreReservaWhatsApp SET TelefonoWhatsApp=N'+50499990003' WHERE ReservaId=@reserva;",
-                "ConfirmacionFutura"=>"UPDATE dbo.ConsentimientosPreReservaWhatsApp SET FechaConfirmacionUtc=DATEADD(MINUTE,1,SYSUTCDATETIME()) WHERE ReservaId=@reserva;",
-                "EvidenciaVencida"=>"UPDATE dbo.EvidenciasFacialesRemitente SET FechaEmisionUtc=DATEADD(SECOND,-100,SYSUTCDATETIME()),FechaExpiracionUtc=DATEADD(SECOND,-10,SYSUTCDATETIME()) WHERE ReservaId=@reserva;",
-                "EvidenciaAjena"=>"UPDATE dbo.EvidenciasFacialesRemitente SET RemitenteId=2147483647 WHERE ReservaId=@reserva;",
-                "SinPruebaDeVida"=>"UPDATE dbo.EvidenciasFacialesRemitente SET PruebaDeVidaSuperada=0 WHERE ReservaId=@reserva;",
-                _=>throw new ArgumentException("Escenario no previsto.")
+                "TerminalRevocada" => "UPDATE dbo.Terminales SET Activa=0 WHERE Id=@terminal;",
+                "ReservaVencida" => "UPDATE dbo.PreReservasEncomiendasWeb SET FechaExpiracion=DATEADD(SECOND,-1,SYSUTCDATETIME()) WHERE Id=@reserva;",
+                "TamanoDistinto" => "UPDATE dbo.Casilleros SET Tamano=N'Grande' WHERE Codigo=@codigo;",
+                "ParticipantesNoVerificados" => "DELETE dbo.ParticipantesPreReservaVerificados WHERE ReservaId=@reserva;",
+                "ConsentimientoRevocado" => "UPDATE dbo.ConsentimientosPreReservaWhatsApp SET Estado=N'Revocado' WHERE ReservaId=@reserva;",
+                "TelefonoAjeno" => "UPDATE dbo.ConsentimientosPreReservaWhatsApp SET TelefonoWhatsApp=N'+50499990003' WHERE ReservaId=@reserva;",
+                "ConfirmacionFutura" => "UPDATE dbo.ConsentimientosPreReservaWhatsApp SET FechaConfirmacionUtc=DATEADD(MINUTE,1,SYSUTCDATETIME()) WHERE ReservaId=@reserva;",
+                "EvidenciaVencida" => "UPDATE dbo.EvidenciasFacialesRemitente SET FechaEmisionUtc=DATEADD(SECOND,-100,SYSUTCDATETIME()),FechaExpiracionUtc=DATEADD(SECOND,-10,SYSUTCDATETIME()) WHERE ReservaId=@reserva;",
+                "EvidenciaAjena" => "UPDATE dbo.EvidenciasFacialesRemitente SET RemitenteId=2147483647 WHERE ReservaId=@reserva;",
+                "SinPruebaDeVida" => "UPDATE dbo.EvidenciasFacialesRemitente SET PruebaDeVidaSuperada=0 WHERE ReservaId=@reserva;",
+                _ => throw new ArgumentException("Escenario no previsto.")
             };
-            await EjecutarAsync(c,d,sql);
-            var error=await Assert.ThrowsAsync<SqlException>(()=>Servicio().DepositarAsync(Comando(d)));
-            Assert.Equal(esperado,error.Number);
-            await using var q=new SqlCommand("SELECT Consumida FROM dbo.EvidenciasFacialesRemitente WHERE ReservaId=@reserva;",c);
-            q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
+            await EjecutarAsync(c, d, sql);
+            var error = await Assert.ThrowsAsync<SqlException>(() => Servicio().DepositarAsync(Comando(d)));
+            Assert.Equal(esperado, error.Number);
+            await using var q = new SqlCommand("SELECT Consumida FROM dbo.EvidenciasFacialesRemitente WHERE ReservaId=@reserva;", c);
+            q.Parameters.Add("@reserva", SqlDbType.Int).Value = d.Reserva;
             Assert.False((bool)(await q.ExecuteScalarAsync())!);
         }
-        finally { await LimpiarAsync(c,d); }
+        finally { await LimpiarAsync(c, d); }
     }
 
     [SqlDepositoFact]
@@ -239,30 +239,36 @@ public sealed class DepositoEncomiendaSqlTests
         // Trigger exclusivo de la fixture marcada. No se instala en una base del propietario.
         try
         {
-            await EjecutarAsync(c,d,$"""
-                CREATE OR ALTER TRIGGER dbo.FalloDepositoFixture ON dbo.OutboxWhatsApp
-                AFTER INSERT AS
-                BEGIN
-                    IF EXISTS (SELECT 1 FROM inserted WHERE ReservaId={d.Reserva})
-                        THROW 55710, 'Fallo sintetico posterior al consumo.', 1;
-                END;
-                """);
-            var error = await Assert.ThrowsAsync<SqlException>(()=>Servicio().DepositarAsync(Comando(d)));
-            Assert.Equal(55710,error.Number);
+
+            await using (var cmdTrigger = new SqlCommand($"""
+    CREATE TRIGGER dbo.FalloDepositoFixture ON dbo.OutboxWhatsApp
+    AFTER INSERT AS
+    BEGIN
+        IF EXISTS (SELECT 1 FROM inserted WHERE ReservaId={d.Reserva})
+            THROW 55710, 'Fallo sintetico posterior al consumo.', 1;
+    END;
+    """, c))
+            {
+                await cmdTrigger.ExecuteNonQueryAsync();
+            }
+
+
+            var error = await Assert.ThrowsAsync<SqlException>(() => Servicio().DepositarAsync(Comando(d)));
+            Assert.Equal(55710, error.Number);
             await using var q = new SqlCommand("""
                 SELECT (SELECT COUNT(*) FROM dbo.EvidenciasFacialesRemitente WHERE ReservaId=@reserva AND Consumida=0 AND FechaConsumoUtc IS NULL),
                        (SELECT COUNT(*) FROM dbo.UsosCasillero WHERE CodigoCasillero=@codigo),
                        (SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo);
-                """,c);
-            q.Parameters.Add("@reserva",SqlDbType.Int).Value=d.Reserva;
-            q.Parameters.Add("@codigo",SqlDbType.NVarChar,10).Value=d.Codigo;
+                """, c);
+            q.Parameters.Add("@reserva", SqlDbType.Int).Value = d.Reserva;
+            q.Parameters.Add("@codigo", SqlDbType.NVarChar, 10).Value = d.Codigo;
             await using var r = await q.ExecuteReaderAsync(); Assert.True(await r.ReadAsync());
-            Assert.Equal(1,r.GetInt32(0)); Assert.Equal(0,r.GetInt32(1)); Assert.Equal("Disponible",r.GetString(2));
+            Assert.Equal(1, r.GetInt32(0)); Assert.Equal(0, r.GetInt32(1)); Assert.Equal("Disponible", r.GetString(2));
         }
         finally
         {
-            await EjecutarAsync(c,d,"DROP TRIGGER IF EXISTS dbo.FalloDepositoFixture;");
-            await LimpiarAsync(c,d);
+            await EjecutarAsync(c, d, "DROP TRIGGER IF EXISTS dbo.FalloDepositoFixture;");
+            await LimpiarAsync(c, d);
         }
     }
 }
