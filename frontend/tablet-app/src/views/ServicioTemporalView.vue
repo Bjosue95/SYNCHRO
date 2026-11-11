@@ -21,7 +21,7 @@ const paso = ref(0),
   cerrado = ref(false),
   confirmado = ref(false),
   pagoId = ref(null),
-  metodoPago = ref("NFC");
+  metodoPago = ref("");
 const controlador = new AbortController();
 const disponibles = computed(() =>
   lista.value.filter(
@@ -99,11 +99,14 @@ async function reservar() {
       { minutos: minutos.value },
     );
     pagoId.value = crypto.randomUUID();
+    metodoPago.value = "";
     paso.value = 1;
   });
 }
 async function pagar() {
   await ejecutar(async () => {
+    if (!metodoPago.value)
+      throw new Error("Selecciona un método de pago para continuar.");
     pago.value = await api(ruta("/pagar"), {
       idOperacion: pagoId.value,
       metodoPago: metodoPago.value,
@@ -126,7 +129,7 @@ async function cancelar() {
     await api(ruta("/cancelar"));
     reserva.value = null;
     pago.value = null;
-    metodoPago.value = "NFC";
+    metodoPago.value = "";
     pagoId.value = null;
     paso.value = 0;
   });
@@ -263,6 +266,16 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="tablet-choice"
+            :class="{ selected: metodoPago === 'Tarjeta' }"
+            :aria-pressed="metodoPago === 'Tarjeta'"
+            :disabled="ocupado"
+            @click="metodoPago = 'Tarjeta'"
+          >
+            Tarjeta
+          </button>
+          <button
+            type="button"
+            class="tablet-choice"
             :class="{ selected: metodoPago === 'NFC' }"
             :aria-pressed="metodoPago === 'NFC'"
             :disabled="ocupado"
@@ -284,9 +297,13 @@ onBeforeUnmount(() => {
         <p class="tablet-muted fine-print">
           {{ metodoPago === 'Efectivo'
             ? 'Simularemos la recepción del efectivo. No introduzcas billetes ni monedas.'
-            : 'Simularemos un pago NFC. No acerques tarjetas ni dispositivos para cobrar.' }}
+            : metodoPago === 'Tarjeta'
+              ? 'Simularemos el pago con tarjeta bancaria. No ingreses números de tarjeta ni claves reales.'
+              : metodoPago === 'NFC'
+                ? 'Simularemos un pago sin contacto. No acerques tarjetas ni dispositivos para cobrar.'
+                : 'Selecciona uno de los tres métodos de pago para continuar.' }}
         </p>
-        <button class="tablet-button full" :disabled="ocupado" @click="pagar">
+        <button class="tablet-button full" :disabled="ocupado || !metodoPago" @click="pagar">
           {{ ocupado ? "Confirmando…" : "Confirmar pago simulado" }}</button
         ><button
           class="tablet-button secondary full section-spacing"
@@ -299,7 +316,7 @@ onBeforeUnmount(() => {
     </div>
     <div v-else-if="paso === 2" class="tablet-two">
       <section class="tablet-panel">
-        <span class="tablet-badge">Pago {{ metodoPago === 'Efectivo' ? 'en efectivo' : 'NFC' }} simulado confirmado</span>
+        <span class="tablet-badge">Pago {{ metodoPago === 'Efectivo' ? 'en efectivo' : metodoPago === 'Tarjeta' ? 'con tarjeta' : 'NFC' }} simulado confirmado</span>
         <h2 class="section-spacing">
           Guarda tus objetos en {{ reserva.operacion.codigo }}
         </h2>
