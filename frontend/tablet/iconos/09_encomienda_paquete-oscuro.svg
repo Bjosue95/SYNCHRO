@@ -1,8 +1,0 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512" role="img" aria-label="Encomienda o paquete">
-      <g stroke-linecap="round" stroke-linejoin="round">
-        <path d="M64 14L108 38V89L64 114L20 89V38Z" fill="none" stroke="#FFFFFF" stroke-width="5"/>
-        <path d="M20 38L64 63L108 38" fill="none" stroke="#FFFFFF" stroke-width="5"/>
-        <path d="M64 63V114" fill="none" stroke="#FFFFFF" stroke-width="5"/>
-        <path d="M41 26L84 51V71" fill="none" stroke="#00B9C7" stroke-width="5"/>
-      </g>
-    </svg>

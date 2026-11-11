@@ -1,8 +1,0 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512" role="img" aria-label="Guardar o depositar">
-      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="40" y="16" width="70" height="96" rx="7" stroke="#FFFFFF" stroke-width="5"/>
-        <path d="M47 33H101V102H47Z" stroke="#FFFFFF" stroke-width="4"/>
-        <path d="M93 58V72" stroke="#00B9C7" stroke-width="5"/>
-        <path d="M13 64H65M54 52L66 64L54 76" stroke="#00B9C7" stroke-width="6"/>
-      </g>
-    </svg>
