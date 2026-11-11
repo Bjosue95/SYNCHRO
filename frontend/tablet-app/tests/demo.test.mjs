@@ -15,6 +15,30 @@ test("demo no fabrica un exito para rutas desconocidas o credenciales incorrecta
     }),
   );
 });
+test("demostracion acepta efectivo simulado sin confirmacion duplicada", async () => {
+  const api = crearEscenarioDemo();
+  const reserva = await api("/api/terminales/servicios/C01/reservas", {
+    metodo: "POST",
+    datos: { minutos: 30 },
+  });
+  const ruta = `/api/terminales/servicios/C01/reservas/${reserva.operacion.id}/pagar`;
+  const encabezados = { "X-SYNCHRO-SERVICIO": reserva.credencial };
+  await assert.rejects(
+    api(ruta, { metodo: "POST", encabezados, datos: { idOperacion: crypto.randomUUID(), metodoPago: "Transferencia" } }),
+    e => e.estado === 400,
+  );
+  const idOperacion = crypto.randomUUID();
+  const opciones = { metodo: "POST", encabezados, datos: { idOperacion, metodoPago: "Efectivo" } };
+  const pago = await api(ruta, opciones);
+  assert.equal(pago.pinRetiro, "654321");
+  const repetido = await api(ruta, opciones);
+  assert.equal(repetido.pinRetiro, null);
+  assert.equal(repetido.yaConfirmado, true);
+  await assert.rejects(
+    api(ruta, { metodo: "POST", encabezados, datos: { idOperacion, metodoPago: "NFC" } }),
+    e => e.estado === 409,
+  );
+});
 test("demostracion mantiene pago idempotente, reserva unica y retiro con PIN", async () => {
   const api = crearEscenarioDemo();
   const r = await api("/api/terminales/servicios/C01/reservas", {
