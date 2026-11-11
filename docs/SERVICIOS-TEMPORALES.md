@@ -85,6 +85,24 @@ En todas las operaciones posteriores enviar esa credencial en `X-SYNCHRO-SERVICI
 por URL. No se guardan teléfonos ni se depende de WhatsApp en el dispositivo que se guarda.
 El token de 256 bits se guarda como SHA-256, no en claro.
 
+### Pago en efectivo simulado en la terminal
+
+En **carga de celular, carga de laptop y resguardo personal**, la tablet permite
+seleccionar **NFC** o **Efectivo**. Ambos son estrictamente simulados: no hay
+lectores, monedas, billetes, cambio, transacciones bancarias ni cobro real.
+La solicitud de la terminal usa
+`{"idOperacion":"GUID_UNICO_DEL_INTENTO","metodoPago":"Efectivo"}`.
+Si no se envía `metodoPago`, sigue utilizándose NFC simulado, compatible
+con las versiones anteriores. No se acepta un método desconocido.
+La reserva y el importe no cambian; el servidor registra
+`EfectivoSimulado` como canal del pago, conserva la misma protección
+de idempotencia, emite el PIN una sola vez y contabiliza el ingreso
+únicamente como **simulado**.
+
+**Frío y calor** conservan el requisito de reservar y pagar desde la web de
+cliente registrado; la terminal no puede confirmar efectivo para estos
+servicios. Las rutas web no admiten `metodoPago: "Efectivo"`.
+
 Pago: `{"idOperacion":"GUID_UNICO_DEL_INTENTO"}`. El monto siempre procede del servidor;
 no se toma del JSON. El primer pago entrega el PIN una vez. Repetir el mismo identificador
 y canal confirma el resultado sin cobrar nuevamente ni revelar el PIN otra vez. Un intento
