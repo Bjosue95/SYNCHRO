@@ -103,6 +103,35 @@ public sealed class ServiciosTemporalesHttpTests
         using var repetida=await terminal.PostAsJsonAsync($"/api/terminales/servicios/C01/reservas/{r.Operacion.Id}/retirar",new{pin=p.PinRetiro});
         Assert.Equal(HttpStatusCode.Conflict,repetida.StatusCode);
     }
+    [Fact]
+    public async Task TerminalPermiteEfectivoSimuladoPeroNoUnMetodoInvalido()
+    {
+        using var e=new Escenario();
+        using var terminal=await e.ClienteAsync("terminal");
+        using var reserva=await terminal.PostAsJsonAsync("/api/terminales/servicios/C01/reservas",new{minutos=30});
+        reserva.EnsureSuccessStatusCode();
+        var r=(await reserva.Content.ReadFromJsonAsync<ReservaServicioTemporal>())!;
+        terminal.DefaultRequestHeaders.Add("X-SYNCHRO-SERVICIO",r.Credencial);
+        string ruta=$"/api/terminales/servicios/C01/reservas/{r.Operacion.Id}/pagar";
+        using var incorrecto=await terminal.PostAsJsonAsync(ruta,new{idOperacion=Guid.NewGuid(),metodoPago="Transferencia"});
+        Assert.Equal(HttpStatusCode.BadRequest,incorrecto.StatusCode);
+        Assert.Equal(EstadoServicioTemporal.Reservada,e.Repo.Datos["C01"].Operaciones[r.Operacion.Id].Estado);
+        Guid idPago=Guid.NewGuid();
+        using var efectivo=await terminal.PostAsJsonAsync(ruta,new{idOperacion=idPago,metodoPago="Efectivo"});
+        efectivo.EnsureSuccessStatusCode();
+        var confirmado=(await efectivo.Content.ReadFromJsonAsync<PagoServicioTemporal>())!;
+        Assert.NotNull(confirmado.PinRetiro);
+        Assert.Equal(10,confirmado.Operacion.Monto);
+        Assert.Equal("EfectivoSimulado",e.Repo.Datos["C01"].Operaciones[r.Operacion.Id].CanalPago);
+        using var repetido=await terminal.PostAsJsonAsync(ruta,new{idOperacion=idPago,metodoPago="Efectivo"});
+        repetido.EnsureSuccessStatusCode();
+        var segundo=(await repetido.Content.ReadFromJsonAsync<PagoServicioTemporal>())!;
+        Assert.True(segundo.YaConfirmado);
+        Assert.Null(segundo.PinRetiro);
+        using var cambio=await terminal.PostAsJsonAsync(ruta,new{idOperacion=idPago,metodoPago="NFC"});
+        Assert.Equal(HttpStatusCode.Conflict,cambio.StatusCode);
+    }
+
     [Theory]
     [InlineData(ClaseServicioTemporal.Frio)]
     [InlineData(ClaseServicioTemporal.Calor)]
