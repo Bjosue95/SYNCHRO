@@ -463,7 +463,6 @@ app.MapEstadoEndpoints();
 app.MapWhatsAppWebhookEndpoints();
 
 // Modulos HTTP separados por funcionalidad.
-app.MapCasillerosDemoEndpoints();
 app.MapCasillerosBaseDatosEndpoints();
 app.MapCargaDispositivosEndpoints();
 app.MapAdministracionEndpoints();
