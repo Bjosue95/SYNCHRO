@@ -82,7 +82,7 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
             return new ReservaServicioTemporal(Vista(o),credencial);
         }),token,clientePersonaId);
     }
-    public Task<PagoServicioTemporal> PagarAsync(string codigo,Guid id,string credencial,Guid pagoId,int? terminal,CancellationToken token,int? clientePersonaId=null)
+    public Task<PagoServicioTemporal> PagarAsync(string codigo,Guid id,string credencial,Guid pagoId,int? terminal,CancellationToken token,int? clientePersonaId=null,string? metodoPago=null)
     {
         if(pagoId==Guid.Empty)throw new ArgumentException("Identificador de pago invalido.");
         if(terminal is not null)Terminal(terminal.Value);
@@ -90,7 +90,20 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
         {
             var o=Propietario(d,id,credencial,terminal);
             GestionTermica(o,clientePersonaId,terminal);
-            string canal=terminal is not null?"NfcSimulado":"WebSimulado";
+            // No se reciben billetes ni se procesa dinero real: el canal solo
+            // identifica la modalidad seleccionada en la demostracion.
+            string canal=terminal is not null
+                ? metodoPago switch
+                {
+                    null or "NFC" => "NfcSimulado",
+                    "Efectivo" => "EfectivoSimulado",
+                    _ => throw new ArgumentException("Metodo de pago simulado invalido.")
+                }
+                : metodoPago switch
+                {
+                    null or "TarjetaWeb" => "WebSimulado",
+                    _ => throw new ArgumentException("El pago web no admite esta modalidad.")
+                };
             if(o.PagoId==pagoId&&!o.PagoAnulado&&o.CanalPago==canal)return new PagoServicioTemporal(Vista(o),null,true);
             if(o.Estado!=EstadoServicioTemporal.Reservada)throw new ServicioTemporalNoDisponibleException(true);
             string pin=CrearPin(o);o.Estado=EstadoServicioTemporal.Pagada;o.PagoId=pagoId;o.PagoUtc=Ahora;o.CanalPago=canal;
