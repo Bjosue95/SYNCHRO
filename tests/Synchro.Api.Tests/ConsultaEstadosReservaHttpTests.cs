@@ -9,14 +9,10 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
+[Collection("SQL Deposito Aislado")]
 public class ConsultaEstadosReservaHttpTests
 {
-    private const string Cadena =
-        @"Server=(localdb)\MSSQLLocalDB;" +
-        "Database=SynchroDB_Pruebas;" +
-        "Integrated Security=True;" +
-        "Encrypt=True;" +
-        "TrustServerCertificate=True;";
+    private static string Cadena => FabricaTerminalHttpPruebas.CadenaSqlAislada;
 
     [Theory]
     [InlineData("SinSolicitud")]
@@ -30,6 +26,7 @@ public class ConsultaEstadosReservaHttpTests
     public async Task ConsultaDebeRespetarEstadoReal(
         string escenario)
     {
+        await DepositoEncomiendaSqlTests.PrepararAsync();
         await using var conexion = new SqlConnection(Cadena);
         await conexion.OpenAsync();
 
@@ -40,11 +37,26 @@ public class ConsultaEstadosReservaHttpTests
         string token = Convert.ToHexString(secreto);
 
         int reservaId = 0;
+        int clienteId = 0;
+        string usuarioPrueba = "CONSULTA-" + Guid.NewGuid().ToString("N");
 
         try
         {
-            // Crear una pre-reserva ficticia.
+            // Crear una cuenta registrada ficticia y su reserva WEB en una sola
+            // transaccion. La API nunca debe aceptar reservas sin cliente.
             await using (var crear = new SqlCommand("""
+                SET XACT_ABORT ON;
+                BEGIN TRANSACTION;
+
+                INSERT INTO dbo.Personas DEFAULT VALUES;
+                DECLARE @ClienteId INT = CONVERT(INT, SCOPE_IDENTITY());
+
+                INSERT INTO dbo.ClientesWebPrototipo
+                    (PersonaId, NombreUsuario, Telefono, PasswordHash)
+                VALUES
+                    (@ClienteId, @UsuarioPrueba, N'+50499990001',
+                     N'HASH_SOLO_PRUEBA_NO_AUTENTICABLE');
+
                 INSERT INTO dbo.PreReservasEncomiendasWeb
                 (
                     TokenGestionHash,
@@ -53,9 +65,9 @@ public class ConsultaEstadosReservaHttpTests
                     TamanoSolicitado,
                     Estado,
                     FechaCreacion,
-                    FechaExpiracion
+                    FechaExpiracion,
+                    ClientePersonaId
                 )
-                OUTPUT INSERTED.Id
                 VALUES
                 (
                     @Hash,
@@ -68,20 +80,29 @@ public class ConsultaEstadosReservaHttpTests
                         SYSUTCDATETIME()),
                     DATEADD(HOUR,
                         CASE WHEN @Vencida = 1 THEN -24 ELSE 24 END,
-                        SYSUTCDATETIME())
+                        SYSUTCDATETIME()),
+                    @ClienteId
                 );
+
+                DECLARE @ReservaId INT = CONVERT(INT, SCOPE_IDENTITY());
+                COMMIT TRANSACTION;
+                SELECT @ReservaId AS ReservaId, @ClienteId AS ClienteId;
                 """, conexion))
             {
                 crear.Parameters.Add(
                     "@Hash", SqlDbType.VarBinary, 32
                 ).Value = hash;
-
                 crear.Parameters.Add(
                     "@Vencida", SqlDbType.Bit
                 ).Value = escenario == "Vencida";
+                crear.Parameters.Add(
+                    "@UsuarioPrueba", SqlDbType.NVarChar, 80
+                ).Value = usuarioPrueba;
 
-                reservaId = Convert.ToInt32(
-                    await crear.ExecuteScalarAsync());
+                await using var ids = await crear.ExecuteReaderAsync();
+                Assert.True(await ids.ReadAsync());
+                reservaId = ids.GetInt32(0);
+                clienteId = ids.GetInt32(1);
             }
 
             // Crear un consentimiento ficticio,
@@ -267,10 +288,11 @@ public class ConsultaEstadosReservaHttpTests
         }
         finally
         {
-            // Eliminar exclusivamente los registros ficticios.
-            if (reservaId > 0)
+            // Eliminar solamente la reserva y cuenta ficticias creadas aqui.
+            if (clienteId > 0)
             {
                 await using var limpiar = new SqlCommand("""
+                    SET XACT_ABORT ON;
                     IF DB_NAME() <> N'SynchroDB_Pruebas'
                         THROW 55001, 'Base incorrecta.', 1;
 
@@ -280,7 +302,14 @@ public class ConsultaEstadosReservaHttpTests
                     WHERE ReservaId = @Id;
 
                     DELETE FROM dbo.PreReservasEncomiendasWeb
-                    WHERE Id = @Id AND TokenGestionHash = @Hash;
+                    WHERE Id = @Id AND TokenGestionHash = @Hash
+                      AND ClientePersonaId = @ClienteId;
+
+                    DELETE FROM dbo.ClientesWebPrototipo
+                    WHERE PersonaId = @ClienteId AND NombreUsuario = @UsuarioPrueba;
+
+                    DELETE FROM dbo.Personas
+                    WHERE Id = @ClienteId;
 
                     COMMIT TRANSACTION;
                     """, conexion);
@@ -288,10 +317,15 @@ public class ConsultaEstadosReservaHttpTests
                 limpiar.Parameters.Add(
                     "@Id", SqlDbType.Int
                 ).Value = reservaId;
-
                 limpiar.Parameters.Add(
                     "@Hash", SqlDbType.VarBinary, 32
                 ).Value = hash;
+                limpiar.Parameters.Add(
+                    "@ClienteId", SqlDbType.Int
+                ).Value = clienteId;
+                limpiar.Parameters.Add(
+                    "@UsuarioPrueba", SqlDbType.NVarChar, 80
+                ).Value = usuarioPrueba;
 
                 await limpiar.ExecuteNonQueryAsync();
             }
