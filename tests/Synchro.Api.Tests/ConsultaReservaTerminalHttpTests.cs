@@ -22,6 +22,11 @@ namespace Synchro.Api.Tests;
 public sealed class FabricaTerminalHttpPruebas
     : WebApplicationFactory<Program>
 {
+    // Las pruebas que acceden a SQL exigen esta variable y nunca usan la base principal.
+    internal static string CadenaSqlAislada => ConexionSqlAislada.Exigir(
+        Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST"),
+        "SynchroDB_Pruebas");
+
     protected override void ConfigureWebHost(
         IWebHostBuilder builder)
     {
@@ -29,15 +34,16 @@ public sealed class FabricaTerminalHttpPruebas
 
         builder.ConfigureAppConfiguration((_, configuracion) =>
         {
+            // Las pruebas de 401/400 no requieren SQL ni credenciales externas.
+            // Sin variable, la cadena de respaldo no se usa para consultas SQL.
+            string? configurada = Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST");
+            string cadena = string.IsNullOrWhiteSpace(configurada)
+                ? @"Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;TrustServerCertificate=True;"
+                : ConexionSqlAislada.Exigir(configurada, "SynchroDB_Pruebas");
             configuracion.AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:SynchroDB"] =
-                        @"Server=(localdb)\MSSQLLocalDB;" +
-                        "Database=SynchroDB_Pruebas;" +
-                        "Integrated Security=True;" +
-                        "Encrypt=True;" +
-                        "TrustServerCertificate=True;"
+                    ["ConnectionStrings:SynchroDB"] = cadena
                 });
         });
 
@@ -118,6 +124,7 @@ public sealed class AutenticacionTerminalHttpPruebas
     }
 }
 
+[Collection("SQL Deposito Aislado")]
 public class ConsultaReservaTerminalHttpTests
 {
     private const string Ruta =
@@ -251,6 +258,8 @@ public class ConsultaReservaTerminalHttpTests
     [Trait("Category", "LocalDb")]
     public async Task ReservaInexistente_DebeDevolver404()
     {
+        // Usa la misma fixture idempotente que las pruebas SQL del deposito.
+        await DepositoEncomiendaSqlTests.PrepararAsync();
         using var fabrica = new FabricaTerminalHttpPruebas();
         using var cliente = CrearCliente(fabrica);
 
