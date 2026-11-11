@@ -529,16 +529,6 @@ record AsignarParticipantesPeticion(
     int DestinatarioId
 );
 
-record SolicitarVerificacionTelefonoPeticion(
-    int PersonaId,
-    string? Telefono
-);
-
-record ValidarTelefonoPeticion(
-    int PersonaId,
-    string Codigo
-);
-
 record InicioSesionDestinatarioPeticion(
     int VerificacionId,
     string? Codigo
