@@ -9,7 +9,7 @@ using Synchro.Api.Services.Temporales;
 namespace Synchro.Api.Endpoints;
 
 public sealed record ReservarServicioTemporalSolicitud(int Minutos);
-public sealed record PagarServicioTemporalSolicitud(Guid IdOperacion);
+public sealed record PagarServicioTemporalSolicitud(Guid IdOperacion,string? MetodoPago=null);
 public sealed record IniciarServicioTemporalSolicitud(bool EquipoCerrado);
 public sealed record RetirarServicioTemporalSolicitud(string Pin)
 {
@@ -41,7 +41,7 @@ public static class ServiciosTemporalesEndpoints
         web.MapPost("/{codigo}/reservas",(string codigo,ReservarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
             Ejecutar(http,()=>servicio.ReservarAsync(codigo,datos.Minutos,null,http.RequestAborted,ClienteWeb(http))));
         web.MapPost("/{codigo}/reservas/{id:guid}/pagar",(string codigo,Guid id,PagarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
-            Ejecutar(http,()=>servicio.PagarAsync(codigo,id,Credencial(http),datos.IdOperacion,null,http.RequestAborted,ClienteWeb(http))));
+            Ejecutar(http,()=>servicio.PagarAsync(codigo,id,Credencial(http),datos.IdOperacion,null,http.RequestAborted,ClienteWeb(http),datos.MetodoPago)));
         web.MapPost("/{codigo}/reservas/{id:guid}/cancelar",(string codigo,Guid id,HttpContext http,ServicioTemporal servicio)=>
             Ejecutar(http,()=>servicio.CancelarAsync(codigo,id,Credencial(http),http.RequestAborted,ClienteWeb(http))));
 
@@ -52,7 +52,7 @@ public static class ServiciosTemporalesEndpoints
         terminal.MapPost("/{codigo}/reservas",(string codigo,ReservarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
             Ejecutar(http,()=>servicio.ReservarAsync(codigo,datos.Minutos,Identidad(http),http.RequestAborted)));
         terminal.MapPost("/{codigo}/reservas/{id:guid}/pagar",(string codigo,Guid id,PagarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
-            Ejecutar(http,()=>servicio.PagarAsync(codigo,id,Credencial(http),datos.IdOperacion,Identidad(http),http.RequestAborted)));
+            Ejecutar(http,()=>servicio.PagarAsync(codigo,id,Credencial(http),datos.IdOperacion,Identidad(http),http.RequestAborted,metodoPago:datos.MetodoPago)));
         terminal.MapPost("/{codigo}/reservas/{id:guid}/iniciar",(string codigo,Guid id,IniciarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
             Ejecutar(http,()=>servicio.IniciarAsync(codigo,id,Credencial(http),Identidad(http),datos.EquipoCerrado,http.RequestAborted)));
         terminal.MapPost("/{codigo}/reservas/{id:guid}/retirar",(string codigo,Guid id,RetirarServicioTemporalSolicitud datos,HttpContext http,ServicioTemporal servicio)=>
