@@ -120,6 +120,42 @@ public sealed class ServiciosTemporalesTests
         Assert.Single(repo.Auditoria,e=>e.Accion=="Pago simulado confirmado");
         await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>s.PagarAsync("C01",r.Operacion.Id,r.Credencial,Guid.NewGuid(),1,default));
     }
+    [Theory]
+    [InlineData(ClaseServicioTemporal.CargaCelular)]
+    [InlineData(ClaseServicioTemporal.CargaLaptop)]
+    [InlineData(ClaseServicioTemporal.Personal)]
+    public async Task PagoEfectivoSimuladoEnTerminalRespetaIdempotenciaYPin(ClaseServicioTemporal clase)
+    {
+        var(s,repo,_)=await Crear(clase);
+        var reserva=await s.ReservarAsync("C01",30,1,default);
+        Guid idPago=Guid.NewGuid();
+        var primero=await s.PagarAsync("C01",reserva.Operacion.Id,reserva.Credencial,idPago,1,default,metodoPago:"Efectivo");
+        var segundo=await s.PagarAsync("C01",reserva.Operacion.Id,reserva.Credencial,idPago,1,default,metodoPago:"Efectivo");
+        Assert.Equal(EstadoServicioTemporal.Pagada,primero.Operacion.Estado);
+        Assert.Equal("EfectivoSimulado",repo.Datos["C01"].Operaciones[reserva.Operacion.Id].CanalPago);
+        Assert.Equal(10,primero.Operacion.Monto);
+        Assert.NotNull(primero.PinRetiro);
+        Assert.True(segundo.YaConfirmado);
+        Assert.Null(segundo.PinRetiro);
+        Assert.Single(repo.Auditoria,e=>e.Accion=="Pago simulado confirmado");
+        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>
+            s.PagarAsync("C01",reserva.Operacion.Id,reserva.Credencial,idPago,1,default,metodoPago:"NFC"));
+        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>
+            s.PagarAsync("C01",reserva.Operacion.Id,reserva.Credencial,Guid.NewGuid(),1,default,metodoPago:"Efectivo"));
+    }
+    [Fact]
+    public async Task EfectivoSimuladoNoSeConfirmaDesdeWebNiAceptaMetodosDesconocidos()
+    {
+        var(s,repo,_)=await Crear();
+        var reserva=await s.ReservarAsync("C01",30,1,default);
+        await Assert.ThrowsAsync<ArgumentException>(()=>
+            s.PagarAsync("C01",reserva.Operacion.Id,reserva.Credencial,Guid.NewGuid(),null,default,metodoPago:"Efectivo"));
+        await Assert.ThrowsAsync<ArgumentException>(()=>
+            s.PagarAsync("C01",reserva.Operacion.Id,reserva.Credencial,Guid.NewGuid(),1,default,metodoPago:"Transferencia"));
+        Assert.Equal(EstadoServicioTemporal.Reservada,repo.Datos["C01"].Operaciones[reserva.Operacion.Id].Estado);
+        Assert.Null(repo.Datos["C01"].Operaciones[reserva.Operacion.Id].PagoId);
+    }
+
     [Fact]
     public async Task ReservaPagadaQueVenceSeLiberaYAnulaIngresoSimulado()
     {
