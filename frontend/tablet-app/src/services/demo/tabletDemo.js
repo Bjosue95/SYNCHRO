@@ -230,7 +230,10 @@ export function crearEscenarioDemo() {
       if (accion === "pagar") {
         if (["Frio", "Calor"].includes(r.operacion.clase))
           fallo("Completa el pago desde tu cuenta web.", 403);
-        if (r.pagoId === datos?.idOperacion)
+        const metodoPago = datos?.metodoPago ?? "NFC";
+        if (!["NFC", "Efectivo"].includes(metodoPago))
+          fallo("Método de pago simulado no disponible.", 400);
+        if (r.pagoId === datos?.idOperacion && r.metodoPago === metodoPago)
           return clonar({
             operacion: r.operacion,
             pinRetiro: null,
@@ -239,6 +242,7 @@ export function crearEscenarioDemo() {
         if (r.operacion.estado !== "Reservada" || !datos?.idOperacion)
           fallo("No se puede confirmar ese pago.");
         r.pagoId = datos.idOperacion;
+        r.metodoPago = metodoPago;
         r.operacion.estado = "Pagada";
         return clonar({
           operacion: r.operacion,
