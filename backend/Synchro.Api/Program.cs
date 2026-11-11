@@ -16,24 +16,24 @@ using Synchro.Api.Services.RostroSimulado;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddScoped<Synchro.Api.Services.Temporales.IRepositorioServicioTemporal,Synchro.Api.Services.Temporales.RepositorioServicioTemporalSql>();
+builder.Services.AddScoped<Synchro.Api.Services.Temporales.IRepositorioServicioTemporal, Synchro.Api.Services.Temporales.RepositorioServicioTemporalSql>();
 builder.Services.AddScoped<Synchro.Api.Services.Temporales.ServicioTemporal>();
-if(builder.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado")&&
-    builder.Configuration.GetValue("ServiciosTemporales:ProcesarVencimientos",true))
+if (builder.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado") &&
+    builder.Configuration.GetValue("ServiciosTemporales:ProcesarVencimientos", true))
     builder.Services.AddHostedService<Synchro.Api.Services.Temporales.VencimientoServiciosTemporalesWorker>();
-builder.Services.AddScoped<IRepositorioUsuariosAdministrativos,RepositorioUsuariosAdministrativosSql>();
+builder.Services.AddScoped<IRepositorioUsuariosAdministrativos, RepositorioUsuariosAdministrativosSql>();
 builder.Services.AddScoped<GestionUsuariosAdministrativos>();
-builder.Services.AddScoped<IRepositorioClientesWeb,RepositorioClientesWebSql>();
+builder.Services.AddScoped<IRepositorioClientesWeb, RepositorioClientesWebSql>();
 builder.Services.AddScoped<CuentasClientesWeb>();
-builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>,PasswordHasher<CuentaClienteWeb>>();
+builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>, PasswordHasher<CuentaClienteWeb>>();
 builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<Synchro.Api.Services.IPreReservasEncomienda,Synchro.Api.Services.PreReservaEncomiendaService>();
+builder.Services.AddScoped<Synchro.Api.Services.IPreReservasEncomienda, Synchro.Api.Services.PreReservaEncomiendaService>();
 builder.Services.AddScoped<Synchro.Api.Services.PreparadorPinEncomienda>();
-builder.Services.AddScoped<Synchro.Api.Services.IReemisionPinEncomienda,Synchro.Api.Services.ReemisionPinEncomiendaSql>();
+builder.Services.AddScoped<Synchro.Api.Services.IReemisionPinEncomienda, Synchro.Api.Services.ReemisionPinEncomiendaSql>();
 builder.Services.AddScoped<Synchro.Api.Services.DepositoEncomiendaService>();
-builder.Services.AddScoped<Synchro.Api.Services.IFlujoEncomiendasTerminal,Synchro.Api.Services.FlujoEncomiendasTerminalSql>();
+builder.Services.AddScoped<Synchro.Api.Services.IFlujoEncomiendasTerminal, Synchro.Api.Services.FlujoEncomiendasTerminalSql>();
 builder.Services.AddScoped<ProtectorMensajeWhatsApp>();
 builder.Services.AddScoped<SqlOutboxWhatsApp>();
 builder.Services.AddScoped<IAlmacenOutboxWhatsApp>(s => s.GetRequiredService<SqlOutboxWhatsApp>());
@@ -87,19 +87,19 @@ builder.Services
 
             try
             {
-                await using var conexion=new SqlConnection(cadena);await conexion.OpenAsync(context.HttpContext.RequestAborted);
-                await using var comando=new SqlCommand("SELECT Activo FROM dbo.Administradores WHERE Id=@id",conexion);
-                comando.Parameters.Add("@id",System.Data.SqlDbType.Int).Value=id;
-                if(await comando.ExecuteScalarAsync(context.HttpContext.RequestAborted) is not true)
+                await using var conexion = new SqlConnection(cadena); await conexion.OpenAsync(context.HttpContext.RequestAborted);
+                await using var comando = new SqlCommand("SELECT Activo FROM dbo.Administradores WHERE Id=@id", conexion);
+                comando.Parameters.Add("@id", System.Data.SqlDbType.Int).Value = id;
+                if (await comando.ExecuteScalarAsync(context.HttpContext.RequestAborted) is not true)
                 {
-                    context.RejectPrincipal();await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);return;
+                    context.RejectPrincipal(); await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme); return;
                 }
-                var acceso=await AccesoAdministrativoSql.ObtenerAsync(conexion,id,context.HttpContext.RequestAborted);
-                if(!ValidadorSesionAdministrativa.Aplicar(context.Principal!,acceso))
-                {context.RejectPrincipal();await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);}
+                var acceso = await AccesoAdministrativoSql.ObtenerAsync(conexion, id, context.HttpContext.RequestAborted);
+                if (!ValidadorSesionAdministrativa.Aplicar(context.Principal!, acceso))
+                { context.RejectPrincipal(); await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme); }
             }
-            catch(Exception ex)when(ex is SqlException or InvalidOperationException or PlatformNotSupportedException)
-            {context.RejectPrincipal();}
+            catch (Exception ex) when (ex is SqlException or InvalidOperationException or PlatformNotSupportedException)
+            { context.RejectPrincipal(); }
         };
 
 
@@ -127,9 +127,9 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser()
               .RequireRole("Administrador"));
 
-    options.AddPolicy("SesionAdministrativa",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador","Auditor"));
-    options.AddPolicy("OperarServicios",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador"));
-    options.AddPolicy("VerReportes",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Auditor"));
+    options.AddPolicy("SesionAdministrativa", p => p.RequireAuthenticatedUser().RequireRole("Administrador", "Operador", "Auditor"));
+    options.AddPolicy("OperarServicios", p => p.RequireAuthenticatedUser().RequireRole("Administrador", "Operador"));
+    options.AddPolicy("VerReportes", p => p.RequireAuthenticatedUser().RequireRole("Administrador", "Auditor"));
 
     options.AddPolicy("SoloTerminal", policy =>
     {
@@ -139,26 +139,26 @@ builder.Services.AddAuthorization(options =>
 
 });
 
-builder.Services.AddAuthentication().AddCookie("Clientes",o=>
+builder.Services.AddAuthentication().AddCookie("Clientes", o =>
 {
-    o.Cookie.Name="SYNCHRO.ClienteWeb";o.Cookie.HttpOnly=true;o.Cookie.SecurePolicy=CookieSecurePolicy.Always;
-    o.Cookie.SameSite=SameSiteMode.Lax;o.ExpireTimeSpan=TimeSpan.FromMinutes(30);o.SlidingExpiration=false;
-    o.Events.OnRedirectToLogin=c=>{c.Response.StatusCode=401;return Task.CompletedTask;};
-    o.Events.OnRedirectToAccessDenied=c=>{c.Response.StatusCode=403;return Task.CompletedTask;};
-    o.Events.OnValidatePrincipal=async c=>
+    o.Cookie.Name = "SYNCHRO.ClienteWeb"; o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    o.Cookie.SameSite = SameSiteMode.Lax; o.ExpireTimeSpan = TimeSpan.FromMinutes(30); o.SlidingExpiration = false;
+    o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
+    o.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = 403; return Task.CompletedTask; };
+    o.Events.OnValidatePrincipal = async c =>
     {
-        if(!int.TryParse(c.Principal?.FindFirstValue(ClaimTypes.NameIdentifier),out int id)||id<=0)
-        {c.RejectPrincipal();return;}
+        if (!int.TryParse(c.Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out int id) || id <= 0)
+        { c.RejectPrincipal(); return; }
         try
         {
-            var cuenta=await c.HttpContext.RequestServices.GetRequiredService<CuentasClientesWeb>().ObtenerAsync(id,c.HttpContext.RequestAborted);
-            if(cuenta is null||!cuenta.Activa||c.Principal?.FindFirstValue("cliente_version")!=cuenta.VersionSesion.ToString())
-            {c.RejectPrincipal();await c.HttpContext.SignOutAsync("Clientes");}
+            var cuenta = await c.HttpContext.RequestServices.GetRequiredService<CuentasClientesWeb>().ObtenerAsync(id, c.HttpContext.RequestAborted);
+            if (cuenta is null || !cuenta.Activa || c.Principal?.FindFirstValue("cliente_version") != cuenta.VersionSesion.ToString())
+            { c.RejectPrincipal(); await c.HttpContext.SignOutAsync("Clientes"); }
         }
-        catch(Exception e)when(e is SqlException or InvalidOperationException or PlatformNotSupportedException){c.RejectPrincipal();}
+        catch (Exception e) when (e is SqlException or InvalidOperationException or PlatformNotSupportedException) { c.RejectPrincipal(); }
     };
 });
-builder.Services.AddAuthorization(o=>o.AddPolicy("SoloClientes",p=>p.AddAuthenticationSchemes("Clientes").RequireAuthenticatedUser().RequireRole("Cliente")));
+builder.Services.AddAuthorization(o => o.AddPolicy("SoloClientes", p => p.AddAuthenticationSchemes("Clientes").RequireAuthenticatedUser().RequireRole("Cliente")));
 
 /* SYNCHRO | Autenticacion de terminal */
 
@@ -407,15 +407,15 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-builder.Services.AddSingleton<IReferenciasRostroSimulado,ReferenciasRostroSimuladoSql>();
-builder.Services.AddSingleton<IVerificadorFacial>(s=>
+builder.Services.AddSingleton<IReferenciasRostroSimulado, ReferenciasRostroSimuladoSql>();
+builder.Services.AddSingleton<IVerificadorFacial>(s =>
 {
-    var c=s.GetRequiredService<IConfiguration>();var entorno=s.GetRequiredService<IHostEnvironment>();
-    if(!ConfiguracionRostroSimulado.EntornoPermitido(entorno,c))return new VerificadorFacialNoDisponible();
-    return new VerificadorFacialSimulado(s.GetRequiredService<IReferenciasRostroSimulado>(),c,s.GetRequiredService<TimeProvider>());
+    var c = s.GetRequiredService<IConfiguration>(); var entorno = s.GetRequiredService<IHostEnvironment>();
+    if (!ConfiguracionRostroSimulado.EntornoPermitido(entorno, c)) return new VerificadorFacialNoDisponible();
+    return new VerificadorFacialSimulado(s.GetRequiredService<IReferenciasRostroSimulado>(), c, s.GetRequiredService<TimeProvider>());
 });
-if(ConfiguracionRostroSimulado.EntornoPermitido(builder.Environment,builder.Configuration)&&
-    builder.Configuration.GetValue("RostroSimulado:LimpiarVencidas",true))
+if (ConfiguracionRostroSimulado.EntornoPermitido(builder.Environment, builder.Configuration) &&
+    builder.Configuration.GetValue("RostroSimulado:LimpiarVencidas", true))
     builder.Services.AddHostedService<LimpiezaRostroSimuladoWorker>();
 // El servicio de vencimiento se registra solo bajo la condicion de pruebas indicada abajo.
 
@@ -440,17 +440,17 @@ if (builder.Environment.IsDevelopment() &&
 var app = builder.Build();
 // Validar tambien la configuracion final del host: incluye los proveedores
 // agregados al construirlo. Los trabajadores aun no han arrancado.
-foreach(string modulo in new[]{"ServiciosTemporales:Habilitado","WhatsApp:Outbox:Habilitado","Administracion:UsuariosHabilitados","RostroSimulado:Habilitado","RostroSimulado:LimpiarVencidas"})
+foreach (string modulo in new[] { "ServiciosTemporales:Habilitado", "WhatsApp:Outbox:Habilitado", "Administracion:UsuariosHabilitados", "RostroSimulado:Habilitado", "RostroSimulado:LimpiarVencidas" })
 {
-    if(!app.Configuration.GetValue<bool>(modulo))continue;
-    if(!app.Environment.IsDevelopment())throw new InvalidOperationException("Los modulos de prototipo requieren Development.");
-    Synchro.Api.Services.ConexionSqlAislada.Exigir(app.Configuration.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");
+    if (!app.Configuration.GetValue<bool>(modulo)) continue;
+    if (!app.Environment.IsDevelopment()) throw new InvalidOperationException("Los modulos de prototipo requieren Development.");
+    Synchro.Api.Services.ConexionSqlAislada.Exigir(app.Configuration.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
 }
 
-if(app.Environment.IsDevelopment())
-    app.UseWhen(c=>c.Request.Path.StartsWithSegments("/openapi"),rama=>rama.Use(async(contexto,siguiente)=>
+if (app.Environment.IsDevelopment())
+    app.UseWhen(c => c.Request.Path.StartsWithSegments("/openapi"), rama => rama.Use(async (contexto, siguiente) =>
     {
-        if(!contexto.Request.IsHttps){contexto.Response.StatusCode=400;return;}
+        if (!contexto.Request.IsHttps) { contexto.Response.StatusCode = 400; return; }
         await siguiente(contexto);
     }));
 
@@ -467,7 +467,6 @@ app.MapCasillerosDemoEndpoints();
 app.MapCasillerosBaseDatosEndpoints();
 app.MapCargaDispositivosEndpoints();
 app.MapAdministracionEndpoints();
-app.MapPagosDemoEndpoints();
 app.MapCotizacionesEndpoints();
 app.MapReservasDemoEndpoints();
 // No registrar asignacion arbitraria de participantes de encomiendas por ID.
@@ -524,14 +523,6 @@ public record LoginAdministradorSolicitud(
 
 public record ConfirmarPagoSolicitud(
     string? MetodoPago
-);
-
-public record ConfirmarPagoSimuladoSolicitud(
-    string CanalPago
-);
-
-public record RegistrarRechazoPagoSimuladoSolicitud(
-    string? CanalPago
 );
 
 public record ReservarCasilleroSolicitud(
