@@ -53,7 +53,7 @@ public sealed class DepositoEncomiendaSqlTests
             new SqlOutboxWhatsApp(config, new ProtectorMensajeWhatsApp(Proteccion)));
     }
 
-    private static async Task PrepararAsync()
+    internal static async Task PrepararAsync()
     {
         await using var c = new SqlConnection(Cadena);
         await c.OpenAsync();
