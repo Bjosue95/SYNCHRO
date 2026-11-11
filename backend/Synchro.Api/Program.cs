@@ -468,9 +468,7 @@ app.MapCasillerosBaseDatosEndpoints();
 app.MapCargaDispositivosEndpoints();
 app.MapAdministracionEndpoints();
 app.MapCotizacionesEndpoints();
-app.MapReservasDemoEndpoints();
 // No registrar asignacion arbitraria de participantes de encomiendas por ID.
-app.MapVerificacionesDemoEndpoints();
 app.MapDestinatariosSesionEndpoints();
 app.MapDestinatariosConsentimientosEndpoints();
 app.MapDestinatariosEncomiendasEndpoints();
@@ -525,10 +523,6 @@ public record ConfirmarPagoSolicitud(
     string? MetodoPago
 );
 
-public record ReservarCasilleroSolicitud(
-    string? CodigoCasillero,
-    string? TipoServicio
-);
 
 record AsignarParticipantesPeticion(
     int RemitenteId,
