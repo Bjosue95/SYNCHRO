@@ -96,6 +96,7 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
                 ? metodoPago switch
                 {
                     null or "NFC" => "NfcSimulado",
+                    "Tarjeta" => "TarjetaTerminalSimulada",
                     "Efectivo" => "EfectivoSimulado",
                     _ => throw new ArgumentException("Metodo de pago simulado invalido.")
                 }
