@@ -1,25 +1,23 @@
 # Interfaz tablet SYNCHRO
 
-Implementación sobre `feat/issue-1-encomiendas-end-to-end`. No se modifica main ni
-la aplicación estática original `frontend/tablet/`. Se conservan rutas/componentes
-anteriores; el menú principal usa los contratos nuevos para las operaciones completadas.
+La interfaz oficial de SYNCHRO se encuentra en frontend/tablet-app/ y está desarrollada con Vue. La versión estática anterior fue retirada durante la consolidación del proyecto. Se conservaron los iconos, logotipos, colores y componentes necesarios en la aplicación actual.
 
 ## Referencia visual y arquitectura
 
 No se encontró un manual de diseño independiente en el checkout. La referencia usada es
-el sistema original de `frontend/tablet/styles.css`, los componentes Vue existentes y sus
+el sistema original de `frontend/tablet-app/src/styles/tablet.css`, los componentes Vue existentes y sus
 assets. Se preservan Arial/Helvetica, logotipos oficiales, iconos claros/oscuros, fondos
 suaves, esquinas redondeadas y separación por pasos.
 
-| Uso | Color original |
-|---|---|
-| Azul principal | #01305c |
-| Fondo oscuro | #061f36 |
-| Turquesa | #00b9c7 |
-| Azul claro | #5ec6e8 |
-| Fondo claro | #f2f7fa |
-| Texto secundario | #5b7282 |
-| Borde | #dfeaf0 |
+| Uso              | Color original |
+| ---------------- | -------------- |
+| Azul principal   | #01305c        |
+| Fondo oscuro     | #061f36        |
+| Turquesa         | #00b9c7        |
+| Azul claro       | #5ec6e8        |
+| Fondo claro      | #f2f7fa        |
+| Texto secundario | #5b7282        |
+| Borde            | #dfeaf0        |
 
 Se añade #007c89 para texto turquesa sobre fondo claro. Los botones principales tienen
 mínimo 58px, los inputs 58px y controles de consentimiento visibles. Hay foco de teclado,
@@ -51,20 +49,19 @@ No se pueden reservar ni pagar desde la terminal, tampoco usando rutas directas.
 `IconoSynchro` reutiliza los archivos de complementarios para volver/continuar,
 confirmación, privacidad, tiempo y pago; la cámara usa el icono 38 existente.
 
-
-| Ruta | Interfaz |
-|---|---|
-| /menu | Guardar, Retirar, Tengo una reserva web y Cargar dispositivo (rejilla 2×2) |
-| /terminal/encomiendas/reserva | Consultar reserva → captura remitente → confirmar depósito |
-| /terminal/encomiendas/retiro | Acceso destinatario → captura destinatario → PIN → retiro |
-| /servicios/personal | Compartimento → tarifa/tiempo → prepago → inicio y comprobante |
-| /servicios/carga | Celular/laptop y conector → 30/60/90 min → prepago → guardar cerrado |
-| /terminal/reserva-web | Elegir reserva ya creada: encomienda, frío o calor |
-| /terminal/reservas/frio y /terminal/reservas/calor | Consultar reserva web, comprobar pago e iniciar uso; sin crear ni pagar |
-| /servicios/frio y /servicios/calor | Redirigen a Tengo una reserva web |
-| /guardar | Solo pertenencias; sin depósito de encomiendas |
-| /retirar | Un acceso con dos opciones internas: Pertenencias y dispositivos / Encomiendas |
-| /retirar/servicios | Retiro con compartimento, referencia, credencial y PIN |
+| Ruta                                               | Interfaz                                                                       |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| /menu                                              | Guardar, Retirar, Tengo una reserva web y Cargar dispositivo (rejilla 2×2)     |
+| /terminal/encomiendas/reserva                      | Consultar reserva → captura remitente → confirmar depósito                     |
+| /terminal/encomiendas/retiro                       | Acceso destinatario → captura destinatario → PIN → retiro                      |
+| /servicios/personal                                | Compartimento → tarifa/tiempo → prepago → inicio y comprobante                 |
+| /servicios/carga                                   | Celular/laptop y conector → 30/60/90 min → prepago → guardar cerrado           |
+| /terminal/reserva-web                              | Elegir reserva ya creada: encomienda, frío o calor                             |
+| /terminal/reservas/frio y /terminal/reservas/calor | Consultar reserva web, comprobar pago e iniciar uso; sin crear ni pagar        |
+| /servicios/frio y /servicios/calor                 | Redirigen a Tengo una reserva web                                              |
+| /guardar                                           | Solo pertenencias; sin depósito de encomiendas                                 |
+| /retirar                                           | Un acceso con dos opciones internas: Pertenencias y dispositivos / Encomiendas |
+| /retirar/servicios                                 | Retiro con compartimento, referencia, credencial y PIN                         |
 
 La ruta anterior de visitantes redirige a reserva existente. No se añade ninguna creación
 presencial de encomiendas ni se pide otra vez el teléfono del destinatario al depositar.
