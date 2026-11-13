@@ -13,6 +13,7 @@ internal sealed class EmisorVerificacionTelefonoSql(
     IConfiguration configuracion,
     ProtectorVerificacionTelefono protector)
 {
+
     public async Task<int> PrepararAsync(
         int personaId,
         int reservaId,
@@ -26,6 +27,53 @@ internal sealed class EmisorVerificacionTelefonoSql(
             configuracion.GetConnectionString("SynchroDB"),
             "SynchroDB_Pruebas");
 
+        await using var conexion = new SqlConnection(cadena);
+        await conexion.OpenAsync(cancelacion);
+
+        await using var transaccion = (SqlTransaction)
+            await conexion.BeginTransactionAsync(cancelacion);
+
+        int verificacionId = await PrepararEnTransaccionAsync(
+            conexion,
+            transaccion,
+            personaId,
+            reservaId,
+            cancelacion);
+
+        // El metodo original conserva su comportamiento:
+        // confirma cuando todo termina correctamente.
+        await transaccion.CommitAsync(cancelacion);
+
+        return verificacionId;
+    }
+
+    // Nueva modalidad para el futuro procesador de solicitudes.
+    // Reutiliza la conexion y transaccion del llamador.
+    internal async Task<int> PrepararEnTransaccionAsync(
+        SqlConnection conexion,
+        SqlTransaction transaccion,
+        int personaId,
+        int reservaId,
+        CancellationToken cancelacion = default)
+    {
+        if (personaId <= 0 || reservaId <= 0)
+            throw new ArgumentException(
+                "Referencias invalidas.");
+
+        ArgumentNullException.ThrowIfNull(conexion);
+        ArgumentNullException.ThrowIfNull(transaccion);
+
+        if (conexion.State != ConnectionState.Open ||
+            transaccion.Connection != conexion)
+        {
+            throw new InvalidOperationException(
+                "La transaccion SQL no esta disponible.");
+        }
+
+        ConexionSqlAislada.Exigir(
+            conexion.ConnectionString,
+            "SynchroDB_Pruebas");
+
         string? plantilla = configuracion[
             "WhatsApp:PlantillaCodigoInicioSesion"];
 
@@ -33,11 +81,6 @@ internal sealed class EmisorVerificacionTelefonoSql(
             throw new InvalidOperationException(
                 "Plantilla WhatsApp no configurada.");
 
-        await using var conexion = new SqlConnection(cadena);
-        await conexion.OpenAsync(cancelacion);
-
-        await using var transaccion = (SqlTransaction)
-            await conexion.BeginTransactionAsync(cancelacion);
 
         // Solo una reserva con consentimiento confirmado
         // permite preparar un codigo para su destinatario.
@@ -222,10 +265,7 @@ internal sealed class EmisorVerificacionTelefonoSql(
                 cifrado);
         }
 
-        // Solo confirmar cuando existen la verificacion
-        // y su mensaje cifrado.
-        await transaccion.CommitAsync(cancelacion);
-
+        // La transaccion pertenece al llamador.
         // Nunca devolver el codigo.
         return verificacionId;
     }
