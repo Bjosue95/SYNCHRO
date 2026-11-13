@@ -29,7 +29,9 @@ public static class InstalacionPrototipo
         "Migrations/20261110_ServiciosTemporales_Pruebas.sql",
         "Migrations/20261110_UsuariosRoles_Pruebas.sql",
         "Migrations/20261110_RostroSimulado_Pruebas.sql",
-        "Migrations/20261108_WhatsAppWebhook_Pruebas.sql"
+        "Migrations/20261108_WhatsAppWebhook_Pruebas.sql",
+        "Migrations/20261112_SolicitudesInicioSesionWhatsApp_Pruebas.sql"
+
     });
     public static string ExigirConexion(string? cadena) => ConexionSqlAislada.Exigir(cadena, "SynchroDB_Pruebas");
     public static async Task AplicarAsync(string? cadena, string directorio, Action<string>? avance = null, CancellationToken token = default)
