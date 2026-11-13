@@ -121,6 +121,94 @@ public sealed class IdentidadDestinatarioWhatsAppSqlTests
                 datos.NumeroOrigen));
     }
 
+    [SqlDepositoFact]
+    public async Task TransaccionExterna_ReversionNoConservaDestinatario()
+    {
+        // Crear reserva y consentimiento ficticios
+        // exclusivamente en la base SQL aislada.
+        await using var datos = await Escenario.CrearAsync();
+
+        await using var conexion = new SqlConnection(Cadena);
+        await conexion.OpenAsync();
+
+        int personaId = 0;
+
+        // Esta transaccion pertenece al llamador,
+        // no al servicio que resuelve la identidad.
+        await using (var transaccion = (SqlTransaction)
+            await conexion.BeginTransactionAsync(
+                IsolationLevel.Serializable))
+        {
+            try
+            {
+                personaId = await Servicio()
+                    .ResolverEnTransaccionAsync(
+                        conexion,
+                        transaccion,
+                        datos.ReservaId,
+                        datos.NumeroOrigen);
+
+                Assert.True(personaId > 0);
+
+                // Antes del ROLLBACK, la persona debe
+                // existir dentro de la transaccion.
+                await using var consultar = new SqlCommand("""
+                SELECT COUNT(*)
+                FROM dbo.Personas
+                WHERE Id = @PersonaId
+                  AND TelefonoWhatsapp = @Telefono
+                  AND TieneCuenta = 0;
+                """, conexion, transaccion);
+
+                consultar.Parameters.Add(
+                    "@PersonaId", SqlDbType.Int
+                ).Value = personaId;
+
+                consultar.Parameters.Add(
+                    "@Telefono", SqlDbType.NVarChar, 20
+                ).Value = datos.Telefono;
+
+                int existentes = Convert.ToInt32(
+                    await consultar.ExecuteScalarAsync());
+
+                Assert.Equal(1, existentes);
+            }
+            finally
+            {
+                // Simular que la operacion general falla:
+                // ninguna persona nueva debe conservarse.
+                if (transaccion.Connection is not null)
+                {
+                    await transaccion.RollbackAsync();
+                }
+            }
+        }
+
+        Assert.True(personaId > 0);
+
+        // Consultar nuevamente FUERA de la transaccion.
+        // La persona creada debe haber desaparecido.
+        await using var comprobar = new SqlCommand("""
+        SELECT COUNT(*)
+        FROM dbo.Personas
+        WHERE Id = @PersonaId
+          AND TelefonoWhatsapp = @Telefono;
+        """, conexion);
+
+        comprobar.Parameters.Add(
+            "@PersonaId", SqlDbType.Int
+        ).Value = personaId;
+
+        comprobar.Parameters.Add(
+            "@Telefono", SqlDbType.NVarChar, 20
+        ).Value = datos.Telefono;
+
+        int restantes = Convert.ToInt32(
+            await comprobar.ExecuteScalarAsync());
+
+        Assert.Equal(0, restantes);
+    }
+
     private sealed class Escenario : IAsyncDisposable
     {
         public int ReservaId { get; private init; }

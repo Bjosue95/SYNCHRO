@@ -6,31 +6,24 @@ using Synchro.Api.Services;
 
 namespace Synchro.Api.Services.WhatsApp;
 
-// Uso interno exclusivo del webhook con firma de Meta validada.
-// Nunca utilizar numeroOrigen proporcionado por un navegador.
+// Uso interno exclusivo de procesos autorizados.
+// El telefono debe proceder del webhook con firma validada,
+// nunca de un navegador.
 internal sealed class IdentidadDestinatarioWhatsAppSql(
     IConfiguration configuracion)
 {
+    // Conserva la operacion independiente utilizada
+    // por el codigo y las pruebas existentes.
     public async Task<int> ResolverAsync(
         int reservaId,
         string numeroOrigen,
         CancellationToken cancelacion = default)
     {
-        if (reservaId <= 0 ||
-            string.IsNullOrWhiteSpace(numeroOrigen) ||
-            numeroOrigen.Length is < 8 or > 15 ||
-            numeroOrigen[0] == '0' ||
-            !numeroOrigen.All(char.IsAsciiDigit))
-        {
-            throw new ArgumentException(
-                "Solicitud de identidad invalida.");
-        }
+        ValidarSolicitud(reservaId, numeroOrigen);
 
         string cadena = ConexionSqlAislada.Exigir(
             configuracion.GetConnectionString("SynchroDB"),
             "SynchroDB_Pruebas");
-
-        string telefono = "+" + numeroOrigen;
 
         await using var conexion = new SqlConnection(cadena);
         await conexion.OpenAsync(cancelacion);
@@ -40,7 +33,48 @@ internal sealed class IdentidadDestinatarioWhatsAppSql(
                 IsolationLevel.Serializable,
                 cancelacion);
 
-        // Verificar la base y la autorizacion del telefono.
+        int personaId = await ResolverEnTransaccionAsync(
+            conexion,
+            transaccion,
+            reservaId,
+            numeroOrigen,
+            cancelacion);
+
+        await transaccion.CommitAsync(cancelacion);
+
+        return personaId;
+    }
+
+    // Nueva modalidad: reutiliza una transaccion existente.
+    // NO confirma ni revierte la transaccion del llamador.
+    // El futuro procesador decidira cuando hacer COMMIT.
+    internal async Task<int> ResolverEnTransaccionAsync(
+        SqlConnection conexion,
+        SqlTransaction transaccion,
+        int reservaId,
+        string numeroOrigen,
+        CancellationToken cancelacion = default)
+    {
+        ValidarSolicitud(reservaId, numeroOrigen);
+
+        ArgumentNullException.ThrowIfNull(conexion);
+        ArgumentNullException.ThrowIfNull(transaccion);
+
+        if (conexion.State != ConnectionState.Open ||
+            transaccion.Connection != conexion)
+        {
+            throw new InvalidOperationException(
+                "La transaccion SQL no esta disponible.");
+        }
+
+        ConexionSqlAislada.Exigir(
+            conexion.ConnectionString,
+            "SynchroDB_Pruebas");
+
+        string telefono = "+" + numeroOrigen;
+
+        // Comprobar nuevamente el consentimiento y la
+        // coincidencia del telefono al procesar la solicitud.
         await using (var comprobar = new SqlCommand("""
             IF DB_NAME() <> N'SynchroDB_Pruebas'
                 THROW 56995, 'Base no autorizada.', 1;
@@ -102,8 +136,8 @@ internal sealed class IdentidadDestinatarioWhatsAppSql(
             }
         }
 
-        // Impedir seleccionar arbitrariamente entre varias
-        // personas que tengan asociado el mismo telefono.
+        // No elegir arbitrariamente entre personas
+        // que tengan registrado el mismo telefono.
         var personas = new List<int>(2);
 
         await using (var buscar = new SqlCommand("""
@@ -132,33 +166,43 @@ internal sealed class IdentidadDestinatarioWhatsAppSql(
                 "Identidad telefonica duplicada.");
         }
 
-        int personaId;
-
         if (personas.Count == 1)
         {
-            personaId = personas[0];
+            return personas[0];
         }
-        else
+
+        // Crear un registro basico de destinatario,
+        // sin crearle una cuenta web.
+        //
+        // Esta insercion queda pendiente dentro
+        // de la transaccion recibida.
+        await using var crear = new SqlCommand("""
+            INSERT INTO dbo.Personas
+                (TelefonoWhatsapp, TieneCuenta)
+            OUTPUT INSERTED.Id
+            VALUES (@Telefono, 0);
+            """, conexion, transaccion);
+
+        crear.Parameters.Add(
+            "@Telefono", SqlDbType.NVarChar, 20
+        ).Value = telefono;
+
+        return Convert.ToInt32(
+            await crear.ExecuteScalarAsync(cancelacion));
+    }
+
+    private static void ValidarSolicitud(
+        int reservaId,
+        string? numeroOrigen)
+    {
+        if (reservaId <= 0 ||
+            string.IsNullOrWhiteSpace(numeroOrigen) ||
+            numeroOrigen.Length is < 8 or > 15 ||
+            numeroOrigen[0] == '0' ||
+            !numeroOrigen.All(char.IsAsciiDigit))
         {
-            // No se crea una cuenta web.
-            // Solo un registro basico de destinatario.
-            await using var crear = new SqlCommand("""
-                INSERT INTO dbo.Personas
-                    (TelefonoWhatsapp, TieneCuenta)
-                OUTPUT INSERTED.Id
-                VALUES (@Telefono, 0);
-                """, conexion, transaccion);
-
-            crear.Parameters.Add(
-                "@Telefono", SqlDbType.NVarChar, 20
-            ).Value = telefono;
-
-            personaId = Convert.ToInt32(
-                await crear.ExecuteScalarAsync(cancelacion));
+            throw new ArgumentException(
+                "Solicitud de identidad invalida.");
         }
-
-        await transaccion.CommitAsync(cancelacion);
-
-        return personaId;
     }
 }
