@@ -212,12 +212,14 @@ public static class WhatsAppWebhookEndpoints
 
                         if (nuevo && evento.Tipo == "Estado" && config.GetValue<bool>("WhatsApp:Outbox:Habilitado"))
                         {
-                            await SqlOutboxWhatsApp.ConciliarAsync(conexion,transaccion,
-                                evento.Id,evento.WaId,evento.Estado!,http.RequestAborted);
+                            await SqlOutboxWhatsApp.ConciliarAsync(conexion, transaccion,
+                                evento.Id, evento.WaId, evento.Estado!, http.RequestAborted);
                         }
+
 
                         if (nuevo && evento.Tipo == "Mensaje")
                         {
+                            // Conservar el procesamiento actual de consentimientos.
                             await ConsentimientosPreReservaWhatsApp
                                 .ProcesarMensajeAsync(
                                     conexion,
@@ -227,11 +229,29 @@ public static class WhatsAppWebhookEndpoints
                                     evento.Id,
                                     config,
                                     http.RequestAborted);
+
+                            // Nueva funcionalidad del prototipo.
+                            // Permanece deshabilitada por defecto.
+                            if (app.Environment.IsDevelopment() &&
+                                config.GetValue<bool>(
+                                    "WhatsApp:SolicitudesInicioHabilitadas") &&
+                                ComandoInicioSesionWhatsApp.IntentarLeer(
+                                    evento.Texto,
+                                    out _))
+                            {
+                                await RegistroSolicitudesInicioSesionWhatsAppSql
+                                    .RegistrarAsync(
+                                        conexion,
+                                        transaccion,
+                                        evento.Id,
+                                        evento.WaId,
+                                        evento.Texto,
+                                        http.RequestAborted);
+                            }
                         }
 
+
                     }
-
-
                     await transaccion.CommitAsync(
                         http.RequestAborted);
 
