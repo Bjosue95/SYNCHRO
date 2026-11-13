@@ -16,6 +16,7 @@ public static class InstalacionPrototipo
         "Migrations/20261110_VerificacionTelefonoProcedimientos_Pruebas.sql",
         "Migrations/20261110_ValidarCodigoTelefono_Pruebas.sql",
         "Migrations/20261110_ConsumirVerificacionSesion_Pruebas.sql",
+        "Migrations/20261112_OutboxVerificacionTelefono_Pruebas.sql",
         "Migrations/20261110_OrigenPreReservaEncomienda_Pruebas.sql",
         "Migrations/20261110_ClientesWeb_Pruebas.sql",
         "Migrations/20261109_ConsentimientoReservaWhatsApp_Pruebas.sql",
