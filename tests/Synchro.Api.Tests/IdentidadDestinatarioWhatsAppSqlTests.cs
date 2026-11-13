@@ -91,7 +91,7 @@ public sealed class IdentidadDestinatarioWhatsAppSqlTests
     {
         await using var datos = await Escenario.CrearAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<AutorizacionDestinatarioWhatsAppException>(
             () => Servicio().ResolverAsync(
                 datos.ReservaId,
                 "999888777666"));
@@ -103,10 +103,10 @@ public sealed class IdentidadDestinatarioWhatsAppSqlTests
         await using var datos = await Escenario.CrearAsync(
             estadoConsentimiento: "Revocado");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => Servicio().ResolverAsync(
-                datos.ReservaId,
-                datos.NumeroOrigen));
+        await Assert.ThrowsAsync<AutorizacionDestinatarioWhatsAppException>(
+      () => Servicio().ResolverAsync(
+          datos.ReservaId,
+          datos.NumeroOrigen));
     }
 
     [SqlDepositoFact]

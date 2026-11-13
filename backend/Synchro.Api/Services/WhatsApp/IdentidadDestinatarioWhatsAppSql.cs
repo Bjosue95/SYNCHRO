@@ -131,8 +131,7 @@ internal sealed class IdentidadDestinatarioWhatsAppSql(
 
             if (resultado is not string)
             {
-                throw new InvalidOperationException(
-                    "Identidad no autorizada.");
+                throw new AutorizacionDestinatarioWhatsAppException();
             }
         }
 
@@ -204,5 +203,15 @@ internal sealed class IdentidadDestinatarioWhatsAppSql(
             throw new ArgumentException(
                 "Solicitud de identidad invalida.");
         }
+    }
+}
+// Error confirmado de autorizacion.
+// No representa un fallo temporal de SQL Server.
+internal sealed class AutorizacionDestinatarioWhatsAppException
+    : InvalidOperationException
+{
+    public AutorizacionDestinatarioWhatsAppException()
+        : base("Identidad no autorizada.")
+    {
     }
 }

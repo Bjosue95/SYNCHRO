@@ -401,7 +401,7 @@ public sealed class EjecutorSolicitudesInicioWhatsAppTests
 
             // El ejecutor no debe preparar otro codigo.
             Assert.Equal(
-                ResultadoEjecucionInicioWhatsApp.Indeterminada,
+                ResultadoEjecucionInicioWhatsApp.Rechazada,
                 await ejecutor.EjecutarUnaAsync());
 
             // Confirmar que se libero el arrendamiento,
@@ -451,7 +451,7 @@ public sealed class EjecutorSolicitudesInicioWhatsAppTests
                 Assert.True(await lector.ReadAsync());
 
                 Assert.Equal(
-                    "Indeterminado", lector.GetString(0));
+                    "Rechazada", lector.GetString(0));
 
                 Assert.Equal(1, lector.GetInt32(1));
 

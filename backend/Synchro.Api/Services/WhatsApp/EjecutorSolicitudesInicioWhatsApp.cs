@@ -8,6 +8,7 @@ internal enum ResultadoEjecucionInicioWhatsApp
     SinSolicitudes,
     Preparada,
     NoPreparada,
+    Rechazada,
     Indeterminada,
     CierreNoConfirmado
 }
@@ -66,6 +67,47 @@ internal sealed class EjecutorSolicitudesInicioWhatsApp(
             // una operacion fue confirmada o fallida.
             throw;
         }
+
+        catch (AutorizacionDestinatarioWhatsAppException error)
+        {
+            // La falta de autorizacion fue confirmada
+            // antes de preparar la verificacion.
+            logger.LogWarning(
+                error,
+                "Autorizacion rechazada para solicitud " +
+                "WhatsApp {EventoId}.",
+                solicitud.EventoId);
+
+            try
+            {
+                bool cerrada = await cierre.CerrarAsync(
+                    solicitud,
+                    ResultadoFalloSolicitudInicio.Rechazada,
+                    cancelacion);
+
+                return cerrada
+                    ? ResultadoEjecucionInicioWhatsApp.Rechazada
+                    : ResultadoEjecucionInicioWhatsApp
+                        .CierreNoConfirmado;
+            }
+            catch (OperationCanceledException)
+                when (cancelacion.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception errorCierre)
+            {
+                logger.LogError(
+                    errorCierre,
+                    "No se pudo cerrar la solicitud " +
+                    "rechazada {EventoId}.",
+                    solicitud.EventoId);
+
+                return ResultadoEjecucionInicioWhatsApp
+                    .CierreNoConfirmado;
+            }
+        }
+
         catch (Exception error)
         {
             // Una excepcion no demuestra por si sola

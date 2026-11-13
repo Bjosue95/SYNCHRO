@@ -242,7 +242,7 @@ public sealed class ProcesadorSolicitudesInicioWhatsAppSqlTests
             }
 
             // La preparacion debe ser rechazada.
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<AutorizacionDestinatarioWhatsAppException>(
                 () => procesador.PrepararAsync(solicitud));
 
             // El intento rechazado no debe crear
