@@ -243,7 +243,7 @@ public sealed class EmisorVerificacionTelefonoSqlTests
                     "codigo_inicio_sesion",
                     mensaje.Plantilla);
 
-                Assert.Single(mensaje.Variables);
+                Assert.Equal(2, mensaje.Variables.Length);
 
                 string codigo = mensaje.Variables[0];
 

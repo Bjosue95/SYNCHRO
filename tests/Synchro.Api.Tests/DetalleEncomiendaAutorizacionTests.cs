@@ -8,11 +8,11 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-[Collection("SQL Detalle Pruebas")]
-public class DetalleEncomiendaAutorizacionTests
+[Collection("SQL Deposito Aislado")]
+public class DetalleEncomiendaAutorizacionTests : PruebaHistoricaAislada
 {
     // Obtener identificadores de prueba sin modificar SQL Server.
-    private static async Task<(int UsoId, int PropietarioId, int OtroId)>
+    private async Task<(int UsoId, int PropietarioId, int OtroId)>
         ObtenerDatosAsync(FabricaSynchroPruebas fabrica)
     {
         var configuracion = fabrica.Services
@@ -24,8 +24,8 @@ public class DetalleEncomiendaAutorizacionTests
         var datosConexion = new SqlConnectionStringBuilder(cadena);
 
         // Impedir consultar accidentalmente la base original.
-        if (datosConexion.InitialCatalog != "SynchroDB_Detalle_Pruebas"
-            || datosConexion.DataSource != @"(localdb)\MSSQLLocalDB")
+        if (datosConexion.InitialCatalog != "SynchroDB_Pruebas"
+            || datosConexion.DataSource != @"(localdb)\SYNCHRO_Aislado")
         {
             throw new InvalidOperationException(
                 "SEGURIDAD: conexión de pruebas incorrecta.");
@@ -35,6 +35,7 @@ public class DetalleEncomiendaAutorizacionTests
             new SqlConnection(datosConexion.ConnectionString);
 
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         const string sql = """
             SELECT TOP (1)
@@ -43,18 +44,20 @@ public class DetalleEncomiendaAutorizacionTests
                 (
                     SELECT TOP (1) pe.Id
                     FROM dbo.Personas pe
-                    WHERE pe.Id <> p.PersonaId
+                    WHERE pe.Id = @OtroId AND pe.Id <> p.PersonaId
                     ORDER BY pe.Id
                 ) AS OtroId
             FROM dbo.UsosCasillero u
             INNER JOIN dbo.ParticipantesUso p
                 ON p.UsoId = u.Id
                 AND p.Rol = N'Destinatario'
-            WHERE u.TipoServicio = N'Encomienda'
+            WHERE u.TipoServicio = N'Encomienda' AND u.Id = @UsoFixture
             ORDER BY u.Id DESC;
             """;
 
         await using var comando = new SqlCommand(sql, conexion);
+        comando.Parameters.AddWithValue("@UsoFixture",UsoFixture);
+        comando.Parameters.AddWithValue("@OtroId",RemitenteFixture);
         await using var lector = await comando.ExecuteReaderAsync();
 
         if (!await lector.ReadAsync())

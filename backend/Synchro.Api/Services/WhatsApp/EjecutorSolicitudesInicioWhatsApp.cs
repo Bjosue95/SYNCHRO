@@ -68,12 +68,11 @@ internal sealed class EjecutorSolicitudesInicioWhatsApp(
             throw;
         }
 
-        catch (AutorizacionDestinatarioWhatsAppException error)
+        catch (AutorizacionDestinatarioWhatsAppException)
         {
             // La falta de autorizacion fue confirmada
             // antes de preparar la verificacion.
             logger.LogWarning(
-                error,
                 "Autorizacion rechazada para solicitud " +
                 "WhatsApp {EventoId}.",
                 solicitud.EventoId);
@@ -95,10 +94,9 @@ internal sealed class EjecutorSolicitudesInicioWhatsApp(
             {
                 throw;
             }
-            catch (Exception errorCierre)
+            catch (Exception)
             {
                 logger.LogError(
-                    errorCierre,
                     "No se pudo cerrar la solicitud " +
                     "rechazada {EventoId}.",
                     solicitud.EventoId);
@@ -108,13 +106,12 @@ internal sealed class EjecutorSolicitudesInicioWhatsApp(
             }
         }
 
-        catch (Exception error)
+        catch (Exception)
         {
             // Una excepcion no demuestra por si sola
             // que la transaccion SQL no se confirmo.
             // Por seguridad, no reintentar aqui.
             logger.LogWarning(
-                error,
                 "Resultado incierto al preparar " +
                 "solicitud WhatsApp {EventoId}.",
                 solicitud.EventoId);
@@ -147,10 +144,9 @@ internal sealed class EjecutorSolicitudesInicioWhatsApp(
             {
                 throw;
             }
-            catch (Exception errorCierre)
+            catch (Exception)
             {
                 logger.LogError(
-                    errorCierre,
                     "No se pudo confirmar el cierre " +
                     "de solicitud WhatsApp {EventoId}.",
                     solicitud.EventoId);

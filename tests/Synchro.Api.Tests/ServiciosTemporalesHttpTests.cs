@@ -77,6 +77,19 @@ public sealed class ServiciosTemporalesHttpTests
         public void Dispose()=>Servidor.Dispose();
     }
     [Theory]
+    [InlineData("/api/terminales/reservas")]
+    [InlineData("/api/terminales/depositos")]
+    public async Task RutasPersonalesAntiguasNoEludenPrepago(string ruta)
+    {
+        using var e=new Escenario(ClaseServicioTemporal.Personal);
+        using var terminal=await e.ClienteAsync("terminal");
+        using var respuesta=await terminal.PostAsJsonAsync(ruta,new
+        {codigoCasillero="C01",usoId=1,tokenDeposito=new string('A',64)});
+        Assert.Equal(HttpStatusCode.Conflict,respuesta.StatusCode);
+        Assert.Empty(e.Repo.Datos["C01"].Operaciones);
+    }
+
+    [Theory]
     [InlineData(ClaseServicioTemporal.CargaCelular)]
     [InlineData(ClaseServicioTemporal.CargaLaptop)]
     [InlineData(ClaseServicioTemporal.Frio)]

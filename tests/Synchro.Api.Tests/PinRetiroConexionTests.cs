@@ -3,19 +3,16 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-public class PinRetiroConexionTests
+[Collection("SQL Deposito Aislado")]
+public class PinRetiroConexionTests : PruebaHistoricaAislada
 {
     [Fact]
     [Trait("Category", "LocalDb")]
     public async Task PuedeConsultarSaltEnBaseDePruebas()
     {
-        // Leer los User Secrets del proyecto Synchro.Api.
+        // Configuracion efimera propia, sin User Secrets.
         IConfiguration configuracion =
-            new ConfigurationBuilder()
-                .AddUserSecrets(
-                    typeof(PinRetiroService).Assembly,
-                    optional: false)
-                .Build();
+            PruebaHistoricaAislada.Configuracion();
 
         // Comprobar que la conexion fue configurada.
         Assert.False(string.IsNullOrWhiteSpace(
@@ -33,16 +30,23 @@ public class PinRetiroConexionTests
         Assert.Null(salt);
     }
 
+    [Theory]
+    [InlineData("Server=(localdb)\\MSSQLLocalDB;Database=SynchroDB_Pruebas;Integrated Security=true")]
+    [InlineData("Server=(localdb)\\SYNCHRO_Aislado;Database=SynchroDB;Integrated Security=true")]
+    [InlineData("Server=(localdb)\\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;AttachDbFilename=C:\\no-abrir.mdf;Integrated Security=true")]
+    public async Task RechazaOtroDestinoOArchivoAntesDeAbrirConexion(string cadena)
+    {
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>
+        { ["ConnectionStrings:SynchroDBPruebas"]=cadena }).Build();
+        await Assert.ThrowsAsync<InvalidOperationException>(()=>new PinRetiroService(config).ObtenerSaltAsync(1));
+    }
+
     [Fact]
     [Trait("Category", "LocalDb")]
     public async Task ValidarPinDeEncomiendaInexistente()
     {
         IConfiguration configuracion =
-            new ConfigurationBuilder()
-                .AddUserSecrets(
-                    typeof(PinRetiroService).Assembly,
-                    optional: false)
-                .Build();
+            PruebaHistoricaAislada.Configuracion();
 
         var servicio = new PinRetiroService(configuracion);
 

@@ -56,7 +56,7 @@ public class ValidacionDepositoEncomiendaTests
                     estado,
                     Ahora,
                     Ahora.AddMinutes(-5),
-                    Ahora.AddMinutes(10));
+                    Ahora.AddMinutes(10), Ahora);
 
         Assert.Equal(esperado, resultado);
     }
@@ -70,7 +70,7 @@ public class ValidacionDepositoEncomiendaTests
                     "Confirmado",
                     null,
                     Ahora.AddMinutes(-5),
-                    Ahora.AddMinutes(10));
+                    Ahora.AddMinutes(10), Ahora);
 
         Assert.False(resultado);
     }
@@ -84,9 +84,19 @@ public class ValidacionDepositoEncomiendaTests
                     "Confirmado",
                     Ahora,
                     Ahora.AddMinutes(-20),
-                    Ahora.AddMinutes(-5));
+                    Ahora.AddMinutes(-5), Ahora);
 
         Assert.False(resultado);
+    }
+
+    [Theory]
+    [InlineData(-1,true)]
+    [InlineData(0,true)]
+    [InlineData(1,false)]
+    public void Consentimiento_NoPuedeConfirmarseEnElFuturo(int minutos,bool esperado)
+    {
+        Assert.Equal(esperado,ValidacionDepositoEncomienda.ConsentimientoConfirmado(
+            "Confirmado",Ahora.AddMinutes(minutos),Ahora.AddMinutes(-5),Ahora.AddMinutes(10),Ahora));
     }
 
     [Theory]

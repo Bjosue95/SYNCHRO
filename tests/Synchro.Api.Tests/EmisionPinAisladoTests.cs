@@ -6,7 +6,8 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-public sealed class EmisionPinAisladoTests
+[Collection("SQL Deposito Aislado")]
+public sealed class EmisionPinAisladoTests : PruebaHistoricaAislada
 {
     [Fact]
     [Trait("Category", "LocalDb")]
@@ -18,13 +19,11 @@ public sealed class EmisionPinAisladoTests
                 EnvironmentName = "Testing"
             });
 
-        builder.Configuration.AddUserSecrets(
-            typeof(PinRetiroDesarrolloService).Assembly,
-            optional: false);
+        builder.Configuration.AddConfiguration(PruebaHistoricaAislada.Configuracion());
 
         const string cadena =
             @"Server=(localdb)\SYNCHRO_Aislado;" +
-            "Database=SynchroDB;" +
+            "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
             "Encrypt=True;" +
             "TrustServerCertificate=True;";
@@ -34,25 +33,7 @@ public sealed class EmisionPinAisladoTests
 
         await using var conexion = new SqlConnection(cadena);
         await conexion.OpenAsync();
-
-        // Comprobar que es la copia fisica aislada.
-        await using (var verificar = new SqlCommand(
-            @"SELECT CASE
-                WHEN DB_NAME() = N'SynchroDB'
-                 AND EXISTS (
-                    SELECT 1 FROM sys.database_files
-                    WHERE file_id = 1
-                    AND physical_name LIKE
-                      N'%\SYNCHRO_Aislado_Datos\SynchroDB_Aislado.mdf'
-                 )
-                THEN 1 ELSE 0 END",
-            conexion))
-        {
-            Assert.Equal(
-                1,
-                Convert.ToInt32(
-                    await verificar.ExecuteScalarAsync()));
-        }
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         int usoId = 0;
         int remitenteId = 0;
@@ -262,14 +243,7 @@ public sealed class EmisionPinAisladoTests
                     @"
                     SET XACT_ABORT ON;
 
-                    IF DB_NAME() <> N'SynchroDB'
-                       OR NOT EXISTS (
-                           SELECT 1
-                           FROM sys.database_files
-                           WHERE file_id = 1
-                             AND physical_name LIKE
-                             N'%\SYNCHRO_Aislado_Datos\SynchroDB_Aislado.mdf'
-                       )
+                    IF DB_NAME() <> N'SynchroDB_Pruebas' OR NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class=0 AND name=N'SynchroFixtureDeposito' AND CONVERT(nvarchar(10),value)=N'1')
                         THROW 51950, 'Base no autorizada.', 1;
 
                     BEGIN TRANSACTION;

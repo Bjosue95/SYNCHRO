@@ -20,6 +20,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="sql/historicos/Esquema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261105_PrepararCodigosRetiro_Pruebas.sql" Link="sql/historicos/PrepararPin.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261105_EmitirPinRetiro_Pruebas.sql" Link="sql/historicos/EmitirPin.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="sql/ValidarPinRetiro_Pruebas.sql" CopyToOutputDirectory="PreserveNewest" TargetPath="sql/historicos/ValidarPin.sql" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261109_ConsumirEvidenciaFacialRemitente_Pruebas.sql" Link="sql/historicos/ConsumirEvidencia.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/crear-solicitudes-vinculacion.sql" Link="sql/historicos/SolicitudesVinculacion.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/confirmar-vinculacion-terminal.sql" Link="sql/historicos/ConfirmarVinculacion.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261105_ExigirPinYFacialAntesDeRetiro.sql" Link="sql/historicos/RetiroConPinYFacial.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\backend\Synchro.Api\Synchro.Api.csproj" />
   </ItemGroup>
 

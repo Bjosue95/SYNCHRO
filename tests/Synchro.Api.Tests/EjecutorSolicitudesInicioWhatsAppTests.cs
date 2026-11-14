@@ -1,6 +1,10 @@
 
 using System.Data;
 using System.Security.Cryptography;
+using System.Net;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -295,7 +299,8 @@ public sealed class EjecutorSolicitudesInicioWhatsAppTests
                     "codigo_inicio_sesion",
                     mensaje.Plantilla);
 
-                Assert.Single(mensaje.Variables);
+                Assert.Equal(2, mensaje.Variables.Length);
+                Assert.Equal(verificacionId.ToString(), mensaje.Variables[1]);
 
                 Assert.Equal(
                     6, mensaje.Variables[0].Length);
@@ -315,6 +320,111 @@ public sealed class EjecutorSolicitudesInicioWhatsAppTests
             // Cerrar el lector antes de ejecutar
             // nuevas operaciones en la misma conexion.
             await resultado.DisposeAsync();
+
+            var almacen = new SqlOutboxVerificacionTelefono(configuracion);
+            var tomados = await Task.WhenAll(almacen.TomarAsync(default), almacen.TomarAsync(default));
+            var tomado = Assert.Single(tomados, x => x is not null)!;
+            Assert.Equal(verificacionId, tomado.VerificacionId);
+            Assert.True(await almacen.AutorizarAsync(tomado, default));
+            await using (var revocar = new SqlCommand("UPDATE dbo.ConsentimientosPreReservaWhatsApp SET Estado=N'Revocado' WHERE ReservaId=@r",conexion))
+            {
+                revocar.Parameters.AddWithValue("@r",reservaId);
+                await revocar.ExecuteNonQueryAsync();
+                Assert.False(await almacen.AutorizarAsync(tomado,default));
+                revocar.CommandText="UPDATE dbo.ConsentimientosPreReservaWhatsApp SET Estado=N'Confirmado' WHERE ReservaId=@r";
+                await revocar.ExecuteNonQueryAsync();
+            }
+            Assert.False(await almacen.AutorizarAsync(tomado with { Arrendamiento=Guid.NewGuid() }, default));
+            await Assert.ThrowsAsync<SqlException>(() => almacen.CerrarAsync(
+                tomado with { Arrendamiento=Guid.NewGuid() }, new(EstadoEnvioWhatsApp.Aceptado,"wamid.ajeno"), default));
+            await almacen.CerrarAsync(tomado, new(EstadoEnvioWhatsApp.Reintento,
+                ReintentarUtc: DateTimeOffset.UtcNow.AddSeconds(-1)), default);
+            var cliente = new ClienteVerificacionFalso();
+            var consumidor = new ProcesadorVerificacionTelefono(almacen, protector, cliente, TimeProvider.System);
+            Assert.True(await consumidor.ProcesarUnoAsync());
+            Assert.False(await consumidor.ProcesarUnoAsync());
+            Assert.Equal(1, cliente.Envios);
+            Assert.Equal(verificacionId.ToString(), cliente.Variables![1]);
+            await using (var transaccion = (SqlTransaction)await conexion.BeginTransactionAsync())
+            {
+                // Eventos sinteticos dentro de una transaccion que se revierte.
+                // Leido no se degrada por un fallo o entrega posteriores.
+                foreach (var recibido in new[]{"read","failed","delivered"})
+                {
+                    await using var evento=new SqlCommand("""
+                        INSERT dbo.WhatsAppWebhookEventos(ClaveEvento,TipoEvento,MensajeId,WhatsappId,EstadoMensaje)
+                        VALUES(CRYPT_GEN_RANDOM(32),N'Estado',@meta,@telefono,@estado);
+                        """,conexion,transaccion);
+                    evento.Parameters.AddWithValue("@meta",cliente.Resultado.IdMensaje!);
+                    evento.Parameters.AddWithValue("@telefono",destinatario.TrimStart('+'));
+                    evento.Parameters.AddWithValue("@estado",recibido);
+                    await evento.ExecuteNonQueryAsync();
+                    await SqlOutboxVerificacionTelefono.ConciliarPendientesAsync(conexion,transaccion,default);
+                    await using var consulta=new SqlCommand("SELECT Estado FROM dbo.OutboxVerificacionTelefono WHERE VerificacionId=@v",conexion,transaccion);
+                    consulta.Parameters.AddWithValue("@v",verificacionId);
+                    Assert.Equal("Leido",await consulta.ExecuteScalarAsync());
+                }
+                await transaccion.RollbackAsync();
+            }
+            await using (var estado = new SqlCommand("SELECT Estado FROM dbo.OutboxVerificacionTelefono WHERE VerificacionId=@v", conexion))
+            {
+                estado.Parameters.AddWithValue("@v",verificacionId);
+                Assert.Equal("Aceptado", await estado.ExecuteScalarAsync());
+            }
+
+            // El codigo y la referencia recibidos por el cliente falso permiten
+            // emitir una cookie real, y la verificacion no puede reutilizarse.
+            using (var fabrica = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+            {
+                b.UseEnvironment("Development");
+                b.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?>
+                {
+                    ["ConnectionStrings:SynchroDB"]=cadena,
+                    ["VerificacionTelefono:ClaveHmac"]=configuracion["VerificacionTelefono:ClaveHmac"],
+                    ["WhatsApp:Outbox:Habilitado"]="false",
+                    ["WhatsApp:VerificacionOutbox:Habilitado"]="false",
+                    ["WhatsApp:SolicitudesInicioWorker:Habilitado"]="false"
+                }));
+            }))
+            {
+                using var navegador=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});
+                await PreReservasWebTabletTests.CsrfAsync(navegador,"/api/destinatarios/csrf-token");
+                using var login=await navegador.PostAsJsonAsync("/api/destinatarios/login",
+                    new{verificacionId,codigo=cliente.Variables![0]});
+                Assert.Equal(HttpStatusCode.OK,login.StatusCode);
+                using var sesion=await navegador.GetAsync("/api/destinatarios/mi-sesion");
+                Assert.Equal(HttpStatusCode.OK,sesion.StatusCode);
+                using var otro=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});
+                await PreReservasWebTabletTests.CsrfAsync(otro,"/api/destinatarios/csrf-token");
+                using var repetido=await otro.PostAsJsonAsync("/api/destinatarios/login",
+                    new{verificacionId,codigo=cliente.Variables![0]});
+                Assert.Equal(HttpStatusCode.Unauthorized,repetido.StatusCode);
+            }
+
+            // Recuperacion segura: un lease abandonado nunca se reenvia;
+            // tampoco los codigos vencidos o ya usados.
+            foreach (var escenario in new[]{"Indeterminado","Caducado","Cancelado"})
+            {
+                await using var ajustar=new SqlCommand("""
+                    UPDATE dbo.OutboxVerificacionTelefono SET
+                        Estado=CASE WHEN @estado=N'Indeterminado' THEN N'Enviando' ELSE N'Pendiente' END,
+                        Arrendamiento=CASE WHEN @estado=N'Indeterminado' THEN NEWID() ELSE NULL END,
+                        ArrendamientoHastaUtc=CASE WHEN @estado=N'Indeterminado' THEN DATEADD(second,-1,SYSUTCDATETIME()) ELSE NULL END,
+                        ExpiraUtc=CASE WHEN @estado=N'Caducado' THEN DATEADD(second,-1,SYSUTCDATETIME()) ELSE DATEADD(minute,5,SYSUTCDATETIME()) END,
+                        ContenidoProtegido=CRYPT_GEN_RANDOM(32)
+                    WHERE VerificacionId=@v;
+                    """,conexion);
+                ajustar.Parameters.AddWithValue("@v",verificacionId);
+                ajustar.Parameters.AddWithValue("@estado",escenario);
+                await ajustar.ExecuteNonQueryAsync();
+                Assert.Null(await almacen.TomarAsync(default));
+                await using var consultar=new SqlCommand("SELECT Estado,ContenidoProtegido FROM dbo.OutboxVerificacionTelefono WHERE VerificacionId=@v",conexion);
+                consultar.Parameters.AddWithValue("@v",verificacionId);
+                await using var fila=await consultar.ExecuteReaderAsync();
+                Assert.True(await fila.ReadAsync());
+                Assert.Equal(escenario,fila.GetString(0));
+                Assert.True(fila.IsDBNull(1));
+            }
 
             // SEGUNDO ESCENARIO:
 

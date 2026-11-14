@@ -4,7 +4,8 @@ using Microsoft.Extensions.Configuration;
 
 namespace Synchro.Api.Tests;
 
-public sealed class PinRetiroDesarrolloAisladoTests
+[Collection("SQL Deposito Aislado")]
+public sealed class PinRetiroDesarrolloAisladoTests : PruebaHistoricaAislada
 {
     [Fact]
     public async Task PermiteConexionALaBaseAislada()
@@ -15,16 +16,14 @@ public sealed class PinRetiroDesarrolloAisladoTests
                 EnvironmentName = "Testing"
             });
 
-        builder.Configuration.AddUserSecrets(
-            typeof(PinRetiroDesarrolloService).Assembly,
-            optional: false);
+        builder.Configuration.AddConfiguration(PruebaHistoricaAislada.Configuracion());
 
         Assert.False(string.IsNullOrWhiteSpace(
             builder.Configuration["RetiroPin:ClaveHmac"]));
 
         builder.Configuration["ConnectionStrings:SynchroDB"] =
             @"Server=(localdb)\SYNCHRO_Aislado;" +
-            "Database=SynchroDB;" +
+            "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
             "Encrypt=True;" +
             "TrustServerCertificate=True;";
@@ -47,7 +46,7 @@ public sealed class PinRetiroDesarrolloAisladoTests
 
         builder.Configuration["ConnectionStrings:SynchroDB"] =
             @"Server=(localdb)\MSSQLLocalDB;" +
-            "Database=SynchroDB;" +
+            "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
             "Encrypt=True;" +
             "TrustServerCertificate=True;";

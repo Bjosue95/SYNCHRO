@@ -25,6 +25,9 @@ public static class DepositosTerminalEndpoints
             if (!await antiforgery.IsRequestValidAsync(contexto))
                 return Results.BadRequest(new { mensaje = "Token CSRF invalido o ausente." });
 
+            if (app.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado"))
+                return Results.Conflict(new { mensaje = "Utilice el flujo de servicios temporales con prepago." });
+
             if (solicitud.UsoId <= 0 ||
                 solicitud.TokenDeposito is null ||
                 solicitud.TokenDeposito.Length != 64)

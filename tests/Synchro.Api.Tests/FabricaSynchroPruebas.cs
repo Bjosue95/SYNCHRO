@@ -25,8 +25,8 @@ public sealed class FabricaSynchroPruebas
                 new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:SynchroDB"] =
-                        @"Server=(localdb)\MSSQLLocalDB;" +
-                        "Database=SynchroDB_Detalle_Pruebas;" +
+                        @"Server=(localdb)\SYNCHRO_Aislado;" +
+                        "Database=SynchroDB_Pruebas;" +
                         "Integrated Security=True;" +
                         "Encrypt=True;" +
                         "TrustServerCertificate=True;"

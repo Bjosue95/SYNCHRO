@@ -217,6 +217,9 @@ public static class WhatsAppWebhookEndpoints
                         }
 
 
+                        if (nuevo && evento.Tipo == "Estado" && config.GetValue<bool>("WhatsApp:VerificacionOutbox:Habilitado"))
+                            await SqlOutboxVerificacionTelefono.ConciliarPendientesAsync(conexion, transaccion, http.RequestAborted);
+
                         if (nuevo && evento.Tipo == "Mensaje")
                         {
                             // Conservar el procesamiento actual de consentimientos.

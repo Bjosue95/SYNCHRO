@@ -12,11 +12,11 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-[Collection("SQL Vinculacion Terminal")]
-public class RevocacionTerminalTests
+[Collection("SQL Deposito Aislado")]
+public class RevocacionTerminalTests : PruebaHistoricaAislada
 {
     private const string Cadena =
-        @"Server=(localdb)\MSSQLLocalDB;" +
+        @"Server=(localdb)\SYNCHRO_Aislado;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
         "Encrypt=True;" +
@@ -89,6 +89,7 @@ public class RevocacionTerminalTests
 
         await using var conexion = new SqlConnection(Cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         // Nunca ejecutar contra la base principal.
         Assert.Equal(

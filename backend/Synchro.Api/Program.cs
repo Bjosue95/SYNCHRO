@@ -13,6 +13,7 @@ using Synchro.Api.Services.WhatsApp;
 using Synchro.Api.Services.Administracion;
 using Synchro.Api.Services.Clientes;
 using Synchro.Api.Services.RostroSimulado;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +29,31 @@ builder.Services.AddScoped<CuentasClientesWeb>();
 builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>, PasswordHasher<CuentaClienteWeb>>();
 builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
+// Al habilitar el flujo automatico, exigir claves persistentes cifradas por DPAPI.
+// El directorio debe ser privado de la cuenta Windows que ejecuta el servicio.
+if (builder.Configuration.GetValue<bool>("WhatsApp:SolicitudesInicioWorker:Habilitado") ||
+    builder.Configuration.GetValue<bool>("WhatsApp:VerificacionOutbox:Habilitado"))
+{
+    if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("El flujo requiere proteccion DPAPI de Windows.");
+    var directorioClaves = builder.Configuration["ProteccionDatos:DirectorioClaves"];
+    if (string.IsNullOrWhiteSpace(directorioClaves) || !Path.IsPathFullyQualified(directorioClaves))
+        throw new InvalidOperationException("Configurar un directorio absoluto privado para las claves persistentes.");
+    builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(directorioClaves))
+        .ProtectKeysWithDpapi();
+}
+builder.Services.AddScoped<ProtectorVerificacionTelefono>();
+builder.Services.AddScoped<EmisorVerificacionTelefonoSql>();
+builder.Services.AddScoped<IdentidadDestinatarioWhatsAppSql>();
+builder.Services.AddScoped<ReclamadorSolicitudesInicioWhatsAppSql>();
+builder.Services.AddScoped<ProcesadorSolicitudesInicioWhatsAppSql>();
+builder.Services.AddScoped<CierreFalloSolicitudesInicioWhatsAppSql>();
+builder.Services.AddScoped<EjecutorSolicitudesInicioWhatsApp>();
+builder.Services.AddScoped<IOutboxVerificacionTelefono, SqlOutboxVerificacionTelefono>();
+builder.Services.AddScoped<ProcesadorVerificacionTelefono>();
+if (builder.Configuration.GetValue<bool>("WhatsApp:SolicitudesInicioWorker:Habilitado"))
+    builder.Services.AddHostedService<SolicitudesInicioWhatsAppWorker>();
+if (builder.Configuration.GetValue<bool>("WhatsApp:VerificacionOutbox:Habilitado"))
+    builder.Services.AddHostedService<VerificacionTelefonoWorker>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<Synchro.Api.Services.IPreReservasEncomienda, Synchro.Api.Services.PreReservaEncomiendaService>();
 builder.Services.AddScoped<Synchro.Api.Services.PreparadorPinEncomienda>();
@@ -438,6 +464,15 @@ if (builder.Environment.IsDevelopment() &&
 }
 
 var app = builder.Build();
+foreach (string indicador in new[] { "WhatsApp:SolicitudesInicioHabilitadas", "WhatsApp:SolicitudesInicioWorker:Habilitado", "WhatsApp:VerificacionOutbox:Habilitado" })
+{
+    if (!app.Configuration.GetValue<bool>(indicador)) continue;
+    var sql = new SqlConnectionStringBuilder(app.Configuration.GetConnectionString("SynchroDB"));
+    if (!app.Environment.IsDevelopment() ||
+        !string.Equals(sql.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("El inicio WhatsApp requiere Development y la instancia SYNCHRO_Aislado.");
+    Synchro.Api.Services.ConexionSqlAislada.Exigir(sql.ConnectionString, "SynchroDB_Pruebas");
+}
 // Validar tambien la configuracion final del host: incluye los proveedores
 // agregados al construirlo. Los trabajadores aun no han arrancado.
 foreach (string modulo in new[] { "ServiciosTemporales:Habilitado", "WhatsApp:Outbox:Habilitado", "Administracion:UsuariosHabilitados", "RostroSimulado:Habilitado", "RostroSimulado:LimpiarVencidas" })
@@ -531,7 +566,10 @@ record AsignarParticipantesPeticion(
 record InicioSesionDestinatarioPeticion(
     int VerificacionId,
     string? Codigo
-);
+)
+{
+    public override string ToString() => "Solicitud de inicio protegida";
+}
 
 record AceptarConsentimientoWhatsAppPeticion(
     int VerificacionTelefonoId,

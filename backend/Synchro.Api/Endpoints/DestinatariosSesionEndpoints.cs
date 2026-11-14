@@ -83,6 +83,17 @@ public static class DestinatariosSesionEndpoints
             if (!app.Environment.IsDevelopment())
                 return Results.StatusCode(503);
 
+            try
+            {
+                var aislada = Synchro.Api.Services.ConexionSqlAislada.Exigir(
+                    app.Configuration.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
+                if (!string.Equals(new SqlConnectionStringBuilder(aislada).DataSource,
+                    @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase))
+                    return Results.StatusCode(503);
+            }
+            catch (Exception e) when (e is InvalidOperationException or ArgumentException)
+            { return Results.StatusCode(503); }
+
             if (!contexto.Request.IsHttps)
                 return Results.BadRequest(new
                 {
@@ -116,15 +127,30 @@ public static class DestinatariosSesionEndpoints
                 await using var conexion = new SqlConnection(cadena);
                 await conexion.OpenAsync();
 
+                await using (var guardia = new SqlCommand("""
+                    IF DB_NAME()<>N'SynchroDB_Pruebas' OR NOT EXISTS
+                        (SELECT 1 FROM sys.extended_properties WHERE class=0 AND name=N'SynchroFixtureDeposito')
+                        THROW 57200,'Base no autorizada.',1;
+                    """, conexion))
+                    await guardia.ExecuteNonQueryAsync(contexto.RequestAborted);
+
                 int personaId;
                 string telefono;
 
                 // La identidad procede de SQL Server, no del usuario.
                 await using (var buscar = new SqlCommand(
-                    @"SELECT PersonaId, Telefono
-                      FROM dbo.VerificacionesTelefono
-                      WHERE Id = @Id
-                        AND Finalidad = N'InicioSesionDestinatario'",
+                    @"SELECT v.PersonaId, v.Telefono
+                      FROM dbo.VerificacionesTelefono v
+                      WHERE v.Id = @Id
+                        AND v.Finalidad = N'InicioSesionDestinatario'
+                        AND EXISTS (
+                            SELECT 1 FROM dbo.SolicitudesInicioSesionWhatsApp s
+                            JOIN dbo.ConsentimientosPreReservaWhatsApp c ON c.ReservaId=s.ReservaId
+                            WHERE s.VerificacionId=v.Id AND s.Estado=N'Preparada'
+                              AND c.Estado=N'Confirmado' AND c.TelefonoWhatsApp=v.Telefono
+                              AND NULLIF(c.MensajeIdConfirmacion,N'') IS NOT NULL
+                              AND c.FechaConfirmacionUtc BETWEEN c.FechaCreacionUtc AND c.FechaExpiracionUtc
+                              AND c.FechaConfirmacionUtc<=SYSUTCDATETIME())",
                     conexion))
                 {
                     buscar.Parameters.Add(
@@ -282,7 +308,7 @@ public static class DestinatariosSesionEndpoints
                     "Configuracion de seguridad invalida.");
             }
         })
-        .AllowAnonymous();
+        .AllowAnonymous().RequireRateLimiting("LoginLimitado");
 
         app.MapPost(
             "/api/destinatarios/logout",

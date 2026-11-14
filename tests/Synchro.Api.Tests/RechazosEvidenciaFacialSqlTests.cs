@@ -6,11 +6,11 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-[Collection("SQL Vinculacion Terminal")]
-public class RechazosEvidenciaFacialSqlTests
+[Collection("SQL Deposito Aislado")]
+public class RechazosEvidenciaFacialSqlTests : PruebaHistoricaAislada
 {
     private const string Cadena =
-        @"Server=(localdb)\MSSQLLocalDB;" +
+        @"Server=(localdb)\SYNCHRO_Aislado;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
         "Encrypt=True;" +
@@ -33,6 +33,7 @@ public class RechazosEvidenciaFacialSqlTests
     {
         await using var conexion = new SqlConnection(Cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         // Seguridad: nunca utilizar la base principal.
         Assert.Equal("SynchroDB_Pruebas", conexion.Database);

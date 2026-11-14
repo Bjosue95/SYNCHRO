@@ -40,8 +40,7 @@ public sealed class VencimientoReservasService : BackgroundService
                 catch (Exception ex)
                 {
                     _logger.LogError(
-                        ex,
-                        "Error al revisar reservas vencidas de SYNCHRO.");
+                        "Error al revisar reservas vencidas de SYNCHRO ({Tipo}).", ex.GetType().Name);
                 }
             }
             while (

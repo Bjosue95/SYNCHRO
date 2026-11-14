@@ -28,12 +28,15 @@ internal sealed class PinRetiroService
 
         if (!string.Equals(
             datosConexion.InitialCatalog,
-            "SynchroDB_Detalle_Pruebas",
+            "SynchroDB_Pruebas",
             StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
                 "La conexion no apunta a la base de pruebas.");
         }
+
+        if (!string.Equals(datosConexion.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(datosConexion.AttachDBFilename))
+            throw new InvalidOperationException("Instancia de pruebas no autorizada.");
 
         var conexion = new SqlConnection(cadena);
 
@@ -43,13 +46,15 @@ internal sealed class PinRetiroService
 
             if (!string.Equals(
                 conexion.Database,
-                "SynchroDB_Detalle_Pruebas",
+                "SynchroDB_Pruebas",
                 StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
                     "La base conectada no es la de pruebas.");
             }
 
+            await using var marcador = new SqlCommand("IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class=0 AND name=N'SynchroFixtureDeposito' AND CONVERT(nvarchar(10),value)=N'1') THROW 57302,'Falta marcador de pruebas.',1;", conexion);
+            await marcador.ExecuteNonQueryAsync(cancelacion);
             return conexion;
         }
         catch

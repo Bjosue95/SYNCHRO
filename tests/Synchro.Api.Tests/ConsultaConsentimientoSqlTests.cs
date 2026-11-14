@@ -4,14 +4,15 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-public class ConsultaConsentimientoSqlTests
+[Collection("SQL Deposito Aislado")]
+public class ConsultaConsentimientoSqlTests : PruebaHistoricaAislada
 {
     [Fact]
     [Trait("Category", "LocalDb")]
     public async Task ReservasSinConsentimientoValidoNoPuedenContinuar()
     {
         const string cadena =
-            @"Server=(localdb)\MSSQLLocalDB;" +
+            @"Server=(localdb)\SYNCHRO_Aislado;" +
             "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
             "Encrypt=True;" +
@@ -19,6 +20,7 @@ public class ConsultaConsentimientoSqlTests
 
         await using var conexion = new SqlConnection(cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         // Nunca consultar accidentalmente la base principal.
         Assert.Equal("SynchroDB_Pruebas", conexion.Database);
@@ -37,10 +39,41 @@ public class ConsultaConsentimientoSqlTests
             FROM dbo.PreReservasEncomiendasWeb r
             LEFT JOIN dbo.ConsentimientosPreReservaWhatsApp c
                 ON c.ReservaId = r.Id
+            WHERE r.Id = @Fixture
             ORDER BY r.Id DESC;
             """;
 
+        // Ocho escenarios propios, sin depender de reservas historicas del usuario.
+        foreach (string escenario in new[]{"SinConsentimiento","Pendiente","Confirmado","TelefonoDistinto",
+            "FechaFutura","ConsentimientoVencido","ReservaVencida","Revocado"})
+        {
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
+        await using (var preparar=new SqlCommand("""
+            DELETE dbo.ConsentimientosPreReservaWhatsApp WHERE ReservaId=@r;
+            UPDATE dbo.PreReservasEncomiendasWeb SET FechaCreacion=DATEADD(minute,-5,SYSUTCDATETIME()),FechaExpiracion=
+                CASE WHEN @escenario=N'ReservaVencida' THEN DATEADD(second,-1,SYSUTCDATETIME())
+                     ELSE DATEADD(hour,1,SYSUTCDATETIME()) END WHERE Id=@r;
+            IF @escenario<>N'SinConsentimiento'
+                INSERT dbo.ConsentimientosPreReservaWhatsApp(ReservaId,TelefonoWhatsApp,CodigoHash,Estado,
+                    FechaCreacionUtc,FechaExpiracionUtc,FechaConfirmacionUtc,MensajeIdConfirmacion)
+                VALUES(@r,CASE WHEN @escenario=N'TelefonoDistinto' THEN N'+999000000003' ELSE N'+999000000002' END,
+                    CRYPT_GEN_RANDOM(32),CASE WHEN @escenario=N'Pendiente' THEN N'Pendiente'
+                        WHEN @escenario=N'Revocado' THEN N'Revocado' ELSE N'Confirmado' END,
+                    DATEADD(minute,-5,SYSUTCDATETIME()),
+                    CASE WHEN @escenario=N'ConsentimientoVencido' THEN DATEADD(minute,-1,SYSUTCDATETIME())
+                        ELSE DATEADD(hour,1,SYSUTCDATETIME()) END,
+                    CASE WHEN @escenario=N'Pendiente' THEN NULL
+                        WHEN @escenario=N'FechaFutura' THEN DATEADD(minute,1,SYSUTCDATETIME())
+                        ELSE SYSUTCDATETIME() END,
+                    CASE WHEN @escenario=N'Pendiente' THEN NULL ELSE CONVERT(nvarchar(36),NEWID()) END);
+            """,conexion))
+        {
+            preparar.Parameters.AddWithValue("@r",ReservaFixture);
+            preparar.Parameters.AddWithValue("@escenario",escenario);
+            await preparar.ExecuteNonQueryAsync();
+        }
         await using var comando = new SqlCommand(sql, conexion);
+        comando.Parameters.AddWithValue("@Fixture",ReservaFixture);
         await using var lector = await comando.ExecuteReaderAsync();
 
         int reservasRevisadas = 0;
@@ -112,10 +145,12 @@ public class ConsultaConsentimientoSqlTests
             Assert.Equal(
                 reservaVigente && consentimientoConfirmado,
                 puedeContinuar);
+            Assert.Equal(escenario=="Confirmado",puedeContinuar);
         }
 
         Assert.True(
             reservasRevisadas > 0,
             "No hay pre-reservas para realizar la prueba.");
+        }
     }
 }

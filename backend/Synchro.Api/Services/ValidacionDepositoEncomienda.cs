@@ -15,12 +15,14 @@ public static class ValidacionDepositoEncomienda
         string? estado,
         DateTime? fechaConfirmacionUtc,
         DateTime fechaCreacionUtc,
-        DateTime fechaExpiracionUtc)
+        DateTime fechaExpiracionUtc,
+        DateTime? ahoraUtc = null)
     {
         return estado == "Confirmado"
             && fechaConfirmacionUtc.HasValue
             && fechaConfirmacionUtc.Value >= fechaCreacionUtc
-            && fechaConfirmacionUtc.Value <= fechaExpiracionUtc;
+            && fechaConfirmacionUtc.Value <= fechaExpiracionUtc
+            && fechaConfirmacionUtc.Value <= (ahoraUtc ?? DateTime.UtcNow);
     }
 
     public static bool PuedeContinuarVerificacion(

@@ -5,19 +5,15 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-[Collection("SQL Detalle Pruebas")]
-public class PinRetiroIntegracionTests
+[Collection("SQL Deposito Aislado")]
+public class PinRetiroIntegracionTests : PruebaHistoricaAislada
 {
     [Fact]
     [Trait("Category", "LocalDb")]
     public async Task PinGeneradoEnCSharpSeValidaUnaSolaVez()
     {
         IConfiguration configuracion =
-            new ConfigurationBuilder()
-                .AddUserSecrets(
-                    typeof(PinRetiroService).Assembly,
-                    optional: false)
-                .Build();
+            PruebaHistoricaAislada.Configuracion();
 
         string cadena = configuracion.GetConnectionString(
             "SynchroDBPruebas")
@@ -28,14 +24,15 @@ public class PinRetiroIntegracionTests
             new SqlConnectionStringBuilder(cadena);
 
         Assert.Equal(
-            "SynchroDB_Detalle_Pruebas",
+            "SynchroDB_Pruebas",
             datosConexion.InitialCatalog);
 
         await using var conexion = new SqlConnection(cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         Assert.Equal(
-            "SynchroDB_Detalle_Pruebas",
+            "SynchroDB_Pruebas",
             conexion.Database);
 
         int usoId = 0;
@@ -190,7 +187,7 @@ public class PinRetiroIntegracionTests
             await using var limpiar = new SqlCommand(@"
                 SET XACT_ABORT ON;
 
-                IF DB_NAME() <> N'SynchroDB_Detalle_Pruebas'
+                IF DB_NAME() <> N'SynchroDB_Pruebas'
                     THROW 51500, 'Base incorrecta.', 1;
 
                 BEGIN TRANSACTION;

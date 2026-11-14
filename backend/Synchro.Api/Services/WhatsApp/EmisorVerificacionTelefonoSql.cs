@@ -198,7 +198,7 @@ internal sealed class EmisorVerificacionTelefonoSql(
         var mensaje = new MensajeWhatsApp(
             telefono,
             plantilla!,
-            [codigo]);
+            [codigo, verificacionId.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
 
         byte[] cifrado = protector.Proteger(
             mensajeId,

@@ -33,7 +33,7 @@ public sealed class FabricaTerminalCookieReal
                 new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:SynchroDB"] =
-                        @"Server=(localdb)\MSSQLLocalDB;" +
+                        @"Server=(localdb)\SYNCHRO_Aislado;" +
                         "Database=SynchroDB_Pruebas;" +
                         "Integrated Security=True;" +
                         "Encrypt=True;" +
@@ -60,10 +60,11 @@ public sealed class FabricaTerminalCookieReal
     }
 }
 
-public class AutenticacionTerminalRealTests
+[Collection("SQL Deposito Aislado")]
+public class AutenticacionTerminalRealTests : PruebaHistoricaAislada
 {
     private const string CadenaPruebas =
-        @"Server=(localdb)\MSSQLLocalDB;" +
+        @"Server=(localdb)\SYNCHRO_Aislado;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
         "Encrypt=True;" +
@@ -84,12 +85,13 @@ public class AutenticacionTerminalRealTests
             });
     }
 
-    private static async Task<int> ObtenerTerminalActivaAsync()
+    private async Task<int> ObtenerTerminalActivaAsync()
     {
         await using var conexion =
             new SqlConnection(CadenaPruebas);
 
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         Assert.Equal(
             "SynchroDB_Pruebas",
@@ -99,10 +101,12 @@ public class AutenticacionTerminalRealTests
             """
             SELECT TOP (1) Id
             FROM dbo.Terminales
-            WHERE Activa = 1
+            WHERE Activa = 1 AND Id = @Fixture
             ORDER BY Id;
             """,
             conexion);
+
+        comando.Parameters.AddWithValue("@Fixture",TerminalFixture);
 
         object? resultado = await comando.ExecuteScalarAsync();
 

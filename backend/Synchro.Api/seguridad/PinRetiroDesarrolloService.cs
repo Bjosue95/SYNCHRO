@@ -27,10 +27,12 @@ internal sealed class PinRetiroDesarrolloService
         }
 
         var datos = new SqlConnectionStringBuilder(cadena);
+        if (!string.IsNullOrEmpty(datos.AttachDBFilename))
+            throw new InvalidOperationException("No se permiten archivos adjuntos.");
 
         if (!string.Equals(
             datos.InitialCatalog,
-            "SynchroDB",
+            _entorno.IsEnvironment("Testing") ? "SynchroDB_Pruebas" : "SynchroDB",
             StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -72,7 +74,7 @@ internal sealed class PinRetiroDesarrolloService
 
             if (!string.Equals(
                 conexion.Database,
-                "SynchroDB",
+                _entorno.IsEnvironment("Testing") ? "SynchroDB_Pruebas" : "SynchroDB",
                 StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
@@ -81,30 +83,8 @@ internal sealed class PinRetiroDesarrolloService
 
             if (_entorno.IsEnvironment("Testing"))
             {
-                await using var comando = new SqlCommand(
-                    @"SELECT physical_name
-          FROM sys.database_files
-          WHERE file_id = 1",
-                    conexion);
-
-                string? rutaActual = await comando
-                    .ExecuteScalarAsync(cancelacion) as string;
-
-                string rutaEsperada = Path.Combine(
-                    Environment.GetFolderPath(
-                        Environment.SpecialFolder.UserProfile),
-                    "SYNCHRO_Aislado_Datos",
-                    "SynchroDB_Aislado.mdf");
-
-                if (string.IsNullOrWhiteSpace(rutaActual) ||
-                    !string.Equals(
-                        Path.GetFullPath(rutaActual),
-                        Path.GetFullPath(rutaEsperada),
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException(
-                        "La base de pruebas no es la copia aislada.");
-                }
+                await using var comando = new SqlCommand("IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class=0 AND name=N'SynchroFixtureDeposito' AND CONVERT(nvarchar(10),value)=N'1') THROW 57303,'Falta marcador de pruebas.',1;", conexion);
+                await comando.ExecuteNonQueryAsync(cancelacion);
             }
 
             return conexion;

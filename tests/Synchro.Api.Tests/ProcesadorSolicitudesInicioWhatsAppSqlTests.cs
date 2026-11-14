@@ -394,7 +394,7 @@ public sealed class ProcesadorSolicitudesInicioWhatsAppSqlTests
                         "codigo_inicio_sesion",
                         mensaje.Plantilla);
 
-                    Assert.Single(mensaje.Variables);
+                    Assert.Equal(2, mensaje.Variables.Length);
                     Assert.Equal(6, mensaje.Variables[0].Length);
 
                     Assert.All(

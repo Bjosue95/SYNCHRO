@@ -39,6 +39,10 @@ public static class ReservasTerminalEndpoints
                     });
                 }
 
+                if (app.Configuration.GetValue<bool>("ServiciosTemporales:Habilitado"))
+                    return Results.Conflict(new { mensaje = "Utilice el flujo de servicios temporales con prepago." });
+
+                contexto.Response.Headers.CacheControl = "no-store";
                 var codigo = solicitud.CodigoCasillero?.Trim();
 
                 if (string.IsNullOrWhiteSpace(codigo)

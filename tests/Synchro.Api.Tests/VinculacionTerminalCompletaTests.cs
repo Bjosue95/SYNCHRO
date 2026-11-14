@@ -21,11 +21,11 @@ public sealed class ColeccionVinculacionTerminal
 {
 }
 
-[Collection("SQL Vinculacion Terminal")]
-public class VinculacionTerminalCompletaTests
+[Collection("SQL Deposito Aislado")]
+public class VinculacionTerminalCompletaTests : PruebaHistoricaAislada
 {
     private const string Cadena =
-        @"Server=(localdb)\MSSQLLocalDB;" +
+        @"Server=(localdb)\SYNCHRO_Aislado;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
         "Encrypt=True;" +
@@ -119,6 +119,7 @@ public class VinculacionTerminalCompletaTests
     {
         await using var conexion = new SqlConnection(Cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         Assert.Equal("SynchroDB_Pruebas", conexion.Database);
 
@@ -198,9 +199,11 @@ public class VinculacionTerminalCompletaTests
             await using var buscarAdmin = new SqlCommand("""
                 SELECT TOP (1) Id
                 FROM dbo.Administradores
-                WHERE Activo = 1
+                WHERE Activo = 1 AND Id = @Fixture
                 ORDER BY Id;
                 """, conexion);
+
+            buscarAdmin.Parameters.AddWithValue("@Fixture",AdministradorFixture);
 
             int administradorId = Convert.ToInt32(
                 await buscarAdmin.ExecuteScalarAsync());

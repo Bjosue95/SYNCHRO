@@ -6,11 +6,11 @@ using Xunit;
 
 namespace Synchro.Api.Tests;
 
-[Collection("SQL Vinculacion Terminal")]
-public class ConsumoEvidenciaFacialSqlTests
+[Collection("SQL Deposito Aislado")]
+public class ConsumoEvidenciaFacialSqlTests : PruebaHistoricaAislada
 {
     private const string Cadena =
-        @"Server=(localdb)\MSSQLLocalDB;" +
+        @"Server=(localdb)\SYNCHRO_Aislado;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
         "Encrypt=True;" +
@@ -80,6 +80,7 @@ public class ConsumoEvidenciaFacialSqlTests
     {
         await using var conexion = new SqlConnection(Cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         if (conexion.Database != "SynchroDB_Pruebas")
             throw new InvalidOperationException(
@@ -140,6 +141,7 @@ public class ConsumoEvidenciaFacialSqlTests
 
         await using var conexion = new SqlConnection(Cadena);
         await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
 
         Assert.Equal(
             "SynchroDB_Pruebas",
