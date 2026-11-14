@@ -713,3 +713,240 @@ a.regresar:focus-visible,
     transition: none;
   }
 }
+
+/* SYNCHRO-CUADRICULA-UNIFICADA-V3
+   Una sola geometria para las cuatro pantallas.
+   Referencia: tarjetas de seleccion de casillero.
+*/
+
+@media (orientation: portrait) and (min-width: 400px) and (min-height: 680px) {
+
+  /* Una misma superficie de trabajo */
+
+  #app .synchro-app .pantalla-menu,
+  #app .synchro-app .pantalla-guardar,
+  #app .synchro-app .pantalla-tamanos,
+  #app .synchro-app .pantalla-casilleros {
+    --syn-arriba: clamp(114px, 15vh, 126px);
+    --syn-abajo: clamp(122px, 16vh, 138px); /* SYNCHRO-PIE-RESERVADO-V1 */
+    --syn-lados: clamp(12px, 2.4vw, 28px);
+    --syn-separacion: clamp(10px, 2vw, 18px);
+
+    display: block !important;
+    position: relative;
+    width: 100%;
+    height: calc(100% - var(--alto-cabecera));
+    padding: 0 !important;
+    overflow: hidden;
+  }
+
+  /* Los contenedores intermedios no cambian medidas */
+
+  #app .synchro-app .contenido-menu,
+  #app .synchro-app .contenido-guardar,
+  #app .synchro-app .contenido-tamanos,
+  #app .synchro-app .contenido-casilleros,
+  #app .synchro-app .pantalla-casilleros .zona-casilleros {
+    display: contents !important;
+  }
+
+  /* Exactamente el mismo rectangulo en las 4 pantallas */
+
+  #app .synchro-app .pantalla-menu .servicios,
+  #app .synchro-app .pantalla-guardar .cuadricula,
+  #app .synchro-app .pantalla-tamanos .lista-tamanos,
+  #app .synchro-app .pantalla-casilleros .cuadricula-casilleros {
+    position: absolute !important;
+
+    top: var(--syn-arriba) !important;
+    bottom: var(--syn-abajo) !important;
+    left: var(--syn-lados) !important;
+    right: var(--syn-lados) !important;
+
+    width: auto !important;
+    height: auto !important;
+    min-width: 0;
+    min-height: 0;
+    max-width: none !important;
+    max-height: none !important;
+
+    margin: 0 !important;
+
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+
+    gap: var(--syn-separacion) !important;
+
+    align-content: stretch !important;
+    justify-content: stretch !important;
+    place-self: auto !important;
+  }
+
+  /* Tarjetas iguales en dimensiones exteriores */
+
+  #app .synchro-app .pantalla-menu .tarjeta-servicio,
+  #app .synchro-app .pantalla-guardar .tarjeta,
+  #app .synchro-app .pantalla-tamanos .tarjeta-tamano,
+  #app .synchro-app .pantalla-casilleros .casillero {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+
+    grid-column: auto !important;
+    grid-row: auto !important;
+    justify-self: stretch !important;
+    align-self: stretch !important;
+
+    border-radius: 20px;
+    box-sizing: border-box;
+  }
+
+  /* Tamaños: no centrar ni ensanchar la tercera tarjeta */
+
+  #app .synchro-app .pantalla-tamanos .tarjeta-tamano {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+
+    gap: clamp(5px, .9vh, 10px);
+    padding: clamp(9px, 1.5vh, 18px);
+  }
+
+  #app .synchro-app .pantalla-tamanos .marco-icono {
+    width: clamp(60px, 9vh, 82px) !important;
+    max-width: 82px !important;
+    flex: 0 0 auto;
+  }
+
+  #app .synchro-app .pantalla-tamanos
+  .tarjeta-tamano .titulo,
+  #app .synchro-app .pantalla-tamanos
+  .tarjeta-tamano .descripcion,
+  #app .synchro-app .pantalla-tamanos
+  .tarjeta-tamano .disponibilidad,
+  #app .synchro-app .pantalla-tamanos
+  .tarjeta-tamano .indicador {
+    text-align: center !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  /* Ilustraciones de casilleros proporcionadas */
+
+  #app .synchro-app .pantalla-casilleros .dibujo {
+    width: clamp(60px, 9vh, 82px);
+    height: clamp(60px, 9vh, 82px);
+  }
+
+  /* Titulos centrados en toda la pantalla */
+
+  #app .synchro-app .pantalla-menu .titulo-menu,
+  #app .synchro-app .pantalla-guardar .titulo,
+  #app .synchro-app .pantalla-tamanos .introduccion,
+  #app .synchro-app .pantalla-casilleros .titulo-paso {
+    position: absolute !important;
+    top: 46px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    text-align: center !important;
+    transform: none !important;
+  }
+
+  #app .synchro-app .pantalla-tamanos .introduccion h1 {
+    font-size: clamp(18px, 2.5vw, 25px);
+  }
+
+  #app .synchro-app .pantalla-tamanos .mensaje {
+    position: absolute;
+    top: 94px;
+    left: 12px;
+    right: 12px;
+    min-height: 0;
+    text-align: center;
+  }
+
+  /* Volver es flotante y no mueve los titulos */
+
+  #app .synchro-app .pantalla-guardar > .regresar,
+  #app .synchro-app .pantalla-tamanos > .regresar,
+  #app .synchro-app .pantalla-casilleros > .volver {
+    position: absolute !important;
+    top: 7px !important;
+    left: var(--syn-lados) !important;
+    z-index: 5;
+  }
+
+  /* Continuar permanece debajo de las tarjetas */
+
+  #app .synchro-app .pantalla-guardar .accion-guardar {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: var(--syn-abajo) !important;
+  margin: 0 !important;
+  transform: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 5;
+}
+
+  #app .synchro-app .pantalla-tamanos .acciones {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: var(--syn-abajo) !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px;
+  z-index: 5;
+}
+
+  #app .synchro-app .pantalla-casilleros .pie {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: var(--syn-abajo) !important;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+  /* Mensajes de carga o error en el area de tarjetas */
+
+  #app .synchro-app .pantalla-casilleros
+  .zona-casilleros > .mensaje {
+    position: absolute;
+    top: var(--syn-arriba);
+    bottom: var(--syn-abajo);
+    left: var(--syn-lados);
+    right: var(--syn-lados);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+  }
+}

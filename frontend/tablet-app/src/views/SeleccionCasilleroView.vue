@@ -57,7 +57,7 @@ const error = ref("");
 const seleccionado = ref("");
 const pagina = ref(0);
 
-const porPagina = 8;
+const porPagina = 4;
 
 // Mostrar exclusivamente casilleros reales disponibles.
 const disponibles = computed(() =>
@@ -218,7 +218,7 @@ onMounted(() => {
       </div>
 
       <div v-else class="cuadricula-casilleros"
-        :class="['columnas-' + Math.min(4, visibles.length), { 'una-fila': visibles.length <= 4 }]"
+        :class="['columnas-' + (visibles.length <= 4 ? visibles.length : visibles.length <= 6 ? 3 : 4), { 'una-fila': visibles.length <= 4 }]"
       >
         <button
           v-for="item in visibles"
@@ -679,7 +679,7 @@ onMounted(() => {
 @media (orientation: portrait) {
   .contenido-casilleros {
     width: min(100%, 820px);
-    height: min(100%, 1040px);
+    height: min(100%, 540px);
   }
 
   .cuadricula-casilleros {
@@ -689,7 +689,7 @@ onMounted(() => {
   }
 
   .cuadricula-casilleros.una-fila {
-    height: min(100%, 460px);
+    height: min(100%, 360px);
   }
 
   .cuadricula-casilleros.columnas-1 {
@@ -867,6 +867,15 @@ onMounted(() => {
     width: 25px;
     height: 25px;
     font-size: 17px;
+  }
+}
+
+/* SYNCHRO-CUADRICULA-RESPONSIVA-V1 */
+/* Dos columnas en orientacion vertical. */
+
+@media (orientation: portrait) {
+  .cuadricula-casilleros.columnas-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

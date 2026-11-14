@@ -326,8 +326,8 @@ function continuar() {
 .tema-oscuro .boton-continuar:disabled { background: #294961; border-color: #42647e; color: #d5e6ef; }
 .tarjeta:focus-visible, .regresar:focus-visible, .boton-continuar:focus-visible { outline: 3px solid #00b9c7; outline-offset: 3px; }
 @media (orientation: portrait) {
-  .contenido-guardar { width: min(100%, 620px); height: min(100%, 690px); }
-  .cuadricula { height: min(100%, 600px); }
+  .contenido-guardar { width: min(100%, 620px); height: min(100%, 560px); }
+  .cuadricula { height: min(100%, 470px); }
   .accion-guardar { justify-content: center; }
 }
 @media (max-height: 620px) {

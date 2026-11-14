@@ -106,8 +106,8 @@ const servicios = [
 }
 .pantalla-menu.tema-oscuro { background: #061f36; color: #ffffff; }
 @media (orientation: portrait) {
-  .contenido-menu { width: min(100%, 630px); height: min(100%, 670px); }
-  .servicios { height: min(100%, 600px); }
+  .contenido-menu { width: min(100%, 630px); height: min(100%, 530px); }
+  .servicios { height: min(100%, 450px); }
 }
 @media (max-height: 620px) {
   .pantalla-menu { padding: 8px 14px; }
