@@ -1,12 +1,83 @@
 <script setup>
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useReloj } from "../composables/useReloj";
 
 const router = useRouter();
 const { hora, fecha } = useReloj();
 
-function comenzar() {
-  router.push("/menu");
+const iniciando = ref(false);
+const error = ref(false);
+
+// Recursos reales utilizados por el menu.
+const recursosMenu = [
+  "/assets/isotipo-fondo-claro.png",
+  "/assets/isotipo-fondo-oscuro.png",
+  "/assets/nombre-azul.png",
+  "/assets/nombre-blanco.png",
+
+  ...[
+    "01_guardar_depositar",
+    "02_retirar",
+    "03_reserva",
+    "04_carga_inalambrica",
+  ].flatMap((nombre) => [
+    `/iconos/${nombre}.svg`,
+    `/iconos/${nombre}-oscuro.svg`,
+  ]),
+];
+
+function esperar(ms) {
+  return new Promise((resolver) => {
+    setTimeout(resolver, ms);
+  });
+}
+
+// Precarga real de las imagenes del menu.
+function precargarImagen(ruta) {
+  return new Promise((resolver) => {
+    const imagen = new Image();
+
+    imagen.onload = resolver;
+    imagen.onerror = resolver;
+    imagen.src = ruta;
+
+    if (imagen.complete) {
+      resolver();
+    }
+  });
+}
+
+async function comenzar() {
+  if (iniciando.value) return;
+
+  iniciando.value = true;
+  error.value = false;
+
+  const movimientoReducido = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+
+  try {
+    // Nunca bloquear indefinidamente por una imagen.
+    const precarga = Promise.race([
+      Promise.all(recursosMenu.map(precargarImagen)),
+      esperar(1800),
+    ]);
+
+    // Tiempo breve para apreciar la activacion.
+    const presentacion = esperar(
+      movimientoReducido ? 0 : 550
+    );
+
+    await Promise.all([precarga, presentacion]);
+
+    await router.push("/menu");
+  } catch (e) {
+    console.error("No se pudo abrir el menu:", e);
+    iniciando.value = false;
+    error.value = true;
+  }
 }
 </script>
 
@@ -14,43 +85,77 @@ function comenzar() {
   <button
     type="button"
     class="bienvenida"
-    aria-label="Comenzar en SYNCHRO"
+    :class="{ preparando: iniciando }"
+    :aria-label="
+      iniciando
+        ? 'Preparando menú de SYNCHRO'
+        : 'Comenzar en SYNCHRO'
+    "
+    :disabled="iniciando"
     @click="comenzar"
   >
-    <!-- Fecha y hora -->
-    <div class="reloj" aria-hidden="true">
+    <!-- Reloj original -->
+    <div class="reloj">
       <time class="hora">{{ hora }}</time>
       <span class="fecha">{{ fecha }}</span>
     </div>
 
     <!-- Identidad original SYNCHRO -->
     <div class="marca">
-      <img class="isotipo" src="/assets/isotipo-fondo-oscuro.png" alt="" />
+      <img
+        class="isotipo"
+        src="/assets/isotipo-fondo-oscuro.png"
+        alt=""
+      />
 
-      <img class="nombre" src="/assets/nombre-blanco.png" alt="SYNCHRO" />
+      <img
+        class="nombre"
+        src="/assets/nombre-blanco.png"
+        alt="SYNCHRO"
+      />
 
       <p>El punto donde todo se conecta</p>
     </div>
 
-    <!-- Indicación inferior -->
-    <span class="indicacion">
-      Toca cualquier parte de la pantalla para comenzar
-    </span>
+    <!-- Indicaciones de inicio -->
+    <div class="pie" role="status" aria-live="polite">
+      <template v-if="iniciando">
+        <span class="estado-carga">
+          Preparando menú...
+        </span>
+
+        <span class="barra-carga" aria-hidden="true">
+          <span class="progreso"></span>
+        </span>
+      </template>
+
+      <span v-else-if="error">
+        No se pudo abrir el menú. Toca para intentar de nuevo.
+      </span>
+
+      <span v-else class="indicacion">
+        Toca cualquier parte de la pantalla para comenzar
+      </span>
+    </div>
   </button>
 </template>
 
 <style scoped>
 .bienvenida {
   position: relative;
+  isolation: isolate;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 32px;
+  height: 100dvh;
+  min-height: 0;
+  padding: 24px;
+
+  overflow: hidden;
 
   border: 0;
   border-radius: 0;
@@ -67,22 +172,45 @@ function comenzar() {
   font-family: Arial, Helvetica, sans-serif;
   text-align: center;
   cursor: pointer;
-  overflow: hidden;
+  touch-action: manipulation;
+}
 
-  -webkit-tap-highlight-color: transparent;
+.bienvenida:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+/* Iluminacion de encendido */
+
+.bienvenida::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 185, 199, 0.16) 0%,
+    transparent 65%
+  );
+
+  animation: encender-ambiente 1100ms ease-out both;
+  pointer-events: none;
 }
 
 /* Reloj */
 
 .reloj {
   position: absolute;
-  top: 24px;
-  right: 30px;
+  top: clamp(12px, 3vh, 24px);
+  right: clamp(14px, 3vw, 30px);
 
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+
+  animation: revelar-elemento 650ms 400ms both;
 }
 
 .hora {
@@ -96,30 +224,31 @@ function comenzar() {
   font-size: clamp(12px, 1.5vw, 15px);
 }
 
-/* Marca */
+/* Activacion de la marca */
 
 .marca {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: clamp(8px, 2vh, 16px);
 
   width: 100%;
-  animation: aparecer 1.2s ease-out both;
+  max-width: 560px;
+
+  animation: activar-marca 950ms
+    cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .isotipo {
-  width: clamp(100px, 14vw, 165px);
-  max-height: 180px;
+  width: clamp(80px, 14vw, 165px);
+  max-height: 24dvh;
   object-fit: contain;
-
-  animation: elevar 3.5s ease-in-out infinite;
 }
 
 .nombre {
-  width: clamp(185px, 30vw, 330px);
+  width: clamp(175px, 30vw, 330px);
   max-width: 75vw;
-  max-height: 90px;
+  max-height: 14dvh;
   object-fit: contain;
 }
 
@@ -127,87 +256,158 @@ function comenzar() {
   margin: 0;
   color: #d8edf4;
   font-size: clamp(14px, 1.8vw, 20px);
-  letter-spacing: 0.5px;
 }
 
-/* Indicación */
+/* Zona inferior */
 
-.indicacion {
+.pie {
   position: absolute;
-  bottom: 30px;
+  bottom: clamp(12px, 4vh, 32px);
+  left: 16px;
+  right: 16px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 
   color: #d6eaf2;
   font-size: clamp(13px, 1.6vw, 17px);
-  line-height: 1.5;
 
-  animation: respirar 2.5s ease-in-out infinite;
+  animation: revelar-elemento 600ms 700ms both;
 }
 
-/* Animaciones */
+.indicacion {
+  line-height: 1.5;
+}
 
-@keyframes aparecer {
+.estado-carga {
+  font-weight: 500;
+}
+
+/* Barra de actividad */
+
+.barra-carga {
+  display: block;
+  position: relative;
+
+  width: min(230px, 65vw);
+  height: 4px;
+
+  overflow: hidden;
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.20);
+}
+
+.progreso {
+  position: absolute;
+  inset: 0;
+  width: 38%;
+
+  border-radius: inherit;
+  background: #00b9c7;
+
+  animation: carga-suave 900ms
+    ease-in-out infinite;
+}
+
+/* Animaciones de encendido */
+
+@keyframes encender-ambiente {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: scale(0.85);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
   }
 }
 
-@keyframes elevar {
-  0%,
-  100% {
-    transform: translateY(0);
+@keyframes activar-marca {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(6px) brightness(0.55);
   }
 
-  50% {
-    transform: translateY(-7px);
+  65% {
+    opacity: 1;
+    filter: blur(0) brightness(1.12);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0) brightness(1);
   }
 }
 
-@keyframes respirar {
-  0%,
-  100% {
-    opacity: 0.65;
+@keyframes revelar-elemento {
+  from {
+    opacity: 0;
   }
-  50% {
+
+  to {
     opacity: 1;
   }
 }
 
-/* Accesibilidad y tablets compactas */
+@keyframes carga-suave {
+  from {
+    transform: translateX(-110%);
+  }
 
-.bienvenida:focus-visible {
-  outline: 3px solid #00b9c7;
-  outline-offset: -6px;
+  to {
+    transform: translateX(280%);
+  }
+}
+
+/* Vertical y horizontal */
+
+@media (orientation: portrait) {
+  .isotipo {
+    width: clamp(90px, 18vw, 150px);
+  }
+
+  .nombre {
+    width: clamp(180px, 42vw, 300px);
+  }
 }
 
 @media (max-height: 550px) {
-  .isotipo {
-    width: 85px;
-  }
-  .nombre {
-    width: 190px;
-  }
   .marca {
-    gap: 8px;
+    gap: 7px;
   }
-  .reloj {
-    top: 12px;
+
+  .isotipo {
+    width: 75px;
   }
-  .indicacion {
-    bottom: 12px;
+
+  .nombre {
+    width: 185px;
+  }
+
+  .pie {
+    bottom: 10px;
   }
 }
 
+/* Movimiento reducido */
+
 @media (prefers-reduced-motion: reduce) {
+  .bienvenida::before,
   .marca,
-  .isotipo,
-  .indicacion {
-    animation: none;
+  .reloj,
+  .pie,
+  .progreso {
+    animation: none !important;
+  }
+
+  .progreso {
+    width: 100%;
   }
 }
 </style>

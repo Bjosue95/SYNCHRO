@@ -1,0 +1,715 @@
+/* SYNCHRO | Reglas compartidas de tablet.
+   Cada vista es responsable de su propio grid.
+   NO volver a definir .pantalla-menu, .pantalla-guardar,
+   .pantalla-tamanos ni las tarjetas en este archivo. */
+
+.synchro-app,
+.synchro-app * { box-sizing: border-box; }
+
+.synchro-app .vista-synchro { min-width: 0; min-height: 0; }
+
+/* Encabezado compartido: dimensiones estables entre rutas. */
+.synchro-app .barra-cabecera {
+  width: 100%;
+  min-width: 0;
+}
+.synchro-app .barra-cabecera .encabezado {
+  display: flex;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(6px, 1.4vw, 16px);
+  padding-inline: clamp(8px, 1.5vw, 20px);
+}
+.synchro-app .barra-cabecera .identidad {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: clamp(5px, 1vw, 12px);
+}
+.synchro-app .barra-cabecera .contenedor-isotipo {
+  width: clamp(36px, 5vw, 58px);
+  height: clamp(36px, 5vw, 58px);
+  flex-shrink: 0;
+}
+.synchro-app .barra-cabecera .contenedor-nombre {
+  width: clamp(105px, 15vw, 180px);
+  height: 48px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.synchro-app .barra-cabecera .acciones-header {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: clamp(6px, 1vw, 14px);
+}
+.synchro-app .barra-cabecera .boton-ayuda {
+  min-height: 44px;
+  padding-inline: clamp(9px, 1vw, 16px);
+  white-space: nowrap;
+}
+.synchro-app .barra-cabecera .boton-tema {
+  width: 46px;
+  min-height: 44px;
+  flex: 0 0 46px;
+}
+.synchro-app .barra-cabecera .reloj-header {
+  min-width: 104px;
+  max-width: 134px;
+  flex-shrink: 0;
+}
+.synchro-app .barra-cabecera .fecha-header {
+  line-height: 1.2;
+  white-space: normal;
+}
+
+@media (max-width: 700px) {
+  .synchro-app .barra-cabecera .encabezado {
+    padding-inline: 8px;
+    gap: 6px;
+  }
+  .synchro-app .barra-cabecera .contenedor-isotipo {
+    width: 36px;
+    height: 36px;
+  }
+  .synchro-app .barra-cabecera .contenedor-nombre {
+    width: clamp(88px, 19vw, 120px);
+  }
+  .synchro-app .barra-cabecera .acciones-header { gap: 6px; }
+  .synchro-app .barra-cabecera .boton-ayuda { padding-inline: 8px; }
+  .synchro-app .barra-cabecera .boton-tema {
+    width: 44px;
+    flex-basis: 44px;
+  }
+  .synchro-app .barra-cabecera .reloj-header { min-width: 94px; max-width: 112px; }
+  .synchro-app .barra-cabecera .hora-header { font-size: 18px; }
+  .synchro-app .barra-cabecera .fecha-header { font-size: 11px; }
+}
+
+@media (max-width: 430px) {
+  .synchro-app .barra-cabecera .contenedor-isotipo { width: 30px; height: 30px; }
+  .synchro-app .barra-cabecera .contenedor-nombre { width: 78px; }
+  .synchro-app .barra-cabecera .acciones-header { gap: 4px; }
+  .synchro-app .barra-cabecera .boton-ayuda { padding-inline: 5px; font-size: 13px; }
+  .synchro-app .barra-cabecera .boton-tema { width: 36px; flex-basis: 36px; }
+  .synchro-app .barra-cabecera .reloj-header { min-width: 74px; max-width: 84px; }
+  .synchro-app .barra-cabecera .hora-header { font-size: 15px; }
+  .synchro-app .barra-cabecera .fecha-header { font-size: 9px; }
+}
+
+/* En pantallas extremadamente bajas no se recortará contenido esencial.
+   En tablets habituales no aparece barra de desplazamiento. */
+@media (max-height: 450px) {
+  .synchro-app .pantalla-menu,
+  .synchro-app .pantalla-guardar,
+  .synchro-app .pantalla-tamanos {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Header legible, proporcionado y con controles táctiles visibles. */
+@media (min-width: 431px) and (max-width: 599px) and (min-height: 620px) {
+  .synchro-app .barra-cabecera .encabezado { padding-inline: 8px; gap: 7px; }
+  .synchro-app .barra-cabecera .contenedor-isotipo {
+    width: 44px;
+    height: 44px;
+  }
+  .synchro-app .barra-cabecera .contenedor-nombre {
+    width: clamp(94px, 21vw, 112px);
+    height: 56px;
+  }
+  .synchro-app .barra-cabecera .boton-ayuda {
+    min-height: 48px;
+    padding-inline: 9px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .synchro-app .barra-cabecera .boton-tema {
+    width: 48px;
+    min-height: 48px;
+    flex-basis: 48px;
+  }
+  .synchro-app .barra-cabecera .reloj-header {
+    min-width: 88px;
+    max-width: 104px;
+  }
+  .synchro-app .barra-cabecera .hora-header { font-size: 19px; }
+  .synchro-app .barra-cabecera .fecha-header { font-size: 10px; }
+}
+
+@media (min-width: 600px) and (min-height: 700px),
+       (min-width: 768px) and (min-height: 550px) {
+  .synchro-app .barra-cabecera .encabezado {
+    gap: clamp(10px, 1.5vw, 22px);
+    padding-inline: clamp(10px, 1.4vw, 20px);
+  }
+  .synchro-app .barra-cabecera .identidad {
+    gap: clamp(8px, 1.2vw, 14px);
+  }
+  .synchro-app .barra-cabecera .contenedor-isotipo {
+    width: clamp(54px, 7vw, 78px);
+    height: clamp(54px, 7vw, 78px);
+  }
+  .synchro-app .barra-cabecera .contenedor-nombre {
+    width: clamp(130px, 17vw, 235px);
+    height: clamp(56px, 6vw, 76px);
+  }
+  .synchro-app .barra-cabecera .acciones-header {
+    gap: clamp(8px, 1.2vw, 18px);
+  }
+  .synchro-app .barra-cabecera .boton-ayuda {
+    min-height: 56px;
+    padding-inline: clamp(10px, 1.6vw, 19px);
+    font-size: clamp(15px, 1.45vw, 19px);
+    font-weight: 700;
+  }
+  .synchro-app .barra-cabecera .boton-tema {
+    width: 56px;
+    min-height: 56px;
+    flex-basis: 56px;
+    font-size: 28px;
+  }
+  .synchro-app .barra-cabecera .reloj-header {
+    min-width: clamp(100px, 10vw, 145px);
+    max-width: 145px;
+  }
+  .synchro-app .barra-cabecera .hora-header {
+    font-size: clamp(21px, 2vw, 28px);
+  }
+  .synchro-app .barra-cabecera .fecha-header {
+    font-size: clamp(11px, 1.15vw, 14px);
+    line-height: 1.25;
+  }
+}
+
+/* Interacción coherente con los demás controles de SYNCHRO. */
+.synchro-app .barra-cabecera .boton-ayuda,
+.synchro-app .barra-cabecera .boton-tema {
+  border-width: 1.5px;
+  transition: background-color 150ms ease, border-color 150ms ease,
+              color 150ms ease, transform 150ms ease;
+  touch-action: manipulation;
+}
+.synchro-app .barra-cabecera .boton-ayuda:active,
+.synchro-app .barra-cabecera .boton-tema:active {
+  transform: scale(.96);
+}
+
+
+/* ==========================================
+   SYNCHRO-BOTONES-TACTILES-V1
+   Botones Volver y Continuar.
+   No modifica tarjetas ni encabezado.
+   ========================================== */
+
+/* VOLVER: apariencia clara de boton tactil */
+
+#app .synchro-app .pantalla-guardar a.regresar,
+#app .synchro-app .pantalla-tamanos a.regresar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  width: fit-content;
+  max-width: 100%;
+  min-height: clamp(50px, 6vh, 58px);
+  padding: 10px clamp(15px, 2vw, 22px);
+
+  border: 2px solid #86bdcb;
+  border-radius: 14px;
+
+  background: #e4f2f6;
+  color: #01305c;
+
+  font-size: clamp(15px, 1.5vw, 18px);
+  font-weight: 750;
+  line-height: 1.2;
+  text-decoration: none;
+
+  box-shadow:
+    0 4px 0 rgba(1, 48, 92, 0.14),
+    0 5px 12px rgba(1, 48, 92, 0.08);
+
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+/* Mantener el icono de regresar proporcionado */
+
+#app .synchro-app .pantalla-guardar
+.regresar .icono-regresar,
+#app .synchro-app .pantalla-tamanos
+.regresar .icono-regresar {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+}
+
+/* CONTINUAR: boton principal destacado */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  width: fit-content;
+  max-width: 100%;
+  min-width: clamp(190px, 23vw, 250px);
+  min-height: clamp(54px, 7vh, 64px);
+  padding: 10px 24px;
+
+  border: 2px solid #008f9d;
+  border-radius: 15px;
+
+  background: #00b9c7;
+  color: #01305c;
+
+  font: inherit;
+  font-size: clamp(17px, 1.7vw, 21px);
+  font-weight: 800;
+  line-height: 1.2;
+
+  box-shadow:
+    0 4px 0 #008f9d,
+    0 7px 16px rgba(1, 48, 92, 0.14);
+
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  opacity: 1;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+/* Flecha que comunica avanzar, sin cambiar HTML */
+
+
+
+/* Continuar desactivado hasta elegir una categoria */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:disabled {
+  background: #c8dfe4;
+  color: #496575;
+  border-color: #a5c7cf;
+  box-shadow: none;
+
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:disabled::after {
+  opacity: 0.6;
+}
+
+/* Efecto al pasar el cursor, solo donde existe hover */
+
+@media (hover: hover) {
+  #app .synchro-app .pantalla-guardar
+  a.regresar:hover,
+  #app .synchro-app .pantalla-tamanos
+  a.regresar:hover {
+    background: #d4edf3;
+    border-color: #00a8b8;
+  }
+
+  #app .synchro-app .pantalla-guardar
+  .boton-continuar:hover:not(:disabled) {
+    background: #12cad5;
+  }
+}
+
+/* Efecto de presion al tocar */
+
+#app .synchro-app .pantalla-guardar
+a.regresar:active,
+#app .synchro-app .pantalla-tamanos
+a.regresar:active {
+  transform: translateY(3px) scale(0.99);
+  box-shadow:
+    0 1px 0 rgba(1, 48, 92, 0.14),
+    0 2px 5px rgba(1, 48, 92, 0.08);
+}
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:active:not(:disabled) {
+  transform: translateY(3px) scale(0.99);
+  box-shadow:
+    0 1px 0 #008f9d,
+    0 2px 5px rgba(1, 48, 92, 0.12);
+}
+
+/* Enfoque con teclado o controles de accesibilidad */
+
+#app .synchro-app .pantalla-guardar
+a.regresar:focus-visible,
+#app .synchro-app .pantalla-tamanos
+a.regresar:focus-visible,
+#app .synchro-app .pantalla-guardar
+.boton-continuar:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 4px;
+}
+
+/* Modo oscuro: ambos botones siguen siendo legibles */
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro a.regresar,
+#app .synchro-app
+.pantalla-tamanos.tema-oscuro a.regresar {
+  background: #204766;
+  color: #ffffff;
+  border-color: #5ec6e8;
+
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.35),
+    0 5px 12px rgba(0, 0, 0, 0.15);
+}
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.boton-continuar:not(:disabled) {
+  background: #00b9c7;
+  color: #01305c;
+  border-color: #5ec6e8;
+}
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.boton-continuar:disabled {
+  background: #315573;
+  color: #dae8f0;
+  border-color: #426984;
+  box-shadow: none;
+}
+
+/* Evitar que los botones se salgan de pantallas compactas */
+
+@media (max-width: 480px) {
+  #app .synchro-app .pantalla-guardar
+  .boton-continuar {
+    min-width: 180px;
+    min-height: 52px;
+    font-size: 17px;
+    padding: 9px 18px;
+  }
+
+  #app .synchro-app .pantalla-guardar
+  a.regresar,
+  #app .synchro-app .pantalla-tamanos
+  a.regresar {
+    min-height: 48px;
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+}
+
+/* Respetar preferencias de movimiento */
+
+@media (prefers-reduced-motion: reduce) {
+  #app .synchro-app .pantalla-guardar
+  a.regresar,
+  #app .synchro-app .pantalla-tamanos
+  a.regresar,
+  #app .synchro-app .pantalla-guardar
+  .boton-continuar {
+    transition: none;
+  }
+}
+
+/* SYNCHRO | ICONO ORIGINAL PARA CONTINUAR */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+#app .synchro-app .pantalla-guardar
+.texto-continuar {
+  white-space: nowrap;
+}
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar {
+  display: grid;
+  place-items: center;
+
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+
+  background: #01305c;
+  border-radius: 50%;
+}
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+/* Estado inactivo */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:disabled .icono-continuar {
+  opacity: 0.55;
+}
+
+/* Tablets compactas */
+
+@media (max-height: 600px), (max-width: 480px) {
+  #app .synchro-app .pantalla-guardar
+  .boton-continuar {
+    gap: 8px;
+  }
+
+  #app .synchro-app .pantalla-guardar
+  .icono-continuar {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  #app .synchro-app .pantalla-guardar
+  .icono-continuar img {
+    width: 29px;
+    height: 29px;
+  }
+}
+
+
+/* SYNCHRO-CONTINUAR-ICONOS-DOBLE-TEMA-V2 */
+
+/* No dibujar circulos adicionales.
+   Los SVG ya incluyen su propio circulo y flecha. */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar::after {
+  content: none;
+  display: none;
+}
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar {
+  position: relative;
+  display: block;
+
+  width: 40px;
+  height: 40px;
+
+  flex: 0 0 40px;
+
+  padding: 0;
+  margin: 0;
+
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  overflow: hidden;
+}
+
+/* Dos iconos superpuestos exactamente */
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar img {
+  position: absolute;
+  inset: 0;
+
+  display: block;
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  transition: opacity 150ms ease;
+}
+
+/* MODO CLARO */
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar .continuar-claro {
+  opacity: 1;
+}
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar .continuar-oscuro {
+  opacity: 0;
+}
+
+/* MODO OSCURO */
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.icono-continuar .continuar-claro {
+  opacity: 0;
+}
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.icono-continuar .continuar-oscuro {
+  opacity: 1;
+}
+
+/* Tamaños proporcionados en pantallas compactas */
+
+@media (max-width: 480px), (max-height: 600px) {
+  #app .synchro-app .pantalla-guardar
+  .icono-continuar {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+}
+
+/* Accesibilidad */
+
+@media (prefers-reduced-motion: reduce) {
+  #app .synchro-app .pantalla-guardar
+  .icono-continuar img {
+    transition: none;
+  }
+}
+
+/* ==========================================
+   SYNCHRO-COLOR-CONTINUAR-V3
+   Colores armonizados con los SVG originales
+   ========================================== */
+
+/* MODO CLARO */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:not(:disabled) {
+  background: #F4FEFF;
+  color: #01305C;
+  border: 2px solid #00B9C7;
+
+  box-shadow:
+    0 4px 0 #00A5B2,
+    0 7px 16px rgba(1, 48, 92, 0.10);
+
+  opacity: 1;
+}
+
+/* MODO OSCURO */
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.boton-continuar:not(:disabled) {
+  background: #123D5B;
+  color: #FFFFFF;
+  border-color: #5EC6E8;
+
+  box-shadow:
+    0 4px 0 #087D93,
+    0 7px 16px rgba(0, 0, 0, 0.22);
+}
+
+/* Efectos al pasar el cursor */
+
+@media (hover: hover) {
+  #app .synchro-app .pantalla-guardar
+  .boton-continuar:hover:not(:disabled) {
+    background: #DDF7F9;
+  }
+
+  #app .synchro-app
+  .pantalla-guardar.tema-oscuro
+  .boton-continuar:hover:not(:disabled) {
+    background: #205674;
+  }
+}
+
+/* Efecto al presionar */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:active:not(:disabled) {
+  transform: translateY(3px) scale(0.99);
+  box-shadow: 0 1px 0 #00A5B2;
+}
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.boton-continuar:active:not(:disabled) {
+  box-shadow: 0 1px 0 #087D93;
+}
+
+/* Estado deshabilitado en modo claro */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar:disabled {
+  background: #EDF3F5;
+  color: #647784;
+  border-color: #B5CAD3;
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* Estado deshabilitado en modo oscuro */
+
+#app .synchro-app
+.pantalla-guardar.tema-oscuro
+.boton-continuar:disabled {
+  background: #254054;
+  color: #C0D0DA;
+  border-color: #426984;
+  box-shadow: none;
+}
+
+/* Mantener el icono original sin fondo añadido */
+
+#app .synchro-app .pantalla-guardar
+.icono-continuar {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Transiciones suaves */
+
+#app .synchro-app .pantalla-guardar
+.boton-continuar {
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app .synchro-app .pantalla-guardar
+  .boton-continuar {
+    transition: none;
+  }
+}

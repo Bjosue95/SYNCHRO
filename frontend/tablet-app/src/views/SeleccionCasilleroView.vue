@@ -1,667 +1,329 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-
-import AppHeader from "../components/AppHeader.vue";
-import HelpDialog from "../components/HelpDialog.vue";
-import CasilleroCard from "../components/CasilleroCard.vue";
 
 import { useTema } from "../composables/useTema";
 import { obtenerCasilleros } from "../services/casillerosApi";
-import { reservarCasilleroTerminal } from "../services/reservasTerminalApi";
-import { registrarDepositoPersonal } from "../services/depositosTerminalApi";
-import { retirarPertenenciasPersonales } from "../services/retirosPersonalesTerminalApi";
 
-// Componentes compartidos
-const { oscuro, cambiarTema } = useTema();
-const centroAyuda = ref(null);
 const route = useRoute();
 const router = useRouter();
+const { oscuro } = useTema();
 
-function abrirAyuda() {
-  centroAyuda.value?.abrir();
-}
+const objetos = {
+  mochila: "Mochila o bolso",
+  maleta: "Maleta o equipaje",
+  compras: "Bolsas de compras",
+  caja: "Objetos personales y cajas",
+};
 
-// Tamaños reconocidos por SYNCHRO
-const nombresTamanos = {
+const permitidos = {
+  mochila: ["M", "L"],
+  maleta: ["M", "L"],
+  compras: ["S", "M", "L"],
+  caja: ["S", "M", "L"],
+};
+
+const nombres = {
   S: "Pequeño",
   M: "Mediano",
   L: "Grande",
 };
 
-// Leer el tamaño seleccionado en la pantalla anterior
-const tamano = computed(() => route.query.tamano);
+const objeto = computed(() =>
+  typeof route.query.objeto === "string"
+    ? route.query.objeto
+    : ""
+);
 
-const tamanoValido = computed(() => {
-  return (
-    typeof tamano.value === "string" &&
-    Object.hasOwn(nombresTamanos, tamano.value)
-  );
-});
+const tamano = computed(() =>
+  typeof route.query.tamano === "string"
+    ? route.query.tamano
+    : ""
+);
 
-const nombreTamano = computed(() => {
-  return tamanoValido.value ? nombresTamanos[tamano.value] : "";
-});
+const valido = computed(() =>
+  !!objetos[objeto.value] &&
+  (permitidos[objeto.value] || []).includes(tamano.value)
+);
 
-// Información del backend
+const regresar = computed(() => ({
+  path: "/guardar/tamano",
+  query: { objeto: objeto.value },
+}));
+
 const casilleros = ref([]);
 const cargando = ref(true);
 const error = ref("");
+const seleccionado = ref("");
+const pagina = ref(0);
 
-// Selección de la interfaz
-const codigoSeleccionado = ref("");
-const paso = ref("seleccion");
+const porPagina = 8;
 
-// Consultar casilleros reales
-async function cargarCasilleros() {
-  if (!tamanoValido.value) {
-    cargando.value = false;
-    return;
-  }
+// Mostrar exclusivamente casilleros reales disponibles.
+const disponibles = computed(() =>
+  casilleros.value
+    .filter((item) =>
+      item.tipo === "Normal" &&
+      item.estado === "Disponible" &&
+      item.tamano === nombres[tamano.value] &&
+      typeof item.codigo === "string" &&
+      item.codigo.trim().length > 0
+    )
+    .sort((a, b) =>
+      a.codigo.localeCompare(b.codigo, "es", {
+        numeric: true,
+      })
+    )
+);
 
+const totalPaginas = computed(() =>
+  Math.max(1, Math.ceil(disponibles.value.length / porPagina))
+);
+
+const visibles = computed(() =>
+  disponibles.value.slice(
+    pagina.value * porPagina,
+    (pagina.value + 1) * porPagina
+  )
+);
+
+async function consultar() {
   cargando.value = true;
   error.value = "";
-  codigoSeleccionado.value = "";
-  paso.value = "seleccion";
 
   try {
     casilleros.value = await obtenerCasilleros();
-  } catch (e) {
-    console.error("Error al consultar casilleros:", e);
-
-    casilleros.value = [];
-    error.value = "No se pudo consultar la disponibilidad. Intenta nuevamente.";
-  } finally {
-    cargando.value = false;
-  }
-}
-
-onMounted(cargarCasilleros);
-
-// Filtrar por tamaño y tipo normal
-const casillerosFiltrados = computed(() => {
-  if (!tamanoValido.value) return [];
-
-  return casilleros.value.filter((casillero) => {
-    return (
-      casillero.tamano === nombreTamano.value && casillero.tipo === "Normal"
-    );
-  });
-});
-
-// Contar solamente los disponibles
-const cantidadDisponible = computed(() => {
-  return casillerosFiltrados.value.filter(
-    (casillero) => casillero.estado === "Disponible",
-  ).length;
-});
-
-// Casillero elegido
-const casilleroSeleccionado = computed(() => {
-  return casillerosFiltrados.value.find(
-    (casillero) => casillero.codigo === codigoSeleccionado.value,
-  );
-});
-
-const puedeContinuar = computed(() => {
-  return (
-    !cargando.value &&
-    !error.value &&
-    casilleroSeleccionado.value?.estado === "Disponible"
-  );
-});
-
-function seleccionarCasillero(codigo) {
-  if (cargando.value || error.value) return;
-
-  const casillero = casillerosFiltrados.value.find(
-    (item) => item.codigo === codigo,
-  );
-
-  if (casillero?.estado !== "Disponible") return;
-
-  codigoSeleccionado.value = codigo;
-}
-
-async function continuar() {
-  if (!puedeContinuar.value) return;
-
-  cargando.value = true;
-  error.value = "";
-
-  try {
-    // Consultar nuevamente la disponibilidad real
-    const actuales = await obtenerCasilleros();
-
-    casilleros.value = actuales;
-
-    // Verificar el casillero elegido
-    const casillero = actuales.find(
-      (item) => item.codigo === codigoSeleccionado.value,
-    );
 
     if (
-      !casillero ||
-      casillero.tamano !== nombreTamano.value ||
-      casillero.tipo !== "Normal" ||
-      casillero.estado !== "Disponible"
+      !disponibles.value.some(
+        (item) => item.codigo === seleccionado.value
+      )
     ) {
-      codigoSeleccionado.value = "";
-
-      error.value =
-        "Este casillero ya no está disponible. Actualiza la lista y selecciona otro.";
-
-      return;
+      seleccionado.value = "";
     }
 
-    // Solo avanzar cuando la disponibilidad esté confirmada
-    paso.value = "resumen";
+    if (pagina.value >= totalPaginas.value) {
+      pagina.value = 0;
+    }
   } catch (e) {
-    console.error("Error al verificar disponibilidad:", e);
+    console.error("Error consultando casilleros:", e);
 
-    error.value = "No se pudo verificar el casillero. Intenta nuevamente.";
+    casilleros.value = [];
+    seleccionado.value = "";
+    error.value =
+      "No se pudo consultar la disponibilidad.";
   } finally {
     cargando.value = false;
   }
 }
 
-function cambiarSeleccion() {
-  paso.value = "seleccion";
-}
+function elegir(codigo) {
+  if (cargando.value || error.value) return;
 
-// Estado de la reserva real
-const reservando = ref(false);
-const reservaConfirmada = ref(null);
-const errorReserva = ref("");
-const depositando = ref(false);
-const depositoConfirmado = ref(null);
-const errorDeposito = ref("");
-// El PIN solo vive en la memoria de esta pantalla; no se guarda en storage.
-const pinTemporal = ref("");
-let temporizadorPin = null;
-const retiroId = ref("");
-const retiroPin = ref("");
-const retirando = ref(false);
-const errorRetiro = ref("");
-const retiroConfirmado = ref(null);
+  const existe = disponibles.value.some(
+    (item) => item.codigo === codigo
+  );
 
-function abrirRetiro() {
-  if (reservando.value || depositando.value) return;
-  errorRetiro.value = "";
-  retiroConfirmado.value = null;
-  retiroId.value = "";
-  retiroPin.value = "";
-  paso.value = "retiro";
-}
-
-function volverASeleccion() {
-  retiroPin.value = "";
-  paso.value = "seleccion";
-}
-
-function finalizarDeposito() {
-  pinTemporal.value = "";
-  if (temporizadorPin !== null) clearTimeout(temporizadorPin);
-  temporizadorPin = null;
-  router.replace("/menu");
-}
-
-async function confirmarRetiro() {
-  if (retirando.value || retiroConfirmado.value) return;
-  const id = Number(retiroId.value);
-  if (!Number.isSafeInteger(id) || id <= 0 || !/^\d{6}$/.test(retiroPin.value)) {
-    errorRetiro.value = "Escribe el número de reserva y los seis dígitos del PIN.";
-    return;
-  }
-  retirando.value = true;
-  errorRetiro.value = "";
-  try {
-    const resultado = await retirarPertenenciasPersonales(id, retiroPin.value);
-    retiroPin.value = "";
-    retiroConfirmado.value = resultado;
-    casilleros.value = casilleros.value.map((casillero) =>
-      casillero.codigo === resultado.codigoCasillero
-        ? { ...casillero, estado: "Disponible" }
-        : casillero,
-    );
-  } catch (e) {
-    // Nunca registrar PINs en console.log o mensajes de error.
-    retiroPin.value = "";
-    errorRetiro.value = e.message || "No se pudo confirmar el retiro.";
-  } finally {
-    retirando.value = false;
+  if (existe) {
+    seleccionado.value = codigo;
   }
 }
 
-// Contador basado en el vencimiento de SQL Server
-const ahora = ref(Date.now());
-let intervaloReserva = null;
+function cambiarPagina(valor) {
+  if (valor < 0 || valor >= totalPaginas.value) return;
 
-const segundosRestantes = computed(() => {
-  const fecha = reservaConfirmada.value?.fechaVencimiento;
-
-  if (!fecha) return null;
-
-  const vencimiento = Date.parse(fecha);
-
-  if (Number.isNaN(vencimiento)) return null;
-
-  return Math.max(0, Math.ceil((vencimiento - ahora.value) / 1000));
-});
-
-const tiempoRestante = computed(() => {
-  const segundos = segundosRestantes.value;
-
-  if (segundos === null) return "--:--";
-
-  const minutos = Math.floor(segundos / 60);
-  const resto = segundos % 60;
-
-  return `${String(minutos).padStart(2, "0")}:${String(resto).padStart(2, "0")}`;
-});
-
-onUnmounted(() => {
-  if (intervaloReserva !== null) clearInterval(intervaloReserva);
-  if (temporizadorPin !== null) clearTimeout(temporizadorPin);
-  pinTemporal.value = "";
-  retiroPin.value = "";
-});
-
-async function confirmarReserva() {
-  if (reservando.value || reservaConfirmada.value) return;
-  if (!codigoSeleccionado.value) return;
-
-  reservando.value = true;
-  errorReserva.value = "";
-
-  try {
-    const resultado = await reservarCasilleroTerminal(codigoSeleccionado.value);
-
-    // Guardar el resultado confirmado por SQL Server
-    reservaConfirmada.value = resultado;
-
-    ahora.value = Date.now();
-
-    if (intervaloReserva !== null) {
-      clearInterval(intervaloReserva);
-    }
-
-    intervaloReserva = setInterval(() => {
-      ahora.value = Date.now();
-
-      if (segundosRestantes.value === 0) {
-        clearInterval(intervaloReserva);
-        intervaloReserva = null;
-      }
-    }, 1000);
-
-    // Actualizar el estado local del casillero
-    casilleros.value = casilleros.value.map((casillero) =>
-      casillero.codigo === codigoSeleccionado.value
-        ? { ...casillero, estado: "Reservado" }
-        : casillero,
-    );
-  } catch (e) {
-    console.error("Error al reservar casillero:", e);
-
-    errorReserva.value = e.message || "No se pudo confirmar la reserva.";
-  } finally {
-    reservando.value = false;
-  }
+  pagina.value = valor;
+  seleccionado.value = "";
 }
 
-async function confirmarDeposito() {
-  if (
-    depositando.value ||
-    depositoConfirmado.value ||
-    !reservaConfirmada.value ||
-    segundosRestantes.value === null ||
-    segundosRestantes.value <= 0
-  ) {
+onMounted(() => {
+  if (!valido.value) {
+    router.replace("/guardar");
     return;
   }
 
-  depositando.value = true;
-  errorDeposito.value = "";
-
-  try {
-    const { idUso, tokenDeposito } = reservaConfirmada.value;
-
-    const resultado = await registrarDepositoPersonal(idUso, tokenDeposito);
-
-    // Confirmación recibida desde SQL Server.
-    const { pinRetiro, ...depositoSinPin } = resultado;
-    if (typeof pinRetiro !== "string" || !/^\d{6}$/.test(pinRetiro)) {
-      throw new Error("El depósito fue recibido, pero no se pudo mostrar el PIN. Solicita ayuda al administrador.");
-    }
-    depositoConfirmado.value = depositoSinPin;
-    pinTemporal.value = pinRetiro;
-
-    // En un kiosco compartido, ocultar el secreto y volver al menú tras 2 min.
-    if (temporizadorPin !== null) clearTimeout(temporizadorPin);
-    temporizadorPin = setTimeout(finalizarDeposito, 120000);
-
-    // Detener el contador después del depósito.
-    if (intervaloReserva !== null) {
-      clearInterval(intervaloReserva);
-      intervaloReserva = null;
-    }
-
-    // El casillero ahora está ocupado.
-    casilleros.value = casilleros.value.map((casillero) =>
-      casillero.codigo === resultado.codigoCasillero
-        ? { ...casillero, estado: "Ocupado" }
-        : casillero,
-    );
-
-    // Ya no necesitamos conservar el token de depósito.
-    const { tokenDeposito: tokenDescartado, ...reservaSinToken } = reservaConfirmada.value;
-    reservaConfirmada.value = reservaSinToken;
-  } catch (error) {
-    errorDeposito.value = error.message || "No se pudo confirmar el depósito.";
-  } finally {
-    depositando.value = false;
-  }
-}
+  consultar();
+});
 </script>
 
 <template>
-  <main class="pantalla-casilleros" :class="{ 'tema-oscuro': oscuro }">
-    <!-- Encabezado -->
-    <AppHeader
-      :oscuro="oscuro"
-      @cambiar-tema="cambiarTema"
-      @abrir-ayuda="abrirAyuda"
-    />
+  <main
+    class="pantalla-casilleros"
+    :class="{ 'tema-oscuro': oscuro }"
+  >
+    <!-- Encabezado compartido desde App.vue -->
 
-    <!-- Regresar -->
-    <RouterLink to="/guardar/pertenencias/tamano" class="regresar">
-      <span class="icono-regresar" aria-hidden="true">
+    <RouterLink :to="regresar" class="volver">
+      <span class="icono-volver" aria-hidden="true">
         <img
           src="/iconos/complementarios/28_regresar.svg"
+          class="claro"
           alt=""
-          class="regresar-claro"
         />
         <img
           src="/iconos/complementarios/28_regresar-oscuro.svg"
+          class="oscuro"
           alt=""
-          class="regresar-oscuro"
         />
       </span>
 
       <span>Volver a tamaños</span>
     </RouterLink>
 
-    <section class="contenido">
-      <!-- Retiro personal en la terminal de pruebas; ruta propia en una fase posterior -->
-      <template v-if="paso === 'retiro'">
-        <h1>Retirar pertenencias personales</h1>
-        <div class="resumen grupo-retiro">
-          <template v-if="retiroConfirmado">
-            <p class="aviso" role="status">¡Retiro registrado correctamente!</p>
-            <p>Casillero: <strong>{{ retiroConfirmado.codigoCasillero }}</strong></p>
-            <p>Estado: <strong>{{ retiroConfirmado.estadoCasillero }}</strong></p>
-            <p class="mensaje">En el prototipo, abre manualmente el casillero y recoge tus pertenencias.</p>
-            <button type="button" class="boton-continuar" @click="router.replace('/menu')">
-              Finalizar
-            </button>
-          </template>
-          <template v-else>
-            <p class="mensaje">Introduce el número de reserva y el PIN que recibiste al depositar.</p>
-            <label for="retiro-uso">Número de reserva</label>
-            <input
-              id="retiro-uso"
-              v-model.trim="retiroId"
-              class="campo-retiro"
-              inputmode="numeric"
-              pattern="[0-9]*"
-              autocomplete="off"
-              placeholder="Ejemplo: 17"
-            />
-            <label for="retiro-pin">PIN de retiro</label>
-            <input
-              id="retiro-pin"
-              v-model.trim="retiroPin"
-              class="campo-retiro"
-              type="password"
-              inputmode="numeric"
-              pattern="[0-9]{6}"
-              maxlength="6"
-              autocomplete="off"
-              placeholder="6 dígitos"
-            />
-            <p v-if="errorRetiro" class="aviso" role="alert">{{ errorRetiro }}</p>
-            <button
-              type="button"
-              class="boton-continuar"
-              :disabled="retirando || !retiroId || retiroPin.length !== 6"
-              @click="confirmarRetiro"
-            >
-              {{ retirando ? "Validando retiro..." : "Confirmar retiro" }}
-            </button>
-            <button type="button" class="boton-secundario" @click="volverASeleccion">
-              Regresar a casilleros
-            </button>
-          </template>
-        </div>
-      </template>
+    <div class="contenido-casilleros">
+    <header class="titulo-paso">
+      <h1>Elige tu casillero</h1>
 
-      <!-- Tamaño inválido -->
-      <div v-else-if="!tamanoValido" class="mensaje">
-        <h1>Selecciona primero un tamaño</h1>
-        <p>
-          Regresa a la pantalla anterior para elegir un casillero pequeño,
-          mediano o grande.
-        </p>
+      <p>
+        {{ objetos[objeto] }} · {{ nombres[tamano] }}
+      </p>
+
+      <p
+        v-if="!cargando && !error"
+        class="cantidad"
+        role="status"
+      >
+        {{ disponibles.length }}
+        casillero{{ disponibles.length === 1 ? "" : "s" }}
+        disponible{{ disponibles.length === 1 ? "" : "s" }}
+      </p>
+    </header>
+
+    <section
+      class="zona-casilleros"
+      aria-label="Casilleros disponibles"
+    >
+      <div v-if="cargando" class="mensaje" role="status">
+        Consultando casilleros...
       </div>
 
-      <!-- Selección de casillero -->
-      <template v-else-if="paso === 'seleccion'">
-        <h1>Selecciona tu casillero</h1>
-
-        <button type="button" class="boton-secundario" @click="abrirRetiro">
-          ¿Ya tienes una reserva? Retirar pertenencias
-        </button>
-
-        <p class="subtitulo">Tamaño elegido: {{ nombreTamano }}</p>
-
-        <p class="estado-consulta" role="status">
-          {{
-            cargando
-              ? "Consultando casilleros..."
-              : error
-                ? error
-                : `${cantidadDisponible} casilleros disponibles`
-          }}
-        </p>
+      <div v-else-if="error" class="mensaje" role="alert">
+        <p>{{ error }}</p>
 
         <button
-          v-if="error"
           type="button"
           class="boton-secundario"
-          @click="cargarCasilleros"
+          @click="consultar"
         >
-          Reintentar consulta
+          Reintentar
         </button>
+      </div>
 
-        <div v-if="!cargando && !error" class="lista-casilleros">
-          <CasilleroCard
-            v-for="casillero in casillerosFiltrados"
-            :key="casillero.codigo"
-            :codigo="casillero.codigo"
-            :tamano="casillero.tamano"
-            :tipo="casillero.tipo"
-            :estado="casillero.estado"
-            :oscuro="oscuro"
-            :seleccionado="codigoSeleccionado === casillero.codigo"
-            @seleccionar="seleccionarCasillero"
-          />
-        </div>
+      <div
+        v-else-if="disponibles.length === 0"
+        class="mensaje"
+        role="status"
+      >
+        No hay casilleros disponibles de este tamaño.
+      </div>
 
-        <p
-          v-if="!cargando && !error && casillerosFiltrados.length === 0"
-          class="mensaje"
+      <div v-else class="cuadricula-casilleros"
+        :class="['columnas-' + Math.min(4, visibles.length), { 'una-fila': visibles.length <= 4 }]"
+      >
+        <button
+          v-for="item in visibles"
+          :key="item.codigo"
+          type="button"
+          class="casillero"
+          :class="{
+            seleccionado: seleccionado === item.codigo
+          }"
+          :aria-pressed="seleccionado === item.codigo"
+          @click="elegir(item.codigo)"
         >
-          No hay casilleros de este tamaño registrados.
-        </p>
+          <span class="dibujo" aria-hidden="true">
+            <img
+              src="/iconos/complementarios/15_ubicacion_casillero.svg"
+              class="claro"
+              alt=""
+            />
 
-        <div class="acciones">
-          <p class="estado-consulta" aria-live="polite">
-            {{
-              codigoSeleccionado
-                ? `Casillero seleccionado: ${codigoSeleccionado}`
-                : "Toca un casillero disponible para continuar."
-            }}
-          </p>
-
-          <button
-            type="button"
-            class="boton-continuar"
-            :disabled="!puedeContinuar"
-            @click="continuar"
-          >
-            Continuar
-          </button>
-        </div>
-      </template>
-
-      <!-- Resumen de demostración -->
-      <template v-else>
-        <h1>Revisa tu selección</h1>
-
-        <div class="resumen">
-          <span class="codigo-destacado">
-            {{ codigoSeleccionado }}
+            <img
+              src="/iconos/complementarios/15_ubicacion_casillero-oscuro.svg"
+              class="oscuro"
+              alt=""
+            />
           </span>
 
-          <h2>Casillero {{ nombreTamano }}</h2>
+          <strong class="codigo">
+            {{ item.codigo }}
+          </strong>
 
-          <p>Tipo: Normal</p>
+          <span class="estado">
+            {{
+              seleccionado === item.codigo
+                ? "Seleccionado"
+                : "Disponible"
+            }}
+          </span>
 
-          <!-- Reserva registrada correctamente -->
-          <template v-if="reservaConfirmada">
-            <p v-if="!depositoConfirmado" class="aviso" role="status">
-              ¡Reserva confirmada correctamente!
-            </p>
-
-            <p>
-              Número de reserva:
-              <strong>{{ reservaConfirmada.idUso }}</strong>
-            </p>
-
-            <p>
-              Casillero:
-              <strong>{{ reservaConfirmada.codigoCasillero }}</strong>
-            </p>
-
-            <!-- Depósito registrado correctamente -->
-            <template v-if="depositoConfirmado">
-              <p class="aviso" role="status">
-                ¡Depósito registrado correctamente!
-              </p>
-
-              <p>
-                Estado del casillero:
-                <strong>{{ depositoConfirmado.estadoCasillero }}</strong>
-              </p>
-
-              <p class="mensaje">
-                Tus pertenencias han quedado registradas en SYNCHRO.
-              </p>
-              <p class="aviso">Anota el número de reserva y este PIN. El PIN se muestra una sola vez.</p>
-              <p class="pin-retiro" role="status">{{ pinTemporal }}</p>
-              <p class="mensaje">Por seguridad, esta pantalla se cerrará automáticamente después de dos minutos.</p>
-              <button type="button" class="boton-continuar" @click="finalizarDeposito">
-                Ya guardé el PIN · Finalizar
-              </button>
-            </template>
-
-            <!-- Reserva pendiente de depósito -->
-            <template v-else>
-              <p v-if="segundosRestantes !== null" class="aviso" role="timer">
-                Tiempo restante para depositar:
-                <strong>{{ tiempoRestante }}</strong>
-              </p>
-
-              <p v-if="segundosRestantes === 0" role="status">
-                El plazo de la reserva ha terminado. Consulta nuevamente la
-                disponibilidad.
-              </p>
-
-              <p v-if="segundosRestantes === null" class="aviso">
-                No se pudo mostrar el tiempo restante.
-              </p>
-
-              <template v-if="segundosRestantes > 0">
-                <p class="mensaje">
-                  Abre manualmente el casillero asignado, coloca tus
-                  pertenencias y cierra la puerta.
-                </p>
-
-                <p class="mensaje">
-                  Cuando hayas terminado, confirma el depósito.
-                </p>
-              </template>
-
-              <button
-                type="button"
-                class="boton-continuar"
-                :disabled="
-                  depositando ||
-                  segundosRestantes === null ||
-                  segundosRestantes <= 0
-                "
-                @click="confirmarDeposito"
-              >
-                {{
-                  depositando ? "Registrando depósito..." : "Confirmar depósito"
-                }}
-              </button>
-
-              <p v-if="errorDeposito" class="aviso" role="alert">
-                {{ errorDeposito }}
-              </p>
-            </template>
-          </template>
-
-          <!-- Antes de confirmar la reserva -->
-          <template v-else>
-            <p class="aviso">
-              Has elegido un casillero. Todavía no se ha reservado en el
-              sistema.
-            </p>
-
-            <p v-if="errorReserva" class="aviso" role="alert">
-              {{ errorReserva }}
-            </p>
-
-            <button
-              type="button"
-              class="boton-continuar"
-              :disabled="reservando"
-              @click="confirmarReserva"
-            >
-              {{ reservando ? "Confirmando reserva..." : "Confirmar reserva" }}
-            </button>
-          </template>
-        </div>
-      </template>
+          <span
+            v-if="seleccionado === item.codigo"
+            class="marca"
+            aria-hidden="true"
+          >
+            ✓
+          </span>
+        </button>
+      </div>
     </section>
 
-    <HelpDialog ref="centroAyuda" :oscuro="oscuro" />
+    <footer class="pie">
+      <p aria-live="polite">
+        {{
+          seleccionado
+            ? `Casillero ${seleccionado} elegido. Aún no está reservado.`
+            : "Toca un casillero disponible para seleccionarlo."
+        }}
+      </p>
+
+      <nav
+        v-if="totalPaginas > 1 && !error && !cargando"
+        class="paginas"
+        aria-label="Páginas de casilleros"
+      >
+        <button
+          type="button"
+          :disabled="pagina === 0"
+          @click="cambiarPagina(pagina - 1)"
+        >
+          Anterior
+        </button>
+
+        <span>{{ pagina + 1 }} / {{ totalPaginas }}</span>
+
+        <button
+          type="button"
+          :disabled="pagina + 1 >= totalPaginas"
+          @click="cambiarPagina(pagina + 1)"
+        >
+          Siguiente
+        </button>
+      </nav>
+    </footer>
+    </div>
   </main>
 </template>
 
 <style scoped>
-/* SYNCHRO | SELECCIÓN DE CASILLERO */
+/* SYNCHRO-CASILLEROS-DISENO-UNIFICADO-V1 */
+
+/* Misma estructura que la pantalla de tamaños */
 
 .pantalla-casilleros {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(8px, 1.4vh, 16px);
 
-  min-height: 100dvh;
-  padding: 20px 26px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  padding:
+    clamp(10px, 1.7vh, 20px)
+    clamp(12px, 2.4vw, 28px);
 
   background: #f2f7fa;
   color: #01305c;
@@ -671,261 +333,540 @@ async function confirmarDeposito() {
     color 150ms ease;
 }
 
-/* Regresar: área táctil de 56 px */
+/* Volver: misma apariencia que antes */
 
-.regresar {
+.volver {
   display: inline-flex;
   align-items: center;
-  align-self: flex-start;
-  gap: 12px;
+  justify-content: center;
+  justify-self: start;
+  gap: 10px;
 
-  min-height: 56px;
-  padding: 10px 20px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 52px;
+  padding: 8px 18px;
 
+  border: 2px solid #86bdcb;
   border-radius: 14px;
+
   background: #e4f2f6;
   color: inherit;
 
+  font: inherit;
+  font-weight: 700;
   text-decoration: none;
-  font-size: 16px;
-  font-weight: 600;
+
+  box-shadow: 0 4px 0 rgba(1, 48, 92, .14);
 
   transition:
     background-color 150ms ease,
-    color 150ms ease;
+    transform 150ms ease,
+    box-shadow 150ms ease;
 }
 
-.icono-regresar {
-  position: relative;
+.volver:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(1, 48, 92, .14);
+}
+
+/* Iconos originales */
+
+.icono-volver,
+.dibujo {
   display: block;
-  width: 30px;
-  height: 30px;
+  position: relative;
   flex-shrink: 0;
 }
 
-.icono-regresar img {
+.icono-volver {
+  width: 28px;
+  height: 28px;
+}
+
+.icono-volver img,
+.dibujo img {
   position: absolute;
   inset: 0;
+
   width: 100%;
   height: 100%;
   object-fit: contain;
+
   transition: opacity 150ms ease;
 }
 
-.regresar-claro {
-  opacity: 1;
+.claro { opacity: 1; }
+.oscuro { opacity: 0; }
+
+/* Contenedor principal centrado */
+
+.contenido-casilleros {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(12px, 1.8vh, 22px);
+
+  width: min(100%, 1120px);
+  height: min(100%, 760px);
+
+  min-width: 0;
+  min-height: 0;
+
+  place-self: center;
 }
 
-.regresar-oscuro {
-  opacity: 0;
-}
+/* Título */
 
-/* Contenido */
-
-.contenido {
-  width: min(100%, 1000px);
-  margin: 0 auto;
+.titulo-paso {
+  min-width: 0;
   text-align: center;
 }
 
-h1 {
+.titulo-paso h1 {
   margin: 0;
-  font-size: clamp(24px, 3vw, 34px);
+
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-.subtitulo,
-.estado-consulta {
-  color: #5b7282;
-  transition: color 150ms ease;
+.titulo-paso p {
+  margin: 6px 0 0;
+  font-size: clamp(15px, 1.6vw, 20px);
+  line-height: 1.25;
 }
 
-.subtitulo {
-  margin: 12px 0;
+.titulo-paso .cantidad {
+  color: #008c99;
+  font-weight: 700;
 }
 
-.estado-consulta {
-  min-height: 24px;
-  margin: 12px 0;
-}
+/* Zona de casilleros */
 
-/* Casilleros */
-
-.lista-casilleros {
+.zona-casilleros {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  place-items: center;
 
-  width: min(100%, 650px);
-  margin: 22px auto 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
-/* Acciones */
+/* Grid de cuatro columnas para tablet horizontal */
 
-.acciones {
+.cuadricula-casilleros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+
+  gap: clamp(10px, 1.6vw, 20px);
+
+  width: min(100%, 1060px);
+  height: min(100%, 520px);
+
+  min-width: 0;
+  min-height: 0;
+
+  place-self: center;
+}
+
+/* Evitar tarjetas exageradamente grandes
+   cuando hay pocos casilleros */
+
+.cuadricula-casilleros.una-fila {
+  height: min(100%, 260px);
+}
+
+.cuadricula-casilleros.columnas-1 {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 260px);
+}
+
+.cuadricula-casilleros.columnas-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 540px);
+}
+
+.cuadricula-casilleros.columnas-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 800px);
+}
+
+/* Tarjetas con la misma identidad visual
+   que las tarjetas de tamaño */
+
+.casillero {
+  position: relative;
+
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
 
-  margin-top: 24px;
-}
+  gap: clamp(5px, 1vh, 11px);
 
-.boton-continuar,
-.boton-secundario {
-  min-height: 56px;
-  padding: 12px 26px;
-  border-radius: 14px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  padding: clamp(8px, 1.7vh, 18px);
+
+  border: 2px solid #dfeaf0;
+  border-radius: 22px;
+
+  background: #ffffff;
+  color: #01305c;
 
   font: inherit;
-  font-size: 17px;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  box-shadow: 0 3px 12px rgba(1, 48, 92, .05);
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+/* Selección */
+
+.casillero:active {
+  transform: scale(.985);
+}
+
+.casillero.seleccionado {
+  background: #e8f9fa;
+  border-color: #00b9c7;
+  box-shadow: 0 0 0 3px rgba(0, 185, 199, .14);
+}
+
+/* Ilustración y textos */
+
+.dibujo {
+  width: clamp(48px, 9vh, 94px);
+  height: clamp(48px, 9vh, 94px);
+}
+
+.codigo {
+  font-size: clamp(19px, 2.3vw, 28px);
+  font-weight: 800;
+}
+
+.estado {
+  color: #008c99;
+  font-size: clamp(13px, 1.5vw, 17px);
+  font-weight: 700;
+}
+
+.marca {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+
+  display: grid;
+  place-items: center;
+
+  width: 28px;
+  height: 28px;
+
+  border-radius: 50%;
+  background: #00b9c7;
+  color: #01305c;
+  font-weight: 800;
+}
+
+/* Estado inferior */
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  min-height: 48px;
+  text-align: center;
+}
+
+.pie p {
+  margin: 0;
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.3;
+}
+
+.paginas {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.paginas button,
+.boton-secundario {
+  min-height: 46px;
+  padding: 8px 18px;
+
+  border: 2px solid #00b9c7;
+  border-radius: 13px;
+
+  background: #f4feff;
+  color: #01305c;
+
+  font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
-.boton-continuar {
-  min-width: 220px;
-  border: none;
-  background: #00b9c7;
-  color: #01305c;
-}
-
-.boton-continuar:disabled {
-  background: #dce5ea;
-  color: #81939e;
+.paginas button:disabled {
+  opacity: .45;
   cursor: not-allowed;
 }
 
-.boton-secundario {
-  border: 2px solid #00b9c7;
-  background: transparent;
-  color: inherit;
-}
-
-/* Resumen */
-
-.resumen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-
-  width: min(100%, 520px);
-  margin: 24px auto;
-  padding: 30px;
-
-  border: 1px solid #dfeaf0;
-  border-radius: 20px;
-  background: #ffffff;
-
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease;
-}
-
-.codigo-destacado {
-  display: grid;
-  place-items: center;
-
-  width: 110px;
-  height: 75px;
-
-  border-radius: 14px;
-  background: #e4f2f6;
-  color: #01305c;
-
-  font-size: 30px;
-  font-weight: 700;
-}
-
-.aviso,
 .mensaje {
-  color: #5b7282;
-  line-height: 1.5;
+  text-align: center;
+  font-size: clamp(16px, 1.7vw, 20px);
 }
 
-.regresar:focus-visible,
-button:focus-visible {
-  outline: 3px solid #00b9c7;
-  outline-offset: 3px;
-}
+/* Modo oscuro */
 
-/* Tema oscuro */
-
-.tema-oscuro {
+.pantalla-casilleros.tema-oscuro {
   background: #061f36;
   color: #ffffff;
 }
 
-.tema-oscuro .regresar {
+.tema-oscuro .volver {
   background: #204766;
+  border-color: #5ec6e8;
 }
 
-.tema-oscuro .regresar-claro {
+.tema-oscuro .claro {
   opacity: 0;
 }
 
-.tema-oscuro .regresar-oscuro {
+.tema-oscuro .oscuro {
   opacity: 1;
 }
 
-.tema-oscuro .subtitulo,
-.tema-oscuro .estado-consulta,
-.tema-oscuro .aviso,
-.tema-oscuro .mensaje {
-  color: #c6dfea;
-}
-
-.tema-oscuro .resumen {
+.tema-oscuro .casillero {
   background: #103956;
   border-color: #315573;
+  color: #ffffff;
 }
 
-.tema-oscuro .boton-continuar:disabled {
-  background: #315573;
-  color: #a7becd;
+.tema-oscuro .casillero.seleccionado {
+  background: #174b65;
+  border-color: #00b9c7;
 }
 
-/* Controles del retiro táctiles y compatibles con ambos temas. */
-.grupo-retiro { display: flex; flex-direction: column; gap: 12px; }
-.campo-retiro {
-  width: 100%;
-  min-height: 52px;
-  padding: 10px 14px;
-  border: 1px solid #7898ad;
-  border-radius: 12px;
-  background: #fff;
-  color: #01305c;
-  font-size: 18px;
-}
-.pin-retiro {
-  font-size: clamp(28px, 7vw, 42px);
-  font-weight: 800;
-  letter-spacing: .18em;
-  text-align: center;
-  margin: 0;
-}
-.tema-oscuro .campo-retiro {
-  background: #103956;
-  border-color: #5f8ca8;
-  color: #fff;
+.tema-oscuro .estado,
+.tema-oscuro .cantidad {
+  color: #5ec6e8;
 }
 
-/* Adaptación */
+.tema-oscuro .paginas button,
+.tema-oscuro .boton-secundario {
+  background: #123d5b;
+  color: #ffffff;
+  border-color: #5ec6e8;
+}
 
-@media (max-width: 650px) {
-  .lista-casilleros {
-    grid-template-columns: 1fr;
+/* Tablet vertical */
+
+@media (orientation: portrait) {
+  .contenido-casilleros {
+    width: min(100%, 820px);
+    height: min(100%, 1040px);
   }
+
+  .cuadricula-casilleros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 720px);
+    height: min(100%, 780px);
+  }
+
+  .cuadricula-casilleros.una-fila {
+    height: min(100%, 460px);
+  }
+
+  .cuadricula-casilleros.columnas-1 {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 330px);
+    height: min(100%, 260px);
+  }
+
+  .cuadricula-casilleros.columnas-2 {
+    width: min(100%, 720px);
+    height: min(100%, 260px);
+  }
+}
+
+/* Pantallas compactas */
+
+@media (max-height: 650px) {
+  .pantalla-casilleros {
+    gap: 6px;
+    padding: 7px 12px;
+  }
+
+  .contenido-casilleros {
+    gap: 6px;
+  }
+
+  .volver {
+    min-height: 42px;
+    padding: 5px 12px;
+  }
+
+  .titulo-paso h1 {
+    font-size: 23px;
+  }
+
+  .titulo-paso p {
+    margin-top: 2px;
+    font-size: 13px;
+  }
+
+  .cuadricula-casilleros {
+    gap: 8px;
+  }
+
+  .casillero {
+    gap: 3px;
+    padding: 6px;
+    border-radius: 15px;
+  }
+
+  .dibujo {
+    width: 45px;
+    height: 45px;
+  }
+
+  .codigo {
+    font-size: 18px;
+  }
+
+  .estado {
+    font-size: 12px;
+  }
+
+  .pie {
+    min-height: 34px;
+  }
+}
+
+/* Celulares y tablets pequeñas */
+
+@media (max-width: 480px) {
+  .pantalla-casilleros {
+    padding-inline: 10px;
+  }
+
+  .titulo-paso h1 {
+    font-size: 23px;
+  }
+
+  .casillero {
+    padding: 6px;
+  }
+
+  .dibujo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .codigo {
+    font-size: 18px;
+  }
+
+  .estado {
+    font-size: 12px;
+  }
+
+  .marca {
+    width: 23px;
+    height: 23px;
+  }
+}
+
+/* Accesibilidad */
+
+.volver:focus-visible,
+.casillero:focus-visible,
+.paginas button:focus-visible,
+.boton-secundario:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pantalla-casilleros,
-  .regresar,
-  .icono-regresar img,
-  .subtitulo,
-  .estado-consulta,
-  .resumen {
+  .volver,
+  .casillero,
+  .icono-volver img,
+  .dibujo img {
     transition: none;
+  }
+
+  .volver:active,
+  .casillero:active {
+    transform: none;
+  }
+}
+
+/* SYNCHRO-CHECK-Y-CONTINUAR-UNIFICADOS-V1 */
+
+/* Mismo check de Guardar y Seleccion de tamanos */
+
+.casillero {
+  position: relative;
+}
+
+/* Ocultar la marca de texto anterior,
+   para no mostrar dos checks. */
+
+.casillero .marca {
+  display: none;
+}
+
+.casillero.seleccionado::after {
+  content: "\2713";
+
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+
+  display: grid;
+  place-items: center;
+
+  width: clamp(27px, 3vw, 38px);
+  height: clamp(27px, 3vw, 38px);
+
+  border-radius: 50%;
+
+  background: #00b9c7;
+  color: #01305c;
+
+  font-size: clamp(18px, 2vw, 23px);
+  font-weight: 800;
+  line-height: 1;
+
+  box-shadow: 0 2px 8px rgba(1, 48, 92, 0.12);
+
+  pointer-events: none;
+}
+
+@media (max-height: 620px) {
+  .casillero.seleccionado::after {
+    top: 5px;
+    right: 5px;
+    width: 25px;
+    height: 25px;
+    font-size: 17px;
   }
 }
 </style>

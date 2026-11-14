@@ -81,7 +81,8 @@ const { hora, fecha } = useReloj();
   gap: 16px;
 
   width: 100%;
-  min-height: 72px;
+  min-height: 84px;
+  flex-shrink: 0;
   padding: 12px 20px;
 
   border-bottom: 1px solid #d9e6ed;
