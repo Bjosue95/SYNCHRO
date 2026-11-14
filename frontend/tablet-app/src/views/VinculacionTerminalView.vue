@@ -4,7 +4,7 @@ import { useTema } from "../composables/useTema";
 
 const { oscuro, cambiarTema } = useTema();
 
-const codigoTerminal = "SYN-TER-001";
+const codigoTerminal = "SYNCHRO-DEMO-01";
 
 const solicitando = ref(false);
 const error = ref("");

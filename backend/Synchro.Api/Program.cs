@@ -451,7 +451,8 @@ if (ConfiguracionRostroSimulado.EntornoPermitido(builder.Environment, builder.Co
 var cadenaVencimiento = builder.Configuration
     .GetConnectionString("SynchroDB");
 
-if (builder.Environment.IsDevelopment() &&
+if (builder.Configuration.GetValue<bool>("Reservas:ProcesarVencimientos") &&
+    builder.Environment.IsDevelopment() &&
     !string.IsNullOrWhiteSpace(cadenaVencimiento) &&
     string.Equals(
         new SqlConnectionStringBuilder(cadenaVencimiento)
