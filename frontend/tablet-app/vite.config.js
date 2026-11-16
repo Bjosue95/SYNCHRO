@@ -39,6 +39,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
         "/api": {
           target: apiTarget,
           changeOrigin: true,
+          secure: false,
         },
       },
     },

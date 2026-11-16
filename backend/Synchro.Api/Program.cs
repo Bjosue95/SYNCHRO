@@ -464,6 +464,7 @@ if (builder.Configuration.GetValue<bool>("Reservas:ProcesarVencimientos") &&
         Synchro.Api.Services.VencimientoReservasService>();
 }
 
+
 var app = builder.Build();
 foreach (string indicador in new[] { "WhatsApp:SolicitudesInicioHabilitadas", "WhatsApp:SolicitudesInicioWorker:Habilitado", "WhatsApp:VerificacionOutbox:Habilitado" })
 {
@@ -500,6 +501,7 @@ app.MapWhatsAppWebhookEndpoints();
 
 // Modulos HTTP separados por funcionalidad.
 app.MapCasillerosBaseDatosEndpoints();
+app.MapCasillerosPrototipoEndpoints();
 app.MapCargaDispositivosEndpoints();
 app.MapAdministracionEndpoints();
 app.MapCotizacionesEndpoints();
@@ -529,11 +531,13 @@ if (app.Environment.IsDevelopment() &&
     app.MapAprobacionTerminalEndpoints();
     app.MapConfirmacionTerminalEndpoints();
     app.MapReservasTerminalEndpoints();
+    app.MapWhatsAppManualEndpoints();
     app.MapDepositosTerminalEndpoints();
     app.MapRetirosPersonalesTerminalEndpoints();
     app.MapRecuperacionPinPersonalEndpoints();
     // Pre-reservas web de encomiendas: prototipo aislado y sin deposito.
     app.MapClientesWebEndpoints();
+
     app.MapRostroSimuladoEndpoints();
     app.MapPreReservasEncomiendaWebEndpoints();
     app.MapConsentimientosPreReservaWhatsApp();

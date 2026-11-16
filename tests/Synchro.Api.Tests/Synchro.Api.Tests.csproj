@@ -32,6 +32,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\backend\Synchro.Api\Synchro.Api.csproj" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261114_WhatsAppManual_Pruebas.sql" Link="sql/aislado/WhatsAppManual.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261114_WhatsAppManual_Cancelacion_Pruebas.sql" Link="sql/aislado/WhatsAppManualCancelacion.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

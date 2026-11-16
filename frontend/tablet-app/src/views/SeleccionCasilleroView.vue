@@ -65,7 +65,8 @@ const disponibles = computed(() =>
     .filter((item) =>
       item.tipo === "Normal" &&
       item.estado === "Disponible" &&
-      item.tamano === nombres[tamano.value] &&
+      (item.tamano === nombres[tamano.value] || tamano.value === 'S' && item.tamano === 'Pequeno') &&
+      (tamano.value !== "M" || ["M03", "M06", "M07", "M08"].includes(item.codigo)) &&
       typeof item.codigo === "string" &&
       item.codigo.trim().length > 0
     )
@@ -134,6 +135,27 @@ function cambiarPagina(valor) {
 
   pagina.value = valor;
   seleccionado.value = "";
+}
+
+function continuar() {
+  if (
+    !valido.value ||
+    !seleccionado.value ||
+    cargando.value ||
+    error.value ||
+    !disponibles.value.some(
+      item => item.codigo === seleccionado.value
+    )
+  ) return;
+
+  router.push({
+    path: "/guardar/verificar-rostro",
+    query: {
+      objeto: objeto.value,
+      tamano: tamano.value,
+      casillero: seleccionado.value
+    }
+  });
 }
 
 onMounted(() => {
@@ -277,6 +299,27 @@ onMounted(() => {
         }}
       </p>
 
+      <button
+        type="button"
+        class="boton-ir-rostro"
+        :disabled="!seleccionado || cargando || !!error"
+        @click="continuar"
+      >
+        <span>Continuar</span>
+
+        <span class="icono-ir" aria-hidden="true">
+          <img
+            src="/iconos/complementarios/29_continuar.svg"
+            class="claro"
+            alt=""
+          />
+          <img
+            src="/iconos/complementarios/29_continuar-oscuro.svg"
+            class="oscuro"
+            alt=""
+          />
+        </span>
+      </button>
       <nav
         v-if="totalPaginas > 1 && !error && !cargando"
         class="paginas"
@@ -877,5 +920,162 @@ onMounted(() => {
   .cuadricula-casilleros.columnas-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+/* SYNCHRO - CONTINUAR CASILLERO V1 */
+
+#app .synchro-app .pantalla-casilleros .pie {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.pie > p {
+  grid-column: 1;
+  text-align: center;
+  max-width: 100%;
+}
+
+.pie > .paginas {
+  grid-column: 3;
+}
+
+.boton-ir-rostro {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: clamp(190px, 23vw, 250px);
+  min-height: clamp(54px, 7vh, 64px);
+  padding: 10px 24px;
+  border: 2px solid #00b9c7;
+  border-radius: 15px;
+  background: #f4feff;
+  color: #01305c;
+  font: inherit;
+  font-size: clamp(17px, 1.7vw, 21px);
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 4px 0 #00a5b2;
+}
+
+.icono-ir {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
+.icono-ir img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.boton-ir-rostro:disabled {
+  background: #edf3f5;
+  color: #647784;
+  border-color: #b5cad3;
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.boton-ir-rostro:active:not(:disabled) {
+  transform: translateY(3px) scale(.99);
+  box-shadow: 0 1px 0 #00a5b2;
+}
+
+.tema-oscuro .boton-ir-rostro:not(:disabled) {
+  background: #123d5b;
+  color: #ffffff;
+  border-color: #5ec6e8;
+  box-shadow: 0 4px 0 #087d93;
+}
+
+.tema-oscuro .boton-ir-rostro:disabled {
+  background: #254054;
+  color: #c0d0da;
+  border-color: #426984;
+  box-shadow: none;
+}
+
+.boton-ir-rostro:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
+
+@media (max-width: 650px) {
+  #app .synchro-app .pantalla-casilleros .pie {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .pie > p,
+  .pie > .boton-ir-rostro,
+  .pie > .paginas {
+    grid-column: 1;
+  }
+
+  .boton-ir-rostro {
+    min-height: 48px;
+  }
+}
+
+/* SYNCHRO-PIE-CENTRADO-V2
+   Mensaje accesible, boton centrado y paginacion arriba.
+*/
+
+#app .synchro-app .pantalla-casilleros .pie {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  padding: 4px 12px !important;
+}
+
+/* No repetir visualmente el casillero seleccionado */
+
+#app .synchro-app .pantalla-casilleros .pie > p {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Continuar siempre centrado */
+
+#app .synchro-app .pantalla-casilleros
+.pie > .boton-ir-rostro {
+  order: 0;
+  grid-column: auto !important;
+  margin: 0 auto !important;
+  flex: 0 0 auto;
+  justify-self: center !important;
+}
+
+/* Paginacion centrada encima de Continuar */
+
+#app .synchro-app .pantalla-casilleros
+.pie > .paginas {
+  order: -1;
+  grid-column: auto !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  flex: 0 0 auto;
 }
 </style>

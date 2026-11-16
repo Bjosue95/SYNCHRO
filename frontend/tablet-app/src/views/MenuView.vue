@@ -21,6 +21,7 @@ const servicios = [
     titulo: "Retirar",
     descripcion: "Recoge tus objetos",
     icono: "02_retirar",
+    ruta: "/retirar",
   },
   {
     titulo: "Tengo una reserva",

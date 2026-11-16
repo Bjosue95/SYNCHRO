@@ -11,6 +11,10 @@ public static class RetirosPersonalesTerminalEndpoints
 {
     public static void MapRetirosPersonalesTerminalEndpoints(this WebApplication app)
     {
+        // En modo manual el retiro requiere evidencia facial simulada del servidor;
+        // nunca mantener una ruta alternativa que acepte solo UsoId + PIN.
+        if (app.Environment.IsDevelopment() &&
+            app.Configuration.GetValue<bool>("WhatsAppManual:Habilitado")) return;
         app.MapPost("/api/terminales/retiros-personales", async (
             RetiroPersonalSolicitud solicitud,
             HttpContext contexto,

@@ -15,22 +15,18 @@ for (const viewport of [
     await expect(
       page.getByRole("heading", { name: "¿Qué deseas hacer?" }),
     ).toBeVisible();
-    await expect(page.locator(".tablet-grid a")).toHaveCount(4);
-    await expect(page.locator(".tablet-grid h2")).toHaveText([
+    await expect(page.locator(".servicios button")).toHaveCount(4);
+    await expect(page.locator(".servicios h2")).toHaveText([
       "Guardar",
       "Retirar",
-      "Tengo una reserva web",
+      "Tengo una reserva",
       "Cargar dispositivo",
     ]);
     await expect(
       page.getByRole("link", { name: /Mantener en frío|Mantener caliente/ }),
     ).toHaveCount(0);
-    await expect(page.locator(".tablet-grid a").first()).toHaveAttribute(
-      "href",
-      "/guardar",
-    );
-    for (const tarjeta of await page.locator(".tablet-grid a").all())
-      await expect(tarjeta).toHaveAttribute("href", /\//);
+    for (const tarjeta of await page.locator(".servicios button").all())
+      await expect(tarjeta).toBeEnabled();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -42,7 +38,7 @@ for (const viewport of [
         .evaluateAll((xs) => xs.every((x) => x.complete && x.naturalWidth > 0)),
     ).toBe(true);
     await expect(
-      page.locator(".tablet-grid a").nth(3).locator("img.icono-claro"),
+      page.locator(".servicios button").nth(3).locator("img.icono-claro"),
     ).toHaveAttribute("src", "/iconos/04_carga_inalambrica.svg");
     expect(errores).toEqual([]);
   });
@@ -52,7 +48,7 @@ test("tema oscuro, ayuda y ruta visitante conducen a reserva existente", async (
 }) => {
   await page.goto("/menu");
   await page.getByRole("button", { name: "Activar modo oscuro" }).click();
-  await expect(page.locator(".tablet-layout")).toHaveClass(/tema-oscuro/);
+  await expect(page.locator(".synchro-app")).toHaveClass(/tema-oscuro/);
   await page.getByRole("button", { name: "? Ayuda", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByText("¿Cómo envío una encomienda?").click();
@@ -120,15 +116,17 @@ test("retira encomienda solo con acceso, captura y PIN correcto", async ({
     page.getByRole("heading", { name: "Retiro registrado", exact: true }),
   ).toBeVisible();
 });
-test("cámara real del navegador detiene las pistas después de capturar", async ({
+test("captura simulada del navegador detiene las pistas después de capturar", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    const original = navigator.mediaDevices.getUserMedia.bind(
-      navigator.mediaDevices,
-    );
-    navigator.mediaDevices.getUserMedia = async (c) => {
-      const s = await original(c);
+    navigator.mediaDevices.getUserMedia = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640; canvas.height = 480;
+      const contexto = canvas.getContext('2d');
+      function dibujar(){contexto.fillStyle='#b2cddd';contexto.fillRect(0,0,640,480);requestAnimationFrame(dibujar);}
+      dibujar();
+      const s = canvas.captureStream(10);
       window.pistasCaptura = s.getTracks();
       return s;
     };
@@ -174,6 +172,7 @@ for (const tipo of ["personal", "carga"]) {
     await page.getByRole("button", { name: "60 min", exact: true }).click();
     await page.getByRole("button", { name: "Continuar al pago" }).click();
     await expect(page.locator("main")).toContainText("60 minutos de uso");
+    await page.getByRole("button", { name: "NFC", exact: true }).click();
     await page.getByRole("button", { name: "Confirmar pago simulado" }).click();
     await page
       .getByRole("checkbox", {
@@ -203,6 +202,7 @@ test("laptop requiere confirmar que está cerrada", async ({ page }) => {
   await page.goto("/servicios/carga");
   await page.getByRole("button", { name: /L01/ }).click();
   await page.getByRole("button", { name: "Continuar al pago" }).click();
+  await page.getByRole("button", { name: "NFC", exact: true }).click();
   await page.getByRole("button", { name: "Confirmar pago simulado" }).click();
   await page
     .getByRole("checkbox", {
@@ -287,9 +287,9 @@ for (const tipo of ["frio", "calor"]) {
       if (r.method() === "POST") peticiones.push(r.url());
     });
     await page.goto("/menu");
-    await page.getByRole("link", { name: /Tengo una reserva web/ }).click();
+    await page.getByRole("button", { name: /Tengo una reserva/ }).click();
     await page
-      .getByRole("link", {
+      .getByRole("button", {
         name: tipo === "frio" ? /Reserva de frío/ : /Reserva de calor/,
       })
       .click();
@@ -333,41 +333,35 @@ test("Guardar solo ofrece pertenencias y el deposito de encomiendas esta en rese
   page,
 }) => {
   await page.goto("/menu");
-  await page.getByRole("link", { name: /^Guardar / }).click();
+  await page.getByRole("button", { name: /^Guardar / }).click();
   await expect(
-    page.getByRole("heading", { name: "Guardar pertenencias" }),
+    page.getByRole("heading", { name: "¿Qué deseas guardar?" }),
   ).toBeVisible();
   await expect(
     page.locator('a[href="/terminal/encomiendas/reserva"]'),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: /Mis pertenencias/ }),
-  ).toHaveAttribute("href", "/servicios/personal");
-  await page.getByRole("link", { name: /Mis pertenencias/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "Un espacio para tus pertenencias" }),
-  ).toBeVisible();
+  await expect(page.locator('.opcion, .tarjeta-objeto, .objeto-card').filter({hasText:'Encomienda'})).toHaveCount(0);
+  await page.getByRole('button',{name:/Mochila o bolso/}).click();
+  await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  await expect(page).toHaveURL(/\/guardar\/tamano\?objeto=mochila/);
   await page.goto("/menu");
-  await page.getByRole("link", { name: /Tengo una reserva web/ }).click();
-  await page.getByRole("link", { name: /Encomienda/ }).click();
+  await page.getByRole("button", { name: /Tengo una reserva/ }).click();
+  await page.getByRole("button", { name: /Encomienda/ }).click();
   await expect(page).toHaveURL(/\/terminal\/encomiendas\/reserva$/);
 });
 test("Retirar mantiene un acceso con opciones distintas para pertenencias y encomiendas", async ({
   page,
 }) => {
   await page.goto("/menu");
-  await page.getByRole("link", { name: /^Retirar / }).click();
+  await page.getByRole("button", { name: /^Retirar / }).click();
   await expect(
     page.getByRole("heading", { name: "¿Qué deseas retirar?" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Pertenencias y dispositivos/ }),
-  ).toHaveAttribute("href", "/retirar/servicios");
-  await expect(page.getByRole("link", { name: /Encomiendas/ })).toHaveAttribute(
-    "href",
-    "/terminal/encomiendas/retiro",
-  );
-  await page.getByRole("link", { name: /Encomiendas/ }).click();
+    page.getByRole("button", { name: /Pertenencias y dispositivos/ }),
+  ).toBeEnabled();
+  await expect(page.getByRole('button',{name:/Pertenencias con WhatsApp/})).toBeEnabled();
+  await page.getByRole("button", { name: /Encomiendas/ }).click();
   await expect(
     page.getByRole("heading", { name: "Retira tu encomienda" }),
   ).toBeVisible();

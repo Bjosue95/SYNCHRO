@@ -27,9 +27,9 @@ try {
   await captura("tablet-menu-oscuro");
   await page.waitForTimeout(300);
   await page.getByRole("button", { name: "Activar modo claro" }).click();
-  await page.getByRole("link", { name: /Tengo una reserva/ }).click();
+  await page.getByRole("button", { name: /Tengo una reserva/ }).click();
   await captura("tablet-reserva-web");
-  await page.getByRole("link", { name: /Encomienda/ }).click();
+  await page.getByRole("button", { name: /Encomienda/ }).click();
   await page.getByRole("button", { name: "Rellenar datos de ejemplo" }).click();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await page
@@ -46,7 +46,7 @@ try {
     .waitFor();
   await captura("tablet-reserva-termica");
   await page.goto("http://127.0.0.1:4173/guardar");
-  await page.getByRole("heading", { name: "Guardar pertenencias" }).waitFor();
+  await page.getByRole("heading", { name: "¿Qué deseas guardar?" }).waitFor();
   await captura("tablet-guardar");
   await page.goto("http://127.0.0.1:4173/retirar");
   await page.getByRole("heading", { name: "¿Qué deseas retirar?" }).waitFor();

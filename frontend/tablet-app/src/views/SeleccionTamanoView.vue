@@ -68,6 +68,7 @@ const error = ref("");
 const seleccionado = ref("");
 
 const equivalencias = {
+  "Pequeno": "S",
   "Pequeño": "S",
   "Mediano": "M",
   "Grande": "L",

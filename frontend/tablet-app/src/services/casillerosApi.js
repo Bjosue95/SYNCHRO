@@ -5,7 +5,7 @@
 
 // Consultar los casilleros almacenados en SQL Server
 export async function obtenerCasilleros() {
-  const respuesta = await fetch("/api/casilleros-bd", {
+  const respuesta = await fetch("/api/terminales/casilleros-prototipo", {
     headers: {
       Accept: "application/json",
     },
