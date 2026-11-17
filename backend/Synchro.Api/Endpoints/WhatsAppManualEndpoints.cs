@@ -1,3 +1,5 @@
+using Synchro.Api.Services.Pagos;
+using System.Globalization;
 using System.Data;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -20,6 +22,22 @@ public static class WhatsAppManualEndpoints
     public sealed record OperacionPeticion(Guid IntentoId);
     public sealed record EmitirPinPeticion(Guid IntentoId, bool Reemplazar);
     public sealed record MarcarEnviadoPeticion(Guid IntentoId, bool EnvioComprobado);
+    public sealed record FinalizarRetiroPagadoPeticion(
+        Guid CobroId, string? AutorizacionPago)
+    {
+        public override string ToString() =>
+            "Solicitud protegida de finalizacion pagada";
+    }
+    public sealed record ConfirmarCobroRetiroPeticion(
+        Guid CobroId, string? MetodoPago, bool PagoComprobado)
+    {
+        public override string ToString() =>
+            "Confirmacion protegida de pago simulado";
+    }
+    public sealed record PrepararCobroPersonalPeticion(string? AutorizacionPago)
+    {
+        public override string ToString() => "Solicitud protegida de cobro";
+    }
 
     public static void MapWhatsAppManualEndpoints(this WebApplication app)
     {
@@ -47,7 +65,370 @@ public static class WhatsAppManualEndpoints
         // Verificacion de rostro simulada + PIN; solo en el modulo manual aislado.
         app.MapRetiroFacialManualEndpoints(cadena ?? throw new InvalidOperationException("Conexion SynchroDB no configurada."));
 
+        // SYNCHRO-COBRO-PERSONAL-PREPARAR-V1
+        // Solo crea una orden pendiente. No confirma pagos.
+        // SYNCHRO-COBRO-ATOMICO-V1
+        // Las tarifas vienen solo de la configuracion del servidor.
+        // SQL calcula minutos e importe bajo bloqueo.
+        terminal.MapPost("/retiro/cobro/preparar", async (
+            PrepararCobroPersonalPeticion datos,
+            HttpContext http,
+            IAntiforgery csrf,
+            IDataProtectionProvider proteccion,
+            IConfiguration configuracion) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+
+            string? token = datos.AutorizacionPago;
+
+            if (token is null || token.Length is < 32 or > 4096)
+                return Results.BadRequest(new
+                {
+                    mensaje = "Autorizacion de pago invalida."
+                });
+
+            int usoId;
+
+            try
+            {
+                string valor = proteccion
+                    .CreateProtector(
+                        "SYNCHRO.RostroManual.PagoPendiente.v1")
+                    .ToTimeLimitedDataProtector()
+                    .Unprotect(token);
+
+                if (!int.TryParse(
+                    valor,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out usoId) || usoId <= 0)
+                    return Results.BadRequest(new
+                    {
+                        mensaje = "Autorizacion de pago invalida."
+                    });
+            }
+            catch (CryptographicException)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Autorizacion vencida. Verifica nuevamente tu PIN."
+                });
+            }
+
+            if (!int.TryParse(
+                configuracion["CobroRetiroPersonal:MinutosPorBloque"],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int minutosPorBloque) ||
+                minutosPorBloque is < 1 or > 1440)
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Duracion de tarifa no configurada.");
+
+            // No existen precios predeterminados.
+            // Cada tamano necesita una tarifa configurada.
+            decimal? LeerTarifa(string tamano)
+            {
+                string? valor = configuracion[
+                    $"CobroRetiroPersonal:Tarifas:{tamano}"];
+
+                if (!decimal.TryParse(
+                    valor,
+                    NumberStyles.AllowDecimalPoint,
+                    CultureInfo.InvariantCulture,
+                    out decimal precio))
+                    return null;
+
+                if (precio <= 0m ||
+                    precio > 100000m ||
+                    decimal.Round(precio, 2) != precio)
+                    return null;
+
+                return precio;
+            }
+
+            decimal? pequeno = LeerTarifa("Pequeno");
+            decimal? mediano = LeerTarifa("Mediano");
+            decimal? grande = LeerTarifa("Grande");
+
+            // Ninguna tarifa -> no se pueden generar cobros.
+            if (pequeno is null &&
+                mediano is null &&
+                grande is null)
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Tarifas de resguardo no configuradas.");
+
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                await using var preparar = new SqlCommand(
+                    "dbo.PrepararCobroRetiroPersonalSynchro",
+                    db)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                preparar.Parameters.Add(
+                    "@UsoId", SqlDbType.Int).Value = usoId;
+
+                preparar.Parameters.Add(
+                    "@MinutosPorBloque", SqlDbType.Int)
+                    .Value = minutosPorBloque;
+
+                void AgregarTarifa(string nombre, decimal? valor)
+                {
+                    var parametro = preparar.Parameters.Add(
+                        nombre, SqlDbType.Decimal);
+
+                    parametro.Precision = 12;
+                    parametro.Scale = 2;
+                    parametro.Value = valor.HasValue
+                        ? valor.Value
+                        : DBNull.Value;
+                }
+
+                AgregarTarifa("@TarifaPequenoHnl", pequeno);
+                AgregarTarifa("@TarifaMedianoHnl", mediano);
+                AgregarTarifa("@TarifaGrandeHnl", grande);
+
+                await using var resultado =
+                    await preparar.ExecuteReaderAsync(
+                        http.RequestAborted);
+
+                if (!await resultado.ReadAsync(
+                    http.RequestAborted))
+                    return Results.Problem(
+                        statusCode: 503,
+                        title: "No se genero la orden de cobro.");
+
+                Guid cobroId = resultado.GetGuid(
+                    resultado.GetOrdinal("CobroId"));
+
+                int minutos = resultado.GetInt32(
+                    resultado.GetOrdinal("MinutosUtilizados"));
+
+                decimal importe = resultado.GetDecimal(
+                    resultado.GetOrdinal("ImporteHnl"));
+
+                string estado = resultado.GetString(
+                    resultado.GetOrdinal("Estado"));
+
+                string casillero = resultado.GetString(
+                    resultado.GetOrdinal("CodigoCasillero"));
+
+                string tamano = resultado.GetString(
+                    resultado.GetOrdinal("TamanoCasillero"));
+
+                string descripcion = resultado.GetString(
+                    resultado.GetOrdinal("DescripcionTarifa"));
+
+                if (estado != "Pendiente")
+                    return Results.Conflict(new
+                    {
+                        mensaje = "La orden no esta pendiente."
+                    });
+
+                return Results.Ok(new
+                {
+                    cobroId,
+                    codigoCasillero = casillero,
+                    tamanoCasillero = tamano,
+                    minutosUtilizados = minutos,
+                    importeHnl = importe,
+                    descripcionTarifa = descripcion,
+                    moneda = "HNL",
+                    estadoPago = "Pendiente",
+                    pagoConfirmado = false,
+                    retiroConfirmado = false
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 57810)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Tarifa no configurada para este casillero.");
+            }
+            catch (SqlException ex) when (
+                ex.Number is >= 57803 and <= 57811)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "No fue posible preparar el cobro."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Servicio de cobros no disponible.");
+            }
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("LoginLimitado");
         // Token CSRF sin exigir vinculacion de tablets.
+        // SYNCHRO-RETIRO-PAGADO-HTTP-V1
+        // Solo permite finalizar despues de confirmar el pago.
+        terminal.MapPost("/retiro/cobro/finalizar", async (
+            FinalizarRetiroPagadoPeticion datos,
+            HttpContext http,
+            IAntiforgery csrf,
+            IDataProtectionProvider proteccion,
+            IConfiguration configuracion) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+
+            // No habilitar este flujo antes de completar la
+            // configuracion y sus pruebas.
+            if (!configuracion.GetValue<bool>(
+                "CobroRetiroPersonal:Obligatorio"))
+                return Results.Conflict(new
+                {
+                    mensaje = "El retiro pagado aun no esta habilitado.",
+                    retiroConfirmado = false
+                });
+
+            if (datos.CobroId == Guid.Empty ||
+                datos.AutorizacionPago is null ||
+                datos.AutorizacionPago.Length is < 32 or > 4096)
+                return Results.BadRequest(new
+                {
+                    mensaje = "Autorizacion de retiro invalida."
+                });
+
+            int usoId;
+
+            try
+            {
+                // El uso se obtiene del token protegido generado
+                // despues de validar el rostro y el PIN.
+                string protegido = proteccion
+                    .CreateProtector(
+                        "SYNCHRO.RostroManual.PagoPendiente.v1")
+                    .ToTimeLimitedDataProtector()
+                    .Unprotect(datos.AutorizacionPago);
+
+                if (!int.TryParse(
+                    protegido,
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out usoId) || usoId <= 0)
+                    return Results.BadRequest(new
+                    {
+                        mensaje = "Autorizacion de retiro invalida."
+                    });
+            }
+            catch (CryptographicException)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Autorizacion vencida. Verifica nuevamente tu identidad."
+                });
+            }
+            catch (FormatException)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Autorizacion de retiro invalida."
+                });
+            }
+
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                await using var finalizar = new SqlCommand(
+                    "dbo.FinalizarRetiroPersonalPagadoSynchro",
+                    db)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                finalizar.Parameters.Add(
+                    "@UsoId", SqlDbType.Int).Value = usoId;
+
+                finalizar.Parameters.Add(
+                    "@CobroId", SqlDbType.UniqueIdentifier)
+                    .Value = datos.CobroId;
+
+                // El procedimiento comprueba dentro de su
+                // transaccion SQL el pago confirmado, el estado
+                // del casillero y el PIN no consumido.
+                await using var resultado =
+                    await finalizar.ExecuteReaderAsync(
+                        http.RequestAborted);
+
+                if (!await resultado.ReadAsync(
+                    http.RequestAborted))
+                    return Results.Problem(
+                        statusCode: 503,
+                        title: "No se obtuvo confirmacion del retiro.");
+
+                bool confirmado = resultado.GetBoolean(
+                    resultado.GetOrdinal("RetiroConfirmado"));
+
+                if (!confirmado)
+                    return Results.Conflict(new
+                    {
+                        mensaje = "El retiro no fue confirmado."
+                    });
+
+                string codigo = resultado.GetString(
+                    resultado.GetOrdinal("CodigoCasillero"));
+
+                string estado = resultado.GetString(
+                    resultado.GetOrdinal("EstadoCasillero"));
+
+                decimal importe = resultado.GetDecimal(
+                    resultado.GetOrdinal("ImporteHnl"));
+
+                DateTime fecha = DateTime.SpecifyKind(
+                    resultado.GetDateTime(
+                        resultado.GetOrdinal("FechaRetiro")),
+                    DateTimeKind.Utc);
+
+                return Results.Ok(new
+                {
+                    retiroConfirmado = true,
+                    pagoSimulado = true,
+                    pagoAplicado = true,
+                    codigoCasillero = codigo,
+                    estadoCasillero = estado,
+                    importeHnl = importe,
+                    moneda = "HNL",
+                    fechaRetiro = fecha,
+                    hardwareSimulado = true
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number is >= 57703 and <= 57714)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "El pago o la autorizacion ya no permite finalizar el retiro.",
+                    retiroConfirmado = false
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "No se pudo completar el retiro pagado.");
+            }
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("OperacionesTerminal");
         terminal.MapGet("/csrf-token", (HttpContext http, IAntiforgery antiforgery) =>
         {
             if (!http.Request.IsHttps)
@@ -209,6 +590,184 @@ public static class WhatsAppManualEndpoints
             .RequireAuthorization("OperarServicios")
             .RequireRateLimiting("OperacionesTerminal");
 
+        // SYNCHRO-CONFIRMAR-COBRO-RETIRO-V1
+        // Solo un operador autorizado puede confirmar una simulacion.
+                // SYNCHRO-AUDITORIA-COBRO-RETIRO-V1
+        // SYNCHRO-ADMIN-LISTADO-COBROS-V1
+        // Solo usuarios con permiso OperarServicios.
+        admin.MapGet("/cobros/retiro/pendientes", async (
+            HttpContext http) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!http.Request.IsHttps)
+                return Results.StatusCode(403);
+
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                await using var comando = new SqlCommand("""
+                    SELECT TOP (50)
+                        c.CobroId,
+                        u.CodigoCasillero,
+                        c.MinutosUtilizados,
+                        c.ImporteHnl,
+                        c.DescripcionTarifa,
+                        c.CreadoUtc
+                    FROM dbo.CobrosRetiroPersonal c
+                    INNER JOIN dbo.UsosCasillero u
+                        ON u.Id = c.UsoId
+                    INNER JOIN dbo.Casilleros cas
+                        ON cas.Codigo = u.CodigoCasillero
+                    WHERE c.Estado = N'Pendiente'
+                      AND u.TipoServicio = N'ResguardoPersonal'
+                      AND u.OrigenReserva = N'Terminal'
+                      AND u.Estado = N'Ocupado'
+                      AND u.FechaRetiro IS NULL
+                      AND cas.Estado = N'Ocupado'
+                    ORDER BY c.CreadoUtc DESC
+                    """, db);
+
+                var cobros = new List<object>();
+
+                await using var lector =
+                    await comando.ExecuteReaderAsync(
+                        http.RequestAborted);
+
+                while (await lector.ReadAsync(http.RequestAborted))
+                {
+                    cobros.Add(new
+                    {
+                        cobroId = lector.GetGuid(0),
+                        codigoCasillero = lector.GetString(1),
+                        minutosUtilizados = lector.GetInt32(2),
+                        importeHnl = lector.GetDecimal(3),
+                        descripcionTarifa = lector.GetString(4),
+                        creadoUtc = DateTime.SpecifyKind(
+                            lector.GetDateTime(5),
+                            DateTimeKind.Utc)
+                    });
+                }
+
+                return Results.Ok(new { cobros });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "No se pudieron consultar los cobros.");
+            }
+        });
+admin.MapPost("/cobros/retiro/confirmar", async (
+            ConfirmarCobroRetiroPeticion datos,
+            HttpContext http,
+            IAntiforgery csrf) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!await TerminalSegura(http, csrf))
+                return Results.StatusCode(403);
+
+            if (datos.CobroId == Guid.Empty ||
+                !datos.PagoComprobado)
+                return Results.BadRequest(new
+                {
+                    mensaje = "Debes comprobar el pago simulado."
+                });
+
+            if (!int.TryParse(
+                http.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out int operadorId) || operadorId <= 0)
+                return Results.Unauthorized();
+
+            string metodo;
+
+            try
+            {
+                metodo = ModalidadesPagoSimulado
+                    .ParaRetiroPersonal(datos.MetodoPago);
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Metodo de pago no permitido."
+                });
+            }
+
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                // Una sola modificacion atomica:
+                // no se aceptan pagos de usos finalizados.
+                await using var comando = new SqlCommand(
+                    "dbo.ConfirmarCobroRetiroPersonalAuditableSynchro",
+                    db)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                comando.Parameters.Add(
+                    "@CobroId", SqlDbType.UniqueIdentifier)
+                    .Value = datos.CobroId;
+
+                comando.Parameters.Add(
+                    "@Metodo", SqlDbType.NVarChar, 24)
+                    .Value = metodo;
+
+                comando.Parameters.Add(
+                    "@OperadorId", SqlDbType.Int).Value = operadorId;
+
+                comando.Parameters.Add(
+                    "@PagoComprobado", SqlDbType.Bit)
+                    .Value = datos.PagoComprobado;
+                await using var lector =
+                    await comando.ExecuteReaderAsync(
+                        http.RequestAborted);
+
+                if (!await lector.ReadAsync(http.RequestAborted))
+                    return Results.Conflict(new
+                    {
+                        mensaje = "Cobro inexistente, confirmado o no disponible."
+                    });
+
+                Guid cobroId = lector.GetGuid(0);
+                decimal importe = lector.GetDecimal(1);
+                string estado = lector.GetString(2);
+                string casillero = lector.GetString(3);
+
+                return Results.Ok(new
+                {
+                    cobroId,
+                    codigoCasillero = casillero,
+                    importeHnl = importe,
+                    moneda = "HNL",
+                    metodoPago = metodo,
+                    estadoPago = estado,
+                    pagoConfirmado = true,
+                    pagoSimulado = true,
+                    retiroConfirmado = false
+                });
+            }
+            catch (SqlException ex) when (
+                ex.Number is 57910 or 57911)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "El cobro ya no permite confirmacion."
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "No se pudo confirmar el pago simulado.");
+            }
+        });
         admin.MapGet("/pendientes",async (HttpContext http) =>
         {
             if (!http.Request.IsHttps) return Results.StatusCode(403);

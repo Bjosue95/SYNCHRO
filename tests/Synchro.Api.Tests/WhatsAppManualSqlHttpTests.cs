@@ -79,6 +79,59 @@ public sealed class WhatsAppManualSqlHttpTests
     private static async Task<object?> EscalarAsync(SqlConnection db,string sql,string codigo)
     {await using var q=new SqlCommand(sql,db);q.Parameters.Add("@codigo",SqlDbType.NVarChar,10).Value=codigo;return await q.ExecuteScalarAsync();}
     [SqlDepositoFact]
+    public async Task CobroObligatorio_BloqueaRetiroDirecto()
+    {
+        using var fabrica = Fabrica().WithWebHostBuilder(b =>
+            b.ConfigureAppConfiguration((_, config) =>
+                config.AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["CobroRetiroPersonal:Obligatorio"] = "true"
+                    })));
+
+        using var terminal = fabrica.CreateClient(new()
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        await PreReservasWebTabletTests.CsrfAsync(
+            terminal,
+            "/api/terminales/guardar/whatsapp/csrf-token");
+
+        // Sin pago, la ruta antigua no puede confirmar un retiro.
+        using var antiguo = await terminal.PostAsJsonAsync(
+            "/api/terminales/guardar/whatsapp/retiro/pin",
+            new
+            {
+                pin = "123456",
+                tokenFacial = "token-no-valido"
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, antiguo.StatusCode);
+
+        using var respuesta = JsonDocument.Parse(
+            await antiguo.Content.ReadAsStringAsync());
+
+        Assert.True(respuesta.RootElement
+            .GetProperty("pagoObligatorio").GetBoolean());
+
+        Assert.False(respuesta.RootElement
+            .GetProperty("retiroConfirmado").GetBoolean());
+
+        // La prevalidacion sigue disponible, pero rechaza
+        // una autorizacion facial incorrecta.
+        using var prevalidar = await terminal.PostAsJsonAsync(
+            "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
+            new
+            {
+                pin = "123456",
+                tokenFacial = "token-no-valido"
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            prevalidar.StatusCode);
+    }
+    [SqlDepositoFact]
     public async Task RetiroPersonalManual_BloqueaEnQuintoIntento()
     {
         await using var db = new SqlConnection(
@@ -485,6 +538,513 @@ public sealed class WhatsAppManualSqlHttpTests
             await EscalarAsync(db, """
                 IF DB_NAME() <> N'SynchroDB_Pruebas'
                     THROW 50001, 'Base incorrecta', 1;
+
+                DELETE r
+                FROM dbo.RostrosRetiroPersonalManual r
+                JOIN dbo.UsosCasillero u ON u.Id=r.UsoId
+                WHERE u.CodigoCasillero=@codigo;
+
+                DELETE p
+                FROM dbo.CodigosRetiroPersonal p
+                JOIN dbo.UsosCasillero u ON u.Id=p.UsoId
+                WHERE u.CodigoCasillero=@codigo;
+
+                DELETE dbo.AutorizacionesWhatsAppManuales
+                WHERE CodigoCasillero=@codigo;
+
+                DELETE dbo.UsosCasillero
+                WHERE CodigoCasillero=@codigo;
+
+                DELETE dbo.Casilleros
+                WHERE Codigo=@codigo;
+                """, codigo);
+        }
+    }
+    [SqlDepositoFact]
+    public async Task RetiroPersonalManual_PrevalidarNoLiberaCasillero()
+    {
+        await using var db = new SqlConnection(
+            FabricaTerminalHttpPruebas.CadenaSqlAislada);
+
+        await db.OpenAsync();
+        await PrepararAsync(db);
+
+        string codigo = "P" + Guid.NewGuid().ToString("N")[..8];
+
+        await EscalarAsync(db, """
+            INSERT dbo.Casilleros(Codigo,Tamano,Tipo,Estado)
+            VALUES(@codigo,N'Mediano',N'Normal',N'Disponible')
+            """, codigo);
+
+        try
+        {
+            using var fabrica = Fabrica().WithWebHostBuilder(b =>
+                b.ConfigureAppConfiguration((_, configuracion) =>
+                    configuracion.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["CobroRetiroPersonal:MinutosPorBloque"] = "60",
+                            ["CobroRetiroPersonal:Tarifas:Mediano"] = "1.00",
+                            ["CobroRetiroPersonal:Obligatorio"] = "true"
+                        })));
+
+            using var terminal = fabrica.CreateClient(new()
+            {
+                BaseAddress = new Uri("https://localhost")
+            });
+
+            Guid intento = await IniciarAsync(terminal, codigo);
+
+            string autorizacion = (string)(await EscalarAsync(db, """
+                SELECT CodigoAutorizacion
+                FROM dbo.AutorizacionesWhatsAppManuales
+                WHERE CodigoCasillero=@codigo
+                """, codigo))!;
+
+            using var admin = fabrica.CreateClient(new()
+            {
+                BaseAddress = new Uri("https://localhost")
+            });
+
+            admin.DefaultRequestHeaders.Add("X-Test-Admin", "si");
+
+            await PreReservasWebTabletTests.CsrfAsync(
+                admin, "/api/admin/csrf-token");
+
+            using var confirmada = await admin.PostAsJsonAsync(
+                "/api/admin/whatsapp-manual/confirmar",
+                new
+                {
+                    intentoId = intento,
+                    codigoAutorizacion = autorizacion,
+                    telefonoCliente = "50400000001",
+                    mensajeComprobado = true
+                });
+
+            Assert.True(confirmada.IsSuccessStatusCode,
+                await confirmada.Content.ReadAsStringAsync());
+
+            using var datos = JsonDocument.Parse(
+                await confirmada.Content.ReadAsStringAsync());
+
+            string pinCorrecto = datos.RootElement
+                .GetProperty("pinRetiro").GetString()!;
+
+            using var enviado = await admin.PostAsJsonAsync(
+                "/api/admin/whatsapp-manual/marcar-enviado",
+                new
+                {
+                    intentoId = intento,
+                    envioComprobado = true
+                });
+
+            Assert.True(enviado.IsSuccessStatusCode);
+
+            using var deposito = await terminal.PostAsJsonAsync(
+                "/api/terminales/guardar/whatsapp/deposito/confirmar",
+                new { intentoId = intento });
+
+            Assert.True(deposito.IsSuccessStatusCode);
+
+            terminal.DefaultRequestHeaders.Add(
+                "X-SYNCHRO-CONSENTIMIENTO", "ACEPTO");
+
+            using var imagen = new ByteArrayContent(
+                RostroSimuladoTests.Png());
+
+            imagen.Headers.ContentType =
+                new("application/octet-stream");
+
+            using var facial = await terminal.PostAsync(
+                "/api/terminales/guardar/whatsapp/retiro/rostro",
+                imagen);
+
+            Assert.True(facial.IsSuccessStatusCode,
+                await facial.Content.ReadAsStringAsync());
+
+            using var resultadoFacial = JsonDocument.Parse(
+                await facial.Content.ReadAsStringAsync());
+
+            string token = resultadoFacial.RootElement
+                .GetProperty("tokenFacial").GetString()!;
+
+            string pinIncorrecto = pinCorrecto == "000000"
+                ? "111111" : "000000";
+
+            // PIN incorrecto: rechazo y un intento fallido.
+            using var incorrecto = await terminal.PostAsJsonAsync(
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
+                new { pin = pinIncorrecto, tokenFacial = token });
+
+            Assert.Equal(HttpStatusCode.BadRequest,
+                incorrecto.StatusCode);
+
+            Assert.Equal(1, Convert.ToInt32(await EscalarAsync(db, """
+                SELECT p.IntentosFallidos
+                FROM dbo.CodigosRetiroPersonal p
+                JOIN dbo.UsosCasillero u ON u.Id=p.UsoId
+                WHERE u.CodigoCasillero=@codigo
+                """, codigo)));
+
+            // PIN correcto: avanzar al pago sin liberar.
+            using var correcto = await terminal.PostAsJsonAsync(
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
+                new { pin = pinCorrecto, tokenFacial = token });
+
+            Assert.True(correcto.IsSuccessStatusCode,
+                await correcto.Content.ReadAsStringAsync());
+
+            using var resultado = JsonDocument.Parse(
+                await correcto.Content.ReadAsStringAsync());
+
+            var cuerpo = resultado.RootElement;
+
+            Assert.True(cuerpo.GetProperty("pinValidado").GetBoolean());
+            Assert.True(cuerpo.GetProperty("pagoPendiente").GetBoolean());
+            Assert.False(cuerpo.GetProperty("pagoConfirmado").GetBoolean());
+            Assert.False(cuerpo.GetProperty("retiroConfirmado").GetBoolean());
+
+            Assert.Equal(codigo,
+                cuerpo.GetProperty("codigoCasillero").GetString());
+
+            Assert.True(
+                cuerpo.GetProperty("minutosUtilizados").GetInt32() >= 1);
+
+            Assert.False(string.IsNullOrWhiteSpace(
+                cuerpo.GetProperty("autorizacionPago").GetString()));
+
+            Assert.Equal("Ocupado", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",
+                codigo));
+
+            Assert.Equal("Ocupado", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.UsosCasillero WHERE CodigoCasillero=@codigo",
+                codigo));
+
+            Assert.Equal(0, Convert.ToInt32(await EscalarAsync(db, """
+                SELECT COUNT(*)
+                FROM dbo.UsosCasillero
+                WHERE CodigoCasillero=@codigo
+                  AND FechaRetiro IS NOT NULL
+                """, codigo)));
+
+            Assert.Equal(0, Convert.ToInt32(await EscalarAsync(db, """
+                SELECT COUNT(*)
+                FROM dbo.CodigosRetiroPersonal p
+                JOIN dbo.UsosCasillero u ON u.Id=p.UsoId
+                WHERE u.CodigoCasillero=@codigo
+                  AND p.FechaUso IS NOT NULL
+                """, codigo)));
+
+            Assert.Equal(0, Convert.ToInt32(await EscalarAsync(db, """
+                SELECT COUNT(*)
+                FROM dbo.CobrosRetiroPersonal c
+                JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                WHERE u.CodigoCasillero=@codigo
+                """, codigo)));
+
+            // La reutilizacion del token se probara por separado.
+            // SYNCHRO-PRUEBA-COBRO-HTTP-V1
+            // La tarifa ficticia esta configurada solo en esta prueba.
+            string autorizacionPago = cuerpo
+                .GetProperty("autorizacionPago")
+                .GetString()!;
+
+            using var orden = await terminal.PostAsJsonAsync(
+                "/api/terminales/guardar/whatsapp/retiro/cobro/preparar",
+                new { autorizacionPago });
+
+            Assert.True(
+                orden.IsSuccessStatusCode,
+                $"Preparacion del cobro: HTTP {(int)orden.StatusCode} ({orden.StatusCode}). " +
+                await orden.Content.ReadAsStringAsync());
+
+            using var datosOrden = JsonDocument.Parse(
+                await orden.Content.ReadAsStringAsync());
+
+            var ordenJson = datosOrden.RootElement;
+
+            Guid cobroId = ordenJson
+                .GetProperty("cobroId")
+                .GetGuid();
+
+            Assert.NotEqual(Guid.Empty, cobroId);
+
+            Assert.Equal(
+                codigo,
+                ordenJson.GetProperty("codigoCasillero")
+                    .GetString());
+
+            Assert.Equal(
+                1.00m,
+                ordenJson.GetProperty("importeHnl")
+                    .GetDecimal());
+
+            Assert.Equal(
+                "HNL",
+                ordenJson.GetProperty("moneda")
+                    .GetString());
+
+            Assert.Equal(
+                "Pendiente",
+                ordenJson.GetProperty("estadoPago")
+                    .GetString());
+
+            Assert.False(
+                ordenJson.GetProperty("pagoConfirmado")
+                    .GetBoolean());
+
+            Assert.False(
+                ordenJson.GetProperty("retiroConfirmado")
+                    .GetBoolean());
+
+            Assert.Equal(
+                1,
+                Convert.ToInt32(await EscalarAsync(db, """
+                    SELECT COUNT(*)
+                    FROM dbo.CobrosRetiroPersonal c
+                    JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                    WHERE u.CodigoCasillero=@codigo
+                      AND c.Estado=N'Pendiente'
+                    """, codigo)));
+
+            Assert.Equal(
+                cobroId,
+                (Guid)(await EscalarAsync(db, """
+                    SELECT c.CobroId
+                    FROM dbo.CobrosRetiroPersonal c
+                    JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                    WHERE u.CodigoCasillero=@codigo
+                    """, codigo))!);
+
+            Assert.Equal(
+                "Ocupado",
+                await EscalarAsync(db, """
+                    SELECT Estado
+                    FROM dbo.Casilleros
+                    WHERE Codigo=@codigo
+                    """, codigo));
+
+            // Continuar con las pruebas SQL ya existentes:
+            // pago pendiente, pago confirmado y doble retiro.
+            const string finalizarSql = """
+                DECLARE @UsoId INT = (
+                    SELECT Id FROM dbo.UsosCasillero
+                    WHERE CodigoCasillero=@codigo
+                );
+
+                DECLARE @CobroId UNIQUEIDENTIFIER = (
+                    SELECT c.CobroId
+                    FROM dbo.CobrosRetiroPersonal c
+                    WHERE c.UsoId=@UsoId
+                );
+
+                EXEC dbo.FinalizarRetiroPersonalPagadoSynchro
+                    @UsoId=@UsoId,
+                    @CobroId=@CobroId;
+                """;
+
+            // 1. Un cobro pendiente NO permite retirar.
+            var rechazoPendiente =
+                await Assert.ThrowsAsync<SqlException>(
+                    () => EscalarAsync(db, finalizarSql, codigo));
+
+            Assert.Equal(57708, rechazoPendiente.Number);
+
+            Assert.Equal("Ocupado", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",
+                codigo));
+
+            Assert.Equal("Ocupado", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.UsosCasillero WHERE CodigoCasillero=@codigo",
+                codigo));
+
+                        // SYNCHRO-ADMIN-LISTADO-COBROS-V1
+            // El operador autenticado debe ver la orden pendiente.
+            using var listadoCobros = await admin.GetAsync(
+                "/api/admin/whatsapp-manual/cobros/retiro/pendientes");
+
+            Assert.True(
+                listadoCobros.IsSuccessStatusCode,
+                "Listado: HTTP " +
+                (int)listadoCobros.StatusCode + ". " +
+                await listadoCobros.Content.ReadAsStringAsync());
+
+            using var datosCobros = JsonDocument.Parse(
+                await listadoCobros.Content.ReadAsStringAsync());
+
+            Assert.True(
+                datosCobros.RootElement
+                    .GetProperty("cobros")
+                    .EnumerateArray()
+                    .Any(x =>
+                        x.GetProperty("cobroId").GetGuid() == cobroId),
+                "La orden pendiente debe estar visible al operador.");
+// Pago sin comprobacion: rechazado.
+            using var noComprobado = await admin.PostAsJsonAsync(
+                "/api/admin/whatsapp-manual/cobros/retiro/confirmar",
+                new
+                {
+                    cobroId,
+                    metodoPago = "Efectivo",
+                    pagoComprobado = false
+                });
+
+            Assert.Equal(
+                HttpStatusCode.BadRequest,
+                noComprobado.StatusCode);
+
+            // Confirmacion por el operador autorizado.
+            using var pago = await admin.PostAsJsonAsync(
+                "/api/admin/whatsapp-manual/cobros/retiro/confirmar",
+                new
+                {
+                    cobroId,
+                    metodoPago = "Efectivo",
+                    pagoComprobado = true
+                });
+
+            Assert.True(
+                pago.IsSuccessStatusCode,
+                $"Confirmacion: HTTP {(int)pago.StatusCode}. " +
+                await pago.Content.ReadAsStringAsync());
+
+            using var respuestaPago = JsonDocument.Parse(
+                await pago.Content.ReadAsStringAsync());
+
+            Assert.True(respuestaPago.RootElement
+                .GetProperty("pagoConfirmado").GetBoolean());
+
+            Assert.True(respuestaPago.RootElement
+                .GetProperty("pagoSimulado").GetBoolean());
+
+            Assert.False(respuestaPago.RootElement
+                .GetProperty("retiroConfirmado").GetBoolean());
+
+            // SYNCHRO-AUDITORIA-COBRO-RETIRO-V1
+            Assert.Equal(1, Convert.ToInt32(
+                await EscalarAsync(db, """
+                    SELECT COUNT(*)
+                    FROM dbo.AuditoriaCobrosRetiroPersonal
+                    WHERE CodigoCasillero=@codigo
+                      AND OperadorId > 0
+                      AND ImporteHnl=1.00
+                      AND MetodoPago=N'EfectivoSimulado'
+                      AND ConfirmadoUtc IS NOT NULL
+                    """, codigo)));
+            // Una segunda confirmacion no debe procesarse.
+            using var pagoRepetido = await admin.PostAsJsonAsync(
+                "/api/admin/whatsapp-manual/cobros/retiro/confirmar",
+                new
+                {
+                    cobroId,
+                    metodoPago = "Efectivo",
+                    pagoComprobado = true
+                });
+
+            Assert.Equal(
+                HttpStatusCode.Conflict,
+                pagoRepetido.StatusCode);
+            Assert.Equal(cobroId, (Guid)(await EscalarAsync(db, """
+                SELECT c.CobroId
+                FROM dbo.CobrosRetiroPersonal c
+                JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                WHERE u.CodigoCasillero=@codigo
+                """, codigo))!);
+
+            // 3. Finalizacion HTTP usando la autorizacion
+            // emitida despues del PIN y el cobro confirmado.
+            using var retiroHttp = await terminal.PostAsJsonAsync(
+                "/api/terminales/guardar/whatsapp/retiro/cobro/finalizar",
+                new { cobroId, autorizacionPago });
+
+            Assert.True(
+                retiroHttp.IsSuccessStatusCode,
+                $"Retiro HTTP: {(int)retiroHttp.StatusCode}. " +
+                await retiroHttp.Content.ReadAsStringAsync());
+
+            using var datosRetiro = JsonDocument.Parse(
+                await retiroHttp.Content.ReadAsStringAsync());
+
+            Assert.True(datosRetiro.RootElement
+                .GetProperty("retiroConfirmado").GetBoolean());
+
+            Assert.True(datosRetiro.RootElement
+                .GetProperty("pagoAplicado").GetBoolean());
+
+            Assert.Equal(
+                codigo,
+                datosRetiro.RootElement
+                    .GetProperty("codigoCasillero").GetString());
+
+            // La evidencia facial debe eliminarse al retirar.
+            Assert.Equal(0, Convert.ToInt32(
+                await EscalarAsync(db, """
+                    SELECT COUNT(*)
+                    FROM dbo.RostrosRetiroPersonalManual r
+                    JOIN dbo.UsosCasillero u
+                        ON u.Id = r.UsoId
+                    WHERE u.CodigoCasillero = @codigo
+                    """, codigo)));
+            // El mismo pago no puede liberar el casillero otra vez.
+            using var retiroDuplicado = await terminal.PostAsJsonAsync(
+                "/api/terminales/guardar/whatsapp/retiro/cobro/finalizar",
+                new { cobroId, autorizacionPago });
+
+            Assert.Equal(
+                HttpStatusCode.Conflict,
+                retiroDuplicado.StatusCode);
+
+            Assert.Equal("Disponible", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",
+                codigo));
+
+            Assert.Equal("Finalizado", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.UsosCasillero WHERE CodigoCasillero=@codigo",
+                codigo));
+
+            Assert.Equal(1, Convert.ToInt32(await EscalarAsync(db, """
+                SELECT COUNT(*)
+                FROM dbo.CodigosRetiroPersonal p
+                JOIN dbo.UsosCasillero u ON u.Id=p.UsoId
+                WHERE u.CodigoCasillero=@codigo
+                  AND p.FechaUso IS NOT NULL
+                """, codigo)));
+
+            Assert.Equal(1, Convert.ToInt32(await EscalarAsync(db, """
+                SELECT COUNT(*)
+                FROM dbo.CobrosRetiroPersonal c
+                JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                WHERE u.CodigoCasillero=@codigo
+                  AND c.Estado=N'Aplicado'
+                  AND c.FinalizadoUtc IS NOT NULL
+                """, codigo)));
+
+            // 4. No se puede finalizar dos veces.
+            var segundoRetiro =
+                await Assert.ThrowsAsync<SqlException>(
+                    () => EscalarAsync(db, finalizarSql, codigo));
+
+            Assert.Equal(57705, segundoRetiro.Number);
+
+            Assert.Equal("Disponible", await EscalarAsync(db,
+                "SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",
+                codigo));
+        }
+        finally
+        {
+            // Eliminar exclusivamente el casillero temporal.
+            await EscalarAsync(db, """
+                IF DB_NAME() <> N'SynchroDB_Pruebas'
+                    THROW 50001, 'Base incorrecta', 1;
+
+                DELETE FROM dbo.AuditoriaCobrosRetiroPersonal
+                WHERE CodigoCasillero=@codigo;
+
+                DELETE c
+                FROM dbo.CobrosRetiroPersonal c
+                JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                WHERE u.CodigoCasillero=@codigo;
 
                 DELETE r
                 FROM dbo.RostrosRetiroPersonalManual r

@@ -11,6 +11,13 @@ const clave = ref("");
 const autenticado = ref(false);
 const rol = ref("");
 const operaciones = ref([]);
+
+// SYNCHRO-ADMIN-COBROS-UI-V1
+const cobrosRetiro = ref([]);
+const metodosRetiro = ref({});
+const pagosComprobados = ref({});
+let ultimaConsultaCobros = 0;
+let consultandoCobros = false;
 const error = ref("");
 const aviso = ref("");
 const trabajando = ref("");
@@ -76,11 +83,114 @@ async function comprobarSesion() {
   } catch { autenticado.value=false; }
 }
 
+async function actualizarCobros(forzar = false) {
+  if (!autenticado.value || !montado || consultandoCobros) return;
+
+  if (!forzar && Date.now() - ultimaConsultaCobros < 15000) {
+    return;
+  }
+
+  consultandoCobros = true;
+  ultimaConsultaCobros = Date.now();
+
+  try {
+    const datos = await request(
+      "/api/admin/whatsapp-manual/cobros/retiro/pendientes"
+    );
+
+    if (montado && autenticado.value) {
+      cobrosRetiro.value = Array.isArray(datos?.cobros)
+        ? datos.cobros
+        : [];
+    }
+  } catch (e) {
+    if (montado && e.status === 401) {
+      autenticado.value = false;
+      cobrosRetiro.value = [];
+    } else if (montado) {
+      error.value = e.message;
+    }
+  } finally {
+    consultandoCobros = false;
+  }
+}
+
+async function confirmarPagoRetiro(item) {
+  if (!autenticado.value || trabajando.value) return;
+
+  if (pagosComprobados.value[item.cobroId] !== true) {
+    error.value = "Primero debes comprobar el pago simulado.";
+    return;
+  }
+
+  const metodo = metodosRetiro.value[item.cobroId] || "Efectivo";
+
+  if (!["Efectivo", "Tarjeta"].includes(metodo)) {
+    error.value = "Método de pago no autorizado.";
+    return;
+  }
+
+  const importe = Number(item.importeHnl);
+
+  if (!Number.isFinite(importe) || importe <= 0) {
+    error.value = "El importe del cobro no es válido.";
+    return;
+  }
+
+  const aprobado = window.confirm(
+    `¿Confirmas que verificaste el pago SIMULADO ` +
+    `del casillero ${item.codigoCasillero} ` +
+    `por L ${importe.toFixed(2)}?`
+  );
+
+  if (!aprobado) return;
+
+  error.value = "";
+  aviso.value = "";
+  trabajando.value = "cobro-" + item.cobroId;
+
+  try {
+    const resultado = await ejecutar(
+      "/api/admin/whatsapp-manual/cobros/retiro/confirmar",
+      {
+        cobroId: item.cobroId,
+        metodoPago: metodo,
+        pagoComprobado: true
+      }
+    );
+
+    if (resultado?.pagoConfirmado !== true ||
+        resultado?.estadoPago !== "ConfirmadoSimulado" ||
+        resultado?.retiroConfirmado !== false) {
+      throw new Error("El backend no confirmó correctamente el pago.");
+    }
+
+    delete pagosComprobados.value[item.cobroId];
+
+    cobrosRetiro.value = cobrosRetiro.value.filter(
+      cobro => cobro.cobroId !== item.cobroId
+    );
+
+    aviso.value =
+      `Pago simulado del casillero ${item.codigoCasillero} ` +
+      "confirmado y auditado. El usuario ya puede " +
+      "comprobar el pago en la tablet.";
+
+    await actualizarCobros(true);
+  } catch (e) {
+    error.value = e instanceof Error
+      ? e.message
+      : "No se pudo confirmar el pago.";
+  } finally {
+    trabajando.value = "";
+  }
+}
 async function actualizar() {
   if (!autenticado.value || !montado) return;
   try {
     const datos=await request("/api/admin/whatsapp-manual/pendientes");
     if (montado) operaciones.value=datos?.operaciones || [];
+    await actualizarCobros();
   } catch(e) {
     if (montado && e.status===401) autenticado.value=false;
     else if(montado) error.value=e.message;
@@ -163,7 +273,7 @@ async function enviado(item) {
 async function cerrarSesion() {
   try { await ejecutar("/api/admin/logout",{}); }
   catch(e) { error.value=e.message; }
-  finally { autenticado.value=false; pinActual.value=null; operaciones.value=[]; clave.value=""; }
+  finally { autenticado.value=false; pinActual.value=null; operaciones.value=[]; cobrosRetiro.value=[]; metodosRetiro.value={}; pagosComprobados.value={}; clave.value=""; }
 }
 
 async function cancelar(item) {
@@ -277,7 +387,98 @@ onBeforeUnmount(()=>{
         <p v-else-if="item.estado==='Vencido'" class="precaucion">La reserva venció. Puedes cancelarla para liberar el casillero si no hay objetos dentro.</p>
         <button type="button" class="secundario" style="margin-top:16px" :disabled="!!trabajando" @click="cancelar(item)">Cancelar reserva sin depósito</button>
       </section>
-    </template>
+      <!-- SYNCHRO-ADMIN-COBROS-UI-V1 -->
+      <section class="tarjeta cobros-retiro">
+        <div class="cabecera-tarjeta">
+          <h2>Cobros pendientes de retiro personal</h2>
+
+          <button
+            type="button"
+            class="secundario"
+            :disabled="!!trabajando"
+            @click="actualizarCobros(true)"
+          >
+            Actualizar cobros
+          </button>
+        </div>
+
+        <p class="ayuda">
+          Estos cobros requieren confirmación administrativa.
+          Todos los pagos son simulados.
+        </p>
+
+        <p v-if="cobrosRetiro.length === 0">
+          No hay cobros pendientes de confirmación.
+        </p>
+
+        <article
+          v-for="item in cobrosRetiro"
+          :key="item.cobroId"
+          class="registro-cobro"
+        >
+          <div class="cabecera-tarjeta">
+            <h3>Casillero {{ item.codigoCasillero }}</h3>
+            <span class="estado">Pendiente</span>
+          </div>
+
+          <div class="datos">
+            <span>Tiempo utilizado</span>
+            <strong>
+              {{ item.minutosUtilizados }} minuto(s)
+            </strong>
+          </div>
+
+          <div class="datos">
+            <span>Importe</span>
+            <strong class="importe-cobro">
+              L {{ Number(item.importeHnl).toFixed(2) }}
+            </strong>
+          </div>
+
+          <p class="ayuda">
+            {{ item.descripcionTarifa }}
+          </p>
+
+          <div class="confirmacion">
+            <label>
+              Método de pago simulado
+
+              <select
+                :value="metodosRetiro[item.cobroId] || 'Efectivo'"
+                @change="
+                  metodosRetiro[item.cobroId] =
+                    $event.target.value
+                "
+              >
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta">Tarjeta</option>
+              </select>
+            </label>
+
+            <label class="check">
+              <input
+                v-model="pagosComprobados[item.cobroId]"
+                type="checkbox"
+              />
+
+              <span>
+                Confirmo que he comprobado este pago simulado.
+              </span>
+            </label>
+
+            <button
+              type="button"
+              :disabled="
+                !!trabajando ||
+                pagosComprobados[item.cobroId] !== true
+              "
+              @click="confirmarPagoRetiro(item)"
+            >
+              Confirmar pago simulado
+            </button>
+          </div>
+        </article>
+      </section>    </template>
   </main>
 </template>
 
@@ -714,5 +915,52 @@ button.secundario { color:#01305c; background:#e4edf2; }
   .manual-admin button {
     transition: none;
   }
+}
+/* SYNCHRO-ADMIN-COBROS-UI-V1 */
+
+.cobros-retiro {
+  margin-top: 24px;
+}
+
+.registro-cobro {
+  padding: 20px 0;
+  border-top: 1px solid #dce7eb;
+}
+
+.registro-cobro h3 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.registro-cobro .importe-cobro {
+  color: #008c9a;
+  font-size: 23px;
+}
+
+.registro-cobro select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 46px;
+  padding: 12px;
+  border: 1px solid #b5cbd3;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #01305c;
+  font: inherit;
+}
+
+.registro-cobro .check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.registro-cobro .check input {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
 }
 </style>

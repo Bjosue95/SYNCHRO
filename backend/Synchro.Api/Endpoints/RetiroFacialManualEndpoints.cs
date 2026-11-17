@@ -182,11 +182,274 @@ internal static class RetiroFacialManualEndpoints
             }
         });
 
+        // SYNCHRO-COBRO-POSTERIOR-PREVALIDAR-V1
+        // No registra retiro, no consume PIN y no confirma pagos.
+        grupo.MapPost("/pin/prevalidar", async (
+            RetiroManualPinSolicitud solicitud,
+            HttpContext http,
+            IAntiforgery csrf,
+            IDataProtectionProvider proveedor,
+            IConfiguration config) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+
+            if (solicitud.Pin is not { Length: 6 } ||
+                !solicitud.Pin.All(char.IsAsciiDigit) ||
+                solicitud.TokenFacial is null ||
+                solicitud.TokenFacial.Length is < 32 or > 4096)
+                return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+            int[] candidatos;
+
+            try
+            {
+                string texto = proveedor
+                    .CreateProtector(ContextoAutorizacion)
+                    .ToTimeLimitedDataProtector()
+                    .Unprotect(solicitud.TokenFacial);
+
+                candidatos = texto
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => int.Parse(x, CultureInfo.InvariantCulture))
+                    .ToArray();
+
+                if (candidatos.Length is < 1 or > MaxCoincidencias ||
+                    candidatos.Any(x => x <= 0) ||
+                    candidatos.Distinct().Count() != candidatos.Length)
+                    return Results.BadRequest(new { mensaje = MensajeRechazo });
+            }
+            catch (Exception ex) when (
+                ex is CryptographicException or FormatException or OverflowException)
+            {
+                return Results.BadRequest(new {
+                    mensaje = "La autorizacion facial vencio. Repite el escaneo."
+                });
+            }
+
+            if (!ControlesRetiro.TryGetValue(
+                    ClaveDeToken(solicitud.TokenFacial), out var control) ||
+                control.VenceUtc <= DateTimeOffset.UtcNow ||
+                Volatile.Read(ref control.Consumido) != 0)
+                return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+            if (Interlocked.Increment(ref control.Intentos) > 5)
+                return Results.StatusCode(429);
+
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                var coincidenciasPin = new List<int>();
+
+                foreach (int usoId in candidatos)
+                {
+                    byte[]? sal = null;
+                    byte[]? guardado = null;
+                    byte[]? calculado = null;
+
+                    try
+                    {
+                        await using var buscar = new SqlCommand("""
+                            SELECT p.PinSalt, p.PinHash
+                            FROM dbo.CodigosRetiroPersonal p
+                            JOIN dbo.UsosCasillero u
+                                ON u.Id = p.UsoId
+                            JOIN dbo.AutorizacionesWhatsAppManuales a
+                                ON a.UsoId = u.Id
+                                AND a.Estado = N'Confirmado'
+                            JOIN dbo.RostrosRetiroPersonalManual r
+                                ON r.UsoId = u.Id
+                            WHERE u.Id = @Uso
+                              AND u.Estado = N'Ocupado'
+                              AND u.FechaRetiro IS NULL
+                              AND u.TipoServicio = N'ResguardoPersonal'
+                              AND u.OrigenReserva = N'Terminal'
+                              AND p.FechaUso IS NULL
+                              AND p.IntentosFallidos < 5
+                              AND (
+                                p.FechaVencimiento IS NULL OR
+                                p.FechaVencimiento > SYSUTCDATETIME()
+                              )
+                            """, db);
+
+                        buscar.Parameters.Add("@Uso", SqlDbType.Int).Value = usoId;
+
+                        await using var lector =
+                            await buscar.ExecuteReaderAsync(http.RequestAborted);
+
+                        if (!await lector.ReadAsync(http.RequestAborted))
+                            continue;
+
+                        sal = (byte[])lector.GetValue(0);
+                        guardado = (byte[])lector.GetValue(1);
+
+                        if (sal.Length != 32 || guardado.Length != 32)
+                            continue;
+
+                        calculado = CodigoPinRetiroPersonal.CalcularHash(
+                            solicitud.Pin, usoId, sal, config);
+
+                        if (CryptographicOperations.FixedTimeEquals(
+                            calculado, guardado))
+                            coincidenciasPin.Add(usoId);
+                    }
+                    finally
+                    {
+                        if (sal is not null)
+                            CryptographicOperations.ZeroMemory(sal);
+
+                        if (guardado is not null)
+                            CryptographicOperations.ZeroMemory(guardado);
+
+                        if (calculado is not null)
+                            CryptographicOperations.ZeroMemory(calculado);
+                    }
+                }
+
+                // No adivinar a que operacion corresponde el PIN.
+                if (coincidenciasPin.Count > 1)
+                    return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+                int usoSeleccionado = coincidenciasPin.Count == 1
+                    ? coincidenciasPin[0]
+                    : candidatos.Length == 1 ? candidatos[0] : 0;
+
+                if (usoSeleccionado <= 0)
+                    return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+                byte[]? salFinal = null;
+                byte[]? hashFinal = null;
+
+                try
+                {
+                    await using (var buscarSal = new SqlCommand("""
+                        SELECT PinSalt
+                        FROM dbo.CodigosRetiroPersonal
+                        WHERE UsoId = @Uso
+                        """, db))
+                    {
+                        buscarSal.Parameters.Add(
+                            "@Uso", SqlDbType.Int).Value = usoSeleccionado;
+
+                        salFinal = await buscarSal.ExecuteScalarAsync(
+                            http.RequestAborted) as byte[];
+                    }
+
+                    if (salFinal is not { Length: 32 })
+                        return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+                    hashFinal = CodigoPinRetiroPersonal.CalcularHash(
+                        solicitud.Pin, usoSeleccionado, salFinal, config);
+
+                    await using var validar = new SqlCommand(
+                        "dbo.PrevalidarRetiroPersonalSynchro", db)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+
+                    validar.Parameters.Add(
+                        "@UsoId", SqlDbType.Int).Value = usoSeleccionado;
+
+                    validar.Parameters.Add(
+                        "@PinHashCandidato", SqlDbType.VarBinary, 32)
+                        .Value = hashFinal;
+
+                    validar.Parameters.Add(
+                        "@PinSaltLeido", SqlDbType.VarBinary, 32)
+                        .Value = salFinal;
+
+                    string codigoCasillero;
+                    int minutos;
+
+                    await using (var resultado =
+                        await validar.ExecuteReaderAsync(http.RequestAborted))
+                    {
+                        if (!await resultado.ReadAsync(http.RequestAborted) ||
+                            !resultado.GetBoolean(
+                                resultado.GetOrdinal("PinValido")))
+                            return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+                        codigoCasillero = resultado.GetString(
+                            resultado.GetOrdinal("CodigoCasillero"));
+
+                        minutos = resultado.GetInt32(
+                            resultado.GetOrdinal("MinutosUtilizados"));
+                    }
+
+                    // Token protegido de corta duracion.
+                    // NO constituye comprobante de pago.
+                    string autorizacionPago = proveedor
+                        .CreateProtector(
+                            "SYNCHRO.RostroManual.PagoPendiente.v1")
+                        .ToTimeLimitedDataProtector()
+                        .Protect(
+                            usoSeleccionado.ToString(
+                                CultureInfo.InvariantCulture),
+                            TimeSpan.FromMinutes(5));
+
+                    // No permitir reutilizar esta captura facial.
+                    if (Interlocked.CompareExchange(
+                            ref control.Consumido, 1, 0) != 0)
+                        return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+                    return Results.Ok(new
+                    {
+                        pinValidado = true,
+                        pagoPendiente = true,
+                        codigoCasillero,
+                        minutosUtilizados = minutos,
+                        estadoCasillero = "Ocupado",
+                        autorizacionPago,
+                        pagoConfirmado = false,
+                        retiroConfirmado = false
+                    });
+                }
+                finally
+                {
+                    if (salFinal is not null)
+                        CryptographicOperations.ZeroMemory(salFinal);
+
+                    if (hashFinal is not null)
+                        CryptographicOperations.ZeroMemory(hashFinal);
+                }
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "No se pudo verificar la operacion.");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Verificacion del PIN no disponible.");
+            }
+            catch (FormatException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Configuracion del PIN no disponible.");
+            }
+        });
+
         grupo.MapPost("/pin", async (RetiroManualPinSolicitud solicitud, HttpContext http,
             IAntiforgery csrf, IDataProtectionProvider proveedor, IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http)) return Results.StatusCode(403);
+            // SYNCHRO-BLOQUEO-RETIRO-DIRECTO-V1
+            if (config.GetValue<bool>("CobroRetiroPersonal:Obligatorio"))
+                return Results.Conflict(new {
+                    mensaje = "Se requiere pago antes del retiro.",
+                    pagoObligatorio = true,
+                    retiroConfirmado = false
+                });
             if (solicitud.Pin is not { Length: 6 } || !solicitud.Pin.All(char.IsAsciiDigit) ||
                 solicitud.TokenFacial is null || solicitud.TokenFacial.Length is < 32 or > 4096)
                 return Results.BadRequest(new { mensaje = MensajeRechazo });

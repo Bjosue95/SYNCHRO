@@ -2,8 +2,16 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
-import { confirmarRetiroFacialConPin } from "../services/retiroFacialManualApi";
-import { obtenerRetiro, limpiarRetiro } from "../services/retiroSesion";
+import {
+  confirmarRetiroFacialConPin,
+  prevalidarRetiroFacialConPin,
+  prepararCobroRetiroPersonal
+} from "../services/retiroFacialManualApi";
+import {
+  obtenerRetiro,
+  limpiarRetiro,
+  registrarOrdenRetiroPagado
+} from "../services/retiroSesion";
 
 const router = useRouter();
 const { oscuro } = useTema();
@@ -83,6 +91,49 @@ async function verificar() {
   mensaje.value = "";
 
   try {
+    // SYNCHRO-TABLET-PAGO-OPTATIVO-V1
+    // Activar solamente cuando backend, tarifas y operador
+    // esten preparados. No se modifica el diseno del PIN.
+    if (import.meta.env.VITE_RETIRO_PAGO_HABILITADO === "true") {
+      let prevalidado = false;
+
+      try {
+        const autorizacion = await prevalidarRetiroFacialConPin(
+          pin.value,
+          tokenFacial
+        );
+
+        prevalidado = true;
+
+        const orden = await prepararCobroRetiroPersonal(
+          autorizacion.autorizacionPago
+        );
+
+        registrarOrdenRetiroPagado(
+          autorizacion.autorizacionPago,
+          orden
+        );
+
+        await router.replace("/retirar/pago");
+        return;
+      } catch (error) {
+        if (prevalidado) {
+          limpiarRetiro();
+
+          const detalle = error instanceof Error
+            ? error.message
+            : "No se pudo preparar el cobro.";
+
+          throw new Error(
+            `${detalle} Para volver a intentarlo, repite la verificacion facial.`
+          );
+        }
+
+        throw error;
+      }
+    }
+
+    // Compatibilidad temporal con el modo sin cobro.
     const resultado = await confirmarRetiroFacialConPin(
       pin.value,
       tokenFacial

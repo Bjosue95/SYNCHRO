@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Synchro.Api.Services.Pagos;
 
 namespace Synchro.Api.Services.Temporales;
 
@@ -90,21 +91,9 @@ internal sealed class ServicioTemporal(IRepositorioServicioTemporal repo,IConfig
         {
             var o=Propietario(d,id,credencial,terminal);
             GestionTermica(o,clientePersonaId,terminal);
-            // No se reciben billetes ni se procesa dinero real: el canal solo
-            // identifica la modalidad seleccionada en la demostracion.
-            string canal=terminal is not null
-                ? metodoPago switch
-                {
-                    null or "NFC" => "NfcSimulado",
-                    "Tarjeta" => "TarjetaTerminalSimulada",
-                    "Efectivo" => "EfectivoSimulado",
-                    _ => throw new ArgumentException("Metodo de pago simulado invalido.")
-                }
-                : metodoPago switch
-                {
-                    null or "TarjetaWeb" => "WebSimulado",
-                    _ => throw new ArgumentException("El pago web no admite esta modalidad.")
-                };
+            // Reutilizar la politica comun de pagos del prototipo.
+            string canal = ModalidadesPagoSimulado.ParaServicioTemporal(
+                terminal, metodoPago);
             if(o.PagoId==pagoId&&!o.PagoAnulado&&o.CanalPago==canal)return new PagoServicioTemporal(Vista(o),null,true);
             if(o.Estado!=EstadoServicioTemporal.Reservada)throw new ServicioTemporalNoDisponibleException(true);
             string pin=CrearPin(o);o.Estado=EstadoServicioTemporal.Pagada;o.PagoId=pagoId;o.PagoUtc=Ahora;o.CanalPago=canal;

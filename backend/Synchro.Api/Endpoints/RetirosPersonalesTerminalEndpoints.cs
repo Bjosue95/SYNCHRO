@@ -26,6 +26,13 @@ public static class RetirosPersonalesTerminalEndpoints
             if (!await antiforgery.IsRequestValidAsync(contexto))
                 return Results.BadRequest(new { mensaje = "Token CSRF invalido o ausente." });
 
+            // SYNCHRO-BLOQUEO-RETIRO-ALTERNATIVO-V1
+            if (app.Configuration.GetValue<bool>("CobroRetiroPersonal:Obligatorio"))
+                return Results.Conflict(new {
+                    mensaje = "Se requiere pago antes del retiro.",
+                    pagoObligatorio = true,
+                    retiroConfirmado = false
+                });
             if (solicitud.UsoId <= 0 || solicitud.Pin is null ||
                 solicitud.Pin.Length != 6 ||
                 solicitud.Pin.Any(c => c < '0' || c > '9'))

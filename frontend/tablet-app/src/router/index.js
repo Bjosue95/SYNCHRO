@@ -58,6 +58,7 @@ const router = createRouter({
     { path: "/retirar/pertenencias", name: "retirar-pertenencias", redirect: "/retirar/rostro" },
     { path: "/retirar/rostro", name: "retirar-rostro", component: VerificacionFacialView },
     { path: "/retirar/pin", name: "retirar-pin", component: () => import("../views/RetiroPinView.vue") },
+    { path: "/retirar/pago", name: "retirar-pago", component: () => import("../views/RetiroPagoView.vue") },
     { path: "/:pathMatch(.*)*", redirect: "/menu" },
   ],
 });
