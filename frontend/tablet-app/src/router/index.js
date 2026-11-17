@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { registrarRutasVistaPrevia } from "../preview/rutas.js";
 
 import BienvenidaView from "../views/BienvenidaView.vue";
 import MenuView from "../views/MenuView.vue";
@@ -62,5 +63,7 @@ const router = createRouter({
     { path: "/:pathMatch(.*)*", redirect: "/menu" },
   ],
 });
+
+registrarRutasVistaPrevia(router);
 
 export default router;

@@ -13,7 +13,23 @@ import {
 const router = useRouter();
 const { oscuro } = useTema();
 
-const orden = ref(obtenerOrdenRetiroPagado());
+// Datos de muestra solo para visualizar el diseño.
+// No hay cobro ni autorizacion de retiro.
+const props = defineProps({
+  ordenEjemplo: {
+    type: Object,
+    default: null
+  }
+});
+
+const esVistaPrevia =
+  import.meta.env.DEV && props.ordenEjemplo !== null;
+
+const orden = ref(
+  esVistaPrevia
+    ? props.ordenEjemplo
+    : obtenerOrdenRetiroPagado()
+);
 const verificando = ref(false);
 const completado = ref(false);
 const mensaje = ref("");
@@ -37,10 +53,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   // Ninguna autorizacion queda guardada al abandonar la vista.
-  if (!completado.value) limpiarRetiro();
+  if (!completado.value && !esVistaPrevia) limpiarRetiro();
 });
 
 async function comprobarPago() {
+  // La vista previa nunca llama al backend.
+  if (esVistaPrevia) return;
   if (!orden.value || verificando.value || completado.value) return;
 
   verificando.value = true;
@@ -77,6 +95,7 @@ async function comprobarPago() {
 }
 
 function finalizar() {
+  if (esVistaPrevia) return;
   limpiarRetiro();
   router.replace("/menu");
 }
@@ -132,13 +151,28 @@ function finalizar() {
         :disabled="verificando"
         @click="completado ? finalizar() : comprobarPago()"
       >
-        {{
-          completado
-            ? "Finalizar"
-            : verificando
-              ? "Comprobando..."
-              : "Verificar pago y retirar"
-        }}
+        <span>
+          {{
+            completado
+              ? "Finalizar"
+              : verificando
+                ? "Comprobando..."
+                : "Verificar pago y retirar"
+          }}
+        </span>
+
+        <span class="icono-continuar" aria-hidden="true">
+          <img
+            src="/iconos/complementarios/29_continuar.svg"
+            class="icono-claro"
+            alt=""
+          />
+          <img
+            src="/iconos/complementarios/29_continuar-oscuro.svg"
+            class="icono-oscuro"
+            alt=""
+          />
+        </span>
       </button>
 
       <p v-if="!completado" class="nota">
@@ -150,133 +184,312 @@ function finalizar() {
 </template>
 
 <style scoped>
-.pantalla-pago {
-  min-height: 100%;
-  background: #f2f7fa;
-  color: #01305c;
-  padding: clamp(20px, 4vw, 36px);
-  overflow-y: auto;
+/* SYNCHRO - RESUMEN DE PAGO
+   Identidad visual unificada con Introducir PIN.
+   No altera la logica del retiro. */
+
+.pantalla-pago,
+.pantalla-pago * {
   box-sizing: border-box;
 }
 
-.contenido-pago {
-  width: min(100%, 520px);
-  margin: 0 auto;
+.pantalla-pago {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  padding:
+    clamp(16px, 2.5dvh, 28px)
+    clamp(14px, 3vw, 32px);
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  background: #f2f7fa;
+  color: #01305c;
+
+  font-family: Arial, Helvetica, sans-serif;
+
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
+/* Distribucion principal */
+
+.contenido-pago {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  width: min(100%, 650px);
+  min-width: 0;
+
+  margin: auto;
+
+  gap: clamp(14px, 2.2dvh, 22px);
+}
+
+/* Encabezado */
+
 header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
   text-align: center;
 }
 
 .etiqueta {
-  font-size: 12px;
+  display: inline-block;
+
+  color: #008b9e;
+  font-size: clamp(12px, 1.5vw, 15px);
   font-weight: 800;
-  letter-spacing: .09em;
-  color: #0990a3;
+  letter-spacing: 1.3px;
 }
 
 h1 {
-  font-size: clamp(26px, 3vw, 34px);
-  margin: 12px 0;
+  margin: 0;
+
+  color: inherit;
+  font-size: clamp(27px, 3.3vw, 38px);
+  font-weight: 750;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
 }
 
-header p, .nota {
+header p {
+  max-width: 530px;
+  margin: 0;
+
   color: #5b7282;
+  font-size: clamp(14px, 1.5vw, 17px);
   line-height: 1.5;
 }
 
+/* Tarjeta principal */
+
 .tarjeta-resumen {
-  padding: 24px;
-  border: 1px solid #b8dce7;
-  border-radius: 20px;
+  width: 100%;
+
+  padding:
+    clamp(20px, 3vw, 32px)
+    clamp(22px, 3.4vw, 38px);
+
+  border: 2px solid #c9e3ea;
+  border-radius: 22px;
+
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(1, 48, 92, .08);
+
+  box-shadow:
+    0 10px 28px rgba(1, 48, 92, .08);
 }
+
+/* Filas de informacion */
 
 .dato {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+
+  gap: 16px;
+  min-height: 65px;
+
   padding: 14px 0;
-  border-bottom: 1px solid #dce9ef;
+
+  border-bottom: 1px solid #e0ebef;
+}
+
+.dato:first-child {
+  padding-top: 4px;
 }
 
 .dato span {
-  color: #5b7282;
+  min-width: 0;
+
+  color: #526b7c;
+  font-size: clamp(15px, 1.6vw, 18px);
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .dato strong {
-  font-size: clamp(17px, 2vw, 23px);
+  min-width: 0;
+
+  color: #01305c;
+  font-size: clamp(19px, 2.2vw, 25px);
+  font-weight: 800;
+  line-height: 1.2;
+
   text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
+/* Codigo del casillero */
+
+.dato:first-child strong {
+  font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: .02em;
+}
+
+/* Importe */
+
 .total {
+  min-height: 82px;
   border-bottom: 0;
 }
 
+.total span {
+  color: #01305c;
+  font-size: clamp(17px, 1.8vw, 20px);
+  font-weight: 800;
+}
+
 .total strong {
-  color: #008c9a;
-  font-size: clamp(25px, 3vw, 32px);
+  color: #008b9e;
+  font-size: clamp(30px, 3.7vw, 43px);
+  font-weight: 800;
+  letter-spacing: -.025em;
 }
 
 .descripcion {
-  font-size: 13px;
-  margin: 10px 0 0;
-  color: #5b7282;
+  margin: 4px 0 0;
+  padding-top: 15px;
+
+  border-top: 1px dashed #c9dce4;
+
+  color: #607988;
+  font-size: clamp(13px, 1.4vw, 15px);
+  line-height: 1.5;
+  text-align: center;
 }
+
+/* Estado del pago */
 
 .estado {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 9px;
+
+  gap: 12px;
+  align-self: center;
+
+  width: fit-content;
+  max-width: 100%;
+  min-height: 48px;
+
+  margin: 0;
+  padding: 11px 18px;
+
+  border: 1px solid #ebd5a9;
+  border-radius: 13px;
+
+  background: #fff8ea;
+  color: #775214;
+
+  font-size: clamp(14px, 1.5vw, 17px);
+  font-weight: 750;
+  line-height: 1.35;
   text-align: center;
-  font-weight: 650;
 }
 
 .punto {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+
   border-radius: 50%;
   background: #d59c27;
+}
+
+.estado.completado {
+  border-color: #afdcc8;
+  background: #e9f8f0;
+  color: #176d49;
 }
 
 .completado .punto {
   background: #16a47c;
 }
 
+/* Mensajes del servidor */
+
 .mensaje {
+  width: 100%;
   margin: 0;
-  padding: 14px;
-  border-radius: 10px;
+  padding: 14px 17px;
+
+  border: 1px solid #b9dce6;
+  border-radius: 12px;
+
   background: #e5f3f7;
+  color: #01305c;
+
+  font-size: 15px;
   line-height: 1.5;
   text-align: center;
 }
 
+/* Boton principal:
+   mismo estilo del boton Verificar PIN */
+
 .boton-principal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
   align-self: center;
-  min-height: 58px;
+  gap: 12px;
+
+  width: max-content;
   max-width: 100%;
-  padding: 12px 24px;
+  min-width: min(100%, 305px);
+  min-height: 60px;
+
+  padding: 10px 22px;
+
   border: 2px solid #00b9c7;
   border-radius: 15px;
+
   background: #f4feff;
   color: #01305c;
+
   font: inherit;
-  font-size: 18px;
+  font-size: clamp(16px, 1.8vw, 20px);
   font-weight: 800;
-  box-shadow: 0 4px 0 #00a5b2;
+  line-height: 1.25;
+
+  box-shadow:
+    0 4px 0 #00a5b2,
+    0 7px 16px rgba(1, 48, 92, .10);
+
   cursor: pointer;
+  touch-action: manipulation;
+
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.boton-principal:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #00a5b2;
 }
 
 .boton-principal:disabled {
-  opacity: .6;
+  background: #edf3f5;
+  color: #647784;
+  border-color: #b5cad3;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -285,60 +498,380 @@ header p, .nota {
   outline-offset: 4px;
 }
 
-.nota {
-  text-align: center;
-  font-size: 13px;
+/* Icono Continuar original de SYNCHRO */
+
+.icono-continuar {
+  position: relative;
+  display: block;
+
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
 }
 
-.tema-oscuro {
+.icono-continuar img {
+  position: absolute;
+  inset: 0;
+
+  display: block;
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  transition: opacity 150ms ease;
+}
+
+.icono-claro {
+  opacity: 1;
+}
+
+.icono-oscuro {
+  opacity: 0;
+}
+
+/* Nota de pago simulado */
+
+.nota {
+  max-width: 520px;
+  align-self: center;
+
+  margin: -4px 0 0;
+
+  color: #627b8a;
+  font-size: clamp(12px, 1.3vw, 14px);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Modo oscuro SYNCHRO */
+
+.pantalla-pago.tema-oscuro {
   background: #061f36;
   color: #ffffff;
 }
 
+.tema-oscuro .etiqueta {
+  color: #5ec6e8;
+}
+
+.tema-oscuro header p,
+.tema-oscuro .nota {
+  color: #c6dfea;
+}
+
 .tema-oscuro .tarjeta-resumen {
   background: #103956;
-  border-color: #42647e;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  border-color: #426984;
+
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, .18);
 }
 
 .tema-oscuro .dato {
-  border-bottom-color: #42647e;
+  border-bottom-color: #426984;
 }
 
 .tema-oscuro .total {
   border-bottom: 0;
 }
 
-.tema-oscuro .dato span,
-.tema-oscuro .descripcion,
-.tema-oscuro header p,
-.tema-oscuro .nota {
+.tema-oscuro .dato span {
   color: #d4e2ea;
+}
+
+.tema-oscuro .dato strong,
+.tema-oscuro .total span {
+  color: #ffffff;
 }
 
 .tema-oscuro .total strong {
   color: #5ec6e8;
 }
 
-.tema-oscuro .boton-principal {
-  background: #123d5b;
-  color: #ffffff;
-  border-color: #5ec6e8;
-  box-shadow: 0 4px 0 #087d93;
+.tema-oscuro .descripcion {
+  border-top-color: #426984;
+  color: #c6dfea;
+}
+
+.tema-oscuro .estado {
+  background: #42351f;
+  border-color: #967a45;
+  color: #fff0ca;
+}
+
+.tema-oscuro .estado.completado {
+  background: #16483e;
+  border-color: #448b7a;
+  color: #e4fff2;
 }
 
 .tema-oscuro .mensaje {
   background: #204766;
+  border-color: #426984;
+  color: #ffffff;
 }
 
+.tema-oscuro .boton-principal:not(:disabled) {
+  background: #123d5b;
+  color: #ffffff;
+  border-color: #5ec6e8;
+
+  box-shadow:
+    0 4px 0 #087d93,
+    0 7px 16px rgba(0, 0, 0, .22);
+}
+
+.tema-oscuro .boton-principal:disabled {
+  background: #254054;
+  color: #c0d0da;
+  border-color: #426984;
+  box-shadow: none;
+}
+
+.tema-oscuro .icono-claro {
+  opacity: 0;
+}
+
+.tema-oscuro .icono-oscuro {
+  opacity: 1;
+}
+
+/* Pantallas estrechas */
+
 @media (max-width: 480px) {
+  .contenido-pago {
+    gap: 15px;
+  }
+
+  .tarjeta-resumen {
+    padding: 19px 20px;
+    border-radius: 18px;
+  }
+
   .dato {
-    flex-direction: column;
-    align-items: flex-start;
+    gap: 10px;
+    min-height: 58px;
+  }
+
+  .dato span {
+    font-size: 14px;
   }
 
   .dato strong {
-    text-align: left;
+    font-size: 18px;
+  }
+
+  .dato:first-child strong {
+    font-size: 27px;
+  }
+
+  .total strong {
+    font-size: 31px;
+  }
+
+  .boton-principal {
+    min-width: min(100%, 290px);
+  }
+
+  .icono-continuar {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+}
+
+/* Pantallas de poca altura */
+
+@media (max-height: 650px) {
+  .pantalla-pago {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .contenido-pago {
+    gap: 11px;
+  }
+
+  header {
+    gap: 6px;
+  }
+
+  h1 {
+    font-size: clamp(24px, 3vw, 31px);
+  }
+
+  .tarjeta-resumen {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .dato {
+    min-height: 48px;
+    padding: 9px 0;
+  }
+
+  .total {
+    min-height: 60px;
+  }
+
+  .estado {
+    min-height: 40px;
+    padding: 8px 13px;
+  }
+
+  .boton-principal {
+    min-height: 52px;
+    padding: 8px 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pantalla-pago,
+  .boton-principal,
+  .icono-continuar img {
+    transition: none;
+  }
+
+  .boton-principal:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* SYNCHRO-PAGO-TEMA-UNIFICADO-V1
+   Misma paleta y velocidad del modo oscuro de Introducir PIN.
+   Exclusivo de la pantalla de pago.
+*/
+
+.pantalla-pago .tarjeta-resumen,
+.pantalla-pago .dato,
+.pantalla-pago .dato span,
+.pantalla-pago .dato strong,
+.pantalla-pago .descripcion,
+.pantalla-pago .estado,
+.pantalla-pago .mensaje,
+.pantalla-pago .nota,
+.pantalla-pago header p,
+.pantalla-pago .etiqueta,
+.pantalla-pago .boton-principal {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+/* Fondo y superficie oscuros */
+
+#app .synchro-app .pantalla-pago.tema-oscuro {
+  background-color: #061f36;
+  color: #ffffff;
+}
+
+.pantalla-pago.tema-oscuro .tarjeta-resumen {
+  background-color: #103956;
+  border-color: #42647e;
+  color: #ffffff;
+}
+
+.pantalla-pago.tema-oscuro .dato {
+  border-bottom-color: #42647e;
+}
+
+.pantalla-pago.tema-oscuro .total {
+  border-bottom-color: transparent;
+}
+
+/* Jerarquia de texto */
+
+.pantalla-pago.tema-oscuro h1,
+.pantalla-pago.tema-oscuro .dato strong,
+.pantalla-pago.tema-oscuro .total span {
+  color: #ffffff;
+}
+
+.pantalla-pago.tema-oscuro .dato span,
+.pantalla-pago.tema-oscuro header p,
+.pantalla-pago.tema-oscuro .descripcion,
+.pantalla-pago.tema-oscuro .nota {
+  color: #d4e2ea;
+}
+
+.pantalla-pago.tema-oscuro .etiqueta,
+.pantalla-pago.tema-oscuro .total strong {
+  color: #5ec6e8;
+}
+
+/* Separacion del resumen */
+
+.pantalla-pago.tema-oscuro .descripcion {
+  border-top-color: #42647e;
+}
+
+/* Estado de pago pendiente */
+
+.pantalla-pago.tema-oscuro .estado:not(.completado) {
+  background-color: #42351f;
+  border-color: #967a45;
+  color: #fff0ca;
+}
+
+.pantalla-pago.tema-oscuro .estado.completado {
+  background-color: #16483e;
+  border-color: #448b7a;
+  color: #e4fff2;
+}
+
+.pantalla-pago.tema-oscuro .mensaje {
+  background-color: #204766;
+  border-color: #426984;
+  color: #ffffff;
+}
+
+/* Boton igual al de Introducir PIN */
+
+.pantalla-pago.tema-oscuro
+.boton-principal:not(:disabled) {
+  background-color: #123d5b;
+  border-color: #5ec6e8;
+  color: #ffffff;
+  box-shadow:
+    0 4px 0 #087d93,
+    0 7px 16px rgba(0, 0, 0, .22);
+}
+
+.pantalla-pago.tema-oscuro
+.boton-principal:disabled {
+  background-color: #254054;
+  border-color: #426984;
+  color: #c0d0da;
+  box-shadow: none;
+}
+
+/* El SVG del boton cambia con el tema */
+
+.pantalla-pago.tema-oscuro .icono-claro {
+  opacity: 0;
+}
+
+.pantalla-pago.tema-oscuro .icono-oscuro {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pantalla-pago,
+  .pantalla-pago .tarjeta-resumen,
+  .pantalla-pago .dato,
+  .pantalla-pago .dato span,
+  .pantalla-pago .dato strong,
+  .pantalla-pago .descripcion,
+  .pantalla-pago .estado,
+  .pantalla-pago .mensaje,
+  .pantalla-pago .nota,
+  .pantalla-pago header p,
+  .pantalla-pago .etiqueta,
+  .pantalla-pago .boton-principal {
+    transition: none !important;
   }
 }
 </style>

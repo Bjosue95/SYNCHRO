@@ -69,7 +69,7 @@ internal static class RetiroFacialManualEndpoints
     {
         var grupo = app.MapGroup("/api/terminales/guardar/whatsapp/retiro")
             .AllowAnonymous()
-            .RequireRateLimiting("LoginLimitado");
+            .RequireRateLimiting("RetiroPersonal");
 
         grupo.MapPost("/rostro", async (HttpContext http, IAntiforgery csrf,
             IDataProtectionProvider proveedor, IConfiguration config) =>

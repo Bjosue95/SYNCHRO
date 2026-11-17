@@ -7,6 +7,13 @@ const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
 
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: {
+    type: Boolean,
+    default: false
+  }
+});
+
 const claveIntento = "synchroWhatsappManualActivoV1";
 const claveTiempo = "synchroDepositoInicioV1";
 
@@ -287,7 +294,15 @@ async function confirmarDeposito() {
   }
 }
 
-onMounted(cargarOperacion);
+onMounted(() => {
+  if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) {
+    estado.value = "listo";
+    segundos.value = 30;
+    return;
+  }
+
+  cargarOperacion();
+});
 
 onBeforeUnmount(() => {
   vivo = false;

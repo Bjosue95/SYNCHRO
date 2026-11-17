@@ -443,7 +443,7 @@ public static class WhatsAppManualEndpoints
             });
         })
         .AllowAnonymous()
-        .RequireRateLimiting("LoginLimitado");
+        .RequireRateLimiting("OperacionesTerminal");
 
         terminal.MapPost("/iniciar", async (HttpContext http, IAntiforgery antiforgery, IDataProtectionProvider proteccion) =>
         {

@@ -16,12 +16,27 @@ import {
 const router = useRouter();
 const { oscuro } = useTema();
 
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: {
+    type: Boolean,
+    default: false
+  }
+});
+
 const pin = ref("");
 const mensaje = ref("");
 const procesando = ref(false);
 const terminado = ref(false);
 
-const completo = computed(() => pin.value.length === 6 && !procesando.value && !terminado.value);
+// Autorizacion de cobro temporal: solo memoria, nunca URL o storage.
+const autorizacionPagoPendiente = ref(null);
+let autorizacionGeneradaEn = 0;
+
+const completo = computed(() =>
+  (pin.value.length === 6 || Boolean(autorizacionPagoPendiente.value)) &&
+  !procesando.value &&
+  !terminado.value
+);
 
 const teclas = [
   "1", "2", "3",
@@ -79,10 +94,29 @@ function tecladoFisico(evento) {
 async function verificar() {
   if (!completo.value || procesando.value || terminado.value) return;
 
-  const tokenFacial = obtenerRetiro().autorizacionFacial;
-  if (!tokenFacial) {
+  // El servidor autoriza este pago durante cinco minutos.
+  // Usamos un margen local de cuatro minutos para reintentos.
+  if (
+    autorizacionPagoPendiente.value &&
+    Date.now() - autorizacionGeneradaEn >= 4 * 60 * 1000
+  ) {
+    autorizacionPagoPendiente.value = null;
+    autorizacionGeneradaEn = 0;
+    limpiarRetiro();
     pin.value = "";
-    mensaje.value = "La verificacion facial ha vencido. Repite el escaneo.";
+    mensaje.value =
+      "La autorizacion temporal del pago expiro. " +
+      "Es necesario iniciar nuevamente la verificacion.";
+    return;
+  }
+
+  const tokenFacial = obtenerRetiro().autorizacionFacial;
+
+  if (!tokenFacial && !autorizacionPagoPendiente.value) {
+    pin.value = "";
+    mensaje.value =
+      "No se encontro una autorizacion facial en esta sesion. " +
+      "Inicia nuevamente el proceso de retiro.";
     limpiarRetiro();
     return;
   }
@@ -95,41 +129,56 @@ async function verificar() {
     // Activar solamente cuando backend, tarifas y operador
     // esten preparados. No se modifica el diseno del PIN.
     if (import.meta.env.VITE_RETIRO_PAGO_HABILITADO === "true") {
-      let prevalidado = false;
+      // Validar rostro y PIN una sola vez.
+      // Si el cobro falla, reutilizar solo la autorizacion
+      // de pago temporal que el servidor ya emitio.
+      let autorizacionPago = autorizacionPagoPendiente.value;
 
-      try {
-        const autorizacion = await prevalidarRetiroFacialConPin(
+      if (!autorizacionPago) {
+        const respuesta = await prevalidarRetiroFacialConPin(
           pin.value,
           tokenFacial
         );
 
-        prevalidado = true;
+        if (
+          typeof respuesta?.autorizacionPago !== "string" ||
+          !respuesta.autorizacionPago
+        ) {
+          throw new Error(
+            "El servidor no entrego la autorizacion del cobro."
+          );
+        }
 
+        autorizacionPago = respuesta.autorizacionPago;
+        autorizacionPagoPendiente.value = autorizacionPago;
+        autorizacionGeneradaEn = Date.now();
+      }
+
+      try {
         const orden = await prepararCobroRetiroPersonal(
-          autorizacion.autorizacionPago
+          autorizacionPago
         );
 
         registrarOrdenRetiroPagado(
-          autorizacion.autorizacionPago,
+          autorizacionPago,
           orden
         );
+
+        autorizacionPagoPendiente.value = null;
+        autorizacionGeneradaEn = 0;
 
         await router.replace("/retirar/pago");
         return;
       } catch (error) {
-        if (prevalidado) {
-          limpiarRetiro();
+        const detalle = error instanceof Error
+          ? error.message
+          : "No se pudo preparar el cobro.";
 
-          const detalle = error instanceof Error
-            ? error.message
-            : "No se pudo preparar el cobro.";
-
-          throw new Error(
-            `${detalle} Para volver a intentarlo, repite la verificacion facial.`
-          );
-        }
-
-        throw error;
+        throw new Error(
+          `${detalle} El PIN ya fue validado. ` +
+          "Puedes reintentar el cobro sin repetir el escaneo " +
+          "mientras la autorizacion siga vigente."
+        );
       }
     }
 
@@ -156,6 +205,7 @@ async function verificar() {
 }
 
 onMounted(() => {
+  if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) return;
   if (!obtenerRetiro().capturaHecha) {
     router.replace("/retirar/rostro");
     return;
@@ -278,7 +328,7 @@ onBeforeUnmount(() => {
           :disabled="!terminado && !completo"
           @click="terminado ? router.replace('/menu') : verificar()"
         >
-          <span>{{ terminado ? "Finalizar" : "Verificar PIN" }}</span>
+          <span>{{ terminado ? "Finalizar" : autorizacionPagoPendiente ? "Reintentar cobro" : "Verificar PIN" }}</span>
 
           <span class="icono-ir" aria-hidden="true">
             <img

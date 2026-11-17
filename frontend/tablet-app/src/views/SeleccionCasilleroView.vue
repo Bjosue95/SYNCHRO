@@ -9,6 +9,13 @@ const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
 
+const propsVistaPrevia = defineProps({
+  casillerosEjemplo: {
+    type: Array,
+    default: null
+  }
+});
+
 const objetos = {
   mochila: "Mochila o bolso",
   maleta: "Maleta o equipaje",
@@ -159,6 +166,11 @@ function continuar() {
 }
 
 onMounted(() => {
+  if (import.meta.env.DEV && propsVistaPrevia.casillerosEjemplo) {
+    casilleros.value = propsVistaPrevia.casillerosEjemplo;
+    cargando.value = false;
+    return;
+  }
   if (!valido.value) {
     router.replace("/guardar");
     return;

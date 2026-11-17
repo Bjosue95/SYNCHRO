@@ -14,6 +14,7 @@ const router = createRouter({
       children: [
         { path: "", name: "resumen", component: () => import("../views/ResumenView.vue") },
         { path: "whatsapp", name: "whatsapp", component: () => import("../views/WhatsAppView.vue") },
+        { path: "cobros", name: "cobros", component: () => import("../views/CobrosView.vue") },
         { path: "casilleros", name: "casilleros", component: () => import("../views/CasillerosView.vue") },
         { path: "reservas", name: "reservas", component: () => import("../views/ModuloPendienteView.vue"), props: { titulo: "Reservas", descripcion: "Este módulo se conectará a las reservas del backend en la siguiente etapa." } },
         { path: "operaciones", name: "operaciones", component: () => import("../views/ModuloPendienteView.vue"), props: { titulo: "Operaciones", descripcion: "El historial y la supervisión de depósitos y retiros todavía no están integrados en este panel." } },

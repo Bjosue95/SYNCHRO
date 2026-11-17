@@ -8,6 +8,13 @@ const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
 
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: {
+    type: Boolean,
+    default: false
+  }
+});
+
 const fase = ref("preparando");
 const qrImagen = ref("");
 const error = ref("");
@@ -343,7 +350,28 @@ async function consultarEstado() {
   }
 }
 
-onMounted(recuperarOIniciar);
+onMounted(async () => {
+  if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) {
+    fase.value = "esperando";
+    mensaje.value = "Esperando confirmación...";
+
+    qrImagen.value = await QRCode.toDataURL(
+      "SYNCHRO - VISTA PREVIA SIN OPERACION",
+      {
+        width: 320,
+        margin: 2,
+        errorCorrectionLevel: "M",
+        color: {
+          dark: "#01305C",
+          light: "#FFFFFF"
+        }
+      }
+    );
+    return;
+  }
+
+  await recuperarOIniciar();
+});
 
 onBeforeUnmount(() => {
   vivo = false;

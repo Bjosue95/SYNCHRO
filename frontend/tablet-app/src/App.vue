@@ -69,7 +69,7 @@ onUnmounted(quitarGuardia);
       <RouterView v-slot="{ Component, route: pagina }">
         <Transition
           :name="transicion"
-          :mode="transicion === 'synchro-inicio' ? 'out-in' : undefined"
+          mode="out-in"
         >
           <component
             :is="Component"

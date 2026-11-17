@@ -12,7 +12,17 @@ import { validarRostroSimuladoRetiro } from "../services/retiroFacialManualApi";
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
-const retirando = computed(() => route.path.startsWith("/retirar/"));
+const propsVistaPrevia = defineProps({
+  modoRetiroEjemplo: {
+    type: Boolean,
+    default: false
+  }
+});
+
+const retirando = computed(() =>
+  (import.meta.env.DEV && propsVistaPrevia.modoRetiroEjemplo) ||
+  route.path.startsWith("/retirar/")
+);
 
 const video = ref(null);
 const consentimiento = ref(false);

@@ -1,8 +1,19 @@
 // SYNCHRO: sesion efimera en memoria. Nunca persistir el token facial en URL/storage.
-let autorizacionFacial = null;
+let autorizacionFacial =
+  import.meta.hot?.data?.autorizacionFacial ?? null;
 
 // SYNCHRO-TABLET-RETIRO-PAGADO-V1
-let ordenRetiroPagado = null;
+let ordenRetiroPagado =
+  import.meta.hot?.data?.ordenRetiroPagado ?? null;
+
+// Conserva el estado solamente durante actualizaciones
+// de modulos de Vite. No persiste al recargar la pagina.
+if (import.meta.hot) {
+  import.meta.hot.dispose((datos) => {
+    datos.autorizacionFacial = autorizacionFacial;
+    datos.ordenRetiroPagado = ordenRetiroPagado;
+  });
+}
 
 export function iniciarRetiro() {
   autorizacionFacial = null;
