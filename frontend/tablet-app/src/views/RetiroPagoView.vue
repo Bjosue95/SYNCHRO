@@ -42,9 +42,9 @@ const pasoMetodo = ref(false);
 // Preferencia visual; solo el backend y el operador confirman pagos.
 const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
 const indicacionesRetiro = {
-  Efectivo: "El operador deberá comprobar y confirmar el pago simulado en efectivo.",
-  Tarjeta: "El operador deberá comprobar y confirmar el pago simulado con tarjeta.",
-  NFC: "La confirmación NFC todavía no está habilitada para retiros en este prototipo. Solicita al operador un método disponible."
+  Efectivo: "El operador confirmará el pago simulado en efectivo.",
+  Tarjeta: "El operador confirmará el pago simulado con tarjeta.",
+  NFC: "El pago NFC aún no está habilitado. Elige otro método."
 };
 const indicacionRetiro = indicacionesRetiro[metodoRetiro] ||
   "Solicita asistencia al operador para continuar.";
@@ -132,6 +132,11 @@ async function comprobarPago() {
   } finally {
     verificando.value = false;
   }
+}
+
+function cambiarMetodo() {
+  if (esVistaPrevia || completado.value) return;
+  router.push("/retirar/pago");
 }
 
 function finalizar() {
@@ -238,14 +243,14 @@ function finalizar() {
         data-preview-permitido
         type="button"
         :disabled="verificando || (esVistaPrevia && !metodoSeleccionado)"
-        @click="esVistaPrevia ? avanzarVistaPrevia() : (completado ? finalizar() : comprobarPago())"
+        @click="esVistaPrevia ? avanzarVistaPrevia() : (metodoRetiro === 'NFC' ? cambiarMetodo() : comprobarPago())"
       >
         <span>
           {{
             esVistaPrevia
               ? (pasoMetodo ? "Cambiar método" : "Continuar")
-              : completado
-                ? "Finalizar"
+              : metodoRetiro === "NFC"
+                ? "Cambiar método"
                 : verificando
                   ? "Comprobando..."
                   : "Verificar pago y retirar"
@@ -267,10 +272,11 @@ function finalizar() {
       </button>
 
       <p v-if="!esVistaPrevia" class="nota">
-        Método elegido: <strong>{{ metodoRetiro }}</strong>.
+        Método: <strong>{{ metodoRetiro }}</strong>.
         {{ indicacionRetiro }}
-        Después de la confirmación del operador, pulsa
-        «Verificar pago y retirar». La tablet no puede aprobar el pago por sí misma.
+        <template v-if="metodoRetiro !== 'NFC'">
+          Tras la confirmación, pulsa «Verificar pago y retirar».
+        </template>
       </p>
     </section>
   </main>
