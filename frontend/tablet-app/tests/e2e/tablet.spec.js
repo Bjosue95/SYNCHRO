@@ -193,6 +193,64 @@ test("Retirar no activa la encomienda no implementada", async ({ page }) => {
     .toBeVisible();
 });
 
+test("la cámara denegada no habilita continuar", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+      configurable: true,
+      value: async () => {
+        throw new DOMException("Permiso denegado", "NotAllowedError");
+      }
+    });
+  });
+  await page.goto("/retirar/rostro");
+  await page.getByRole("button", { name: "Comenzar escaneo" }).click();
+  await expect(page.locator(".retroalimentacion .error"))
+    .toContainText("Permiso denegado");
+  await expect(page.getByRole("button", { name: "Continuar", exact: true }))
+    .toHaveCount(0);
+});
+
+test("la captura facial simulada detiene las pistas de cámara", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.Human = class {
+      async load() {}
+      async warmup() {}
+      async detect() {
+        return {
+          width: 640,
+          height: 480,
+          face: [{ box: [180, 80, 240, 280] }]
+        };
+      }
+    };
+    Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+      configurable: true,
+      value: async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext("2d");
+        function pintar() {
+          ctx.fillStyle = "#6f9eb5";
+          ctx.fillRect(0, 0, 640, 480);
+          requestAnimationFrame(pintar);
+        }
+        pintar();
+        const stream = canvas.captureStream(15);
+        window.__pistasSimuladas = stream.getTracks();
+        return stream;
+      }
+    });
+  });
+  await page.goto("/guardar/verificar-rostro?objeto=mochila&tamano=M&casillero=M03");
+  await page.getByRole("button", { name: "Comenzar escaneo" }).click();
+  await expect(page.getByRole("heading", { name: "Rostro capturado" }))
+    .toBeVisible({ timeout: 15000 });
+  expect(await page.evaluate(() =>
+    window.__pistasSimuladas.every(track => track.readyState === "ended")
+  )).toBe(true);
+});
+
 test("PIN directo exige captura facial previa", async ({ page }) => {
   await page.goto("/retirar/pin");
   await expect(page).toHaveURL(/\/retirar\/rostro$/);
