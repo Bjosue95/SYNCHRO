@@ -222,9 +222,15 @@ test("rostro, PIN, pago administrativo y retiro", async ({
 
   await expect(page).toHaveURL(/\/retirar\/pin$/);
 
-  // 2. PIN incorrecto: no permite avanzar.
-  await page.keyboard.type("000000");
-
+  // 2. PIN incorrecto: introducirlo con el teclado virtual real.
+  for (const digito of "000000") {
+    await page.getByRole("button", {
+      name: digito, exact: true
+    }).click();
+  }
+  await expect(page.getByRole("button", {
+    name: "Verificar PIN"
+  })).toBeEnabled();
   await page.getByRole("button", {
     name: "Verificar PIN"
   }).click();
@@ -236,16 +242,31 @@ test("rostro, PIN, pago administrativo y retiro", async ({
   await expect(page).toHaveURL(/\/retirar\/pin$/);
 
   // 3. PIN correcto: prepara cobro, no retira.
-  await page.keyboard.type("123456");
-
+  for (const digito of "123456") {
+    await page.getByRole("button", {
+      name: digito, exact: true
+    }).click();
+  }
+  await expect(page.getByRole("button", {
+    name: "Verificar PIN"
+  })).toBeEnabled();
   await page.getByRole("button", {
     name: "Verificar PIN"
   }).click();
 
+  // La tablet permite elegir un metodo sin confirmar el cobro.
   await expect(page).toHaveURL(/\/retirar\/pago$/);
-
   await expect(page.getByRole("heading", {
-    name: "Resumen de tu resguardo"
+    name: "¿Cómo deseas pagar?"
+  })).toBeVisible();
+  await page.locator(".celda-metodo").first().click();
+  await page.getByRole("button", {
+    name: "Continuar"
+  }).click();
+
+  await expect(page).toHaveURL(/\/retirar\/pago\/resumen$/);
+  await expect(page.getByRole("heading", {
+    name: "Resumen de tu consumo"
   })).toBeVisible();
 
   expect(estado.retirado).toBe(false);
