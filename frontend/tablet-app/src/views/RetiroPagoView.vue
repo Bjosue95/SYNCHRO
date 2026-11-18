@@ -38,6 +38,7 @@ const mensaje = ref("");
 const casilleroFinal = ref("");
 const metodoSeleccionado = ref("");
 const pasoMetodo = ref(false);
+const cambiandoMetodo = ref(false);
 
 // Preferencia visual; solo el backend y el operador confirman pagos.
 const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
@@ -93,7 +94,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   // Ninguna autorizacion queda guardada al abandonar la vista.
-  if (!completado.value && !esVistaPrevia) limpiarRetiro();
+  if (!completado.value && !esVistaPrevia && !cambiandoMetodo.value) {
+    limpiarRetiro();
+  }
 });
 
 async function comprobarPago() {
@@ -134,9 +137,15 @@ async function comprobarPago() {
   }
 }
 
-function cambiarMetodo() {
-  if (esVistaPrevia || completado.value) return;
-  router.push("/retirar/pago");
+async function cambiarMetodo() {
+  if (esVistaPrevia || completado.value || verificando.value) return;
+  cambiandoMetodo.value = true;
+  try {
+    await router.push("/retirar/pago");
+  } catch (error) {
+    cambiandoMetodo.value = false;
+    mensaje.value = "No fue posible volver a elegir el método de pago.";
+  }
 }
 
 function finalizar() {
