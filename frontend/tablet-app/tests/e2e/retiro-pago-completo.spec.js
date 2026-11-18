@@ -268,6 +268,10 @@ test("rostro, PIN, pago administrativo y retiro", async ({
   await expect(page.getByRole("heading", {
     name: "Resumen de tu consumo"
   })).toBeVisible();
+  await expect(page.locator(".pantalla-pago .nota"))
+    .toContainText("Método elegido: Efectivo");
+  await expect(page.locator(".pantalla-pago .estado"))
+    .toContainText("Pago pendiente de confirmación administrativa");
 
   expect(estado.retirado).toBe(false);
 
@@ -316,6 +320,13 @@ test("rostro, PIN, pago administrativo y retiro", async ({
   await expect(page.getByRole("heading", {
     name: "Retiro completado"
   })).toBeVisible();
+  await expect(page.getByText("Casillero M01 disponible")).toHaveCount(0);
+  await expect(page.locator(".pantalla-pago .tarjeta-resumen"))
+    .toContainText("M01");
+  await expect(page.locator(".pantalla-pago .tarjeta-resumen"))
+    .toContainText("Disponible");
+  await expect(page.getByText(/abre manualmente el casillero asignado/))
+    .toBeVisible();
 
   expect(estado.retirado).toBe(true);
 
@@ -325,5 +336,7 @@ test("rostro, PIN, pago administrativo y retiro", async ({
     "/api/terminales/guardar/whatsapp/retiro/pin"
   );
 
+  await page.getByRole("button", { name: "Finalizar" }).click();
+  await expect(page).toHaveURL(/\/menu$/);
   await operador.close();
 });
