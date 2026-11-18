@@ -466,7 +466,7 @@ public static class WhatsAppManualEndpoints
 
             // Human.js ya detecto el rostro: el servidor valida el PNG y crea
             // un patron visual SIMULADO, NO un descriptor biometrico real.
-            double[]? patron = PatronVisualSimulado.Extraer(rostro);
+            double[]? patron = PatronVisualRetiroV2.Extraer(rostro);
             if (patron is null)
             {
                 CryptographicOperations.ZeroMemory(rostro);
@@ -493,7 +493,7 @@ public static class WhatsAppManualEndpoints
                 {
                     guardarRostro.Parameters.Add("@Uso", SqlDbType.Int).Value = usoId;
                     guardarRostro.Parameters.Add("@Patron", SqlDbType.VarBinary, -1).Value = patronProtegido;
-                    guardarRostro.Parameters.Add("@Modelo", SqlDbType.NVarChar, 60).Value = PatronVisualSimulado.Modelo;
+                    guardarRostro.Parameters.Add("@Modelo", SqlDbType.NVarChar, 60).Value = PatronVisualRetiroV2.Modelo;
                     await guardarRostro.ExecuteNonQueryAsync(http.RequestAborted);
                 }
                 await using var comando = new SqlCommand("""
