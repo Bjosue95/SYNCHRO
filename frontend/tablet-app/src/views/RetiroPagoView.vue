@@ -860,6 +860,19 @@ header p {
   color: #ffffff;
 }
 
+/* Tablet vertical: el resumen comienza a 46 px del inicio util,
+   como el titulo del menu, sin margen vertical automatico. */
+@media (orientation: portrait) and (min-width: 400px) and (min-height: 680px) {
+  .pantalla-pago {
+    align-items: flex-start;
+    padding-top: 46px;
+  }
+
+  .pantalla-pago .contenido-pago {
+    margin: 0 auto;
+  }
+}
+
 /* SYNCHRO-PAGO-PROPORCIONES-V2
    Ajustes exclusivos de la vista previa. */
 
