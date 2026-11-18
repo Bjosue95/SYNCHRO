@@ -18,7 +18,7 @@ const { oscuro, cambiarTema } = useTema();
 const centroAyuda = ref(null);
 const transicion = ref("synchro-inicio");
 
-const mostrarEncabezado = computed(() => route.path !== "/" && !route.path.startsWith("/admin/"));
+const mostrarEncabezado = computed(() => route.path !== "/");
 
 function abrirAyuda() {
   centroAyuda.value?.abrir();
@@ -48,7 +48,7 @@ onUnmounted(quitarGuardia);
 <template>
   <div
     class="synchro-app"
-    :class="{ 'tema-oscuro': oscuro, 'superficie-admin': route.path.startsWith('/admin/') }"
+    :class="{ 'tema-oscuro': oscuro }"
   >
     <!-- ENCABEZADO UNICO Y PERMANENTE -->
     <Transition name="cabecera-inicio">
@@ -280,51 +280,6 @@ body,
     transition: none;
   }
 }
-
-/* SYNCHRO-ADMIN-RESPONSIVE-V1 */
-/* El documento administrativo puede desplazarse. */
-
-html:has(.synchro-app.superficie-admin),
-body:has(.synchro-app.superficie-admin),
-#app:has(.synchro-app.superficie-admin) {
-  height: auto !important;
-  min-height: 100%;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-
-#app .synchro-app.superficie-admin {
-  position: static;
-  width: 100%;
-  height: auto;
-  min-height: 100dvh;
-  overflow: visible;
-  isolation: auto;
-}
-
-#app .synchro-app.superficie-admin .escenario-synchro {
-  position: relative;
-  inset: auto;
-  width: 100%;
-  height: auto;
-  min-height: 100dvh;
-  overflow: visible;
-  background: #f2f7fa;
-}
-
-#app .synchro-app.superficie-admin
-.escenario-synchro > .vista-synchro,
-#app .synchro-app.superficie-admin
-.escenario-synchro > .vista-synchro:not(.bienvenida) {
-  position: relative;
-  inset: auto;
-  top: auto;
-  width: 100%;
-  height: auto;
-  min-height: 100dvh;
-  overflow: visible;
-}
-
 
 /* SYNCHRO-FUNDIDO-TEMA-V2
    Un solo fundido para la pantalla completa. */
