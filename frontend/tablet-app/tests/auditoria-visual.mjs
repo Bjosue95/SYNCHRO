@@ -27,6 +27,7 @@ const informe = {
   version: 1,
   origen: base,
   fecha: new Date().toISOString(),
+  intentos: 0,
   capturas: [],
   comparaciones: [],
   errores: []
@@ -63,6 +64,10 @@ async function obtenerMedidas(pagina) {
   });
 }
 
+console.log(`Auditoría iniciada. Pantallas: ${pantallas.length}; resoluciones: ${tamanos.length}.`);
+console.log(`Origen: ${base}`);
+console.log(`Intentos previstos: ${pantallas.length * tamanos.length}.`);
+
 try {
   for (const viewport of tamanos) {
     const contexto = await navegador.newContext({
@@ -74,6 +79,8 @@ try {
 
     for (const id of pantallas) {
       const clave = `${viewport.width}x${viewport.height}-${id}`;
+      informe.intentos++;
+      console.log(`[${informe.intentos}/${pantallas.length * tamanos.length}] ${clave}`);
       try {
         await pagina.goto(`${base}/vista-previa/${id}`, {
           waitUntil: "domcontentloaded",
@@ -148,9 +155,26 @@ writeFileSync(
   "utf8"
 );
 
-console.log("\nDiferencias de altura de titulo respecto al menu (pixeles):");
-console.table(informe.comparaciones);
-console.log(`\nCapturas e informe: ${salida}`);
-console.log(`Pantallas no capturadas: ${informe.errores.length}`);
+console.log(`\nIntentos: ${informe.intentos}; mediciones: ${informe.capturas.length}; comparaciones: ${informe.comparaciones.length}; errores: ${informe.errores.length}.`);
+console.log(`Capturas e informe: ${salida}`);
+
+if (informe.intentos !== pantallas.length * tamanos.length) {
+  console.error("ERROR: no se recorrieron todas las pantallas programadas.");
+  process.exitCode = 1;
+}
+if (informe.capturas.length === 0) {
+  console.error("ERROR: no hay mediciones. Comprueba que npm.cmd run dev este activo en https://localhost:5173");
+  process.exitCode = 1;
+}
+if (informe.comparaciones.length === 0) {
+  console.error("ERROR: no se pudo generar la comparacion. Comprueba las capturas del menu en informe.json.");
+  process.exitCode = 1;
+} else {
+  console.log("\nDiferencias de altura de titulo respecto al menu (pixeles):");
+  console.table(informe.comparaciones);
+}
+if (informe.errores.length > 0) {
+  console.error("Errores de captura:", informe.errores.slice(0, 5));
+  process.exitCode = 1;
+}
 console.log("Las diferencias son mediciones, NO ajustes automaticos de CSS.");
-if (informe.errores.length) process.exitCode = 1;
