@@ -31,3 +31,22 @@ test("el visor solo habilita opciones de pago", () => {
   assert.match(codigo, /\[data-preview-permitido\]/);
   assert.match(codigo, /evento\.preventDefault\(\)/);
 });
+
+test("retirar solo se completa despues de confirmacion protegida", () => {
+  const codigo = leer("../src/views/RetiroPagoView.vue");
+
+  // El resumen y la pantalla final son estados distintos.
+  assert.match(codigo, /v-if="completado && !esVistaPrevia"/);
+  assert.match(codigo, /Retiro completado/);
+  assert.match(codigo, /Casillero/);
+  assert.match(codigo, /obtenerMetodoPagoRetiro/);
+
+  // Nunca se concede la finalizacion local sin la respuesta del servidor.
+  assert.match(codigo, /const resultado = await finalizarRetiroPersonalPagado/);
+  assert.match(codigo, /completado\.value = true/);
+  assert.match(codigo, /if \(esVistaPrevia\) return;/);
+
+  // El metodo NFC no simula un pago que no existe.
+  assert.match(codigo, /metodoRetiro === 'NFC'/);
+  assert.match(codigo, /Cambiar método/);
+});
