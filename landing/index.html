@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="SYNCHRO propone estaciones inteligentes para Comayagua. Conoce los módulos para guardar pertenencias, cargar celulares, conservar productos y gestionar pedidos.">
+<title>SYNCHRO · Casilleros electrónicos modulares</title>
+<link rel="icon" href="assets/icono.png">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="wrap top" id="inicio">
+<a class="brand" href="#inicio" aria-label="SYNCHRO, inicio">
+<img class="logo-light" src="assets/logo-claro.png" alt="">
+<span class="logo-dark"><img src="assets/isotipo-oscuro.png" alt=""><img src="assets/nombre-blanco.png" alt=""></span>
+</a>
+<nav aria-label="Navegación principal">
+<a class="nav-section" href="#modulos">Módulos</a>
+<a class="nav-section" href="#como-funciona">Cómo funciona</a>
+<a class="nav-section" href="#proyecto">El proyecto</a>
+<button type="button" class="theme" id="tema" aria-label="Cambiar tema" title="Cambiar tema"><span aria-hidden="true"></span></button>
+<a class="button outline" href="#contacto">Contacto <span aria-hidden="true">↗</span></a>
+</nav>
+</header>
+<main id="contenido">
+<section class="wrap hero" aria-labelledby="titulo">
+<div class="hero-copy">
+<p class="eyebrow">Casilleros electrónicos modulares</p>
+<h1 id="titulo">El punto donde todo <em>se conecta.</em></h1>
+<p>Diseñamos estaciones de autoservicio para Comayagua. En un solo lugar podrás guardar tus pertenencias, cargar el celular, conservar alimentos y otros productos en frío o calor, y recibir pedidos.</p>
+<div class="hero-actions"><a class="button solid" href="#modulos">Explorar módulos <span aria-hidden="true">↓</span></a><a class="text-link" href="#contacto">Solicitar cotización <span aria-hidden="true">↗</span></a></div>
+</div>
+<figure class="hero-figure">
+<img src="assets/multiple.webp" fetchpriority="high" alt="Propuesta visual del casillero modular múltiple con puertas de distintos tamaños, pantalla central y módulo de carga">
+<figcaption><strong>Modular múltiple</strong><span>Visualización del modelo de feria</span></figcaption>
+</figure>
+</section>
+<section class="feature"><div class="wrap feature-inner"><div><p class="eyebrow">Modelo de exhibición</p><h2>Varios servicios en un solo equipo.</h2></div><div><p>El modelo de la feria combina compartimentos de varios tamaños, áreas de temperatura, un módulo de carga y una pantalla central.</p><a class="text-link" data-modulo="multiple" href="#contacto">Consultar por el modelo múltiple <span aria-hidden="true">↗</span></a></div></div></section>
+<section class="wrap catalog" id="modulos" aria-labelledby="modulos-titulo">
+<p class="eyebrow">Configuraciones especializadas</p><h2 id="modulos-titulo">Un módulo para cada uso.</h2>
+<p class="intro">Explora las propuestas de módulos y cuéntanos cuál se adapta a tu espacio.</p>
+<div class="grid">
+<article class="card"><img src="assets/maletas.webp" alt="Casillero con compartimentos amplios y una maleta con ruedas" loading="lazy" width="800" height="530"><div class="card-copy"><h3>Maletas</h3><p>Compartimentos amplios para maletas con ruedas, bolsos de viaje y equipaje voluminoso.</p><a class="text-link" data-modulo="maletas" href="#contacto">Consultar por maletas <span aria-hidden="true">↗</span></a></div></article>
+<article class="card"><img src="assets/temperatura.webp" alt="Casillero térmico con zonas diferenciadas en azul y ámbar" loading="lazy" width="800" height="530"><div class="card-copy"><h3>Control de temperatura</h3><p>Compartimentos dedicados al resguardo de productos que requieren frío o calor.</p><a class="text-link" data-modulo="temperatura" href="#contacto">Consultar por control de temperatura <span aria-hidden="true">↗</span></a></div></article>
+<article class="card"><img src="assets/pertenencias.webp" alt="Casillero de puertas medianas con una mochila visible" loading="lazy" width="800" height="530"><div class="card-copy"><h3>Pertenencias</h3><p>Compartimentos medianos para mochilas, bolsos y objetos de uso diario.</p><a class="text-link" data-modulo="pertenencias" href="#contacto">Consultar por pertenencias <span aria-hidden="true">↗</span></a></div></article>
+<article class="card"><img src="assets/pequenos.webp" alt="Casillero con puertas pequeñas y un compartimento abierto con llaves y gafas" loading="lazy" width="800" height="530"><div class="card-copy"><h3>Objetos pequeños</h3><p>Compartimentos compactos para llaves, gafas, accesorios y artículos similares.</p><a class="text-link" data-modulo="pequenos" href="#contacto">Consultar por objetos pequeños <span aria-hidden="true">↗</span></a></div></article>
+</div><p class="caption">Imágenes conceptuales de las configuraciones.</p></section>
+<section class="journey-band" id="como-funciona" aria-labelledby="como-titulo">
+  <div class="wrap content-section">
+    <p class="eyebrow">Cómo funciona</p>
+    <h2 id="como-titulo">Tres formas de usar SYNCHRO.</h2>
+    <p class="intro">Así están previstos los servicios de la estación inteligente. El sistema está en desarrollo.</p>
+    <div class="journey-grid">
+      <article class="journey">
+        <p class="journey-mode">Con cuenta en la web</p>
+        <h3>Reservar o enviar un pedido</h3>
+        <p>Consulta la disponibilidad y reserva un casillero. Para productos que requieren frío o calor, el flujo contempla el pago anticipado.</p>
+        <details>
+          <summary>Cómo se entrega una encomienda</summary>
+          <ol>
+            <li>Indicas el número del destinatario y este confirma por WhatsApp que acepta recibir el paquete.</li>
+            <li>Te verificas con tu rostro en la estación y depositas el paquete en el casillero asignado.</li>
+            <li>El destinatario recibe un PIN de un solo uso por WhatsApp y retira el paquete con su PIN y la verificación facial.</li>
+          </ol>
+        </details>
+      </article>
+      <article class="journey">
+        <p class="journey-mode">En la estación · sin cuenta</p>
+        <h3>Guardar tus pertenencias</h3>
+        <p>Elige un compartimento disponible del tamaño que necesites para guardar tu mochila, compras o equipaje mientras haces otras actividades.</p>
+        <details>
+          <summary>Cómo se guarda y retira</summary>
+          <ol>
+            <li>Completa la verificación facial, escanea el código QR y autoriza las notificaciones por WhatsApp para recibir un PIN de seis dígitos.</li>
+            <li>Guarda tus pertenencias y confirma el depósito en la terminal.</li>
+            <li>Al volver, verifica tu rostro, ingresa el PIN y paga por el tiempo utilizado antes del retiro.</li>
+          </ol>
+        </details>
+      </article>
+      <article class="journey">
+        <p class="journey-mode">En la estación · sin cuenta</p>
+        <h3>Cargar el celular</h3>
+        <p>Selecciona un compartimento disponible con USB-C, Lightning o carga inalámbrica. Tu dispositivo queda resguardado durante la carga.</p>
+        <details>
+          <summary>Cómo se inicia y termina la carga</summary>
+          <ol>
+            <li>Elige la conexión y verifica tu rostro en la estación para iniciar el servicio.</li>
+            <li>Conecta o coloca tu dispositivo en el compartimento asignado.</li>
+            <li>Al volver, verifica tu rostro y paga por el tiempo de carga antes de retirar el dispositivo.</li>
+          </ol>
+        </details>
+      </article>
+    </div>
+  </div>
+</section>
+<section class="wrap content-section" id="proyecto" aria-labelledby="proyecto-titulo">
+  <p class="eyebrow">El proyecto · UNAH Campus Comayagua</p>
+  <h2 id="proyecto-titulo">Nacimos en Comayagua.</h2>
+  <div class="story-grid">
+    <div class="story-copy">
+      <p>SYNCHRO nació en 2026 en la asignatura Generación de Negocios. Somos seis estudiantes de Administración y Generación de Empresas de la UNAH, Campus Comayagua, y proponemos una red de estaciones inteligentes para la ciudad.</p>
+      <h3>El problema que observamos</h3>
+      <p>Quienes pasan el día fuera de casa suelen llevar la laptop, la mochila y las compras mientras buscan dónde dejarlas o dónde cargar el celular. Coordinar entregas de compras hechas por Instagram, Facebook o WhatsApp también puede implicar horarios que no coinciden y viajes adicionales.</p>
+      <p class="caption">Estas observaciones surgen de la experiencia del equipo y están pendientes de validación mediante encuestas.</p>
+    </div>
+    <aside class="market" aria-labelledby="mercado-titulo">
+      <h3 id="mercado-titulo">Dónde queremos empezar</h3>
+      <p>Comayagua es nuestro mercado inicial. La universidad, los parques y los centros comerciales son espacios que el equipo considera para acercar el servicio a estudiantes, trabajadores y comerciantes.</p>
+      <p class="market-population"><strong>180&nbsp;429</strong><span>habitantes proyectados para 2022 en el municipio.</span></p>
+      <p class="caption"><a href="https://oee.unah.edu.hn/assets/Perfiles-Sociodemograficos/Comayagua-03/Reporte-de-0301-Comayagua-Comayagua.pdf">Perfil sociodemográfico de Comayagua · UNAH</a></p>
+    </aside>
+  </div>
+  <div class="purpose">
+    <article>
+      <h3>Misión</h3>
+      <p>Facilitar la vida cotidiana en Comayagua con servicios de almacenamiento, carga de dispositivos y gestión de pedidos que aporten comodidad, seguridad y ahorro de tiempo.</p>
+    </article>
+    <article>
+      <h3>Visión</h3>
+      <p>Ser una empresa reconocida en Honduras por sus estaciones inteligentes y llevar estos servicios a distintas ciudades del país.</p>
+    </article>
+  </div>
+</section>
+<section class="contact-band" id="contacto"><div class="wrap contact"><div><p class="eyebrow">Solicita información</p><h2>Hablemos de tu proyecto.</h2><p class="intro">Dinos qué quieres guardar, cuántos casilleros necesitas y dónde planeas instalarlos. Atendemos a empresas y particulares.</p>
+<div class="contact-channels">
+  <a class="contact-channel" href="https://wa.me/50433182642">
+    <strong>WhatsApp Business</strong>
+    <span>+504 3318-2642</span>
+  </a>
+  <a class="contact-channel" href="mailto:synchrohn@gmail.com">
+    <strong>Correo electrónico</strong>
+    <span>synchrohn@gmail.com</span>
+  </a>
+</div>
+</div><form action="./api/solicitudes" method="post" id="solicitud">
+<p class="required-note">Los campos marcados con * son obligatorios.</p>
+<div class="fields">
+<label>Nombre completo *<input name="nombre" required autocomplete="name" maxlength="100"></label>
+<label>Correo electrónico *<input name="correo" type="email" required autocomplete="email" maxlength="200"></label>
+<label>Tipo de solicitante *<select name="tipo" id="tipo" required><option value="">Selecciona una opción</option><option value="empresa">Empresa u organización</option><option value="particular">Persona particular</option></select></label>
+<label>Teléfono (opcional)<input name="telefono" type="tel" autocomplete="tel" maxlength="32"></label>
+<label class="wide" id="empresa-campo" hidden>Nombre de la empresa *<input name="empresa" autocomplete="organization" maxlength="120" disabled></label>
+<label class="wide">Módulo de interés (opcional)
+<select name="modulo" id="modulo"><option value="">Selecciona una opción</option><option value="multiple">Modular múltiple</option><option value="maletas">Maletas</option><option value="temperatura">Control de temperatura</option><option value="pertenencias">Pertenencias</option><option value="pequenos">Objetos pequeños</option></select></label>
+<label class="wide">Cuéntanos qué necesitas *<textarea name="mensaje" required rows="4" maxlength="1500" placeholder="Por ejemplo, busco casilleros para recibir paquetes en mi edificio."></textarea></label>
+</div>
+<label hidden aria-hidden="true">Sitio web<input name="sitio" tabindex="-1" autocomplete="off"></label>
+<label class="consent"><input name="consentimiento" type="checkbox" value="si" required><span>Acepto que SYNCHRO use mis datos para responder a esta solicitud. *</span></label>
+<button class="button solid" type="submit">Enviar solicitud <span aria-hidden="true">↗</span></button>
+<p id="estado" class="status" role="status" tabindex="-1"></p>
+</form></div></section>
+</main>
+<footer class="wrap foot">
+  <div class="foot-brand">
+    <a href="#inicio" aria-label="SYNCHRO, inicio"><img src="assets/icono.png" alt="" width="27" height="32"></a>
+    <p>SYNCHRO · Casilleros electrónicos</p>
+  </div>
+  <nav class="foot-social" aria-label="Redes sociales de SYNCHRO">
+    <a href="https://www.instagram.com/synchrohn/">Instagram <span aria-hidden="true">↗</span></a>
+    <a href="https://www.tiktok.com/@synchro_hn">TikTok <span aria-hidden="true">↗</span></a>
+  </nav>
+  <nav class="foot-social foot-contact" aria-label="Contacto de SYNCHRO">
+    <a href="https://wa.me/50433182642">WhatsApp Business · +504 3318-2642</a>
+    <a href="mailto:synchrohn@gmail.com">synchrohn@gmail.com</a>
+  </nav>
+  <a class="text-link" href="#inicio">Volver arriba ↑</a>
+</footer>
+</body></html>
