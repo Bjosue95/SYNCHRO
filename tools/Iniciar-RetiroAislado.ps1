@@ -68,14 +68,14 @@ if ($Modo -eq "Backend") {
         Pop-Location
     }
 } else {
-    Write-Host "Iniciando ADMINISTRADOR ORIGINAL en https://127.0.0.1:5174/admin ..."
+    Write-Host "Iniciando ADMINISTRADOR ORIGINAL en https://localhost:5174/admin ..."
     Write-Host "Panel separado de la tablet; no modifica el backend ni los datos."
     if (-not (Test-Path (Join-Path $admin "node_modules"))) {
         throw "Faltan dependencias de admin-app. Desde frontend/tablet-app ejecuta: npm.cmd --prefix ..\admin-app ci"
     }
     Push-Location $admin
     try {
-        & npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
+        & npm.cmd run dev -- --host localhost --port 5174 --strictPort
     } finally {
         Pop-Location
     }
