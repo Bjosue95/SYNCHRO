@@ -52,7 +52,7 @@ try {
     # Cadena fija: NUNCA se lee una cadena real de configuracion o secrets.
     Add-Type -AssemblyName System.Data -ErrorAction Stop
     $cadena = "Server=$instancia;Initial Catalog=$base;Integrated Security=True;Connect Timeout=8;Encrypt=False;TrustServerCertificate=True"
-    $conexion = New-Object System.Data.SqlClient.SqlConnection($cadena)
+    $conexion = [System.Data.SqlClient.SqlConnection]::new($cadena)
     $conexion.Open()
 
     $comando = $conexion.CreateCommand()
