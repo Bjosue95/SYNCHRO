@@ -483,7 +483,6 @@ onBeforeUnmount(()=>{
 </template>
 
 <style scoped>
-.manual-admin { max-width:1000px; margin:auto; color:#01305c; font-family:Arial,sans-serif; }
 .pin label {width:100%}.pin textarea{width:100%;resize:vertical;border:0;background:#f2fbfc;color:#01305c;padding:12px;font:inherit;line-height:1.7}
 .encabezado { padding:8px 0 22px; }
 .etiqueta { color:#008b9e; font-size:12px; font-weight:800; letter-spacing:1.5px; }
@@ -512,17 +511,6 @@ button.secundario { color:#01305c; background:#e4edf2; }
 
 /* SYNCHRO - Administracion adaptable */
 
-.manual-admin {
-  width: min(100%, 1100px);
-  max-width: 1100px;
-  min-height: 100dvh;
-  margin: 0 auto;
-  padding: clamp(16px, 3vw, 40px);
-  background: #f2f7fa;
-  overflow: visible;
-  overflow-wrap: anywhere;
-}
-
 .manual-admin > *,
 .manual-admin .tarjeta,
 .manual-admin .confirmacion,
@@ -531,21 +519,11 @@ button.secundario { color:#01305c; background:#e4edf2; }
   max-width: 100%;
 }
 
-.manual-admin .tarjeta {
-  width: 100%;
-  margin-bottom: 18px;
-}
-
-.manual-admin .cabecera-tarjeta,
 .manual-admin .acciones {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-}
-
-.manual-admin .cabecera-tarjeta {
-  justify-content: space-between;
 }
 
 .manual-admin .datos {
@@ -561,11 +539,6 @@ button.secundario { color:#01305c; background:#e4edf2; }
   overflow-wrap: anywhere;
 }
 
-.manual-admin .confirmacion {
-  display: grid;
-  gap: 12px;
-}
-
 .manual-admin .confirmacion label {
   min-width: 0;
 }
@@ -578,23 +551,6 @@ button.secundario { color:#01305c; background:#e4edf2; }
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-}
-
-.manual-admin textarea {
-  min-height: 150px;
-  overflow-wrap: anywhere;
-}
-
-.manual-admin button {
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.manual-admin .pin {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
 }
 
 @media (max-width: 680px) {
@@ -648,7 +604,12 @@ button.secundario { color:#01305c; background:#e4edf2; }
 
 .manual-admin {
   width: min(100%, 1180px);
+  max-width: 1100px;
+  min-height: 100dvh;
+  margin: 0 auto;
   padding: clamp(16px, 3vw, 36px);
+  overflow: visible;
+  overflow-wrap: anywhere;
   background: #f2f7fa;
   color: #01305c;
   font-family: Arial, Helvetica, sans-serif;
@@ -729,6 +690,7 @@ button.secundario { color:#01305c; background:#e4edf2; }
 
 /* Solicitudes */
 .manual-admin .tarjeta {
+  width: 100%;
   background: #ffffff;
   border: 1px solid #dce8ee;
   border-radius: 18px;
@@ -743,6 +705,10 @@ button.secundario { color:#01305c; background:#e4edf2; }
 }
 
 .manual-admin .cabecera-tarjeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
   padding-bottom: 14px;
   margin-bottom: 16px;
   border-bottom: 1px solid #e8f0f3;
@@ -793,6 +759,7 @@ button.secundario { color:#01305c; background:#e4edf2; }
 
 /* Formularios */
 .manual-admin .confirmacion {
+  display: grid;
   gap: 15px;
 }
 
@@ -812,11 +779,16 @@ button.secundario { color:#01305c; background:#e4edf2; }
 }
 
 .manual-admin textarea {
+  min-height: 150px;
+  overflow-wrap: anywhere;
   line-height: 1.6;
 }
 
 /* Acciones */
 .manual-admin button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   min-height: 46px;
   border-radius: 11px;
   padding: 10px 17px;
@@ -848,6 +820,9 @@ button.secundario { color:#01305c; background:#e4edf2; }
 
 /* Mensaje con PIN */
 .manual-admin .pin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   background: #f4fbfc;
   border-color: #00b9c7;
   border-radius: 15px;
