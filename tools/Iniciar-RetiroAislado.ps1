@@ -3,7 +3,7 @@
 # precios, claves ni telefonos en archivos de GitHub.
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("Backend", "Tablet")]
+    [ValidateSet("Backend", "Tablet", "Administrador")]
     [string]$Modo
 )
 
@@ -11,10 +11,12 @@ $ErrorActionPreference = "Stop"
 $raiz = Split-Path -Parent $PSScriptRoot
 $api = Join-Path $raiz "backend\Synchro.Api"
 $tablet = Join-Path $raiz "frontend\tablet-app"
+$admin = Join-Path $raiz "frontend\admin-app"
 $diagnostico = Join-Path $PSScriptRoot "Diagnostico-ConfiguracionRetiro.ps1"
 
 if (-not (Test-Path (Join-Path $api "Synchro.Api.csproj")) -or
     -not (Test-Path (Join-Path $tablet "package.json")) -or
+    -not (Test-Path (Join-Path $admin "package.json")) -or
     -not (Test-Path $diagnostico)) {
     throw "No se encontraron los proyectos y el diagnostico del repositorio SYNCHRO."
 }
@@ -57,11 +59,23 @@ if ($Modo -eq "Backend") {
     } finally {
         Pop-Location
     }
-} else {
+} elseif ($Modo -eq "Tablet") {
     Write-Host "Iniciando tablet HTTPS y proxy hacia https://localhost:7278 ..."
     Push-Location $tablet
     try {
         & npm.cmd run dev -- --host localhost --port 5173 --strictPort
+    } finally {
+        Pop-Location
+    }
+} else {
+    Write-Host "Iniciando ADMINISTRADOR ORIGINAL en https://127.0.0.1:5174/admin ..."
+    Write-Host "Panel separado de la tablet; no modifica el backend ni los datos."
+    if (-not (Test-Path (Join-Path $admin "node_modules"))) {
+        throw "Faltan dependencias de admin-app. Desde frontend/tablet-app ejecuta: npm.cmd --prefix ..\admin-app ci"
+    }
+    Push-Location $admin
+    try {
+        & npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
     } finally {
         Pop-Location
     }
