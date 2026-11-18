@@ -818,6 +818,14 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Tablet vertical: mismo inicio del titulo que el menu (46px bajo el encabezado).
+   El padding del titulo (10px) se descuenta para obtener la cota visual. */
+@media (orientation: portrait) and (min-width: 600px) and (min-height: 680px) {
+  .titulo-paso {
+    top: 36px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .linea-escaneo {
     animation: none;
