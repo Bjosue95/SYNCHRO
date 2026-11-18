@@ -1080,33 +1080,23 @@ and (orientation: portrait) {
 }
 }
 
-/* SYNCHRO-AJUSTE-ALTURA-TITULO-V5
-   Reduce la distancia visual entre la cabecera
-   y el titulo sin cambiar el tamano de la tarjeta. */
-
-@media (orientation: portrait) and (min-height: 651px) {
-  .deposito-pantalla.deposito-en-curso
-  .deposito-contenedor {
+/* Alineación vertical del título.
+   En tablets, reservar el espacio dentro del grid evita solapamientos.
+   En teléfonos compactos se conserva la geometría anterior. */
+@media (orientation: portrait) and (min-height: 651px) and (max-width: 399px),
+       (orientation: portrait) and (min-height: 651px) and (max-height: 679px) {
+  .deposito-pantalla.deposito-en-curso .deposito-contenedor {
     transform: translateY(-38px);
   }
-}
-
-@media (max-height: 650px) {
-  .deposito-pantalla.deposito-en-curso
-  .deposito-contenedor {
-    transform: none;
+  .deposito-pantalla.deposito-en-curso .deposito-encabezado {
+    position: relative;
+    top: clamp(-18px, -1.2dvh, -8px);
   }
 }
 
-/* SYNCHRO-DEPOSITO-TITULO-REFERENCIA-MENU-V6
-   Ajuste fino del titulo respecto al menu.
-   No modifica la posicion ni la altura de la tarjeta. */
-
-@media (orientation: portrait) and (min-height: 651px) {
-  .deposito-pantalla.deposito-en-curso
-  .deposito-encabezado {
-    position: relative;
-    top: clamp(-18px, -1.2dvh, -8px);
+@media (orientation: portrait) and (min-width: 400px) and (min-height: 680px) {
+  .deposito-pantalla.deposito-en-curso .deposito-encabezado {
+    margin-top: calc(46px - clamp(12px, 2vh, 22px));
   }
 }
 </style>
