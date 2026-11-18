@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, nextTick } from "vue";
 
 // Estado compartido por todas las pantallas
 const oscuro = ref(false);
@@ -15,7 +15,42 @@ export function useTema() {
     }
 
     ultimoCambio = ahora;
-    oscuro.value = !oscuro.value;
+
+    const cambiar = () => {
+      oscuro.value = !oscuro.value;
+    };
+
+    const reducir =
+      window.matchMedia?.(
+        "(prefers-reduced-motion: reduce)"
+      )?.matches;
+
+    if (reducir || typeof document.startViewTransition !== "function") {
+      cambiar();
+      return;
+    }
+
+    const raiz = document.documentElement;
+    raiz.classList.add("synchro-tema-instantaneo");
+
+    let transicion;
+
+    try {
+      transicion = document.startViewTransition(async () => {
+        cambiar();
+        await nextTick();
+      });
+    } catch {
+      raiz.classList.remove("synchro-tema-instantaneo");
+      cambiar();
+      return;
+    }
+
+    const limpiar = () => {
+      raiz.classList.remove("synchro-tema-instantaneo");
+    };
+
+    transicion.finished.then(limpiar, limpiar);
   }
 
   return {

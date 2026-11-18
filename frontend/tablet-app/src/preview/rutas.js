@@ -28,6 +28,7 @@ export function registrarRutasVistaPrevia(router) {
         "retirar",
         "rostro-retirar",
         "pin",
+        "pago-resumen",
         "pago"
       ]);
 

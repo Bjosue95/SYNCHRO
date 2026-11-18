@@ -1,0 +1,649 @@
+<script setup>
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+import { useTema } from "../composables/useTema";
+import { obtenerRetiro } from "../services/retiroSesion";
+
+const router = useRouter();
+const { oscuro } = useTema();
+
+const pin = ref("");
+const mensaje = ref("");
+
+const completo = computed(() => pin.value.length === 6);
+
+const teclas = [
+  "1", "2", "3",
+  "4", "5", "6",
+  "7", "8", "9",
+  "limpiar", "0", "borrar"
+];
+
+function pulsar(valor) {
+  mensaje.value = "";
+
+  if (valor === "limpiar") {
+    pin.value = "";
+    return;
+  }
+
+  if (valor === "borrar") {
+    pin.value = pin.value.slice(0, -1);
+    return;
+  }
+
+  if (/^[0-9]$/.test(valor) && pin.value.length < 6) {
+    pin.value += valor;
+  }
+}
+
+function tecladoFisico(evento) {
+  if (
+    evento.ctrlKey ||
+    evento.altKey ||
+    evento.metaKey ||
+    evento.repeat
+  ) return;
+
+  const elemento = evento.target;
+
+  if (
+    elemento?.isContentEditable ||
+    ["INPUT", "TEXTAREA"].includes(elemento?.tagName)
+  ) return;
+
+  if (/^[0-9]$/.test(evento.key)) {
+    evento.preventDefault();
+    pulsar(evento.key);
+  } else if (evento.key === "Backspace") {
+    evento.preventDefault();
+    pulsar("borrar");
+  } else if (evento.key === "Delete") {
+    evento.preventDefault();
+    pulsar("limpiar");
+  }
+}
+
+function verificar() {
+  if (!completo.value) return;
+
+  // La validacion de retiro debe realizarla el backend.
+  // Esta interfaz aun no autoriza retirar pertenencias.
+  pin.value = "";
+  mensaje.value =
+    "La verificacion del PIN aun no esta disponible.";
+}
+
+onMounted(() => {
+  if (!obtenerRetiro().capturaHecha) {
+    router.replace("/retirar/rostro");
+    return;
+  }
+
+  window.addEventListener("keydown", tecladoFisico);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", tecladoFisico);
+  pin.value = "";
+});
+</script>
+
+<template>
+  <main
+    class="pantalla-pin"
+    :class="{ 'tema-oscuro': oscuro }"
+  >
+    <section class="pin-interfaz">
+
+      <header class="pin-encabezado">
+        <h1>Introduce tu PIN</h1>
+        <p>
+          Ingresa los 6 d&iacute;gitos recibidos por WhatsApp.
+        </p>
+      </header>
+
+      <div
+        class="pin-casillas"
+        role="group"
+        aria-label="PIN de seis digitos"
+      >
+        <span
+          v-for="n in 6"
+          :key="n"
+          class="pin-casilla"
+          :class="{
+            llena: pin.length >= n,
+            actual: pin.length === n - 1
+          }"
+          aria-hidden="true"
+        >
+          <span
+            v-if="pin.length >= n"
+            class="pin-punto"
+          ></span>
+        </span>
+      </div>
+
+      <div
+        class="pin-teclado"
+        role="group"
+        aria-label="Teclado numerico"
+      >
+        <button
+          v-for="tecla in teclas"
+          :key="tecla"
+          class="pin-tecla"
+          :class="{ 'pin-especial': tecla === 'limpiar' }"
+          type="button"
+          :aria-label="
+            tecla === 'limpiar'
+              ? 'Limpiar todo el PIN'
+              : tecla === 'borrar'
+                ? 'Borrar ultimo digito'
+                : tecla
+          "
+          @click="pulsar(tecla)"
+        >
+          <span v-if="tecla === 'limpiar'">
+            Limpiar
+          </span>
+
+          <svg
+            v-else-if="tecla === 'borrar'"
+            viewBox="0 0 24 24"
+            width="32"
+            height="32"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 4H9L2 12l7 8h12V4Z" />
+            <path d="m12 9 6 6m0-6-6 6" />
+          </svg>
+
+          <span v-else>{{ tecla }}</span>
+        </button>
+      </div>
+
+      <footer class="pin-pie">
+        <button
+          class="pin-verificar"
+          type="button"
+          :disabled="!completo"
+          @click="verificar"
+        >
+          <span>Verificar PIN</span>
+
+          <span class="pin-icono" aria-hidden="true">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M7 12h10" />
+    <path d="m13 8 4 4-4 4" />
+  </svg>
+</span>
+        </button>
+
+        <p v-if="mensaje" class="pin-mensaje" role="status">
+          {{ mensaje }}
+        </p>
+      </footer>
+
+    </section>
+
+    <span class="solo-lectura" aria-live="polite">
+      {{ pin.length }} de 6 d&iacute;gitos ingresados.
+    </span>
+  </main>
+</template>
+
+<style scoped>
+.pantalla-pin,
+.pantalla-pin * {
+  box-sizing: border-box;
+}
+
+.pantalla-pin.pantalla-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  padding:
+    clamp(10px, 1.7vh, 20px)
+    clamp(12px, 2.4vw, 28px);
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  background: #f2f7fa;
+  color: #01305c;
+
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+/* Un mismo ancho para las casillas y el teclado */
+
+.pin-interfaz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  width: min(100%, 460px);
+  min-width: 0;
+
+  gap: clamp(12px, 1.7vh, 18px);
+
+  margin:
+    clamp(10px, 2vh, 22px)
+    auto
+    16px;
+
+  padding: 0;
+}
+
+/* Titulo */
+
+.pin-encabezado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+
+  width: 100%;
+  text-align: center;
+}
+
+.pin-encabezado h1 {
+  margin: 0;
+
+  color: inherit;
+  font-size: clamp(24px, 2.8vw, 34px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pin-encabezado p {
+  margin: 0;
+
+  color: #5b7282;
+  font-size: clamp(13px, 1.5vw, 16px);
+  line-height: 1.4;
+
+  transition: color 150ms ease;
+}
+
+/* Seis casillas */
+
+.pin-casillas {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+
+  width: 100%;
+  min-width: 0;
+  gap: clamp(6px, 1vw, 10px);
+}
+
+.pin-casilla {
+  display: grid;
+  place-items: center;
+
+  width: 100%;
+  min-width: 0;
+  height: clamp(49px, 6.5vh, 64px);
+
+  border: 2px solid #c7dae3;
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.pin-casilla.actual {
+  border-color: #00b9c7;
+}
+
+.pin-casilla.llena {
+  background: #e5f9fa;
+  border-color: #00b9c7;
+}
+
+.pin-punto {
+  display: block;
+
+  width: 13px;
+  height: 13px;
+
+  background: #01305c;
+  border-radius: 50%;
+}
+
+/* Teclado */
+
+.pin-teclado {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, auto);
+
+  width: 100%;
+  min-width: 0;
+  height: auto;
+
+  gap: clamp(9px, 1.2vh, 12px);
+
+  margin-top: clamp(5px, 1vh, 12px);
+}
+
+.pin-tecla {
+  display: grid;
+  place-items: center;
+
+  width: 100%;
+  min-width: 0;
+
+  height: clamp(66px, 9vh, 82px);
+  padding: 9px;
+
+  border: 1.5px solid #c7dae3;
+  border-radius: 14px;
+
+  background: #ffffff;
+  color: #01305c;
+
+  font: inherit;
+  font-size: clamp(27px, 3vw, 35px);
+  font-weight: 700;
+
+  cursor: pointer;
+  touch-action: manipulation;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 120ms ease;
+}
+
+@media (hover: hover) {
+  .pin-tecla:hover {
+    background: #effbfc;
+    border-color: #00b9c7;
+  }
+}
+
+.pin-tecla:active {
+  background: #d6f5f7;
+  transform: scale(.98);
+}
+
+.pin-especial {
+  color: #007a89;
+  font-size: clamp(16px, 1.8vw, 20px);
+  font-weight: 800;
+}
+
+/* Estilos obtenidos de GuardarView.vue */
+
+.pin-verificar {
+  min-width: 194px;
+  min-height: 54px;
+  padding: 9px 24px;
+  border: 2px solid #00a8b8;
+  border-radius: 14px;
+  background: #00b9c7;
+  color: #01305c;
+  box-shadow: 0 4px 12px rgba(0, 185, 199, .18);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 150ms ease, opacity 150ms ease,
+              box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.pin-verificar:active:not(:disabled) { transform: scale(.985); }
+
+.pin-verificar:disabled {
+  opacity: 1;
+  background: #d7e7ed;
+  border-color: #bdcfd6;
+  color: #526e7b;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.tema-oscuro .pin-verificar:disabled { background: #294961; border-color: #42647e; color: #d5e6ef; }
+
+/* Alineacion de Verificar PIN */
+
+.pin-pie {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+
+  margin-top: clamp(5px, 1vh, 12px);
+}
+
+.pin-pie .pin-verificar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.pin-icono {
+  position: relative;
+  display: grid;
+  place-items: center;
+
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.pin-icono svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pin-icono img {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.icono-claro { opacity: 1; }
+.icono-oscuro { opacity: 0; }
+
+/* Mensaje */
+
+.pin-mensaje {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+
+  border-radius: 9px;
+
+  background: #e5f3f7;
+  color: #01305c;
+
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.pin-tecla:focus-visible,
+.pin-verificar:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
+
+/* Modo oscuro SYNCHRO */
+
+.pantalla-pin.tema-oscuro {
+  background: #061f36;
+  color: #ffffff;
+}
+
+.tema-oscuro .pin-encabezado p {
+  color: #d4e2ea;
+}
+
+.tema-oscuro .pin-casilla {
+  background: #103956;
+  border-color: #42647e;
+}
+
+.tema-oscuro .pin-casilla.actual,
+.tema-oscuro .pin-casilla.llena {
+  background: #174b65;
+  border-color: #00b9c7;
+}
+
+.tema-oscuro .pin-punto {
+  background: #ffffff;
+}
+
+.tema-oscuro .pin-tecla {
+  background: #103956;
+  border-color: #42647e;
+  color: #ffffff;
+}
+
+@media (hover: hover) {
+  .tema-oscuro .pin-tecla:hover {
+    background: #194b68;
+    border-color: #5ec6e8;
+  }
+}
+
+.tema-oscuro .pin-tecla:active {
+  background: #205574;
+}
+
+.tema-oscuro .pin-especial {
+  color: #5ec6e8;
+}
+
+/* El boton mantiene la apariencia de Guardar.
+   Solo el estado deshabilitado utiliza la
+   variante oscura definida en GuardarView. */
+
+.tema-oscuro .icono-claro {
+  opacity: 0;
+}
+
+.tema-oscuro .icono-oscuro {
+  opacity: 1;
+}
+
+.tema-oscuro .pin-mensaje {
+  background: #204766;
+  color: #ffffff;
+}
+
+/* Tabletas grandes */
+
+@media (min-width: 600px) and (min-height: 700px),
+       (min-width: 768px) and (min-height: 550px) {
+  .pin-interfaz {
+    width: min(100%, 550px);
+  }
+
+  .pin-verificar {
+    min-width: 240px;
+    min-height: 62px;
+    font-size: 21px;
+  }
+}
+
+/* Pantallas de poca altura */
+
+@media (max-height: 650px) {
+  .pin-interfaz {
+    gap: 9px;
+    margin-top: 7px;
+  }
+
+  .pin-tecla {
+    height: clamp(54px, 9vh, 68px);
+  }
+
+  .pin-casilla {
+    height: 45px;
+  }
+
+  .pin-verificar {
+    min-height: 49px;
+  }
+}
+
+@media (max-height: 470px) {
+  .pin-tecla {
+    height: 48px;
+  }
+
+  .pin-encabezado h1 {
+    font-size: 22px;
+  }
+}
+
+/* Accesibilidad */
+
+@media (prefers-reduced-motion: reduce) {
+  .pantalla-pin,
+  .pin-encabezado p,
+  .pin-casilla,
+  .pin-tecla,
+  .pin-verificar {
+    transition: none !important;
+  }
+
+  .pin-tecla:active {
+    transform: none;
+  }
+}
+
+.solo-lectura {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+</style>

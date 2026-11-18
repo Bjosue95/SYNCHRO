@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import SelectorMetodoPago from "../components/pagos/SelectorMetodoPago.vue";
 import {
   obtenerOrdenRetiroPagado,
   limpiarRetiro
@@ -34,6 +35,32 @@ const verificando = ref(false);
 const completado = ref(false);
 const mensaje = ref("");
 const casilleroFinal = ref("");
+const metodoSeleccionado = ref("");
+const pasoMetodo = ref(false);
+
+const instrucciones = {
+  Efectivo: {
+    titulo: "Pago en efectivo",
+    texto: "Introduce el efectivo en el recolector."
+  },
+  Tarjeta: {
+    titulo: "Pago con tarjeta",
+    texto: "Inserta o acerca tu tarjeta."
+  },
+  NFC: {
+    titulo: "Pago sin contacto",
+    texto: "Acerca tu dispositivo al lector."
+  }
+};
+
+const instruccionActual = computed(
+  () => instrucciones[metodoSeleccionado.value] || null
+);
+
+function avanzarVistaPrevia() {
+  if (!esVistaPrevia || !metodoSeleccionado.value) return;
+  pasoMetodo.value = !pasoMetodo.value;
+}
 
 const importe = computed(() => {
   const valor = orden.value?.importeHnl;
@@ -102,12 +129,18 @@ function finalizar() {
 </script>
 
 <template>
-  <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro }">
+  <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro, 'vista-previa-pago': esVistaPrevia }">
     <section class="contenido-pago" v-if="orden">
       <header>
-        <span class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
-        <h1>{{ completado ? "Retiro completado" : "Resumen de tu resguardo" }}</h1>
-        <p v-if="!completado">
+        <span v-if="!esVistaPrevia" class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
+        <h1>
+          {{
+            esVistaPrevia
+              ? (pasoMetodo ? instruccionActual?.titulo : "Selecciona cómo pagar")
+              : (completado ? "Retiro completado" : "Resumen de tu consumo")
+          }}
+        </h1>
+        <p v-if="!completado && !esVistaPrevia">
           Tu PIN ha sido verificado. El casillero permanece cerrado
           hasta confirmar el pago.
         </p>
@@ -119,11 +152,11 @@ function finalizar() {
           <strong>{{ orden.codigoCasillero }}</strong>
         </div>
         <div class="dato">
-          <span>Tiempo registrado</span>
-          <strong>{{ orden.minutosUtilizados }} minuto(s)</strong>
+          <span>{{ esVistaPrevia ? "Tiempo" : "Tiempo registrado" }}</span>
+          <strong>{{ orden.minutosUtilizados }} {{ esVistaPrevia ? "min" : "minuto(s)" }}</strong>
         </div>
         <div class="dato total">
-          <span>Importe</span>
+          <span>{{ esVistaPrevia ? "Total" : "Importe" }}</span>
           <strong>{{ importe }}</strong>
         </div>
         <p v-if="orden.descripcionTarifa" class="descripcion">
@@ -131,7 +164,21 @@ function finalizar() {
         </p>
       </div>
 
-      <p v-if="!completado" class="estado">
+      <SelectorMetodoPago
+        v-if="esVistaPrevia && !pasoMetodo"
+        v-model="metodoSeleccionado"
+        :oscuro="oscuro"
+      />
+
+      <section
+        v-if="esVistaPrevia && pasoMetodo && instruccionActual"
+        class="paso-pago-preview"
+        aria-live="polite"
+      >
+        <p>{{ instruccionActual.texto }}</p>
+      </section>
+
+      <p v-if="!completado && !esVistaPrevia" class="estado">
         <span class="punto"></span>
         Pago pendiente de confirmación administrativa
       </p>
@@ -147,17 +194,20 @@ function finalizar() {
 
       <button
         class="boton-principal"
+        data-preview-permitido
         type="button"
-        :disabled="verificando"
-        @click="completado ? finalizar() : comprobarPago()"
+        :disabled="verificando || (esVistaPrevia && !metodoSeleccionado)"
+        @click="esVistaPrevia ? avanzarVistaPrevia() : (completado ? finalizar() : comprobarPago())"
       >
         <span>
           {{
-            completado
-              ? "Finalizar"
-              : verificando
-                ? "Comprobando..."
-                : "Verificar pago y retirar"
+            esVistaPrevia
+              ? (pasoMetodo ? "Cambiar método" : "Continuar")
+              : completado
+                ? "Finalizar"
+                : verificando
+                  ? "Comprobando..."
+                  : "Verificar pago y retirar"
           }}
         </span>
 
@@ -175,7 +225,7 @@ function finalizar() {
         </span>
       </button>
 
-      <p v-if="!completado" class="nota">
+      <p v-if="!completado && !esVistaPrevia" class="nota">
         Este prototipo utiliza pagos simulados.
         La tablet no puede confirmar pagos por sí misma.
       </p>
@@ -872,6 +922,121 @@ header p {
   .pantalla-pago .etiqueta,
   .pantalla-pago .boton-principal {
     transition: none !important;
+  }
+}
+
+/* Vista previa del siguiente paso. No afecta el flujo real. */
+.paso-pago-preview {
+  display: grid;
+  place-items: center;
+  min-height: 142px;
+  padding: 22px;
+  border: 2px solid #00b9c7;
+  border-radius: 18px;
+  background: #e9fbfd;
+  text-align: center;
+}
+
+.paso-pago-preview p {
+  margin: 0;
+  font-size: clamp(18px, 2vw, 23px);
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.pantalla-pago.tema-oscuro .paso-pago-preview {
+  background: #103956;
+  border-color: #5ec6e8;
+  color: #ffffff;
+}
+
+/* SYNCHRO-PAGO-PROPORCIONES-V2
+   Ajustes exclusivos de la vista previa. */
+
+.pantalla-pago.vista-previa-pago .contenido-pago {
+  width: min(100%, 780px);
+  gap: clamp(18px, 2.6dvh, 30px);
+}
+
+.pantalla-pago.vista-previa-pago h1 {
+  font-size: clamp(30px, 4vw, 44px);
+}
+
+.pantalla-pago.vista-previa-pago .tarjeta-resumen {
+  padding: clamp(22px, 3.4vw, 36px);
+}
+
+.pantalla-pago.vista-previa-pago .dato {
+  min-height: 75px;
+  padding-block: 15px;
+}
+
+.pantalla-pago.vista-previa-pago .dato span {
+  font-size: clamp(18px, 2vw, 22px);
+}
+
+.pantalla-pago.vista-previa-pago .dato strong {
+  font-size: clamp(23px, 2.8vw, 32px);
+}
+
+.pantalla-pago.vista-previa-pago .total {
+  min-height: 105px;
+}
+
+.pantalla-pago.vista-previa-pago .total strong {
+  font-size: clamp(46px, 5.8vw, 66px);
+  color: #008b9e;
+}
+
+.pantalla-pago.vista-previa-pago.tema-oscuro .total strong {
+  color: #5ec6e8;
+}
+
+.pantalla-pago.vista-previa-pago .boton-principal {
+  min-width: min(100%, 355px);
+  min-height: 74px;
+  font-size: clamp(19px, 2vw, 23px);
+}
+
+@media (max-width: 500px) {
+  .pantalla-pago.vista-previa-pago .contenido-pago {
+    gap: 14px;
+  }
+
+  .pantalla-pago.vista-previa-pago .tarjeta-resumen {
+    padding: 18px;
+  }
+
+  .pantalla-pago.vista-previa-pago .dato {
+    min-height: 54px;
+    padding-block: 8px;
+  }
+
+  .pantalla-pago.vista-previa-pago .dato span {
+    font-size: 15px;
+  }
+
+  .pantalla-pago.vista-previa-pago .dato strong {
+    font-size: 20px;
+  }
+
+  .pantalla-pago.vista-previa-pago .total strong {
+    font-size: 43px;
+  }
+}
+
+@media (max-height: 650px) and (orientation: landscape) {
+  .pantalla-pago.vista-previa-pago .contenido-pago {
+    gap: 8px;
+  }
+
+  .pantalla-pago.vista-previa-pago .dato {
+    min-height: 44px;
+    padding-block: 6px;
+  }
+
+  .pantalla-pago.vista-previa-pago .total {
+    min-height: 60px;
   }
 }
 </style>

@@ -6,18 +6,23 @@ let autorizacionFacial =
 let ordenRetiroPagado =
   import.meta.hot?.data?.ordenRetiroPagado ?? null;
 
+let metodoPagoRetiro =
+  import.meta.hot?.data?.metodoPagoRetiro ?? null;
+
 // Conserva el estado solamente durante actualizaciones
 // de modulos de Vite. No persiste al recargar la pagina.
 if (import.meta.hot) {
   import.meta.hot.dispose((datos) => {
     datos.autorizacionFacial = autorizacionFacial;
     datos.ordenRetiroPagado = ordenRetiroPagado;
+    datos.metodoPagoRetiro = metodoPagoRetiro;
   });
 }
 
 export function iniciarRetiro() {
   autorizacionFacial = null;
   ordenRetiroPagado = null;
+  metodoPagoRetiro = null;
 }
 
 export function registrarCaptura(token) {
@@ -34,6 +39,7 @@ export function obtenerRetiro() {
 export function limpiarRetiro() {
   autorizacionFacial = null;
   ordenRetiroPagado = null;
+  metodoPagoRetiro = null;
 }
 // Almacenar unicamente en memoria, nunca en URL ni storage.
 export function registrarOrdenRetiroPagado(
@@ -62,8 +68,26 @@ export function registrarOrdenRetiroPagado(
   });
 
   autorizacionFacial = null;
+  metodoPagoRetiro = null;
 }
 
 export function obtenerOrdenRetiroPagado() {
   return ordenRetiroPagado;
+}
+
+export function registrarMetodoPagoRetiro(metodo) {
+  if (!ordenRetiroPagado) {
+    throw new Error("No existe una orden de cobro activa.");
+  }
+
+  if (!["Efectivo", "Tarjeta", "NFC"].includes(metodo)) {
+    throw new Error("Metodo de pago no permitido.");
+  }
+
+  // La eleccion NO confirma ningun pago.
+  metodoPagoRetiro = metodo;
+}
+
+export function obtenerMetodoPagoRetiro() {
+  return metodoPagoRetiro;
 }

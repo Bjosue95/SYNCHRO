@@ -28,7 +28,7 @@ const propiedades = computed(() => {
     return { modoRetiroEjemplo: true };
   }
 
-  if (id === "pago") {
+  if (id === "pago" || id === "pago-resumen") {
     return { ordenEjemplo: ordenPagoEjemplo };
   }
 
@@ -36,6 +36,13 @@ const propiedades = computed(() => {
 });
 
 function bloquear(evento) {
+  const permitido =
+    vista.value?.id === "pago" &&
+    ["click", "keydown"].includes(evento.type) &&
+    evento.target?.closest?.("[data-preview-permitido]");
+
+  if (permitido) return;
+
   evento.preventDefault();
   evento.stopPropagation();
 }
@@ -51,6 +58,7 @@ function bloquear(evento) {
   >
     <div
       class="pantalla-real"
+    :class="{ 'pago-interactivo': vista?.id === 'pago' }"
       @click.capture="bloquear"
       @submit.capture="bloquear"
       @change.capture="bloquear"
@@ -84,6 +92,10 @@ function bloquear(evento) {
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+.pantalla-real.pago-interactivo {
+  pointer-events: auto;
 }
 
 .pantalla-real > :first-child {

@@ -325,4 +325,26 @@ body:has(.synchro-app.superficie-admin),
   overflow: visible;
 }
 
+
+/* SYNCHRO-FUNDIDO-TEMA-V2
+   Un solo fundido para la pantalla completa. */
+
+html.synchro-tema-instantaneo *,
+html.synchro-tema-instantaneo *::before,
+html.synchro-tema-instantaneo *::after {
+  transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.01ms !important;
+  }
+}
 </style>

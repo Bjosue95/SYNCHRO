@@ -1,0 +1,33 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const leer = ruta =>
+  readFileSync(new URL(ruta, import.meta.url), "utf8");
+
+test("tres metodos de pago disponibles", () => {
+  const codigo = leer("../src/components/pagos/SelectorMetodoPago.vue");
+
+  for (const metodo of ["Efectivo", "Tarjeta", "NFC"]) {
+    assert.ok(codigo.includes(metodo));
+  }
+
+  assert.match(codigo, /aria-pressed/);
+  assert.match(codigo, /update:modelValue/);
+});
+
+test("la pantalla real sigue protegiendo el backend", () => {
+  const codigo = leer("../src/views/RetiroPagoView.vue");
+
+  assert.match(codigo, /if \(esVistaPrevia\) return;/);
+  assert.match(codigo, /finalizarRetiroPersonalPagado/);
+  assert.match(codigo, /SelectorMetodoPago/);
+});
+
+test("el visor solo habilita opciones de pago", () => {
+  const codigo = leer("../src/preview/views/PantallaView.vue");
+
+  assert.match(codigo, /vista\.value\?\.id === "pago"/);
+  assert.match(codigo, /\[data-preview-permitido\]/);
+  assert.match(codigo, /evento\.preventDefault\(\)/);
+});

@@ -2,6 +2,12 @@
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import {
+  MINUTO_DEPOSITO_MS,
+  segundosRestantesDeposito,
+  extenderLimiteDeposito,
+  formatearTiempoDeposito
+} from "../utils/tiempoDeposito.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -26,7 +32,21 @@ const casillero = computed(() => {
 });
 
 const estado = ref("verificando");
-const segundos = ref(30);
+const segundos = ref(60);
+const ventanaSegundos = ref(60);
+
+const textoTiempo = computed(() =>
+  formatearTiempoDeposito(segundos.value)
+);
+
+const avanceReloj = computed(() =>
+  452.39 * (
+    1 - Math.min(
+      1,
+      segundos.value / Math.max(60, ventanaSegundos.value)
+    )
+  )
+);
 const confirmando = ref(false);
 const error = ref("");
 
@@ -36,7 +56,7 @@ let reloj = null;
 let redireccion = null;
 let reintento = null;
 let verificando = false;
-let inicioMs = 0;
+let limiteMs = 0;
 
 function limpiarRelojes() {
   clearInterval(reloj);
@@ -88,36 +108,79 @@ async function consultarEstado() {
 function comprobarTiempo() {
   if (estado.value !== "listo") return;
 
-  const transcurridos = Math.floor(
-    (Date.now() - inicioMs) / 1000
+  segundos.value = segundosRestantesDeposito(
+    limiteMs,
+    Date.now()
   );
-
-  segundos.value = Math.max(0, 30 - transcurridos);
 }
 
 function comenzarReloj() {
-  const guardado = JSON.parse(
-    sessionStorage.getItem(claveTiempo) || "null"
-  );
+  let guardado = null;
+
+  try {
+    guardado = JSON.parse(
+      sessionStorage.getItem(claveTiempo) || "null"
+    );
+  } catch {
+    sessionStorage.removeItem(claveTiempo);
+  }
+
+  const ahora = Date.now();
 
   if (
     guardado?.intentoId === intento.intentoId &&
-    Number.isFinite(guardado?.inicioMs) &&
-    guardado.inicioMs <= Date.now()
+    Number.isFinite(guardado?.limiteMs)
   ) {
-    inicioMs = guardado.inicioMs;
+    limiteMs = guardado.limiteMs;
+  } else if (
+    guardado?.intentoId === intento.intentoId &&
+    Number.isFinite(guardado?.inicioMs) &&
+    guardado.inicioMs <= ahora
+  ) {
+    // Compatibilidad con el temporizador anterior.
+    limiteMs = guardado.inicioMs + MINUTO_DEPOSITO_MS;
   } else {
-    inicioMs = Date.now();
-
-    sessionStorage.setItem(claveTiempo, JSON.stringify({
-      intentoId: intento.intentoId,
-      inicioMs,
-    }));
+    limiteMs = ahora + MINUTO_DEPOSITO_MS;
   }
+
+  sessionStorage.setItem(claveTiempo, JSON.stringify({
+    intentoId: intento.intentoId,
+    limiteMs
+  }));
+
+  ventanaSegundos.value = Math.max(
+    60,
+    segundosRestantesDeposito(limiteMs, ahora)
+  );
 
   comprobarTiempo();
   clearInterval(reloj);
   reloj = setInterval(comprobarTiempo, 250);
+}
+
+function agregarMinuto() {
+  if (
+    !vivo ||
+    estado.value !== "listo" ||
+    confirmando.value ||
+    !intento
+  ) return;
+
+  const ahora = Date.now();
+
+  limiteMs = extenderLimiteDeposito(limiteMs, ahora);
+
+  ventanaSegundos.value = segundosRestantesDeposito(
+    limiteMs,
+    ahora
+  );
+
+  sessionStorage.setItem(claveTiempo, JSON.stringify({
+    intentoId: intento.intentoId,
+    limiteMs
+  }));
+
+  comprobarTiempo();
 }
 
 function finalizar() {
@@ -297,7 +360,7 @@ async function confirmarDeposito() {
 onMounted(() => {
   if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) {
     estado.value = "listo";
-    segundos.value = 30;
+    segundos.value = 60;
     return;
   }
 
@@ -313,20 +376,17 @@ onBeforeUnmount(() => {
 <template>
   <main
     class="deposito-pantalla"
-    :class="{ 'tema-oscuro': oscuro }"
+    :class="{ 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo' }"
   >
     <div class="deposito-contenedor">
 
       <header class="deposito-encabezado">
-        <span class="deposito-seccion">
-          Depósito de pertenencias
-        </span>
 
         <h1>
           {{
             estado === "confirmado"
               ? "¡Depósito completado!"
-              : "Coloca tus pertenencias"
+              : "Coloca tus objetos"
           }}
         </h1>
 
@@ -336,7 +396,7 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <section class="deposito-tarjeta">
+      <section class="deposito-tarjeta" :class="{ 'en-deposito': estado === 'listo' }">
 
         <template v-if="estado === 'verificando'">
           <div class="deposito-cargando" aria-hidden="true"></div>
@@ -351,14 +411,7 @@ onBeforeUnmount(() => {
 
         <template v-else-if="estado === 'listo'">
           <div class="deposito-instruccion">
-            <span class="deposito-etapa">ÚLTIMO PASO</span>
-
             <h2>Guarda tus objetos y cierra la puerta</h2>
-
-            <p>
-              Cuando hayas terminado, confirma
-              el depósito en esta pantalla.
-            </p>
           </div>
 
           <div class="deposito-reloj">
@@ -386,9 +439,7 @@ onBeforeUnmount(() => {
                 stroke-width="10"
                 stroke-linecap="round"
                 :stroke-dasharray="452.39"
-                :stroke-dashoffset="
-                  452.39 * (1 - segundos / 30)
-                "
+                :stroke-dashoffset="avanceReloj"
               />
             </svg>
 
@@ -398,30 +449,15 @@ onBeforeUnmount(() => {
               aria-live="off"
             >
               <span class="deposito-digitos">
-                {{ "00:" + String(segundos).padStart(2, "0") }}
+                {{ textoTiempo }}
               </span>
 
               <span class="deposito-unidad">
-                segundos
+                tiempo restante
               </span>
             </div>
           </div>
 
-          <p
-            v-if="segundos > 0"
-            class="deposito-tiempo-descripcion"
-          >
-            Tiempo orientativo para colocar tus pertenencias
-          </p>
-
-          <p
-            v-else
-            class="deposito-tiempo-descripcion"
-            role="status"
-          >
-            El tiempo orientativo terminó.
-            Puedes confirmar cuando hayas cerrado.
-          </p>
 
           <div class="deposito-acciones">
             <button
@@ -438,8 +474,17 @@ onBeforeUnmount(() => {
               }}
             </button>
 
+            <button
+              class="deposito-boton-secundario"
+              type="button"
+              :disabled="confirmando"
+              @click="agregarMinuto"
+            >
+              Agregar 1 minuto más
+            </button>
+
             <span class="deposito-ayuda">
-              Confirma solamente cuando hayas terminado.
+              Confirma solamente cuando ya hayas depositado.
             </span>
           </div>
         </template>
@@ -449,7 +494,7 @@ onBeforeUnmount(() => {
             ✓
           </div>
 
-          <h2>Pertenencias guardadas</h2>
+          <h2>Depósito completado</h2>
 
           <p class="deposito-descripcion">
             El servidor confirmó correctamente tu depósito.
@@ -860,6 +905,338 @@ onBeforeUnmount(() => {
 
   .deposito-cargando {
     animation: none;
+  }
+}
+
+/* SYNCHRO-DEPOSITO-TIEMPO-V2
+   Tarjeta amplia, proporcionada como el menu. */
+
+.deposito-contenedor {
+  width: min(100%, 920px);
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  gap: clamp(14px, 2.2dvh, 26px);
+}
+
+.deposito-encabezado {
+  flex: 0 0 auto;
+}
+
+.deposito-tarjeta.en-deposito {
+  width: min(100%, 740px);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 740px;
+  justify-content: space-evenly;
+  gap: clamp(10px, 1.8dvh, 22px);
+  padding: clamp(18px, 3vw, 34px);
+  border-radius: 23px;
+}
+
+.deposito-tarjeta.en-deposito .deposito-reloj {
+  width: clamp(156px, 25dvh, 270px);
+  max-width: 58%;
+  flex-shrink: 1;
+}
+
+.deposito-tarjeta.en-deposito .deposito-digitos {
+  font-size: clamp(38px, 5.3vw, 60px);
+}
+
+.deposito-tarjeta.en-deposito .deposito-unidad {
+  font-size: clamp(12px, 1.4vw, 16px);
+}
+
+.deposito-tarjeta.en-deposito .deposito-acciones {
+  width: min(100%, 470px);
+  gap: clamp(10px, 1.6dvh, 18px);
+}
+
+.deposito-tarjeta.en-deposito .deposito-boton-principal,
+.deposito-tarjeta.en-deposito .deposito-boton-secundario {
+  width: 100%;
+  min-height: clamp(54px, 7dvh, 68px);
+  border-radius: 14px;
+  font-size: clamp(16px, 1.8vw, 21px);
+}
+
+.deposito-tarjeta.en-deposito .deposito-boton-secundario {
+  border: 2px solid #00b9c7;
+  background: transparent;
+  color: #01305c;
+}
+
+.deposito-tarjeta.en-deposito .deposito-ayuda {
+  max-width: 390px;
+  color: #526b7c;
+  font-size: clamp(13px, 1.3vw, 15px);
+}
+
+.tema-oscuro .deposito-tarjeta.en-deposito
+.deposito-boton-secundario {
+  background: #123d5b;
+  border-color: #00b9c7;
+  color: #ffffff;
+}
+
+.tema-oscuro .deposito-tarjeta.en-deposito
+.deposito-ayuda {
+  color: #d4e1e8;
+}
+
+/* Mantener todo accesible en pantallas bajas. */
+@media (max-height: 650px) {
+  .deposito-contenedor {
+    height: auto;
+    min-height: 100%;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+
+  .deposito-tarjeta.en-deposito {
+    flex: 0 0 auto;
+    min-height: 390px;
+    gap: 10px;
+  }
+
+  .deposito-tarjeta.en-deposito .deposito-reloj {
+    width: clamp(120px, 22dvh, 170px);
+  }
+}
+
+@media (max-width: 420px) {
+  .deposito-tarjeta.en-deposito {
+    padding: 16px;
+  }
+
+  .deposito-tarjeta.en-deposito .deposito-digitos {
+    font-size: 35px;
+  }
+}
+
+/* SYNCHRO-DEPOSITO-ALINEACION-MENU-V3
+   Misma posicion vertical y estructura del menu. */
+
+.deposito-contenedor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+  justify-content: stretch;
+
+  width: min(100%, 800px);
+  height: min(100%, 610px);
+  min-height: 0;
+  margin: auto;
+  padding:
+    clamp(12px, 2vh, 22px)
+    clamp(12px, 2.4vw, 28px);
+
+  gap: clamp(10px, 1.8vh, 20px);
+  overflow: visible;
+}
+
+.deposito-encabezado {
+  align-self: start;
+  justify-self: center;
+}
+
+.deposito-encabezado h1 {
+  font-size: clamp(22px, 2.8vw, 34px);
+}
+
+.deposito-tarjeta.en-deposito {
+  width: min(100%, 740px);
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  flex: initial;
+  align-self: stretch;
+  justify-self: center;
+}
+
+@media (orientation: portrait) {
+  .deposito-contenedor {
+    width: min(100%, 630px);
+    height: min(100%, 530px);
+  }
+}
+
+@media (min-width: 600px) and (min-height: 700px),
+       (min-width: 768px) and (min-height: 550px) {
+  .deposito-contenedor {
+    width: min(100%, 1110px);
+    height: min(100%, 760px);
+    gap: clamp(12px, 2vh, 25px);
+  }
+
+  .deposito-encabezado h1 {
+    font-size: clamp(29px, 3vw, 41px);
+  }
+}
+
+@media (min-width: 600px)
+and (min-height: 700px)
+and (orientation: portrait) {
+  .deposito-contenedor {
+    width: min(100%, 820px);
+    height: min(100%, 1000px);
+  }
+}
+
+@media (max-height: 650px) {
+  .deposito-contenedor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: min(100%, 740px);
+    height: auto;
+    min-height: 100%;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .deposito-tarjeta.en-deposito {
+    height: auto;
+    min-height: 390px;
+    flex: 0 0 auto;
+  }
+}
+
+/* SYNCHRO-DEPOSITO-GEOMETRIA-MENU-V4
+   Alineacion compartida con MenuView.
+   Solo afecta la pantalla cuando el deposito esta listo. */
+
+.deposito-pantalla.deposito-en-curso {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  box-sizing: border-box;
+
+  padding:
+    clamp(12px, 2vh, 22px)
+    clamp(12px, 2.4vw, 28px);
+}
+
+.deposito-en-curso .deposito-contenedor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  box-sizing: border-box;
+
+  width: min(100%, 800px);
+  height: min(100%, 610px);
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+  gap: clamp(10px, 1.8vh, 20px);
+  overflow: visible;
+}
+
+.deposito-en-curso .deposito-encabezado {
+  align-self: start;
+  justify-self: center;
+}
+
+.deposito-en-curso .deposito-tarjeta.en-deposito {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+
+  margin: 0;
+  padding: clamp(16px, 2.5vw, 30px);
+
+  justify-self: center;
+  align-self: stretch;
+  justify-content: space-evenly;
+}
+
+@media (orientation: portrait) {
+  .deposito-en-curso .deposito-contenedor {
+    width: min(100%, 630px);
+    height: min(100%, 530px);
+  }
+}
+
+/* Exactamente los mismos rangos de tablet que el menu. */
+@media (min-width: 600px) and (min-height: 700px),
+       (min-width: 768px) and (min-height: 550px) {
+  .deposito-en-curso .deposito-contenedor {
+    width: min(100%, 1110px);
+    height: min(100%, 760px);
+    gap: clamp(12px, 2vh, 25px);
+  }
+}
+
+@media (min-width: 600px)
+and (min-height: 700px)
+and (orientation: portrait) {
+  .deposito-en-curso .deposito-contenedor {
+    width: min(100%, 820px);
+    height: min(100%, 1000px);
+  }
+}
+
+/* En pantallas bajas, mantener desplazamiento seguro. */
+@media (max-height: 650px) {
+  .deposito-pantalla.deposito-en-curso {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .deposito-en-curso .deposito-contenedor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+
+    width: min(100%, 740px);
+    height: auto;
+    min-height: 100%;
+    margin: 0 auto;
+    gap: 12px;
+  }
+
+  .deposito-en-curso .deposito-tarjeta.en-deposito {
+    height: auto;
+    min-height: 390px;
+    flex: 0 0 auto;
+  }
+}
+
+/* SYNCHRO-AJUSTE-ALTURA-TITULO-V5
+   Reduce la distancia visual entre la cabecera
+   y el titulo sin cambiar el tamano de la tarjeta. */
+
+@media (orientation: portrait) and (min-height: 651px) {
+  .deposito-pantalla.deposito-en-curso
+  .deposito-contenedor {
+    transform: translateY(-38px);
+  }
+}
+
+@media (max-height: 650px) {
+  .deposito-pantalla.deposito-en-curso
+  .deposito-contenedor {
+    transform: none;
+  }
+}
+
+/* SYNCHRO-DEPOSITO-TITULO-REFERENCIA-MENU-V6
+   Ajuste fino del titulo respecto al menu.
+   No modifica la posicion ni la altura de la tarjeta. */
+
+@media (orientation: portrait) and (min-height: 651px) {
+  .deposito-pantalla.deposito-en-curso
+  .deposito-encabezado {
+    position: relative;
+    top: clamp(-18px, -1.2dvh, -8px);
   }
 }
 </style>

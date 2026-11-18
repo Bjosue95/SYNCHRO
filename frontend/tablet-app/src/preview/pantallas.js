@@ -70,10 +70,16 @@ export const pantallas = [
     componente: cargar(() => import("../views/RetiroPinView.vue"))
   },
   {
-    id: "pago",
-    titulo: "Resumen de pago",
+    id: "pago-resumen",
+    titulo: "Resumen de consumo",
     grupo: "Retiro",
     componente: cargar(() => import("../views/RetiroPagoView.vue"))
+  },
+  {
+    id: "pago",
+    titulo: "Seleccionar pago",
+    grupo: "Retiro",
+    componente: cargar(() => import("../views/SeleccionMetodoPagoView.vue"))
   }
 ];
 
