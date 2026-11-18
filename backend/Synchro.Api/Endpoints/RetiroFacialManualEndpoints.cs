@@ -84,6 +84,7 @@ internal static class RetiroFacialManualEndpoints
 
             byte[]? imagen = null;
             double[]? muestra = null;
+            double[]? muestraV2 = null;
             try
             {
                 using var memoria = new MemoriaProtegida();
@@ -107,6 +108,8 @@ internal static class RetiroFacialManualEndpoints
 
                 muestra = PatronVisualSimulado.Extraer(imagen);
                 if (muestra is null) return Results.BadRequest(new { mensaje = "Imagen PNG de demostracion invalida." });
+                muestraV2 = PatronVisualRetiroV2.Transformar(muestra);
+                if (muestraV2 is null) return Results.BadRequest(new { mensaje = "Captura visual no utilizable." });
 
                 double umbral = config.GetValue("RostroSimulado:UmbralDistancia", 0.25d);
                 if (!double.IsFinite(umbral) || umbral < 0 || umbral > 1)
@@ -117,22 +120,24 @@ internal static class RetiroFacialManualEndpoints
                 // local. Nunca registrar imágenes, descriptores, PIN o UsoId.
                 int referenciasExaminadas = 0;
                 int distanciasValidas = 0;
-                double minimaDistancia = double.PositiveInfinity;
+                double minimoExceso = double.PositiveInfinity;
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
                 await using var consulta = new SqlCommand("""
-                    SELECT TOP (101) u.Id, r.PatronProtegido
+                    SELECT TOP (101) u.Id, r.PatronProtegido, r.Modelo
                     FROM dbo.UsosCasillero AS u
                     INNER JOIN dbo.AutorizacionesWhatsAppManuales AS a
                         ON a.UsoId = u.Id AND a.Estado = N'Confirmado'
                     INNER JOIN dbo.RostrosRetiroPersonalManual AS r
-                        ON r.UsoId = u.Id AND r.Modelo = @Modelo
+                        ON r.UsoId = u.Id
+                        AND r.Modelo IN (@ModeloV1, @ModeloV2)
                     WHERE u.Estado = N'Ocupado' AND u.FechaRetiro IS NULL
                       AND u.TipoServicio = N'ResguardoPersonal'
                       AND u.OrigenReserva = N'Terminal'
                     ORDER BY u.Id DESC
                     """, db);
-                consulta.Parameters.Add("@Modelo", SqlDbType.NVarChar, 60).Value = PatronVisualSimulado.Modelo;
+                consulta.Parameters.Add("@ModeloV1", SqlDbType.NVarChar, 60).Value = PatronVisualSimulado.Modelo;
+                consulta.Parameters.Add("@ModeloV2", SqlDbType.NVarChar, 60).Value = PatronVisualRetiroV2.Modelo;
                 await using var lector = await consulta.ExecuteReaderAsync(http.RequestAborted);
                 int examinados = 0;
                 while (await lector.ReadAsync(http.RequestAborted))
@@ -142,17 +147,24 @@ internal static class RetiroFacialManualEndpoints
                     referenciasExaminadas++;
                     int usoId = lector.GetInt32(0);
                     byte[] cifrado = (byte[])lector.GetValue(1);
+                    bool esV2 = string.Equals(lector.GetString(2), PatronVisualRetiroV2.Modelo,
+                        StringComparison.Ordinal);
                     double[]? guardado = null;
                     try
                     {
                         guardado = RecuperarPatron(proveedor, usoId, cifrado);
-                        double? distancia = ComparadorDescriptoresFaciales.CalcularDistancia(guardado, muestra);
+                        // Referencias v1 existentes (como M07) siguen usando
+                        // EXACTAMENTE su comparador y umbral anteriores.
+                        double limite = esV2 ? PatronVisualRetiroV2.UmbralDistancia : umbral;
+                        double? distancia = esV2
+                            ? PatronVisualRetiroV2.CalcularDistancia(guardado, muestraV2)
+                            : ComparadorDescriptoresFaciales.CalcularDistancia(guardado, muestra);
                         if (distancia.HasValue)
                         {
                             distanciasValidas++;
-                            minimaDistancia = Math.Min(minimaDistancia, distancia.Value);
+                            minimoExceso = Math.Min(minimoExceso, distancia.Value - limite);
                         }
-                        if (distancia.HasValue && distancia.Value <= umbral)
+                        if (distancia.HasValue && distancia.Value <= limite)
                         {
                             coincidencias.Add(usoId);
                             if (coincidencias.Count > MaxCoincidencias)
@@ -172,11 +184,11 @@ internal static class RetiroFacialManualEndpoints
                     if (app.Environment.IsDevelopment() &&
                         config.GetValue<bool>("RetiroPersonal:DiagnosticoFacial"))
                     {
-                        string categoria = double.IsPositiveInfinity(minimaDistancia)
+                        string categoria = double.IsPositiveInfinity(minimoExceso)
                             ? "sin-distancia-calculable"
-                            : minimaDistancia <= umbral + 0.05d
+                            : minimoExceso <= 0.05d
                                 ? "cerca-del-umbral"
-                                : minimaDistancia <= umbral + 0.25d
+                                : minimoExceso <= 0.25d
                                     ? "diferencia-moderada"
                                     : "diferencia-alta";
                         logger.LogInformation(
@@ -209,6 +221,7 @@ internal static class RetiroFacialManualEndpoints
             {
                 if (imagen is not null) CryptographicOperations.ZeroMemory(imagen);
                 if (muestra is not null) Array.Clear(muestra);
+                if (muestraV2 is not null) Array.Clear(muestraV2);
             }
         });
 
