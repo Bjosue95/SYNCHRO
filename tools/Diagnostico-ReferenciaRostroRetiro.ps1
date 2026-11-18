@@ -3,7 +3,8 @@
 $ErrorActionPreference = "Stop"
 $instancia = "(localdb)\SYNCHRO_Aislado"
 $bd = "SynchroDB_Pruebas"
-$modeloActual = "SYNCHRO-SIM-32x32-v1"
+$modeloV1 = "SYNCHRO-SIM-32x32-v1"
+$modeloV2 = "SYNCHRO-SIM-LUMINANCIA-32-v2"
 $conexion = $null
 
 Write-Host "SYNCHRO | Referencias de rostro del retiro (SOLO LECTURA)"
@@ -66,22 +67,31 @@ ORDER BY r.RegistradoUtc DESC
     $lector = $consulta.ExecuteReader()
     $total = 0
     $conModelo = 0
+    $v1 = 0
+    $v2 = 0
     while ($lector.Read()) {
         $total++
         $casillero = $lector.GetString(0)
-        $modeloCoincide = $lector.GetString(1) -ceq $modeloActual
+        $modelo = $lector.GetString(1)
+        $esV1 = $modelo -ceq $modeloV1
+        $esV2 = $modelo -ceq $modeloV2
+        $modeloCoincide = $esV1 -or $esV2
         $fecha = $lector.GetDateTime(2)
         $tieneReferencia = $lector.GetBoolean(3)
         if ($modeloCoincide -and $tieneReferencia) { $conModelo++ }
+        if ($esV1) { $v1++ }
+        if ($esV2) { $v2++ }
         Write-Host ("Casillero: {0}" -f $casillero)
-        Write-Host ("  Modelo esperado: {0}" -f $(if ($modeloCoincide) { "SI" } else { "NO" }))
+        Write-Host ("  Modelo de referencia: {0}" -f $(if ($esV2) { "V2 - nuevos resguardos" } elseif ($esV1) { "V1 - legado" } else { "No reconocido" }))
         Write-Host ("  Referencia cifrada presente: {0}" -f $(if ($tieneReferencia) { "SI" } else { "NO" }))
         Write-Host ("  Fecha de registro (UTC): {0:yyyy-MM-dd HH:mm}" -f $fecha)
     }
     $lector.Close()
     Write-Host ""
     Write-Host ("[INFO] Resguardos elegibles: {0}" -f $total)
-    Write-Host ("[INFO] Con modelo actual y referencia: {0}" -f $conModelo)
+    Write-Host ("[INFO] Con modelo admitido y referencia: {0}" -f $conModelo)
+    Write-Host ("[INFO] Referencias V1: {0}" -f $v1)
+    Write-Host ("[INFO] Referencias V2: {0}" -f $v2)
     if ($total -eq 0) {
         Write-Host "[PENDIENTE] No hay referencias listas para este retiro."
     } elseif ($conModelo -eq 0) {
