@@ -700,8 +700,6 @@ onBeforeUnmount(() => {
 }
 
 .texto-panel,
-.consentimiento,
-.botonera,
 .retroalimentacion {
   position: relative;
   z-index: 3;
@@ -725,50 +723,6 @@ onBeforeUnmount(() => {
 .texto-panel p {
   margin: 8px 0 0;
   color: #e2f3f8;
-}
-
-.consentimiento {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  color: #ffffff;
-  background: rgba(2, 39, 66, .8);
-  border: 1px solid rgba(94, 198, 232, .45);
-  border-radius: 14px;
-  padding: 12px 16px;
-  line-height: 1.4;
-}
-
-.consentimiento input {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  accent-color: #00b9c7;
-}
-
-.botonera {
-  display: flex;
-  justify-content: center;
-}
-
-.accion {
-  min-height: 54px;
-  padding: 10px 22px;
-  border-radius: 14px;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  border: 2px solid #5ec6e8;
-}
-
-.accion.principal {
-  background: #00b9c7;
-  color: #01305c;
-}
-
-.accion.secundaria {
-  background: rgba(255,255,255,.92);
-  color: #01305c;
 }
 
 .retroalimentacion {
