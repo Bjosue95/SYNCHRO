@@ -73,7 +73,7 @@ internal static class RetiroFacialManualEndpoints
 
         grupo.MapPost("/rostro", async (HttpContext http, IAntiforgery csrf,
             IDataProtectionProvider proveedor, IConfiguration config,
-            ILogger<RetiroFacialManualEndpoints> logger) =>
+            ILogger<Program> logger) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http)) return Results.StatusCode(403);
