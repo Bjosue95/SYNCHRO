@@ -551,18 +551,6 @@ onBeforeUnmount(() => {
   color: #01305c;
 }
 
-.deposito-contenedor {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(14px, 2.5vh, 24px);
-
-  width: min(100%, 740px);
-  min-height: 100%;
-  margin: auto;
-  padding: 18px 18px 24px;
-}
 
 .deposito-encabezado {
   display: flex;
@@ -570,18 +558,16 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 9px;
   text-align: center;
+  flex: 0 0 auto;
+  align-self: start;
+  justify-self: center;
 }
 
-.deposito-seccion {
-  color: #527386;
-  font-size: 13px;
-  font-weight: 600;
-}
 
 .deposito-encabezado h1 {
   margin: 0;
   color: inherit;
-  font-size: clamp(24px, 3vw, 35px);
+  font-size: clamp(22px, 2.8vw, 34px);
   font-weight: 750;
   line-height: 1.18;
   letter-spacing: -0.025em;
@@ -639,14 +625,7 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.deposito-etapa {
-  color: #00818f;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 1.3px;
-}
 
-.deposito-instruccion p,
 .deposito-descripcion {
   max-width: 390px;
   margin: 0;
@@ -710,13 +689,6 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.deposito-tiempo-descripcion {
-  max-width: 360px;
-  margin: 0;
-  color: #526b7c;
-  font-size: 13px;
-  line-height: 1.5;
-}
 
 .deposito-acciones {
   display: flex;
@@ -834,12 +806,9 @@ onBeforeUnmount(() => {
   color: #ffffff;
 }
 
-.tema-oscuro .deposito-instruccion p,
 .tema-oscuro .deposito-descripcion,
-.tema-oscuro .deposito-tiempo-descripcion,
 .tema-oscuro .deposito-ayuda,
 .tema-oscuro .deposito-unidad,
-.tema-oscuro .deposito-seccion,
 .tema-oscuro .deposito-retorno {
   color: #d4e1e8;
 }
@@ -875,10 +844,7 @@ onBeforeUnmount(() => {
 
 /* Pantallas estrechas o de poca altura */
 @media (max-width: 480px), (max-height: 590px) {
-  .deposito-contenedor {
-    gap: 10px;
-    padding: 12px;
-  }
+  
 
   .deposito-tarjeta {
     padding: 17px;
@@ -893,9 +859,7 @@ onBeforeUnmount(() => {
     font-size: 33px;
   }
 
-  .deposito-encabezado h1 {
-    font-size: 25px;
-  }
+  
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -911,26 +875,9 @@ onBeforeUnmount(() => {
 /* SYNCHRO-DEPOSITO-TIEMPO-V2
    Tarjeta amplia, proporcionada como el menu. */
 
-.deposito-contenedor {
-  width: min(100%, 920px);
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  gap: clamp(14px, 2.2dvh, 26px);
-}
-
-.deposito-encabezado {
-  flex: 0 0 auto;
-}
 
 .deposito-tarjeta.en-deposito {
-  width: min(100%, 740px);
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: 740px;
-  justify-content: space-evenly;
   gap: clamp(10px, 1.8dvh, 22px);
-  padding: clamp(18px, 3vw, 34px);
   border-radius: 23px;
 }
 
@@ -987,18 +934,9 @@ onBeforeUnmount(() => {
 
 /* Mantener todo accesible en pantallas bajas. */
 @media (max-height: 650px) {
-  .deposito-contenedor {
-    height: auto;
-    min-height: 100%;
-    justify-content: flex-start;
-    overflow: visible;
-  }
+  
 
-  .deposito-tarjeta.en-deposito {
-    flex: 0 0 auto;
-    min-height: 390px;
-    gap: 10px;
-  }
+  
 
   .deposito-tarjeta.en-deposito .deposito-reloj {
     width: clamp(120px, 22dvh, 170px);
@@ -1006,9 +944,7 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 420px) {
-  .deposito-tarjeta.en-deposito {
-    padding: 16px;
-  }
+  
 
   .deposito-tarjeta.en-deposito .deposito-digitos {
     font-size: 35px;
@@ -1037,24 +973,6 @@ onBeforeUnmount(() => {
   overflow: visible;
 }
 
-.deposito-encabezado {
-  align-self: start;
-  justify-self: center;
-}
-
-.deposito-encabezado h1 {
-  font-size: clamp(22px, 2.8vw, 34px);
-}
-
-.deposito-tarjeta.en-deposito {
-  width: min(100%, 740px);
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  flex: initial;
-  align-self: stretch;
-  justify-self: center;
-}
 
 @media (orientation: portrait) {
   .deposito-contenedor {
@@ -1098,11 +1016,7 @@ and (orientation: portrait) {
     gap: 12px;
   }
 
-  .deposito-tarjeta.en-deposito {
-    height: auto;
-    min-height: 390px;
-    flex: 0 0 auto;
-  }
+  
 }
 
 /* SYNCHRO-DEPOSITO-GEOMETRIA-MENU-V4
@@ -1122,25 +1036,11 @@ and (orientation: portrait) {
 }
 
 .deposito-en-curso .deposito-contenedor {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
   box-sizing: border-box;
-
-  width: min(100%, 800px);
-  height: min(100%, 610px);
-  min-height: 0;
-
   margin: 0;
   padding: 0;
-  gap: clamp(10px, 1.8vh, 20px);
-  overflow: visible;
 }
 
-.deposito-en-curso .deposito-encabezado {
-  align-self: start;
-  justify-self: center;
-}
 
 .deposito-en-curso .deposito-tarjeta.en-deposito {
   box-sizing: border-box;
@@ -1157,31 +1057,9 @@ and (orientation: portrait) {
   justify-content: space-evenly;
 }
 
-@media (orientation: portrait) {
-  .deposito-en-curso .deposito-contenedor {
-    width: min(100%, 630px);
-    height: min(100%, 530px);
-  }
-}
 
 /* Exactamente los mismos rangos de tablet que el menu. */
-@media (min-width: 600px) and (min-height: 700px),
-       (min-width: 768px) and (min-height: 550px) {
-  .deposito-en-curso .deposito-contenedor {
-    width: min(100%, 1110px);
-    height: min(100%, 760px);
-    gap: clamp(12px, 2vh, 25px);
-  }
-}
 
-@media (min-width: 600px)
-and (min-height: 700px)
-and (orientation: portrait) {
-  .deposito-en-curso .deposito-contenedor {
-    width: min(100%, 820px);
-    height: min(100%, 1000px);
-  }
-}
 
 /* En pantallas bajas, mantener desplazamiento seguro. */
 @media (max-height: 650px) {
@@ -1191,23 +1069,15 @@ and (orientation: portrait) {
   }
 
   .deposito-en-curso .deposito-contenedor {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-
-    width: min(100%, 740px);
-    height: auto;
-    min-height: 100%;
-    margin: 0 auto;
-    gap: 12px;
-  }
+  margin: 0 auto;
+}
 
   .deposito-en-curso .deposito-tarjeta.en-deposito {
-    height: auto;
-    min-height: 390px;
-    flex: 0 0 auto;
-  }
+  height: auto;
+  min-height: 390px;
+  flex: 0 0 auto;
+  gap: 10px;
+}
 }
 
 /* SYNCHRO-AJUSTE-ALTURA-TITULO-V5
