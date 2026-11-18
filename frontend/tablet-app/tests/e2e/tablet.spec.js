@@ -1,368 +1,229 @@
 import { test, expect } from "@playwright/test";
 
+// Estas pruebas cubren la tablet actual. Las rutas de servicios y
+// encomiendas del prototipo anterior no deben reintroducirse.
+const casilleros = [
+  { codigo: "S01", tamano: "Pequeno", tipo: "Normal", estado: "Disponible" },
+  { codigo: "M03", tamano: "Mediano", tipo: "Normal", estado: "Disponible" },
+  { codigo: "M04", tamano: "Mediano", tipo: "Normal", estado: "Disponible" },
+  { codigo: "M06", tamano: "Mediano", tipo: "Normal", estado: "Disponible" },
+  { codigo: "M07", tamano: "Mediano", tipo: "Normal", estado: "Ocupado" },
+  { codigo: "L05", tamano: "Grande", tipo: "Normal", estado: "Disponible" },
+];
+
+async function simularDisponibilidad(page, datos = casilleros, estado = 200) {
+  await page.route("**/api/terminales/casilleros-prototipo", route =>
+    route.fulfill({
+      status: estado,
+      contentType: "application/json",
+      body: JSON.stringify(datos)
+    })
+  );
+}
+
 for (const viewport of [
   { width: 1280, height: 900 },
   { width: 768, height: 1024 },
-  { width: 390, height: 844 },
+  { width: 390, height: 844 }
 ]) {
-  test(`menú accesible sin desbordamiento ${viewport.width}`, async ({
-    page,
-  }) => {
+  test("menú y tarjetas reales sin desbordamiento " + viewport.width, async ({ page }) => {
     const errores = [];
-    page.on("pageerror", (e) => errores.push(e.message));
+    page.on("pageerror", error => errores.push(error.message));
     await page.setViewportSize(viewport);
     await page.goto("/menu");
-    await expect(
-      page.getByRole("heading", { name: "¿Qué deseas hacer?" }),
-    ).toBeVisible();
-    await expect(page.locator(".servicios button")).toHaveCount(4);
+
+    await expect(page.getByRole("heading", {
+      name: "¿Qué deseas hacer?"
+    })).toBeVisible();
+
+    await expect(page.locator(".servicios .tarjeta-servicio")).toHaveCount(4);
     await expect(page.locator(".servicios h2")).toHaveText([
-      "Guardar",
-      "Retirar",
-      "Tengo una reserva",
-      "Cargar dispositivo",
+      "Guardar", "Retirar", "Tengo una reserva", "Cargar dispositivo"
     ]);
-    await expect(
-      page.getByRole("link", { name: /Mantener en frío|Mantener caliente/ }),
-    ).toHaveCount(0);
-    for (const tarjeta of await page.locator(".servicios button").all())
-      await expect(tarjeta).toBeEnabled();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-    expect(
-      await page
-        .locator("img")
-        .evaluateAll((xs) => xs.every((x) => x.complete && x.naturalWidth > 0)),
-    ).toBe(true);
-    await expect(
-      page.locator(".servicios button").nth(3).locator("img.icono-claro"),
-    ).toHaveAttribute("src", "/iconos/04_carga_inalambrica.svg");
+
+    // Solo Guardar y Retirar tienen una ruta implementada.
+    await expect(page.locator(".servicios button")).toHaveCount(2);
+    await expect(page.locator(".servicios > div.tarjeta-servicio")).toHaveCount(2);
+    for (const boton of await page.locator(".servicios button").all()) {
+      await expect(boton).toBeEnabled();
+    }
+    await expect(page.locator(".servicios .tarjeta-servicio").nth(3)
+      .locator("img.icono-claro"))
+      .toHaveAttribute("src", "/iconos/04_carga_inalambrica.svg");
+
+    expect(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= window.innerWidth
+    )).toBe(true);
     expect(errores).toEqual([]);
   });
 }
-test("tema oscuro, ayuda y ruta visitante conducen a reserva existente", async ({
-  page,
-}) => {
+
+test("modo oscuro y ayuda siguen disponibles", async ({ page }) => {
   await page.goto("/menu");
   await page.getByRole("button", { name: "Activar modo oscuro" }).click();
   await expect(page.locator(".synchro-app")).toHaveClass(/tema-oscuro/);
+
   await page.getByRole("button", { name: "? Ayuda", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByText("¿Cómo envío una encomienda?").click();
   await expect(page.getByRole("dialog")).toContainText(
-    "cuenta de cliente en la web",
+    "cuenta de cliente en la web"
   );
   await page.getByRole("button", { name: "Cerrar ayuda" }).click();
-  await page.goto("/guardar/encomienda-visitante");
-  await expect(page).toHaveURL(/\/terminal\/encomiendas\/reserva$/);
-  await expect(page.getByLabel("Teléfono del destinatario")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Activar modo claro" }).click();
+  await expect(page.locator(".synchro-app")).not.toHaveClass(/tema-oscuro/);
 });
-async function prepararDeposito(page) {
-  await page.goto("/terminal/encomiendas/reserva");
-  await page.getByRole("button", { name: "Rellenar datos de ejemplo" }).click();
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Verifiquemos al remitente" }),
-  ).toBeVisible();
-}
-async function muestra(page) {
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Usar captura de ejemplo" }).click();
-}
-test("depósito de encomienda con captura y sin pedir de nuevo el teléfono", async ({
-  page,
-}) => {
-  await prepararDeposito(page);
-  await expect(
-    page.getByRole("button", { name: "Usar captura de ejemplo" }),
-  ).toBeDisabled();
-  await muestra(page);
-  await expect(
-    page.getByRole("heading", { name: "Confirma el casillero" }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Confirmar depósito", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Depósito registrado", exact: true }),
-  ).toBeVisible();
-  await expect(page.locator("main")).toContainText("No se enviaron mensajes");
-  await expect(page.getByLabel("Credencial de tu reserva")).toHaveCount(0);
+
+test("rutas antiguas no abren operaciones inexistentes", async ({ page }) => {
+  for (const ruta of [
+    "/terminal/encomiendas/reserva",
+    "/terminal/encomiendas/retiro",
+    "/guardar/encomienda-visitante",
+    "/servicios/personal",
+    "/servicios/carga",
+    "/servicios/frio",
+    "/servicios/calor",
+    "/terminal/reserva-web"
+  ]) {
+    await page.goto(ruta);
+    await expect(page).toHaveURL(/\/menu$/);
+    await expect(page.getByRole("heading", {
+      name: "¿Qué deseas hacer?"
+    })).toBeVisible();
+  }
 });
-test("retira encomienda solo con acceso, captura y PIN correcto", async ({
-  page,
-}) => {
-  await page.goto("/terminal/encomiendas/retiro");
-  await page.getByRole("button", { name: "Rellenar datos de ejemplo" }).click();
-  await page.getByRole("button", { name: "Verificar mi acceso" }).click();
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await muestra(page);
-  await page.getByLabel("PIN recibido por WhatsApp").fill("000000");
-  await page
-    .getByRole("button", { name: "Confirmar retiro", exact: true })
-    .click();
-  await expect(page.getByRole("alert")).toContainText("PIN incorrecto");
-  await expect(
-    page.getByRole("heading", { name: "Retiro registrado", exact: true }),
-  ).toHaveCount(0);
-  await page.getByLabel("PIN recibido por WhatsApp").fill("654321");
-  await page
-    .getByRole("button", { name: "Confirmar retiro", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Retiro registrado", exact: true }),
-  ).toBeVisible();
+
+test("Guardar exige seleccionar pertenencia antes de continuar", async ({ page }) => {
+  await page.goto("/menu");
+  await page.locator(".servicios button").first().click();
+  await expect(page).toHaveURL(/\/guardar$/);
+  await expect(page.locator(".cuadricula .tarjeta")).toHaveCount(4);
+
+  const continuar = page.getByRole("button", { name: "Continuar", exact: true });
+  await expect(continuar).toBeDisabled();
+
+  await page.getByRole("button", { name: /Mochila o bolso/ }).click();
+  await expect(page.getByRole("button", { name: /Mochila o bolso/ }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(continuar).toBeEnabled();
+  await continuar.click();
+  await expect(page).toHaveURL(/\/guardar\/tamano\?objeto=mochila$/);
 });
-test("captura simulada del navegador detiene las pistas después de capturar", async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    navigator.mediaDevices.getUserMedia = async () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 640; canvas.height = 480;
-      const contexto = canvas.getContext('2d');
-      function dibujar(){contexto.fillStyle='#b2cddd';contexto.fillRect(0,0,640,480);requestAnimationFrame(dibujar);}
-      dibujar();
-      const s = canvas.captureStream(10);
-      window.pistasCaptura = s.getTracks();
-      return s;
-    };
-  });
-  await prepararDeposito(page);
-  await page.getByRole("checkbox").check();
-  await page
-    .getByRole("button", { name: "Activar cámara", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Capturar y verificar" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Capturar y verificar" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Confirma el casillero" }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(() =>
-      window.pistasCaptura.every((t) => t.readyState === "ended"),
-    ),
-  ).toBe(true);
+
+test("tamaños permitidos y disponibilidad del servidor", async ({ page }) => {
+  await simularDisponibilidad(page);
+  await page.goto("/guardar/tamano?objeto=mochila");
+  await expect(page.getByRole("heading", {
+    name: "Selecciona el tamaño del casillero"
+  })).toBeVisible();
+  await expect(page.locator(".tarjeta-tamano")).toHaveCount(2);
+  const continuar = page.getByRole("button", { name: "Continuar", exact: true });
+  await expect(continuar).toBeDisabled();
+
+  const mediano = page.locator(".tarjeta-tamano").filter({ hasText: "Mediano" });
+  await expect(mediano).toBeEnabled();
+  await mediano.click();
+  await expect(mediano).toHaveAttribute("aria-pressed", "true");
+  await expect(continuar).toBeEnabled();
+  await continuar.click();
+  await expect(page).toHaveURL(/\/guardar\/casillero\?objeto=mochila&tamano=M$/);
 });
-test("permiso de cámara denegado no permite avanzar", async ({ page }) => {
-  await page.addInitScript(() => {
-    navigator.mediaDevices.getUserMedia = async () => {
-      throw new DOMException("Permiso denegado", "NotAllowedError");
-    };
-  });
-  await prepararDeposito(page);
-  await page.getByRole("checkbox").check();
-  await page
-    .getByRole("button", { name: "Activar cámara", exact: true })
-    .click();
-  await expect(page.getByRole("alert")).toContainText("No pudimos acceder");
-  await expect(
-    page.getByRole("heading", { name: "Confirma el casillero" }),
-  ).toHaveCount(0);
+
+test("sin casilleros normales disponibles no se puede continuar", async ({ page }) => {
+  await simularDisponibilidad(page, [
+    { codigo: "M03", tamano: "Mediano", tipo: "Normal", estado: "Ocupado" },
+    { codigo: "L05", tamano: "Grande", tipo: "Especial", estado: "Disponible" }
+  ]);
+  await page.goto("/guardar/tamano?objeto=mochila");
+  await expect(page.locator(".tarjeta-tamano")).toHaveCount(2);
+  for (const boton of await page.locator(".tarjeta-tamano").all()) {
+    await expect(boton).toBeDisabled();
+  }
+  await expect(page.getByRole("button", { name: "Continuar", exact: true }))
+    .toBeDisabled();
 });
-for (const tipo of ["personal", "carga"]) {
-  test(`reserva, prepago e inicio de ${tipo}`, async ({ page }) => {
-    await page.goto(`/servicios/${tipo}`);
-    await expect(page.locator(".compartimento").first()).toBeVisible();
-    await page.getByRole("button", { name: "60 min", exact: true }).click();
-    await page.getByRole("button", { name: "Continuar al pago" }).click();
-    await expect(page.locator("main")).toContainText("60 minutos de uso");
-    await page.getByRole("button", { name: "NFC", exact: true }).click();
-    await page.getByRole("button", { name: "Confirmar pago simulado" }).click();
-    await page
-      .getByRole("checkbox", {
-        name: "He colocado mis objetos y cerrado la puerta.",
-      })
-      .check();
-    await page.getByRole("button", { name: "Comenzar tiempo de uso" }).click();
-    await expect(
-      page.getByRole("heading", { name: /Todo listo en/ }),
-    ).toBeVisible();
-    await page
-      .getByText("Ver datos necesarios para recuperar mis objetos")
-      .click();
-    await expect(page.locator(".recovery-details")).toContainText(
-      "Credencial:",
-    );
-    await page
-      .getByRole("link", { name: "Ya guardé mis datos · Finalizar" })
-      .click();
-    await expect(
-      page.getByRole("heading", { name: "¿Qué deseas hacer?" }),
-    ).toBeVisible();
-    expect(await page.locator("body").innerText()).not.toContain("654321");
-  });
-}
-test("laptop requiere confirmar que está cerrada", async ({ page }) => {
-  await page.goto("/servicios/carga");
-  await page.getByRole("button", { name: /L01/ }).click();
-  await page.getByRole("button", { name: "Continuar al pago" }).click();
-  await page.getByRole("button", { name: "NFC", exact: true }).click();
-  await page.getByRole("button", { name: "Confirmar pago simulado" }).click();
-  await page
-    .getByRole("checkbox", {
-      name: "He colocado mis objetos y cerrado la puerta.",
-    })
-    .check();
-  await page.getByRole("button", { name: "Comenzar tiempo de uso" }).click();
-  await expect(page.getByRole("alert")).toContainText("laptop está cerrada");
-  await page.getByRole("checkbox", { name: "La laptop está cerrada." }).check();
-  await page.getByRole("button", { name: "Comenzar tiempo de uso" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Todo listo en L01" }),
-  ).toBeVisible();
+
+test("error del API no fabrica disponibilidad", async ({ page }) => {
+  await simularDisponibilidad(page, { mensaje: "Falla simulada" }, 503);
+  await page.goto("/guardar/tamano?objeto=mochila");
+  await expect(page.getByText(/No se pudo consultar la disponibilidad/))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: "Continuar", exact: true }))
+    .toBeDisabled();
+  await expect(page.getByRole("button", { name: "Reintentar" }))
+    .toBeVisible();
 });
-test("cancelar libera el espacio y permite una nueva selección", async ({
-  page,
-}) => {
-  await page.goto("/servicios/personal");
-  await page.getByRole("button", { name: "Continuar al pago" }).click();
-  await page
-    .getByRole("button", { name: "Cancelar reserva", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "1. Elige tu compartimento" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Continuar al pago" }),
-  ).toBeEnabled();
+
+test("casilleros excluye los ocupados y códigos no autorizados", async ({ page }) => {
+  await simularDisponibilidad(page);
+  await page.goto("/guardar/casillero?objeto=mochila&tamano=M");
+  await expect(page.getByRole("heading", { name: "Elige tu casillero" }))
+    .toBeVisible();
+  await expect(page.locator(".cuadricula-casilleros .casillero"))
+    .toHaveCount(2);
+  await expect(page.locator(".cuadricula-casilleros")).not.toContainText("M04");
+  await expect(page.locator(".cuadricula-casilleros")).not.toContainText("M07");
+
+  const continuar = page.getByRole("button", { name: "Continuar", exact: true });
+  await expect(continuar).toBeDisabled();
+  await page.locator(".casillero").filter({ hasText: "M03" }).click();
+  await expect(continuar).toBeEnabled();
+  await expect(page.locator(".pie")).toContainText("Aún no está reservado");
+  await continuar.click();
+  await expect(page).toHaveURL(/\/guardar\/verificar-rostro\?.*casillero=M03/);
 });
-test("retiro temporal no muestra PIN ni credencial al finalizar", async ({
-  page,
-}) => {
-  await page.goto("/retirar/servicios");
-  await page.getByRole("button", { name: "Rellenar datos de ejemplo" }).click();
-  await page
-    .getByRole("button", { name: "Confirmar retiro", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Retiro registrado", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByLabel("PIN de retiro", { exact: true })).toHaveCount(
-    0,
-  );
-  await expect(
-    page.getByLabel("Credencial privada", { exact: true }),
-  ).toHaveCount(0);
+
+test("Retirar no activa la encomienda no implementada", async ({ page }) => {
+  await page.goto("/retirar");
+  await expect(page.getByRole("heading", { name: "¿Qué deseas retirar?" }))
+    .toBeVisible();
+  await expect(page.locator(".cuadricula .tarjeta")).toHaveCount(2);
+  await expect(page.getByRole("button", {
+    name: "Una encomienda, no disponible"
+  })).toBeDisabled();
+
+  const continuar = page.getByRole("button", { name: "Continuar", exact: true });
+  await expect(continuar).toBeDisabled();
+  await page.getByRole("button", { name: "Mis pertenencias" }).click();
+  await expect(continuar).toBeEnabled();
+  await continuar.click();
+  await expect(page).toHaveURL(/\/retirar\/rostro$/);
+  await expect(page.getByRole("heading", { name: "Registro facial" }))
+    .toBeVisible();
 });
-test("compilación normal no activa demo ni aprueba una reserva si falla la API", async ({
-  page,
-}) => {
-  await page.route("**/api/**", (r) =>
-    r.fulfill({
+
+test("PIN directo exige captura facial previa", async ({ page }) => {
+  await page.goto("/retirar/pin");
+  await expect(page).toHaveURL(/\/retirar\/rostro$/);
+  await expect(page.getByRole("heading", { name: "Registro facial" }))
+    .toBeVisible();
+});
+
+test("modo demo no publica el catálogo de desarrollo normal", async ({ page }) => {
+  await page.goto("/vista-previa");
+  await expect(page).toHaveURL(/\/menu$/);
+});
+
+test("compilación E2E no publica el catálogo ni autoriza sin sesión", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4174/vista-previa");
+  await expect(page).toHaveURL(/\/menu$/);
+
+  await page.goto("http://127.0.0.1:4174/retirar/pago/resumen");
+  await expect(page).toHaveURL(/\/retirar\/rostro$/);
+});
+
+test("compilación E2E no simula respuesta exitosa si el API falla", async ({ page }) => {
+  await page.route("**/api/terminales/casilleros-prototipo", route =>
+    route.fulfill({
       status: 503,
       contentType: "application/json",
-      body: '{"mensaje":"No disponible"}',
-    }),
+      body: JSON.stringify({ mensaje: "API no disponible" })
+    })
   );
-  await page.goto("http://127.0.0.1:4174/terminal/encomiendas/reserva");
-  await expect(
-    page.getByRole("button", { name: "Rellenar datos de ejemplo" }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByText("Demostración · datos ficticios", { exact: true }),
-  ).toHaveCount(0);
-  await page.getByLabel("Número de reserva", { exact: true }).fill("1");
-  await page
-    .getByLabel("Credencial de tu reserva", { exact: false })
-    .fill("A".repeat(64));
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Verifiquemos al remitente" }),
-  ).toHaveCount(0);
-});
-
-for (const tipo of ["frio", "calor"]) {
-  test(`la terminal usa una reserva web de ${tipo} sin contratarla`, async ({
-    page,
-  }) => {
-    const peticiones = [];
-    page.on("request", (r) => {
-      if (r.method() === "POST") peticiones.push(r.url());
-    });
-    await page.goto("/menu");
-    await page.getByRole("button", { name: /Tengo una reserva/ }).click();
-    await page
-      .getByRole("button", {
-        name: tipo === "frio" ? /Reserva de frío/ : /Reserva de calor/,
-      })
-      .click();
-    await page
-      .getByRole("button", { name: "Usar reserva web de ejemplo" })
-      .click();
-    await page
-      .getByRole("button", { name: "Consultar reserva", exact: true })
-      .click();
-    await expect(
-      page.getByText("Reserva web comprobada", { exact: true }),
-    ).toBeVisible();
-    await page
-      .getByRole("checkbox", { name: "Guardé mis objetos y cerré la puerta." })
-      .check();
-    await page
-      .getByRole("button", { name: "Comenzar uso de mi reserva" })
-      .click();
-    await expect(
-      page.getByRole("heading", { name: "Tu reserva está en uso" }),
-    ).toBeVisible();
-    expect(peticiones.filter((x) => /\/reservas$|\/pagar$/.test(x))).toEqual(
-      [],
-    );
-  });
-  test(`ruta de contratar ${tipo} redirige a reservas existentes`, async ({
-    page,
-  }) => {
-    await page.goto(`/servicios/${tipo}`);
-    await expect(page).toHaveURL(/\/terminal\/reserva-web$/);
-    await expect(
-      page.getByRole("heading", { name: "Tengo una reserva web" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Continuar al pago/ }),
-    ).toHaveCount(0);
-  });
-}
-
-test("Guardar solo ofrece pertenencias y el deposito de encomiendas esta en reservas web", async ({
-  page,
-}) => {
-  await page.goto("/menu");
-  await page.getByRole("button", { name: /^Guardar / }).click();
-  await expect(
-    page.getByRole("heading", { name: "¿Qué deseas guardar?" }),
-  ).toBeVisible();
-  await expect(
-    page.locator('a[href="/terminal/encomiendas/reserva"]'),
-  ).toHaveCount(0);
-  await expect(page.locator('.opcion, .tarjeta-objeto, .objeto-card').filter({hasText:'Encomienda'})).toHaveCount(0);
-  await page.getByRole('button',{name:/Mochila o bolso/}).click();
-  await page.getByRole('button',{name:'Continuar',exact:true}).click();
-  await expect(page).toHaveURL(/\/guardar\/tamano\?objeto=mochila/);
-  await page.goto("/menu");
-  await page.getByRole("button", { name: /Tengo una reserva/ }).click();
-  await page.getByRole("button", { name: /Encomienda/ }).click();
-  await expect(page).toHaveURL(/\/terminal\/encomiendas\/reserva$/);
-});
-test("Retirar mantiene un acceso con opciones distintas para pertenencias y encomiendas", async ({
-  page,
-}) => {
-  await page.goto("/menu");
-  await page.getByRole("button", { name: /^Retirar / }).click();
-  await expect(
-    page.getByRole("heading", { name: "¿Qué deseas retirar?" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /Pertenencias y dispositivos/ }),
-  ).toBeEnabled();
-  await expect(page.getByRole('button',{name:/Pertenencias con WhatsApp/})).toBeEnabled();
-  await page.getByRole("button", { name: /Encomiendas/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "Retira tu encomienda" }),
-  ).toBeVisible();
+  await page.goto("http://127.0.0.1:4174/guardar/tamano?objeto=mochila");
+  await expect(page.getByText(/No se pudo consultar la disponibilidad/))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: "Continuar", exact: true }))
+    .toBeDisabled();
 });
