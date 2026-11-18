@@ -61,30 +61,40 @@ SELECT CASE WHEN DB_NAME() = N'SynchroDB_Pruebas'
         Estado "Base SQL" $true "SynchroDB_Pruebas con marcador validado."
 
         $cmd.CommandText = @'
+WITH Ocupaciones AS (
+    SELECT u.Id
+    FROM dbo.UsosCasillero u
+    JOIN dbo.Casilleros c ON c.Codigo = u.CodigoCasillero
+    WHERE u.TipoServicio = N'ResguardoPersonal'
+      AND u.OrigenReserva = N'Terminal'
+      AND u.Estado = N'Ocupado'
+      AND u.FechaIngreso IS NOT NULL
+      AND u.FechaRetiro IS NULL
+      AND c.Estado = N'Ocupado'
+)
 SELECT
-    COUNT(*) AS Ocupados,
-    COALESCE(SUM(CASE WHEN
-      EXISTS (
-        SELECT 1 FROM dbo.AutorizacionesWhatsAppManuales a
-        WHERE a.UsoId = u.Id AND a.Estado = N'Confirmado'
-      ) AND EXISTS (
-        SELECT 1 FROM dbo.RostrosRetiroPersonalManual r
-        WHERE r.UsoId = u.Id
-      ) AND EXISTS (
-        SELECT 1 FROM dbo.CodigosRetiroPersonal p
-        WHERE p.UsoId = u.Id
-          AND p.FechaUso IS NULL
-          AND p.IntentosFallidos < 5
-          AND (p.FechaVencimiento IS NULL OR p.FechaVencimiento > SYSUTCDATETIME())
-      ) THEN 1 ELSE 0 END), 0) AS Elegibles
-FROM dbo.UsosCasillero u
-JOIN dbo.Casilleros c ON c.Codigo = u.CodigoCasillero
-WHERE u.TipoServicio = N'ResguardoPersonal'
-  AND u.OrigenReserva = N'Terminal'
-  AND u.Estado = N'Ocupado'
-  AND u.FechaIngreso IS NOT NULL
-  AND u.FechaRetiro IS NULL
-  AND c.Estado = N'Ocupado'
+    (SELECT COUNT(*) FROM Ocupaciones) AS Ocupados,
+    (SELECT COUNT(*)
+     FROM Ocupaciones o
+     WHERE EXISTS (
+         SELECT 1
+         FROM dbo.AutorizacionesWhatsAppManuales a
+         WHERE a.UsoId = o.Id AND a.Estado = N'Confirmado'
+     )
+     AND EXISTS (
+         SELECT 1
+         FROM dbo.RostrosRetiroPersonalManual r
+         WHERE r.UsoId = o.Id
+     )
+     AND EXISTS (
+         SELECT 1
+         FROM dbo.CodigosRetiroPersonal p
+         WHERE p.UsoId = o.Id
+           AND p.FechaUso IS NULL
+           AND p.IntentosFallidos < 5
+           AND (p.FechaVencimiento IS NULL
+                OR p.FechaVencimiento > SYSUTCDATETIME())
+     )) AS Elegibles
 '@
         $lector = $cmd.ExecuteReader()
         if (-not $lector.Read()) { throw "No hay respuesta del recuento." }
@@ -101,6 +111,18 @@ WHERE u.TipoServicio = N'ResguardoPersonal'
     }
 } catch {
     Estado "Lectura de resguardos" $false "No pudo completarse la consulta. No se escribio en SQL."
+    # Exponer solo el numero tecnico de SQL; nunca el mensaje de la excepcion
+    # porque podria incluir informacion privada de la instalacion.
+    $ex = $_.Exception
+    while ($null -ne $ex -and
+           -not ($ex -is [System.Data.SqlClient.SqlException])) {
+        $ex = $ex.InnerException
+    }
+    if ($null -ne $ex) {
+        Write-Host ("[INFO] Codigo de error SQL: {0}" -f $ex.Number)
+    } else {
+        Write-Host "[INFO] No se identifico un codigo SQL; revisar acceso y objetos."
+    }
 } finally {
     if ($null -ne $conexion) { $conexion.Dispose() }
 }
