@@ -94,7 +94,7 @@ WHERE u.TipoServicio = N'ResguardoPersonal'
         Write-Host ("[INFO] Resguardos personales ocupados: {0}" -f $ocupados)
         Write-Host ("[INFO] Resguardos con WA, rostro y PIN vigente: {0}" -f $elegibles)
         if ($elegibles -eq 0) {
-            Write-Host "[PENDIENTE] No hay operacion preparada para un retiro integrado."
+            Estado "Operacion para retirar" $false "No hay resguardo con autorizacion, rostro y PIN vigentes."
         } else {
             Write-Host "[OK] Hay al menos una operacion potencialmente valida."
         }
