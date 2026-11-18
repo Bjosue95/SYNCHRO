@@ -14,13 +14,6 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
 
   routes: [
-    // Ruta antigua temporal hasta comprobar admin-app.
-    {
-      path: "/admin/whatsapp-manual",
-      component: () =>
-        import("../views/WhatsAppManualAdminView.vue"),
-      meta: { superficie: "admin" },
-    },
     { path: "/", component: BienvenidaView },
     { path: "/menu", component: MenuView },
 
