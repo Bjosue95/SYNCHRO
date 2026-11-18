@@ -269,7 +269,7 @@ test("rostro, PIN, pago administrativo y retiro", async ({
     name: "Resumen de tu consumo"
   })).toBeVisible();
   await expect(page.locator(".pantalla-pago .nota"))
-    .toContainText("Método elegido: Efectivo");
+    .toContainText("Método: Efectivo");
   await expect(page.locator(".pantalla-pago .estado"))
     .toContainText("Pago pendiente de confirmación administrativa");
 
