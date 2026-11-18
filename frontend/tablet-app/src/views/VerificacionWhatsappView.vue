@@ -493,22 +493,10 @@ onBeforeUnmount(() => {
 .titulo {
   text-align: center;
 }
-.etapa {
-  display: inline-block;
-  color: #007f93;
-  font-size: 12px;
-  letter-spacing: 2px;
-  font-weight: 800;
-}
 .titulo h1 {
   margin: 12px 0 7px;
   font-size: clamp(30px, 4.5vw, 42px);
   letter-spacing: -.8px;
-}
-.titulo p {
-  margin: 0;
-  color: #5b6770;
-  font-size: 17px;
 }
 .centro {
   width: min(100%, 620px);
@@ -575,23 +563,12 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 800;
 }
-.informacion h2 {
-  font-size: 24px;
-  margin: 14px 0 8px;
-}
 .informacion p {
   margin: 0 auto;
   max-width: 490px;
   color: #5b6770;
   font-size: 17px;
   line-height: 1.5;
-}
-.abrir-wa {
-  color: #006f80;
-  font-weight: 800;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  padding: 9px;
 }
 .estado {
   display: flex;
@@ -608,23 +585,6 @@ onBeforeUnmount(() => {
   text-align: center;
   font-weight: 700;
 }
-.punto {
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #00b9c7;
-}
-.estado.exitoso {
-  border-color: #8cdbb8;
-  background: #e6f7ee;
-}
-.estado.exitoso .punto { background: #168c5b; }
-.estado.fallido {
-  border-color: #e3b1a5;
-  background: #fff0ec;
-}
-.estado.fallido .punto { background: #b34e32; }
 .resultado-icono {
   display: grid;
   place-items: center;
@@ -646,12 +606,6 @@ onBeforeUnmount(() => {
   width: min(100%, 620px);
   text-align: center;
 }
-.pie p {
-  color: #6b7d88;
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-}
 .reintentar {
   margin-top: 16px;
   border: 2px solid #00b9c7;
@@ -664,37 +618,10 @@ onBeforeUnmount(() => {
   font-weight: 800;
   cursor: pointer;
 }
-.tema-oscuro {
-  background: #061f36;
-  color: #f4fbff;
-}
-.tema-oscuro .titulo p,
-.tema-oscuro .informacion p,
-.tema-oscuro .pie p {
-  color: #c3d8e3;
-}
-.tema-oscuro .codigo-casillero {
-  background: #17425b;
-  color: #d5faff;
-  border-color: #315b72;
-}
-.tema-oscuro .estado {
-  background: #123a54;
-  color: #e5fbff;
-  border-color: #315b72;
-}
-.tema-oscuro .estado.exitoso {
-  background: #16483e;
-}
-.tema-oscuro .estado.fallido {
-  background: #4d2b34;
-}
-.tema-oscuro .abrir-wa { color: #5ec6e8; }
 @media (max-height: 850px) {
   .contenido { padding: 14px 18px; gap: 12px; }
   .qr-marco { width: min(56vw, 250px); }
   .titulo h1 { font-size: 29px; }
-  .informacion h2 { font-size: 21px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cargando { animation: none; }
@@ -728,17 +655,8 @@ onBeforeUnmount(() => {
 }
 
 #app .synchro-app .pantalla-wa.tema-oscuro
-.titulo p,
-#app .synchro-app .pantalla-wa.tema-oscuro
-.informacion p,
-#app .synchro-app .pantalla-wa.tema-oscuro
-.pie p {
+.informacion p {
   color: #c6dfea;
-}
-
-#app .synchro-app .pantalla-wa.tema-oscuro
-.etapa {
-  color: #69dae1;
 }
 
 #app .synchro-app .pantalla-wa.tema-oscuro
@@ -767,57 +685,12 @@ onBeforeUnmount(() => {
 }
 
 #app .synchro-app .pantalla-wa.tema-oscuro
-.estado.exitoso {
-  background: #16483e;
-  border-color: #448b7a;
-}
 
 #app .synchro-app .pantalla-wa.tema-oscuro
-.estado.fallido {
-  background: #4d2b34;
-  border-color: #905e64;
-}
 
-.confirmar-deposito {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 
-  min-width: min(92%, 340px);
-  min-height: 62px;
 
-  margin-top: 12px;
-  padding: 12px 22px;
 
-  border: 2px solid #00b9c7;
-  border-radius: 15px;
-
-  background: #f4feff;
-  color: #01305c;
-
-  font: inherit;
-  font-size: 18px;
-  font-weight: 800;
-
-  cursor: pointer;
-}
-
-.confirmar-deposito:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.tema-oscuro .confirmar-deposito:not(:disabled) {
-  background: #123d5b;
-  color: #ffffff;
-  border-color: #5ec6e8;
-}
-
-.tema-oscuro .confirmar-deposito:disabled {
-  background: #254054;
-  color: #c0d0da;
-  border-color: #426984;
-}
 
 /* SYNCHRO - Espera de confirmacion */
 .espera-synchro {
