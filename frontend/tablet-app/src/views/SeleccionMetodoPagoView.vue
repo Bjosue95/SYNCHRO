@@ -340,6 +340,14 @@ async function continuar() {
     height: min(calc(100% - var(--espacio-boton)), 450px);
   }
 }
+
+/* En tablets verticales, el titulo comparte la cota del menu.
+   La altura adicional participa en el grid, sin superponer tarjetas. */
+@media (orientation: portrait) and (min-width: 400px) and (min-height: 680px) {
+  .contenido-metodos > h1 {
+    margin-top: calc(46px - clamp(12px, 2vh, 22px));
+  }
+}
 @media (max-height: 620px) {
   .pantalla-metodos { padding: 8px 14px; }
   .contenido-metodos {
