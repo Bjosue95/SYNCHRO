@@ -72,7 +72,8 @@ internal static class RetiroFacialManualEndpoints
             .RequireRateLimiting("RetiroPersonal");
 
         grupo.MapPost("/rostro", async (HttpContext http, IAntiforgery csrf,
-            IDataProtectionProvider proveedor, IConfiguration config) =>
+            IDataProtectionProvider proveedor, IConfiguration config,
+            ILogger<RetiroFacialManualEndpoints> logger) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http)) return Results.StatusCode(403);
@@ -112,6 +113,11 @@ internal static class RetiroFacialManualEndpoints
                     return Results.Problem(statusCode: 503, title: "Comparacion simulada no configurada.");
 
                 var coincidencias = new List<int>();
+                // Solo contadores y una categoría de diferencia para diagnóstico
+                // local. Nunca registrar imágenes, descriptores, PIN o UsoId.
+                int referenciasExaminadas = 0;
+                int distanciasValidas = 0;
+                double minimaDistancia = double.PositiveInfinity;
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
                 await using var consulta = new SqlCommand("""
@@ -133,6 +139,7 @@ internal static class RetiroFacialManualEndpoints
                 {
                     if (++examinados > MaxCandidatos)
                         return Results.Problem(statusCode: 503, title: "Demasiadas operaciones para la demostracion.");
+                    referenciasExaminadas++;
                     int usoId = lector.GetInt32(0);
                     byte[] cifrado = (byte[])lector.GetValue(1);
                     double[]? guardado = null;
@@ -140,6 +147,11 @@ internal static class RetiroFacialManualEndpoints
                     {
                         guardado = RecuperarPatron(proveedor, usoId, cifrado);
                         double? distancia = ComparadorDescriptoresFaciales.CalcularDistancia(guardado, muestra);
+                        if (distancia.HasValue)
+                        {
+                            distanciasValidas++;
+                            minimaDistancia = Math.Min(minimaDistancia, distancia.Value);
+                        }
                         if (distancia.HasValue && distancia.Value <= umbral)
                         {
                             coincidencias.Add(usoId);
@@ -154,7 +166,25 @@ internal static class RetiroFacialManualEndpoints
                     }
                 }
                 if (coincidencias.Count == 0)
+                {
+                    // Opt-in y solo Development en la BD aislada: el cliente sigue
+                    // recibiendo el mismo rechazo, sin exposición de similitudes.
+                    if (app.Environment.IsDevelopment() &&
+                        config.GetValue<bool>("RetiroPersonal:DiagnosticoFacial"))
+                    {
+                        string categoria = double.IsPositiveInfinity(minimaDistancia)
+                            ? "sin-distancia-calculable"
+                            : minimaDistancia <= umbral + 0.05d
+                                ? "cerca-del-umbral"
+                                : minimaDistancia <= umbral + 0.25d
+                                    ? "diferencia-moderada"
+                                    : "diferencia-alta";
+                        logger.LogInformation(
+                            "SYNCHRO diagnóstico rostro rechazo: referencias={Referencias}, distanciasValidas={Distancias}, categoria={Categoria}. No se autorizó retiro.",
+                            referenciasExaminadas, distanciasValidas, categoria);
+                    }
                     return Results.BadRequest(new { mensaje = MensajeRechazo });
+                }
 
                 // Token protegido temporal: no se envian IDs de reservas al navegador.
                 string texto = string.Join(',', coincidencias);
