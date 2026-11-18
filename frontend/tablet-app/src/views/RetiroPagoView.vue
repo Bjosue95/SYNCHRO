@@ -594,98 +594,7 @@ header p {
   text-align: center;
 }
 
-/* Modo oscuro SYNCHRO */
-
-.pantalla-pago.tema-oscuro {
-  background: #061f36;
-  color: #ffffff;
-}
-
-.tema-oscuro .etiqueta {
-  color: #5ec6e8;
-}
-
-.tema-oscuro header p,
-.tema-oscuro .nota {
-  color: #c6dfea;
-}
-
-.tema-oscuro .tarjeta-resumen {
-  background: #103956;
-  border-color: #426984;
-
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, .18);
-}
-
-.tema-oscuro .dato {
-  border-bottom-color: #426984;
-}
-
-.tema-oscuro .total {
-  border-bottom: 0;
-}
-
-.tema-oscuro .dato span {
-  color: #d4e2ea;
-}
-
-.tema-oscuro .dato strong,
-.tema-oscuro .total span {
-  color: #ffffff;
-}
-
-.tema-oscuro .total strong {
-  color: #5ec6e8;
-}
-
-.tema-oscuro .descripcion {
-  border-top-color: #426984;
-  color: #c6dfea;
-}
-
-.tema-oscuro .estado {
-  background: #42351f;
-  border-color: #967a45;
-  color: #fff0ca;
-}
-
-.tema-oscuro .estado.completado {
-  background: #16483e;
-  border-color: #448b7a;
-  color: #e4fff2;
-}
-
-.tema-oscuro .mensaje {
-  background: #204766;
-  border-color: #426984;
-  color: #ffffff;
-}
-
-.tema-oscuro .boton-principal:not(:disabled) {
-  background: #123d5b;
-  color: #ffffff;
-  border-color: #5ec6e8;
-
-  box-shadow:
-    0 4px 0 #087d93,
-    0 7px 16px rgba(0, 0, 0, .22);
-}
-
-.tema-oscuro .boton-principal:disabled {
-  background: #254054;
-  color: #c0d0da;
-  border-color: #426984;
-  box-shadow: none;
-}
-
-.tema-oscuro .icono-claro {
-  opacity: 0;
-}
-
-.tema-oscuro .icono-oscuro {
-  opacity: 1;
-}
+/* El modo oscuro se define una sola vez en SYNCHRO-PAGO-TEMA-UNIFICADO-V1. */
 
 /* Pantallas estrechas */
 
@@ -822,6 +731,7 @@ header p {
   background-color: #103956;
   border-color: #42647e;
   color: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
 }
 
 .pantalla-pago.tema-oscuro .dato {
@@ -829,7 +739,7 @@ header p {
 }
 
 .pantalla-pago.tema-oscuro .total {
-  border-bottom-color: transparent;
+  border-bottom: 0;
 }
 
 /* Jerarquia de texto */
