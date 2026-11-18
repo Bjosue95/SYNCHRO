@@ -714,6 +714,30 @@ a.regresar:focus-visible,
   }
 }
 
+/* Tablet horizontal: Volver no consume una fila del grid.
+   Las pantallas de seleccion arrancan debajo de la cabecera
+   exactamente igual que el menu; se conservan tarjetas y pie. */
+@media (orientation: landscape) and (min-width: 768px) and (min-height: 700px) {
+  #app .synchro-app .pantalla-guardar,
+  #app .synchro-app .pantalla-tamanos,
+  #app .synchro-app .pantalla-casilleros {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    padding: clamp(12px, 2vh, 22px) clamp(12px, 2.4vw, 28px);
+  }
+
+  #app .synchro-app .pantalla-guardar > .regresar,
+  #app .synchro-app .pantalla-tamanos > .regresar,
+  #app .synchro-app .pantalla-casilleros > .volver {
+    position: absolute;
+    top: 7px;
+    left: clamp(12px, 2.4vw, 28px);
+    z-index: 5;
+  }
+}
+
 /* SYNCHRO-CUADRICULA-UNIFICADA-V3
    Una sola geometria para las cuatro pantallas.
    Referencia: tarjetas de seleccion de casillero.
