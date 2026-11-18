@@ -50,7 +50,7 @@ async function obtenerMedidas(pagina) {
       alto: Math.round(r.height * 10) / 10,
       fuente: c.fontSize,
       anchoPagina: document.documentElement.scrollWidth,
-      viewport: window.innerWidth,
+      anchoViewport: window.innerWidth,
       botonContinuar: br ? {
         x: Math.round(br.x * 10) / 10,
         y: Math.round(br.y * 10) / 10,
