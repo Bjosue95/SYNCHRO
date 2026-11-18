@@ -5,6 +5,7 @@ import { useTema } from "../composables/useTema";
 import SelectorMetodoPago from "../components/pagos/SelectorMetodoPago.vue";
 import {
   obtenerOrdenRetiroPagado,
+  obtenerMetodoPagoRetiro,
   limpiarRetiro
 } from "../services/retiroSesion";
 import {
@@ -37,6 +38,16 @@ const mensaje = ref("");
 const casilleroFinal = ref("");
 const metodoSeleccionado = ref("");
 const pasoMetodo = ref(false);
+
+// Preferencia visual; solo el backend y el operador confirman pagos.
+const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
+const indicacionesRetiro = {
+  Efectivo: "El operador deberá comprobar y confirmar el pago simulado en efectivo.",
+  Tarjeta: "El operador deberá comprobar y confirmar el pago simulado con tarjeta.",
+  NFC: "La confirmación NFC todavía no está habilitada para retiros en este prototipo. Solicita al operador un método disponible."
+};
+const indicacionRetiro = indicacionesRetiro[metodoRetiro] ||
+  "Solicita asistencia al operador para continuar.";
 
 const instrucciones = {
   Efectivo: {
@@ -75,6 +86,8 @@ const importe = computed(() => {
 onMounted(() => {
   if (!orden.value) {
     router.replace("/retirar/rostro");
+  } else if (!esVistaPrevia && !metodoRetiro) {
+    router.replace("/retirar/pago");
   }
 });
 
@@ -130,7 +143,35 @@ function finalizar() {
 
 <template>
   <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro, 'vista-previa-pago': esVistaPrevia }">
-    <section class="contenido-pago" v-if="orden">
+    <!-- Solo mostrar el resultado si el backend confirmó el retiro pagado. -->
+    <section v-if="completado && !esVistaPrevia" class="contenido-pago" aria-live="polite">
+      <header>
+        <span class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
+        <h1>Retiro completado</h1>
+        <p>El pago simulado fue confirmado y el retiro quedó registrado.</p>
+      </header>
+      <div class="tarjeta-resumen">
+        <div class="dato">
+          <span>Casillero</span>
+          <strong>{{ casilleroFinal }}</strong>
+        </div>
+        <div class="dato total">
+          <span>Estado</span>
+          <strong>Disponible</strong>
+        </div>
+      </div>
+      <p class="estado completado"><span class="punto"></span>Retiro autorizado por SYNCHRO</p>
+      <p class="nota">En este prototipo, abre manualmente el casillero asignado para recoger tus objetos.</p>
+      <button class="boton-principal" type="button" @click="finalizar">
+        <span>Finalizar</span>
+        <span class="icono-continuar" aria-hidden="true">
+          <img src="/iconos/complementarios/29_continuar.svg" class="icono-claro" alt="" />
+          <img src="/iconos/complementarios/29_continuar-oscuro.svg" class="icono-oscuro" alt="" />
+        </span>
+      </button>
+    </section>
+
+    <section v-else-if="orden" class="contenido-pago">
       <header>
         <span v-if="!esVistaPrevia" class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
         <h1>
@@ -178,7 +219,7 @@ function finalizar() {
         <p>{{ instruccionActual.texto }}</p>
       </section>
 
-      <p v-if="!completado && !esVistaPrevia" class="estado">
+      <p v-if="!esVistaPrevia" class="estado">
         <span class="punto"></span>
         Pago pendiente de confirmación administrativa
       </p>
@@ -225,9 +266,11 @@ function finalizar() {
         </span>
       </button>
 
-      <p v-if="!completado && !esVistaPrevia" class="nota">
-        Este prototipo utiliza pagos simulados.
-        La tablet no puede confirmar pagos por sí misma.
+      <p v-if="!esVistaPrevia" class="nota">
+        Método elegido: <strong>{{ metodoRetiro }}</strong>.
+        {{ indicacionRetiro }}
+        Después de la confirmación del operador, pulsa
+        «Verificar pago y retirar». La tablet no puede aprobar el pago por sí misma.
       </p>
     </section>
   </main>
