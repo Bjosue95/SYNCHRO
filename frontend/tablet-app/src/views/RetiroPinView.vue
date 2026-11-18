@@ -808,6 +808,27 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Tablet vertical alta: titulo alineado con el menu, sin reducir
+   el tamaño de los botones del teclado. Se recupera la altura extra
+   en las separaciones entre encabezado, indicadores, teclado y acciones. */
+@media (orientation: portrait) and (min-width: 600px) and (min-height: 900px) {
+  .pantalla-pin {
+    padding-top: 46px;
+  }
+
+  .indicadores {
+    margin-top: 12px;
+  }
+
+  .teclado {
+    margin-top: 16px;
+  }
+
+  .acciones {
+    margin-top: 19px;
+  }
+}
+
 /* Movimiento reducido */
 
 @media (prefers-reduced-motion: reduce) {
