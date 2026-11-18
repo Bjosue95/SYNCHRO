@@ -291,13 +291,6 @@ onMounted(() => {
             }}
           </span>
 
-          <span
-            v-if="seleccionado === item.codigo"
-            class="marca"
-            aria-hidden="true"
-          >
-            ✓
-          </span>
         </button>
       </div>
     </section>
@@ -618,46 +611,41 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.marca {
-  position: absolute;
-  top: 9px;
-  right: 10px;
-
-  display: grid;
-  place-items: center;
-
-  width: 28px;
-  height: 28px;
-
-  border-radius: 50%;
-  background: #00b9c7;
-  color: #01305c;
-  font-weight: 800;
-}
-
 /* Estado inferior */
 
 .pie {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-
+  gap: 6px;
   min-height: 48px;
+  padding: 4px 12px;
   text-align: center;
 }
 
-.pie p {
-  margin: 0;
-  font-size: clamp(14px, 1.5vw, 17px);
-  line-height: 1.3;
+/* El mensaje sigue anunciado a lectores de pantalla. */
+.pie > p {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .paginas {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  order: -1;
   gap: 10px;
+  margin: 0 auto;
+  flex: 0 0 auto;
 }
 
 .paginas button,
@@ -841,10 +829,6 @@ onMounted(() => {
     font-size: 12px;
   }
 
-  .marca {
-    width: 23px;
-    height: 23px;
-  }
 }
 
 /* Accesibilidad */
@@ -875,17 +859,6 @@ onMounted(() => {
 /* SYNCHRO-CHECK-Y-CONTINUAR-UNIFICADOS-V1 */
 
 /* Mismo check de Guardar y Seleccion de tamanos */
-
-.casillero {
-  position: relative;
-}
-
-/* Ocultar la marca de texto anterior,
-   para no mostrar dos checks. */
-
-.casillero .marca {
-  display: none;
-}
 
 .casillero.seleccionado::after {
   content: "\2713";
@@ -933,29 +906,12 @@ onMounted(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-/* SYNCHRO - CONTINUAR CASILLERO V1 */
-
-#app .synchro-app .pantalla-casilleros .pie {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  justify-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-}
-
-.pie > p {
-  grid-column: 1;
-  text-align: center;
-  max-width: 100%;
-}
-
-.pie > .paginas {
-  grid-column: 3;
-}
+/* SYNCHRO | Continuar con pie centrado, sin cuadriculas superpuestas. */
 
 .boton-ir-rostro {
-  grid-column: 2;
+  order: 0;
+  flex: 0 0 auto;
+  margin: 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1025,69 +981,9 @@ onMounted(() => {
 }
 
 @media (max-width: 650px) {
-  #app .synchro-app .pantalla-casilleros .pie {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
-  }
-
-  .pie > p,
-  .pie > .boton-ir-rostro,
-  .pie > .paginas {
-    grid-column: 1;
-  }
-
   .boton-ir-rostro {
     min-height: 48px;
   }
 }
 
-/* SYNCHRO-PIE-CENTRADO-V2
-   Mensaje accesible, boton centrado y paginacion arriba.
-*/
-
-#app .synchro-app .pantalla-casilleros .pie {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex-wrap: nowrap !important;
-  gap: 6px !important;
-  padding: 4px 12px !important;
-}
-
-/* No repetir visualmente el casillero seleccionado */
-
-#app .synchro-app .pantalla-casilleros .pie > p {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip-path: inset(50%) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
-}
-
-/* Continuar siempre centrado */
-
-#app .synchro-app .pantalla-casilleros
-.pie > .boton-ir-rostro {
-  order: 0;
-  grid-column: auto !important;
-  margin: 0 auto !important;
-  flex: 0 0 auto;
-  justify-self: center !important;
-}
-
-/* Paginacion centrada encima de Continuar */
-
-#app .synchro-app .pantalla-casilleros
-.pie > .paginas {
-  order: -1;
-  grid-column: auto !important;
-  margin: 0 auto !important;
-  justify-content: center !important;
-  flex: 0 0 auto;
-}
 </style>
