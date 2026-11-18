@@ -259,6 +259,21 @@ test("rostro, PIN, pago administrativo y retiro", async ({
   await expect(page.getByRole("heading", {
     name: "¿Cómo deseas pagar?"
   })).toBeVisible();
+
+  // NFC aparece como opcion visual, pero el cobro no se confirma.
+  // Volver al selector no debe borrar la autorizacion efimera.
+  await page.locator(".celda-metodo").nth(2).click();
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(page).toHaveURL(/\/retirar\/pago\/resumen$/);
+  await expect(page.locator(".pantalla-pago .nota"))
+    .toContainText("El pago NFC aún no está habilitado");
+  await page.getByRole("button", { name: "Cambiar método" }).click();
+  await expect(page).toHaveURL(/\/retirar\/pago$/);
+  await expect(page.getByRole("heading", {
+    name: "¿Cómo deseas pagar?"
+  })).toBeVisible();
+
+  // Seleccion del metodo simulado que admite el operador.
   await page.locator(".celda-metodo").first().click();
   await page.getByRole("button", {
     name: "Continuar"
