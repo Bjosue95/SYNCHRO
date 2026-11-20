@@ -35,7 +35,21 @@ internal sealed class PinRetiroService
                 "La conexion no apunta a la base de pruebas.");
         }
 
-        if (!string.Equals(datosConexion.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(datosConexion.AttachDBFilename))
+        var suiteConfigurada = new SqlConnectionStringBuilder(
+            Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST") ?? "");
+
+        bool suiteHabilitada =
+            string.Equals(suiteConfigurada.DataSource, @"(localdb)\SYNCHRO_Suite_Test", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(suiteConfigurada.InitialCatalog, "SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) &&
+            suiteConfigurada.IntegratedSecurity &&
+            string.IsNullOrWhiteSpace(suiteConfigurada.AttachDBFilename);
+
+        bool instanciaValida =
+            string.Equals(datosConexion.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) ||
+            (suiteHabilitada &&
+             string.Equals(datosConexion.DataSource, @"(localdb)\SYNCHRO_Suite_Test", StringComparison.OrdinalIgnoreCase));
+
+        if (!instanciaValida || !string.IsNullOrEmpty(datosConexion.AttachDBFilename))
             throw new InvalidOperationException("Instancia de pruebas no autorizada.");
 
         var conexion = new SqlConnection(cadena);

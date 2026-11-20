@@ -9,7 +9,7 @@ namespace Synchro.Api.Tests;
 // Sin secretos privados ni datos preexistentes. Cada caso tiene sus propios IDs.
 public abstract class PruebaHistoricaAislada : IAsyncLifetime
 {
-    internal const string CadenaAislada = @"Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;Encrypt=True;TrustServerCertificate=True";
+    internal const string CadenaAislada = @"Server=(localdb)\SYNCHRO_Suite_Test;Database=SynchroDB_Pruebas;Integrated Security=True;Encrypt=False;TrustServerCertificate=True";
     protected int TerminalFixture { get; private set; }
     protected int AdministradorFixture { get; private set; }
     protected int UsoFixture { get; private set; }
@@ -29,7 +29,7 @@ public abstract class PruebaHistoricaAislada : IAsyncLifetime
     internal static async Task VerificarAsync(SqlConnection c)
     {
         var datos=new SqlConnectionStringBuilder(c.ConnectionString);
-        Assert.Equal(@"(localdb)\SYNCHRO_Aislado",datos.DataSource,StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(@"(localdb)\SYNCHRO_Suite_Test",datos.DataSource,StringComparer.OrdinalIgnoreCase);
         Assert.Equal("SynchroDB_Pruebas",datos.InitialCatalog);
         Assert.True(string.IsNullOrEmpty(datos.AttachDBFilename));
         await using var q=new SqlCommand("""
@@ -67,7 +67,7 @@ public abstract class PruebaHistoricaAislada : IAsyncLifetime
         await c.OpenAsync();
         await VerificarAsync(c);
         var declarada=new SqlConnectionStringBuilder(Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST"));
-        Assert.Equal(@"(localdb)\SYNCHRO_Aislado",declarada.DataSource,StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(@"(localdb)\SYNCHRO_Suite_Test",declarada.DataSource,StringComparer.OrdinalIgnoreCase);
         Assert.Equal("SynchroDB_Pruebas",declarada.InitialCatalog);
         Assert.True(string.IsNullOrEmpty(declarada.AttachDBFilename));
         await DepositoEncomiendaSqlTests.PrepararAsync();

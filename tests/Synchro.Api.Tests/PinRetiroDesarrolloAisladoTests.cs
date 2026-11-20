@@ -22,10 +22,10 @@ public sealed class PinRetiroDesarrolloAisladoTests : PruebaHistoricaAislada
             builder.Configuration["RetiroPin:ClaveHmac"]));
 
         builder.Configuration["ConnectionStrings:SynchroDB"] =
-            @"Server=(localdb)\SYNCHRO_Aislado;" +
+            @"Server=(localdb)\SYNCHRO_Suite_Test;" +
             "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
-            "Encrypt=True;" +
+            "Encrypt=False;" +
             "TrustServerCertificate=True;";
 
         var servicio = new PinRetiroDesarrolloService(
@@ -48,7 +48,7 @@ public sealed class PinRetiroDesarrolloAisladoTests : PruebaHistoricaAislada
             @"Server=(localdb)\MSSQLLocalDB;" +
             "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
-            "Encrypt=True;" +
+            "Encrypt=False;" +
             "TrustServerCertificate=True;";
 
         var servicio = new PinRetiroDesarrolloService(

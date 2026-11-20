@@ -16,6 +16,8 @@ public sealed record RetiroManualPinSolicitud(string? Pin, string? TokenFacial)
     public override string ToString() => "Solicitud de retiro protegida";
 }
 
+internal sealed record RetiroV3Solicitud(double[]? Descriptor);
+
 // SOLO prototipo en Development + SynchroDB_Pruebas + modulo manual habilitado.
 // Human.js detecta/captura; este servidor compara PATRONES VISUALES SIMULADOS.
 // No hay verificacion biometrica real ni prueba de vida.
@@ -123,6 +125,31 @@ internal static class RetiroFacialManualEndpoints
                 double minimoExceso = double.PositiveInfinity;
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
+                // Un deposito V3 no puede retroceder al comparador V2.
+                var operacionesV3 = new HashSet<int>();
+
+                await using (var comprobarV3 = new SqlCommand(
+                    "SELECT OBJECT_ID(N'dbo.RostrosRetiroPersonalV3',N'U')", db))
+                {
+                    if (await comprobarV3.ExecuteScalarAsync(http.RequestAborted) is int)
+                    {
+                        await using var activosV3 = new SqlCommand("""
+                            SELECT v.UsoId
+                            FROM dbo.RostrosRetiroPersonalV3 AS v
+                            INNER JOIN dbo.UsosCasillero AS u
+                                ON u.Id = v.UsoId
+                            WHERE u.Estado = N'Ocupado'
+                              AND u.FechaRetiro IS NULL
+                            """, db);
+
+                        await using var lectorV3 =
+                            await activosV3.ExecuteReaderAsync(http.RequestAborted);
+
+                        while (await lectorV3.ReadAsync(http.RequestAborted))
+                            operacionesV3.Add(lectorV3.GetInt32(0));
+                    }
+                }
+
                 await using var consulta = new SqlCommand("""
                     SELECT TOP (101) u.Id, r.PatronProtegido, r.Modelo
                     FROM dbo.UsosCasillero AS u
@@ -146,6 +173,7 @@ internal static class RetiroFacialManualEndpoints
                         return Results.Problem(statusCode: 503, title: "Demasiadas operaciones para la demostracion.");
                     referenciasExaminadas++;
                     int usoId = lector.GetInt32(0);
+                    if (operacionesV3.Contains(usoId)) continue;
                     byte[] cifrado = (byte[])lector.GetValue(1);
                     bool esV2 = string.Equals(lector.GetString(2), PatronVisualRetiroV2.Modelo,
                         StringComparison.Ordinal);
@@ -155,7 +183,12 @@ internal static class RetiroFacialManualEndpoints
                         guardado = RecuperarPatron(proveedor, usoId, cifrado);
                         // Referencias v1 existentes (como M07) siguen usando
                         // EXACTAMENTE su comparador y umbral anteriores.
-                        double limite = esV2 ? PatronVisualRetiroV2.UmbralDistancia : umbral;
+                        double limite = esV2
+    ? (app.Environment.IsDevelopment() &&
+       config.GetValue<bool>("RostroSimulado:UmbralV2FlexibleDemo")
+        ? 0.23d
+        : PatronVisualRetiroV2.UmbralDistancia)
+    : umbral;
                         double? distancia = esV2
                             ? PatronVisualRetiroV2.CalcularDistancia(guardado, muestraV2)
                             : ComparadorDescriptoresFaciales.CalcularDistancia(guardado, muestra);
@@ -225,6 +258,263 @@ internal static class RetiroFacialManualEndpoints
             }
         });
 
+        // SYNCHRO: comparacion facial V3 experimental.
+        // El PIN y el cobro mantienen sus endpoints originales.
+        grupo.MapPost("/rostro-v3", async (
+            HttpContext http,
+            IAntiforgery csrf,
+            IDataProtectionProvider proveedor,
+            IConfiguration config,
+            ILogger<Program> logger) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!app.Environment.IsDevelopment() ||
+                !config.GetValue<bool>("RostroV3:RetiroHabilitado"))
+                return Results.NotFound();
+
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+
+            if (http.Request.ContentType?.Split(';')[0] != "application/json" ||
+                http.Request.Headers["X-SYNCHRO-CONSENTIMIENTO"].ToString() != "ACEPTO")
+                return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+            if (http.Request.ContentLength > 65536)
+                return Results.StatusCode(413);
+
+            byte[]? cuerpo = null;
+            double[]? recibido = null;
+            double[]? muestra = null;
+
+            try
+            {
+                using (var memoria = new MemoriaProtegida())
+                {
+                    byte[] bloque = new byte[4096];
+
+                    try
+                    {
+                        int n;
+                        while ((n = await http.Request.Body.ReadAsync(
+                            bloque, http.RequestAborted)) > 0)
+                        {
+                            if (memoria.Length + n > 65536)
+                                return Results.StatusCode(413);
+
+                            memoria.Write(bloque, 0, n);
+                        }
+
+                        cuerpo = memoria.ToArray();
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(bloque);
+
+                        if (memoria.TryGetBuffer(out var segmento))
+                            CryptographicOperations.ZeroMemory(segmento.AsSpan());
+                    }
+                }
+
+                var solicitud = JsonSerializer.Deserialize<RetiroV3Solicitud>(
+                    cuerpo,
+                    new JsonSerializerOptions {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                recibido = solicitud?.Descriptor;
+                muestra = DescriptorFacialV3.Normalizar(recibido);
+
+                if (muestra is null)
+                    return Results.BadRequest(new { mensaje = MensajeRechazo });
+
+                double umbral = config.GetValue(
+                    "RostroV3:UmbralDistanciaCoseno", 0.22d);
+
+                if (!double.IsFinite(umbral) ||
+                    umbral < 0 || umbral > 0.5d)
+                    return Results.Problem(
+                        statusCode: 503,
+                        title: "Umbral V3 no valido.");
+
+                var coincidencias = new List<int>();
+                int examinadas = 0;
+                double minimoExceso = double.PositiveInfinity;
+
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                await using var consulta = new SqlCommand("""
+                    SELECT TOP (101)
+                        u.Id,
+                        v.PatronProtegido
+                    FROM dbo.UsosCasillero AS u
+                    INNER JOIN dbo.AutorizacionesWhatsAppManuales AS a
+                        ON a.UsoId = u.Id
+                       AND a.Estado = N'Confirmado'
+                    INNER JOIN dbo.RostrosRetiroPersonalV3 AS v
+                        ON v.UsoId = u.Id
+                       AND v.Modelo = @Modelo
+                    INNER JOIN dbo.ConsentimientosRostroPersonalV3 AS c
+                        ON c.UsoId = u.Id
+                       AND c.VersionTexto = @Consentimiento
+                    WHERE u.Estado = N'Ocupado'
+                      AND u.FechaRetiro IS NULL
+                      AND u.TipoServicio = N'ResguardoPersonal'
+                      AND u.OrigenReserva = N'Terminal'
+                    ORDER BY u.Id DESC
+                    """, db);
+
+                consulta.Parameters.Add(
+                    "@Modelo", SqlDbType.NVarChar, 60
+                ).Value = DescriptorFacialV3.Modelo;
+
+                consulta.Parameters.Add(
+                    "@Consentimiento", SqlDbType.NVarChar, 60
+                ).Value = "SYNCHRO-FACIAL-V3-2026-11";
+
+                await using var lector =
+                    await consulta.ExecuteReaderAsync(http.RequestAborted);
+
+                while (await lector.ReadAsync(http.RequestAborted))
+                {
+                    if (++examinadas > MaxCandidatos)
+                        return Results.Problem(
+                            statusCode: 503,
+                            title: "Demasiadas operaciones para la demostracion.");
+
+                    int usoId = lector.GetInt32(0);
+                    byte[] cifrado = (byte[])lector.GetValue(1);
+                    double[]? guardado = null;
+
+                    try
+                    {
+                        byte[] plano = proveedor.CreateProtector(
+                            "SYNCHRO.RostroManual.V3.v1",
+                            usoId.ToString(CultureInfo.InvariantCulture)
+                        ).Unprotect(cifrado);
+
+                        try
+                        {
+                            guardado = JsonSerializer.Deserialize<double[]>(plano);
+                        }
+                        finally
+                        {
+                            CryptographicOperations.ZeroMemory(plano);
+                        }
+
+                        double? distancia =
+                            DescriptorFacialV3.DistanciaCoseno(
+                                guardado, muestra);
+
+                        if (distancia.HasValue)
+                        {
+                            minimoExceso = Math.Min(
+                                minimoExceso,
+                                distancia.Value - umbral);
+
+                            if (distancia.Value <= umbral)
+                                coincidencias.Add(usoId);
+                        }
+
+                        if (coincidencias.Count > MaxCoincidencias)
+                            return Results.Problem(
+                                statusCode: 409,
+                                title: "Demasiadas coincidencias simuladas.");
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(cifrado);
+
+                        if (guardado is not null)
+                            Array.Clear(guardado);
+                    }
+                }
+
+                if (coincidencias.Count == 0)
+                {
+                    if (config.GetValue<bool>(
+                        "RetiroPersonal:DiagnosticoFacial"))
+                    {
+                        string categoria =
+                            double.IsPositiveInfinity(minimoExceso)
+                                ? "sin-distancia-calculable"
+                                : minimoExceso <= 0.05d
+                                    ? "cerca-del-umbral"
+                                    : minimoExceso <= 0.25d
+                                        ? "diferencia-moderada"
+                                        : "diferencia-alta";
+
+                        logger.LogInformation(
+                            "SYNCHRO V3 rechazo: referencias={Referencias}, categoria={Categoria}.",
+                            examinadas, categoria);
+                    }
+
+                    return Results.BadRequest(new {
+                        mensaje = MensajeRechazo
+                    });
+                }
+
+                // Conserva el token que exige el PIN del retiro.
+                string token = proveedor
+                    .CreateProtector(ContextoAutorizacion)
+                    .ToTimeLimitedDataProtector()
+                    .Protect(
+                        string.Join(',', coincidencias),
+                        TimeSpan.FromMinutes(2));
+
+                foreach (var entrada in ControlesRetiro)
+                {
+                    if (entrada.Value.VenceUtc <= DateTimeOffset.UtcNow)
+                        ControlesRetiro.TryRemove(entrada.Key, out _);
+                }
+
+                ControlesRetiro[ClaveDeToken(token)] =
+                    new ControlRetiro(
+                        DateTimeOffset.UtcNow.AddMinutes(2));
+
+                return Results.Ok(new {
+                    verificacionSimulada = true,
+                    tokenFacial = token
+                });
+            }
+            catch (JsonException)
+            {
+                return Results.BadRequest(new {
+                    mensaje = MensajeRechazo
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Servicio V3 no disponible.");
+            }
+            catch (CryptographicException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Referencia V3 no disponible.");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "Comparacion V3 no disponible.");
+            }
+            finally
+            {
+                if (cuerpo is not null)
+                    CryptographicOperations.ZeroMemory(cuerpo);
+
+                if (recibido is not null)
+                    Array.Clear(recibido);
+
+                if (muestra is not null)
+                    Array.Clear(muestra);
+            }
+        });
         // SYNCHRO-COBRO-POSTERIOR-PREVALIDAR-V1
         // No registra retiro, no consume PIN y no confirma pagos.
         grupo.MapPost("/pin/prevalidar", async (

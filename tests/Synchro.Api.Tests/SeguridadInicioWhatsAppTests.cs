@@ -50,7 +50,7 @@ public sealed class SeguridadInicioWhatsAppTests
             b.UseEnvironment("Development");
             b.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?>
             {
-                ["ConnectionStrings:SynchroDB"]=@"Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=true",
+                ["ConnectionStrings:SynchroDB"]=@"Server=(localdb)\SYNCHRO_Suite_Test;Database=SynchroDB_Pruebas;Integrated Security=true",
                 ["WhatsApp:Outbox:Habilitado"]="false",
                 ["WhatsApp:VerificacionOutbox:Habilitado"]="false",
                 ["WhatsApp:SolicitudesInicioWorker:Habilitado"]="false"

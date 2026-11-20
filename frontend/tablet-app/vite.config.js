@@ -26,7 +26,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
       throw new Error(
         "Configura SYNCHRO_CERT_PATH para servir la tablet por HTTPS.",
       );
-    https = {
+    https = process.env.SYNCHRO_KEY_PATH ? { cert: readFileSync(certificado), key: readFileSync(process.env.SYNCHRO_KEY_PATH) } : {
       pfx: readFileSync(certificado),
       passphrase: process.env.SYNCHRO_CERT_PASSWORD,
     };

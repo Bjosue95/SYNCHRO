@@ -87,8 +87,8 @@ public static class DestinatariosSesionEndpoints
             {
                 var aislada = Synchro.Api.Services.ConexionSqlAislada.Exigir(
                     app.Configuration.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
-                if (!string.Equals(new SqlConnectionStringBuilder(aislada).DataSource,
-                    @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase))
+                if (!Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(
+                    new SqlConnectionStringBuilder(aislada)))
                     return Results.StatusCode(503);
             }
             catch (Exception e) when (e is InvalidOperationException or ArgumentException)

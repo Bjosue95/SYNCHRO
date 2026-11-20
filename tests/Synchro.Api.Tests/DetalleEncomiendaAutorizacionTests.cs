@@ -25,7 +25,7 @@ public class DetalleEncomiendaAutorizacionTests : PruebaHistoricaAislada
 
         // Impedir consultar accidentalmente la base original.
         if (datosConexion.InitialCatalog != "SynchroDB_Pruebas"
-            || datosConexion.DataSource != @"(localdb)\SYNCHRO_Aislado")
+            || datosConexion.DataSource != @"(localdb)\SYNCHRO_Suite_Test")
         {
             throw new InvalidOperationException(
                 "SEGURIDAD: conexión de pruebas incorrecta.");

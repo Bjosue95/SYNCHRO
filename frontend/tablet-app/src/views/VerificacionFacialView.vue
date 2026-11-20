@@ -2,8 +2,10 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
 import { registrarCaptura } from "../services/retiroSesion";
-import { validarRostroSimuladoRetiro } from "../services/retiroFacialManualApi";
+import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
+import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumirDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
 
 // SYNCHRO-FACIAL-FLUJO-LIMPIO-V5
 // Guardar: solo detectar y capturar.
@@ -12,12 +14,16 @@ import { validarRostroSimuladoRetiro } from "../services/retiroFacialManualApi";
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
+const pruebaDescriptorV3 = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_PRUEBA === "true";
 const propsVistaPrevia = defineProps({
   modoRetiroEjemplo: {
     type: Boolean,
     default: false
   }
 });
+
+const registroV3Habilitado = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_REGISTRO === "true";
+const retiroV3Habilitado = pruebaDescriptorV3 && import.meta.env.VITE_FACIAL_V3_RETIRO === "true";
 
 const retirando = computed(() =>
   (import.meta.env.DEV && propsVistaPrevia.modoRetiroEjemplo) ||
@@ -26,6 +32,11 @@ const retirando = computed(() =>
 
 const video = ref(null);
 const consentimiento = ref(false);
+const aceptaDescriptorV3 = ref(false);
+const aceptaRetiroV3 = ref(false);
+const usarRetiroV3 = computed(() =>
+  retirando.value && retiroV3Habilitado && aceptaRetiroV3.value
+);
 const encendida = ref(false);
 const iniciando = ref(false);
 const detectado = ref(false);
@@ -50,6 +61,14 @@ let stream = null;
 let timer = null;
 let secuencia = 0;
 let consecutivos = 0;
+let mejorCaptura = null;
+let muestrasCalidad = 0;
+
+function limpiarMejorCaptura() {
+  if (mejorCaptura) mejorCaptura.descriptor.fill(0);
+  mejorCaptura = null;
+  muestrasCalidad = 0;
+}
 let montada = true;
 
 function limpiarCaptura() {
@@ -63,6 +82,7 @@ function limpiarCaptura() {
 }
 
 function detenerCamara() {
+  limpiarMejorCaptura();
   secuencia++;
 
   if (timer !== null) {
@@ -118,8 +138,8 @@ async function prepararMotor() {
         enabled: true,
         maxDetected: 2,
       },
-      mesh: { enabled: false },
-      description: { enabled: false },
+      mesh: { enabled: pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value) },
+      description: { enabled: pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value) },
       iris: { enabled: false },
       emotion: { enabled: false },
     },
@@ -230,6 +250,101 @@ async function crearPng(datos) {
   });
 }
 
+function revisarCalidadV3(datos) {
+  const v = video.value;
+  const box = datos.face?.[0]?.box;
+
+  if (!v || !box || !v.videoWidth || !v.videoHeight) {
+    return {
+      valido: false,
+      mensaje: "Ajusta el rostro frente a la cámara."
+    };
+  }
+
+  const fx = v.videoWidth / (datos.width || v.videoWidth);
+  const fy = v.videoHeight / (datos.height || v.videoHeight);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+
+  const ctx = canvas.getContext("2d", {
+    willReadFrequently: true
+  });
+
+  if (!ctx) {
+    return {
+      valido: false,
+      mensaje: "No se pudo revisar la iluminación."
+    };
+  }
+
+  ctx.drawImage(
+    v, box[0] * fx, box[1] * fy,
+    box[2] * fx, box[3] * fy,
+    0, 0, 64, 64
+  );
+
+  const pixeles = ctx.getImageData(0, 0, 64, 64).data;
+  const grises = new Float32Array(4096);
+
+  let suma = 0;
+  let cuadrados = 0;
+  let detalle = 0;
+
+  for (let i = 0; i < grises.length; i++) {
+    const j = i * 4;
+
+    const luz =
+      0.2126 * pixeles[j] +
+      0.7152 * pixeles[j + 1] +
+      0.0722 * pixeles[j + 2];
+
+    grises[i] = luz;
+    suma += luz;
+    cuadrados += luz * luz;
+
+    if (i % 64 > 0) {
+      detalle += Math.abs(luz - grises[i - 1]);
+    }
+  }
+
+  const promedio = suma / grises.length;
+
+  const contraste = Math.sqrt(Math.max(
+    0,
+    cuadrados / grises.length - promedio * promedio
+  ));
+
+  if (promedio < 45) {
+    return {
+      valido: false,
+      mensaje: "Hay poca luz. Busca una zona más iluminada."
+    };
+  }
+
+  if (promedio > 215) {
+    return {
+      valido: false,
+      mensaje: "Hay luz excesiva. Evita la luz directa en el rostro."
+    };
+  }
+
+  if (contraste < 16) {
+    return {
+      valido: false,
+      mensaje: "La imagen tiene poco contraste. Ajusta la iluminación."
+    };
+  }
+
+  return {
+    valido: true,
+    puntaje:
+      contraste +
+      detalle / grises.length -
+      Math.abs(promedio - 130) * 0.08
+  };
+}
+
 async function analizar() {
   timer = null;
 
@@ -240,50 +355,181 @@ async function analizar() {
   try {
     const datos = await motor.detect(video.value);
 
-    if (!montada || version !== secuencia || !encendida.value) return;
+    if (!montada || version !== secuencia || !encendida.value) {
+      return;
+    }
+
     if (datos.error) {
       throw new Error(String(datos.error));
     }
 
     const indicacion = estadoRostro(datos);
 
-    detectado.value = indicacion === "listo";
-    consecutivos = detectado.value ? consecutivos + 1 : 0;
+    const modoV3 = pruebaDescriptorV3 &&
+      (aceptaDescriptorV3.value || usarRetiroV3.value);
+
+    const calidad = modoV3 && indicacion === "listo"
+      ? revisarCalidadV3(datos)
+      : null;
+
+    detectado.value =
+      indicacion === "listo" &&
+      (!modoV3 || calidad?.valido === true);
+
+    consecutivos = detectado.value
+      ? consecutivos + 1
+      : 0;
+
+    if (!detectado.value) {
+      limpiarMejorCaptura();
+    }
 
     error.value = "";
+
     estado.value = detectado.value
-      ? "Rostro detectado. Mantente inmóvil..."
-      : indicacion;
+      ? "Mantente inmóvil mientras seleccionamos la mejor captura..."
+      : indicacion !== "listo"
+        ? indicacion
+        : calidad?.mensaje;
 
     if (consecutivos >= 3) {
-      estado.value = "Preparando captura...";
+      let png;
+      let descriptor;
 
-      const png = await crearPng(datos);
-      const base64 = await blobATexto(png);
+      if (modoV3) {
+        const embedding = datos.face?.[0]?.embedding;
 
-      if (!montada || version !== secuencia || !consentimiento.value) return;
+        if (!embedding || embedding.length !== 1024) {
+          throw new Error(
+            "V3 no generó un descriptor completo."
+          );
+        }
 
-      limpiarCaptura();
+        const candidata = await crearPng(datos);
 
-      fotoUrl.value = URL.createObjectURL(png);
-      fotoBase64.value = base64;
-      tomada.value = true;
+        if (!montada ||
+            version !== secuencia ||
+            !consentimiento.value) {
+          return;
+        }
 
-      detenerCamara();
-      estado.value = "Captura lista.";
+        muestrasCalidad++;
+
+        if (!mejorCaptura ||
+            calidad.puntaje > mejorCaptura.puntaje) {
+
+          if (mejorCaptura) {
+            mejorCaptura.descriptor.fill(0);
+          }
+
+          mejorCaptura = {
+            png: candidata,
+            descriptor: Array.from(embedding),
+            puntaje: calidad.puntaje
+          };
+        }
+
+        if (muestrasCalidad < 3) {
+          estado.value =
+            `Comparando capturas ${muestrasCalidad}/3...`;
+          return;
+        }
+
+        png = mejorCaptura.png;
+        descriptor = mejorCaptura.descriptor;
+
+        mejorCaptura = null;
+        muestrasCalidad = 0;
+      } else {
+        png = await crearPng(datos);
+        descriptor = datos.face?.[0]?.embedding;
+      }
+
+      try {
+        const base64 = await blobATexto(png);
+
+        if (!montada ||
+            version !== secuencia ||
+            !consentimiento.value) {
+          return;
+        }
+
+        limpiarCaptura();
+
+        if (modoV3 &&
+            !registrarDescriptorV3(descriptor)) {
+          throw new Error(
+            "No se pudo preparar la referencia facial V3."
+          );
+        }
+
+        fotoUrl.value = URL.createObjectURL(png);
+        fotoBase64.value = base64;
+        tomada.value = true;
+
+        detenerCamara();
+
+        estado.value = modoV3
+          ? "V3: mejor captura seleccionada entre tres tomas."
+          : "Captura lista.";
+
+        // Mantener la validacion V3 del deposito.
+        if (modoV3 &&
+            !retirando.value &&
+            aceptaDescriptorV3.value) {
+
+          const temporal = copiarDescriptorV3();
+
+          if (!temporal) {
+            error.value =
+              "Repite la captura para probar V3.";
+          } else {
+            estado.value =
+              "Comprobando conexión V3 con SYNCHRO...";
+
+            try {
+              await validarDescriptorFacialV3Temporal(
+                temporal
+              );
+
+              if (montada) {
+                estado.value =
+                  "V3 validado por backend (solo prueba).";
+              }
+            } catch (e) {
+              if (montada) {
+                estado.value =
+                  "V3 no se validó en el backend.";
+
+                error.value =
+                  e?.message || "Error de conexión V3.";
+              }
+            } finally {
+              temporal.fill(0);
+            }
+          }
+        }
+      } finally {
+        if (modoV3 && descriptor) {
+          descriptor.fill(0);
+        }
+      }
     }
   } catch (e) {
+    limpiarMejorCaptura();
     consecutivos = 0;
     detectado.value = false;
     estado.value = "No se pudo analizar la imagen.";
-    error.value = e?.message || "Error al detectar el rostro.";
+    error.value =
+      e?.message || "Error al detectar el rostro.";
   } finally {
-    if (montada && encendida.value && !tomada.value) {
+    if (montada &&
+        encendida.value &&
+        !tomada.value) {
       timer = setTimeout(analizar, 650);
     }
   }
 }
-
 async function iniciarCamara() {
   if (!consentimiento.value || encendida.value || iniciando.value || tomada.value) return;
 
@@ -336,6 +582,7 @@ async function iniciarCamara() {
 }
 
 function repetir() {
+  borrarDescriptorV3();
   detenerCamara();
   limpiarCaptura();
   error.value = "";
@@ -345,6 +592,7 @@ function repetir() {
 }
 
 function cancelar() {
+  borrarDescriptorV3();
   consentimiento.value = false;
   detenerCamara();
   limpiarCaptura();
@@ -358,7 +606,25 @@ async function continuar() {
     error.value = "";
     estado.value = "Verificando captura con SYNCHRO...";
     try {
-      const tokenFacial = await validarRostroSimuladoRetiro(fotoBase64.value);
+      const descriptorV3 = usarRetiroV3.value
+        ? consumirDescriptorV3()
+        : null;
+
+      let tokenFacial;
+
+      try {
+        if (usarRetiroV3.value && !descriptorV3) {
+          throw new Error(
+            "El descriptor V3 venció. Repite la captura."
+          );
+        }
+
+        tokenFacial = usarRetiroV3.value
+          ? await validarRostroV3Retiro(descriptorV3)
+          : await validarRostroSimuladoRetiro(fotoBase64.value);
+      } finally {
+        if (descriptorV3) descriptorV3.fill(0);
+      }
       if (!montada) return;
       registrarCaptura(tokenFacial);
       limpiarCaptura();
@@ -381,6 +647,7 @@ async function continuar() {
       casillero: casillero.value,
       objeto: route.query.objeto || "",
       tamano: route.query.tamano || "",
+      consentimientoV3: pruebaDescriptorV3 && !retirando.value && aceptaDescriptorV3.value,
       fecha: new Date().toISOString(),
     }),
   );
@@ -402,6 +669,20 @@ function comenzarEscaneo() {
     consentimiento.value = true;
   }
 }
+watch(aceptaDescriptorV3, () => {
+  borrarDescriptorV3();
+
+  if (!encendida.value && !iniciando.value) {
+    motor = null;
+  }
+});
+watch(aceptaRetiroV3, () => {
+  borrarDescriptorV3();
+
+  if (!encendida.value && !iniciando.value)
+    motor = null;
+});
+
 watch(consentimiento, (acepta) => {
   if (!acepta) {
     cancelar();
@@ -493,6 +774,32 @@ onBeforeUnmount(() => {
     </section>
 
     <footer class="pie-facial">
+      <label
+        v-if="retiroV3Habilitado && retirando && !encendida && !tomada"
+        class="consentimiento-v3"
+      >
+        <input v-model="aceptaRetiroV3" type="checkbox" />
+        <span>
+          Autorizo comparar mi descriptor facial V3 con la
+          referencia cifrada de mi depósito. Es una prueba
+          experimental y el PIN seguirá siendo obligatorio.
+        </span>
+      </label>      <label
+        v-if="pruebaDescriptorV3 && registroV3Habilitado && !retirando && !encendida && !tomada"
+        class="consentimiento-v3"
+      >
+        <input
+          v-model="aceptaDescriptorV3"
+          type="checkbox"
+        />
+        <span>
+          Autorizo la prueba experimental de reconocimiento facial V3.
+          Mi descriptor podrá guardarse cifrado para comprobar el retiro
+          y se eliminará al cerrar el servicio o vencer la reserva.
+          Puedo continuar sin marcar esta opción utilizando el sistema actual.
+          Versión del aviso: {{ VERSION_CONSENTIMIENTO_V3 }}.
+        </span>
+      </label>
       <button
         v-if="!tomada && !encendida && !iniciando"
         type="button"
@@ -505,9 +812,18 @@ onBeforeUnmount(() => {
       </button>
 
       <button
+        v-if="tomada && error && !validandoEnServidor"
         class="continuar"
         type="button"
-        v-if="tomada"
+        @click="repetir"
+      >
+        <span>Repetir captura</span>
+      </button>
+
+      <button
+        class="continuar"
+        type="button"
+        v-if="tomada && !error"
         :disabled="validandoEnServidor"
         @click="continuar"
       >
@@ -839,5 +1155,22 @@ onBeforeUnmount(() => {
     animation: none;
     top: 50%;
   }
+}
+
+.consentimiento-v3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  max-width: 44rem;
+  margin: 0 auto 0.6rem;
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.consentimiento-v3 input {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
 }
 </style>

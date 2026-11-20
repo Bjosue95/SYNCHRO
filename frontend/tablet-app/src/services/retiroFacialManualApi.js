@@ -45,6 +45,41 @@ export async function validarRostroSimuladoRetiro(imagenDataUrl) {
   return datos.tokenFacial;
 }
 
+// Compara el descriptor V3 con referencias cifradas.
+export async function validarRostroV3Retiro(descriptor) {
+  if (!Array.isArray(descriptor) ||
+      descriptor.length !== 1024 ||
+      descriptor.some(v => !Number.isFinite(v) || Math.abs(v) > 1000)) {
+    throw new Error("Descriptor facial V3 incompleto.");
+  }
+
+  const csrfToken = await solicitarCsrf();
+
+  const respuesta = await fetch(
+    "/api/terminales/guardar/whatsapp/retiro/rostro-v3",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken,
+        "X-SYNCHRO-CONSENTIMIENTO": "ACEPTO"
+      },
+      body: JSON.stringify({ descriptor })
+    }
+  );
+
+  const datos = await respuestaSegura(respuesta);
+
+  if (datos?.verificacionSimulada !== true ||
+      typeof datos?.tokenFacial !== "string" ||
+      !datos.tokenFacial) {
+    throw new Error("SYNCHRO no pudo validar el rostro V3.");
+  }
+
+  return datos.tokenFacial;
+}
 export async function confirmarRetiroFacialConPin(pin, tokenFacial) {
   if (typeof pin !== "string" || !/^\d{6}$/.test(pin) ||
       typeof tokenFacial !== "string" || !tokenFacial) {
@@ -175,4 +210,44 @@ export async function finalizarRetiroPersonalPagado(
   }
 
   return datos;
+}
+
+export async function validarDescriptorFacialV3Temporal(descriptor) {
+  if (!Array.isArray(descriptor) ||
+      descriptor.length !== 1024 ||
+      descriptor.some(v => !Number.isFinite(v) || Math.abs(v) > 1000)) {
+    throw new Error("Descriptor V3 invalido.");
+  }
+
+  const norma = descriptor.reduce((s, v) => s + v * v, 0);
+  if (!Number.isFinite(norma) || norma < 1e-8) {
+    throw new Error("Descriptor V3 no utilizable.");
+  }
+
+  const csrfToken = await solicitarCsrf();
+
+  const respuesta = await fetch(
+    "/api/terminales/guardar/whatsapp/v3/validar",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken,
+        "X-SYNCHRO-CONSENTIMIENTO": "ACEPTO"
+      },
+      body: JSON.stringify({ descriptor })
+    }
+  );
+
+  const datos = await respuestaSegura(respuesta);
+
+  if (datos?.valido !== true ||
+      datos?.modelo !== "SYNCHRO-HUMANJS-EMBEDDING-1024-v3") {
+    throw new Error("El backend no valido el descriptor V3.");
+  }
+
+  // No devuelve un token de retiro.
+  return true;
 }

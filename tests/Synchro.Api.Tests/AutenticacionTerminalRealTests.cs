@@ -33,10 +33,10 @@ public sealed class FabricaTerminalCookieReal
                 new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:SynchroDB"] =
-                        @"Server=(localdb)\SYNCHRO_Aislado;" +
+                        @"Server=(localdb)\SYNCHRO_Suite_Test;" +
                         "Database=SynchroDB_Pruebas;" +
                         "Integrated Security=True;" +
-                        "Encrypt=True;" +
+                        "Encrypt=False;" +
                         "TrustServerCertificate=True;"
                 });
         });
@@ -64,10 +64,10 @@ public sealed class FabricaTerminalCookieReal
 public class AutenticacionTerminalRealTests : PruebaHistoricaAislada
 {
     private const string CadenaPruebas =
-        @"Server=(localdb)\SYNCHRO_Aislado;" +
+        @"Server=(localdb)\SYNCHRO_Suite_Test;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
-        "Encrypt=True;" +
+        "Encrypt=False;" +
         "TrustServerCertificate=True;";
 
     private const string RutaSesion =

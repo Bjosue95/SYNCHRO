@@ -38,7 +38,7 @@ public sealed class FabricaTerminalHttpPruebas
             // Sin variable, la cadena de respaldo no se usa para consultas SQL.
             string? configurada = Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST");
             string cadena = string.IsNullOrWhiteSpace(configurada)
-                ? @"Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;TrustServerCertificate=True;"
+                ? @"Server=(localdb)\SYNCHRO_Suite_Test;Database=SynchroDB_Pruebas;Integrated Security=True;TrustServerCertificate=True;"
                 : ConexionSqlAislada.Exigir(configurada, "SynchroDB_Pruebas");
             configuracion.AddInMemoryCollection(
                 new Dictionary<string, string?>

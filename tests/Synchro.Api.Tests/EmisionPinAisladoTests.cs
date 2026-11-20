@@ -22,10 +22,10 @@ public sealed class EmisionPinAisladoTests : PruebaHistoricaAislada
         builder.Configuration.AddConfiguration(PruebaHistoricaAislada.Configuracion());
 
         const string cadena =
-            @"Server=(localdb)\SYNCHRO_Aislado;" +
+            @"Server=(localdb)\SYNCHRO_Suite_Test;" +
             "Database=SynchroDB_Pruebas;" +
             "Integrated Security=True;" +
-            "Encrypt=True;" +
+            "Encrypt=False;" +
             "TrustServerCertificate=True;";
 
         builder.Configuration["ConnectionStrings:SynchroDB"] =

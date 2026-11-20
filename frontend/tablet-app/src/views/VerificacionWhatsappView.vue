@@ -2,6 +2,8 @@
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import QRCode from "qrcode";
+import { consumirDescriptorV3, borrarDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
+import { construirInicioFacialV3 } from "../services/solicitudInicioFacialV3.js";
 import { useTema } from "../composables/useTema";
 
 const route = useRoute();
@@ -61,6 +63,73 @@ function borrarSesion() {
   sessionStorage.removeItem(clave);
 }
 
+async function generarQrConLogo(contenido, opciones = {}) {
+  const canvas = document.createElement("canvas");
+
+  await QRCode.toCanvas(canvas, contenido, {
+    ...opciones,
+    width: 320,
+    margin: 4,
+    errorCorrectionLevel: "H",
+    color: {
+      dark: "#01305C",
+      light: "#FFFFFF",
+    },
+  });
+
+  const logo = new Image();
+  logo.src = "/assets/isotipo-fondo-claro.png";
+
+  try {
+    await logo.decode();
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas.toDataURL("image/png");
+
+    const centro = canvas.width / 2;
+    const fondo = canvas.width * 0.19;
+    const tamanoLogo = canvas.width * 0.145;
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(
+      centro - fondo / 2,
+      centro - fondo / 2,
+      fondo,
+      fondo
+    );
+
+    ctx.drawImage(
+      logo,
+      centro - tamanoLogo / 2,
+      centro - tamanoLogo / 2,
+      tamanoLogo,
+      tamanoLogo
+    );
+  } catch {
+    // Mantener el QR escaneable sin logo si la imagen falla.
+  }
+
+  return canvas.toDataURL("image/png");
+}
+function mensajeAceptacionPorPertenencia() {
+  const pertenencias = {
+    mochila: "mi mochila o bolso",
+    maleta: "mi maleta o equipaje",
+    compras: "mis bolsas de compras",
+    caja: "mis objetos personales y cajas",
+  };
+
+  const objeto = typeof route.query.objeto === "string"
+    ? route.query.objeto
+    : "";
+
+  const descripcion =
+    pertenencias[objeto] || "mis pertenencias personales";
+
+  return "Hola, SYNCHRO. Acepto recibir por WhatsApp " +
+    "mi PIN de retiro y las notificaciones relacionadas " +
+    "con el resguardo temporal de " + descripcion + ".";
+}
 function enlaceCliente(valor) {
   const url = new URL(valor);
 
@@ -77,7 +146,8 @@ function enlaceCliente(valor) {
     throw new Error("El enlace de WhatsApp no es válido.");
   }
 
-  url.searchParams.set("text", mensajeCliente);
+      // Conservar el codigo de autorizacion generado por el backend.
+  url.searchParams.set("text", mensajeAceptacionPorPertenencia());
   return url.toString();
 }
 
@@ -149,17 +219,56 @@ async function iniciar() {
     const captura = obtenerCaptura();
     const tokenCsrf = await csrf();
 
+    let envioV3 = null;
+
+    const registroV3 =
+      import.meta.env.DEV &&
+      import.meta.env.VITE_FACIAL_V3_REGISTRO === "true";
+
+    if (registroV3) {
+      const meta = JSON.parse(
+        sessionStorage.getItem("synchroRostroMeta") || "{}"
+      );
+
+      if (meta.consentimientoV3 === true) {
+        const descriptor = consumirDescriptorV3();
+
+        if (!descriptor) {
+          throw new Error(
+            "El descriptor V3 venció. Regresa y repite la captura."
+          );
+        }
+
+        try {
+          envioV3 = construirInicioFacialV3(
+            sessionStorage.getItem("synchroRostroTemporal"),
+            descriptor,
+            true
+          );
+        } finally {
+          descriptor.fill(0);
+        }
+      }
+    }
+
+    if (!envioV3) borrarDescriptorV3();
+
     const datos = await solicitar(
       "/api/terminales/guardar/whatsapp/iniciar",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/octet-stream",
+          "Content-Type": envioV3
+            ? "application/json"
+            : "application/octet-stream",
           "X-CSRF-TOKEN": tokenCsrf,
           "X-SYNCHRO-CASILLERO": casillero.value,
           "X-SYNCHRO-CONSENTIMIENTO": "ACEPTO",
+          ...(envioV3 ? {
+            "X-SYNCHRO-CONSENTIMIENTO-BIOMETRICO": "ACEPTO"
+          } : {})
         },
-        body: captura,
+        body: envioV3 ? envioV3.body : captura,
       }
     );
 
@@ -180,7 +289,7 @@ async function iniciar() {
     // recuperar la operación después de F5.
     guardarSesion(datos.urlWhatsapp);
 
-    qrImagen.value = await QRCode.toDataURL(url, {
+    qrImagen.value = await generarQrConLogo(url, {
       width: 320,
       margin: 2,
       errorCorrectionLevel: "M",
@@ -245,7 +354,7 @@ async function recuperarOIniciar() {
     intentoId = guardado.intentoId;
     tokenConsulta = guardado.tokenConsulta;
 
-    qrImagen.value = await QRCode.toDataURL(url, {
+    qrImagen.value = await generarQrConLogo(url, {
       width: 320,
       margin: 2,
       errorCorrectionLevel: "M",
@@ -355,7 +464,7 @@ onMounted(async () => {
     fase.value = "esperando";
     mensaje.value = "Esperando confirmación...";
 
-    qrImagen.value = await QRCode.toDataURL(
+    qrImagen.value = await generarQrConLogo(
       "SYNCHRO - VISTA PREVIA SIN OPERACION",
       {
         width: 320,

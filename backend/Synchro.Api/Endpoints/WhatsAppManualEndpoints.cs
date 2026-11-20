@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Data;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.DataProtection;
@@ -20,6 +21,7 @@ public static class WhatsAppManualEndpoints
         Guid IntentoId, string? CodigoAutorizacion, string? TelefonoCliente,
         bool MensajeComprobado);
     public sealed record OperacionPeticion(Guid IntentoId);
+    private sealed record SolicitudInicioFacialV3(byte[]? ImagenPng, double[]? Descriptor, string? VersionConsentimiento);
     public sealed record EmitirPinPeticion(Guid IntentoId, bool Reemplazar);
     public sealed record MarcarEnviadoPeticion(Guid IntentoId, bool EnvioComprobado);
     public sealed record FinalizarRetiroPagadoPeticion(
@@ -49,7 +51,7 @@ public static class WhatsAppManualEndpoints
         var cs = string.IsNullOrWhiteSpace(cadena) ? null : new SqlConnectionStringBuilder(cadena);
         if (cs is null ||
             !string.Equals(cs.InitialCatalog, "SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(cs.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase))
+            !Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(cs))
             throw new InvalidOperationException("WhatsApp manual solo se permite en el entorno SQL aislado.");
 
         var numero = app.Configuration["WhatsAppManual:NumeroE164"]?.Trim().TrimStart('+');
@@ -64,6 +66,7 @@ public static class WhatsAppManualEndpoints
 
         // Verificacion de rostro simulada + PIN; solo en el modulo manual aislado.
         app.MapRetiroFacialManualEndpoints(cadena ?? throw new InvalidOperationException("Conexion SynchroDB no configurada."));
+        app.MapValidacionDescriptorV3();
 
         // SYNCHRO-COBRO-PERSONAL-PREPARAR-V1
         // Solo crea una orden pendiente. No confirma pagos.
@@ -450,17 +453,105 @@ public static class WhatsAppManualEndpoints
             if (!await TerminalSegura(http, antiforgery)) return Results.StatusCode(403);
             http.Response.Headers.CacheControl = "no-store";
             string codigo = http.Request.Headers["X-SYNCHRO-CASILLERO"].ToString().Trim();
-            if (!CodigoValido(codigo) || http.Request.ContentType != "application/octet-stream" ||
+            string? tipo = http.Request.ContentType?.Split(';')[0].Trim();
+            bool esV3 = tipo == "application/json";
+
+            if (!CodigoValido(codigo) ||
+                (tipo != "application/octet-stream" && !esV3) ||
                 http.Request.Headers["X-SYNCHRO-CONSENTIMIENTO"].ToString() != "ACEPTO")
                 return Results.BadRequest(new { mensaje = "Solicitud de autorizacion invalida." });
 
+            // V3 permanece desactivado hasta completar consentimiento,
+            // eliminacion de referencias y pruebas de autorizacion.
+            if (esV3 && !app.Configuration.GetValue<bool>("RostroV3:RegistroHabilitado"))
+                return Results.NotFound();
+
+            if (esV3 &&
+                http.Request.Headers["X-SYNCHRO-CONSENTIMIENTO-BIOMETRICO"].ToString() != "ACEPTO")
+                return Results.BadRequest(new { mensaje = "Consentimiento biometrico requerido." });
+
             // Verificar la captura PNG; el modo manual no retiene biometria.
             byte[] rostro;
-            try { rostro = await LeerLimitado(http.Request.Body, MaxRostroBytes, http.RequestAborted); }
-            catch (InvalidDataException) { return Results.BadRequest(new { mensaje = "Captura demasiado grande." }); }
+            double[]? descriptorV3 = null;
+
+            if (esV3)
+            {
+                byte[]? cuerpo = null;
+
+                try
+                {
+                    cuerpo = await LeerLimitado(
+                        http.Request.Body, 1_500_000, http.RequestAborted);
+
+                    var datos = JsonSerializer.Deserialize<SolicitudInicioFacialV3>(
+                        cuerpo,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    descriptorV3 = DescriptorFacialV3.Normalizar(datos?.Descriptor);
+
+                    if (datos?.Descriptor is not null)
+                        Array.Clear(datos.Descriptor);
+
+                    rostro = datos?.ImagenPng ?? [];
+
+                    if (datos?.VersionConsentimiento != "SYNCHRO-FACIAL-V3-2026-11")
+                    {
+                        if (descriptorV3 is not null)
+                            Array.Clear(descriptorV3);
+
+                        CryptographicOperations.ZeroMemory(rostro);
+
+                        return Results.BadRequest(new
+                        {
+                            mensaje = "Version de consentimiento V3 no valida."
+                        });
+                    }
+
+                    if (descriptorV3 is null ||
+                        rostro.Length is < 16 or > MaxRostroBytes)
+                    {
+                        if (descriptorV3 is not null) Array.Clear(descriptorV3);
+                        CryptographicOperations.ZeroMemory(rostro);
+
+                        return Results.BadRequest(new {
+                            mensaje = "Captura o descriptor V3 invalido."
+                        });
+                    }
+                }
+                catch (InvalidDataException)
+                {
+                    return Results.StatusCode(413);
+                }
+                catch (JsonException)
+                {
+                    return Results.BadRequest(new {
+                        mensaje = "Solicitud V3 incorrecta."
+                    });
+                }
+                finally
+                {
+                    if (cuerpo is not null)
+                        CryptographicOperations.ZeroMemory(cuerpo);
+                }
+            }
+            else
+            {
+                try
+                {
+                    rostro = await LeerLimitado(
+                        http.Request.Body, MaxRostroBytes, http.RequestAborted);
+                }
+                catch (InvalidDataException)
+                {
+                    return Results.BadRequest(new {
+                        mensaje = "Captura demasiado grande."
+                    });
+                }
+            }
             if (rostro.Length < 16 || !rostro.AsSpan(0, 8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}))
             {
                 CryptographicOperations.ZeroMemory(rostro);
+                if (descriptorV3 is not null) Array.Clear(descriptorV3);
                 return Results.BadRequest(new { mensaje = "Captura PNG no valida." });
             }
 
@@ -470,9 +561,11 @@ public static class WhatsAppManualEndpoints
             if (patron is null)
             {
                 CryptographicOperations.ZeroMemory(rostro);
+                if (descriptorV3 is not null) Array.Clear(descriptorV3);
                 return Results.BadRequest(new { mensaje = "Imagen facial PNG no valida para la demostracion." });
             }
             byte[]? patronProtegido = null;
+            byte[]? patronProtegidoV3 = null;
             var id = Guid.NewGuid();
             string codigoAutorizacion = Convert.ToHexString(RandomNumberGenerator.GetBytes(8));
             string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -496,6 +589,63 @@ public static class WhatsAppManualEndpoints
                     guardarRostro.Parameters.Add("@Modelo", SqlDbType.NVarChar, 60).Value = PatronVisualRetiroV2.Modelo;
                     await guardarRostro.ExecuteNonQueryAsync(http.RequestAborted);
                 }
+
+                // La referencia V3 se inserta en la misma transaccion.
+                // La referencia V2 original se mantiene intacta.
+                if (descriptorV3 is not null)
+                {
+                    byte[] planoV3 = JsonSerializer.SerializeToUtf8Bytes(descriptorV3);
+
+                    try
+                    {
+                        patronProtegidoV3 = proteccion.CreateProtector(
+                            "SYNCHRO.RostroManual.V3.v1",
+                            usoId.ToString(CultureInfo.InvariantCulture))
+                            .Protect(planoV3);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(planoV3);
+                    }
+
+                    await using var guardarV3 = new SqlCommand("""
+                        INSERT dbo.RostrosRetiroPersonalV3
+                            (UsoId, PatronProtegido, Modelo)
+                        VALUES (@Uso, @Patron, @Modelo);
+                        """, db, tx);
+
+                    guardarV3.Parameters.Add("@Uso", SqlDbType.Int).Value = usoId;
+                    guardarV3.Parameters.Add("@Patron", SqlDbType.VarBinary, -1)
+                        .Value = patronProtegidoV3;
+                    guardarV3.Parameters.Add("@Modelo", SqlDbType.NVarChar, 60)
+                        .Value = DescriptorFacialV3.Modelo;
+
+                    await guardarV3.ExecuteNonQueryAsync(http.RequestAborted);
+
+                    // Declaracion recibida desde la tablet.
+                    // Se registra junto al descriptor, en la misma transaccion.
+                    await using (var consentimientoV3 = new SqlCommand("""
+                        INSERT dbo.ConsentimientosRostroPersonalV3
+                            (UsoId, VersionTexto, Canal)
+                        VALUES (@Uso, @Version, @Canal);
+                        """, db, tx))
+                    {
+                        consentimientoV3.Parameters.Add(
+                            "@Uso", SqlDbType.Int).Value = usoId;
+
+                        consentimientoV3.Parameters.Add(
+                            "@Version", SqlDbType.NVarChar, 60)
+                            .Value = "SYNCHRO-FACIAL-V3-2026-11";
+
+                        consentimientoV3.Parameters.Add(
+                            "@Canal", SqlDbType.NVarChar, 24)
+                            .Value = "TabletV3";
+
+                        await consentimientoV3.ExecuteNonQueryAsync(
+                            http.RequestAborted);
+                    }
+                }
+
                 await using var comando = new SqlCommand("""
                     IF NOT EXISTS (SELECT 1 FROM dbo.Casilleros WHERE Codigo=@Codigo AND Estado=N'Reservado' AND Tipo=N'Normal')
                         THROW 57101, 'Casillero no disponible.', 1;
@@ -524,6 +674,8 @@ public static class WhatsAppManualEndpoints
                 CryptographicOperations.ZeroMemory(tokenHash);
                 Array.Clear(patron);
                 if (patronProtegido is not null) CryptographicOperations.ZeroMemory(patronProtegido);
+                if (patronProtegidoV3 is not null) CryptographicOperations.ZeroMemory(patronProtegidoV3);
+                if (descriptorV3 is not null) Array.Clear(descriptorV3);
             }
         });
 

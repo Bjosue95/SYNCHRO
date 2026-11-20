@@ -46,12 +46,20 @@ internal sealed class PinRetiroDesarrolloService
                 @"(localdb)\MSSQLLocalDB",
                 StringComparison.OrdinalIgnoreCase);
 
+        var suiteConfigurada = new SqlConnectionStringBuilder(
+            Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST") ?? "");
+
+        bool suiteHabilitada =
+            string.Equals(suiteConfigurada.DataSource, @"(localdb)\SYNCHRO_Suite_Test", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(suiteConfigurada.InitialCatalog, "SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) &&
+            suiteConfigurada.IntegratedSecurity &&
+            string.IsNullOrWhiteSpace(suiteConfigurada.AttachDBFilename);
+
         bool pruebasAutorizadas =
             _entorno.IsEnvironment("Testing") &&
-            string.Equals(
-                datos.DataSource,
-                @"(localdb)\SYNCHRO_Aislado",
-                StringComparison.OrdinalIgnoreCase);
+            (string.Equals(datos.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) ||
+             (suiteHabilitada &&
+              string.Equals(datos.DataSource, @"(localdb)\SYNCHRO_Suite_Test", StringComparison.OrdinalIgnoreCase)));
 
         if (!desarrolloAutorizado && !pruebasAutorizadas)
         {

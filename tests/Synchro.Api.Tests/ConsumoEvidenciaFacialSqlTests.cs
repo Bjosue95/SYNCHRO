@@ -10,10 +10,10 @@ namespace Synchro.Api.Tests;
 public class ConsumoEvidenciaFacialSqlTests : PruebaHistoricaAislada
 {
     private const string Cadena =
-        @"Server=(localdb)\SYNCHRO_Aislado;" +
+        @"Server=(localdb)\SYNCHRO_Suite_Test;" +
         "Database=SynchroDB_Pruebas;" +
         "Integrated Security=True;" +
-        "Encrypt=True;" +
+        "Encrypt=False;" +
         "TrustServerCertificate=True;";
 
     private const int RemitenteFicticio = 501;

@@ -455,6 +455,29 @@ builder.Services.AddSingleton<IVerificadorFacial>(s =>
 if (ConfiguracionRostroSimulado.EntornoPermitido(builder.Environment, builder.Configuration) &&
     builder.Configuration.GetValue("RostroSimulado:LimpiarVencidas", true))
     builder.Services.AddHostedService<LimpiezaRostroSimuladoWorker>();
+
+string? conexionLimpiezaV3 =
+    builder.Configuration.GetConnectionString("SynchroDB");
+
+if (builder.Environment.IsDevelopment() &&
+    builder.Configuration.GetValue<bool>("WhatsAppManual:Habilitado") &&
+    !string.IsNullOrWhiteSpace(conexionLimpiezaV3))
+{
+    var destinoLimpiezaV3 =
+        new SqlConnectionStringBuilder(conexionLimpiezaV3);
+
+    if (string.Equals(
+            destinoLimpiezaV3.InitialCatalog,
+            "SynchroDB_Pruebas",
+            StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            destinoLimpiezaV3.DataSource,
+            @"(localdb)\SYNCHRO_Aislado",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        builder.Services.AddHostedService<LimpiezaRostrosRetiroV3Worker>();
+    }
+}
 // El servicio de vencimiento se registra solo bajo la condicion de pruebas indicada abajo.
 
 // SYNCHRO - Vencimiento automatico de reservas
@@ -483,7 +506,7 @@ foreach (string indicador in new[] { "WhatsApp:SolicitudesInicioHabilitadas", "W
     if (!app.Configuration.GetValue<bool>(indicador)) continue;
     var sql = new SqlConnectionStringBuilder(app.Configuration.GetConnectionString("SynchroDB"));
     if (!app.Environment.IsDevelopment() ||
-        !string.Equals(sql.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase))
+        !Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(sql))
         throw new InvalidOperationException("El inicio WhatsApp requiere Development y la instancia SYNCHRO_Aislado.");
     Synchro.Api.Services.ConexionSqlAislada.Exigir(sql.ConnectionString, "SynchroDB_Pruebas");
 }
