@@ -127,17 +127,17 @@ public static class WhatsAppManualEndpoints
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out int minutosPorBloque) ||
-                minutosPorBloque is < 1 or > 1440)
+                minutosPorBloque != 30)
                 return Results.Problem(
                     statusCode: 503,
                     title: "Duracion de tarifa no configurada.");
 
             // No existen precios predeterminados.
             // Cada tamano necesita una tarifa configurada.
-            decimal? LeerTarifa(string tamano)
+            decimal? LeerTarifa(string grupo, string tamano)
             {
                 string? valor = configuracion[
-                    $"CobroRetiroPersonal:Tarifas:{tamano}"];
+                    $"CobroRetiroPersonal:{grupo}:{tamano}"];
 
                 if (!decimal.TryParse(
                     valor,
@@ -154,14 +154,21 @@ public static class WhatsAppManualEndpoints
                 return precio;
             }
 
-            decimal? pequeno = LeerTarifa("Pequeno");
-            decimal? mediano = LeerTarifa("Mediano");
-            decimal? grande = LeerTarifa("Grande");
+            decimal? pequeno = LeerTarifa("Tarifas", "Pequeno");
+            decimal? mediano = LeerTarifa("Tarifas", "Mediano");
+            decimal? grande = LeerTarifa("Tarifas", "Grande");
+
+            decimal? extraPequeno = LeerTarifa("Adicionales", "Pequeno");
+            decimal? extraMediano = LeerTarifa("Adicionales", "Mediano");
+            decimal? extraGrande = LeerTarifa("Adicionales", "Grande");
 
             // Ninguna tarifa -> no se pueden generar cobros.
-            if (pequeno is null &&
-                mediano is null &&
-                grande is null)
+            if (pequeno is null ||
+                mediano is null ||
+                grande is null ||
+                extraPequeno is null ||
+                extraMediano is null ||
+                extraGrande is null)
                 return Results.Problem(
                     statusCode: 503,
                     title: "Tarifas de resguardo no configuradas.");
@@ -200,6 +207,10 @@ public static class WhatsAppManualEndpoints
                 AgregarTarifa("@TarifaPequenoHnl", pequeno);
                 AgregarTarifa("@TarifaMedianoHnl", mediano);
                 AgregarTarifa("@TarifaGrandeHnl", grande);
+
+                AgregarTarifa("@AdicionalPequenoHnl", extraPequeno);
+                AgregarTarifa("@AdicionalMedianoHnl", extraMediano);
+                AgregarTarifa("@AdicionalGrandeHnl", extraGrande);
 
                 await using var resultado =
                     await preparar.ExecuteReaderAsync(
@@ -275,6 +286,113 @@ public static class WhatsAppManualEndpoints
         })
         .AllowAnonymous()
         .RequireRateLimiting("LoginLimitado");
+        // SYNCHRO-ESTADO-PAGO-TABLET-V1
+        // Consulta protegida, sin confirmar pagos ni liberar casilleros.
+        terminal.MapPost("/retiro/cobro/estado", async (
+            PrepararCobroPersonalPeticion datos,
+            HttpContext http,
+            IAntiforgery csrf,
+            IDataProtectionProvider proteccion,
+            IConfiguration configuracion) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+
+            if (!configuracion.GetValue<bool>(
+                "CobroRetiroPersonal:Obligatorio"))
+                return Results.Conflict(new {
+                    mensaje = "Cobro no habilitado."
+                });
+
+            if (datos.AutorizacionPago is null ||
+                datos.AutorizacionPago.Length is < 32 or > 4096)
+                return Results.BadRequest(new {
+                    mensaje = "Autorizacion invalida."
+                });
+
+            int usoId;
+
+            try
+            {
+                string valor = proteccion
+                    .CreateProtector(
+                        "SYNCHRO.RostroManual.PagoPendiente.v1")
+                    .ToTimeLimitedDataProtector()
+                    .Unprotect(datos.AutorizacionPago);
+
+                if (!int.TryParse(
+                    valor,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out usoId) || usoId <= 0)
+                    return Results.BadRequest(new {
+                        mensaje = "Autorizacion invalida."
+                    });
+            }
+            catch (CryptographicException)
+            {
+                return Results.BadRequest(new {
+                    mensaje = "Autorizacion vencida. Repite la verificacion."
+                });
+            }
+            catch (FormatException)
+            {
+                return Results.BadRequest(new {
+                    mensaje = "Autorizacion invalida."
+                });
+            }
+
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+
+                await using var comando = new SqlCommand("""
+                    SELECT c.Estado
+                    FROM dbo.CobrosRetiroPersonal c
+                    INNER JOIN dbo.UsosCasillero u
+                        ON u.Id = c.UsoId
+                    INNER JOIN dbo.Casilleros cas
+                        ON cas.Codigo = u.CodigoCasillero
+                    WHERE c.UsoId = @UsoId
+                      AND c.Estado IN (
+                          N'Pendiente',
+                          N'ConfirmadoSimulado'
+                      )
+                      AND u.Estado = N'Ocupado'
+                      AND u.FechaRetiro IS NULL
+                      AND cas.Estado = N'Ocupado'
+                    """, db);
+
+                comando.Parameters.Add(
+                    "@UsoId", SqlDbType.Int).Value = usoId;
+
+                object? resultado = await comando
+                    .ExecuteScalarAsync(http.RequestAborted);
+
+                if (resultado is not string estado)
+                    return Results.Conflict(new {
+                        mensaje = "Cobro no disponible."
+                    });
+
+                return Results.Ok(new {
+                    estadoPago = estado,
+                    pagoConfirmado = estado == "ConfirmadoSimulado",
+                    retiroConfirmado = false
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "No se pudo consultar el estado del pago.");
+            }
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("OperacionesTerminal");
         // Token CSRF sin exigir vinculacion de tablets.
         // SYNCHRO-RETIRO-PAGADO-HTTP-V1
         // Solo permite finalizar despues de confirmar el pago.

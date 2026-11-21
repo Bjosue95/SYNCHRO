@@ -251,3 +251,38 @@ export async function validarDescriptorFacialV3Temporal(descriptor) {
   // No devuelve un token de retiro.
   return true;
 }
+
+export async function consultarEstadoCobroRetiroPersonal(autorizacionPago) {
+  if (typeof autorizacionPago !== "string" || !autorizacionPago) {
+    throw new Error("Falta autorizacion de pago.");
+  }
+
+  const csrfToken = await solicitarCsrf();
+
+  const respuesta = await fetch(
+    "/api/terminales/guardar/whatsapp/retiro/cobro/estado",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken
+      },
+      body: JSON.stringify({ autorizacionPago })
+    }
+  );
+
+  const datos = await respuestaSegura(respuesta);
+
+  if (
+    !["Pendiente", "ConfirmadoSimulado"].includes(datos?.estadoPago) ||
+    datos?.pagoConfirmado !==
+      (datos.estadoPago === "ConfirmadoSimulado") ||
+    datos?.retiroConfirmado !== false
+  ) {
+    throw new Error("Estado de pago invalido.");
+  }
+
+  return datos;
+}

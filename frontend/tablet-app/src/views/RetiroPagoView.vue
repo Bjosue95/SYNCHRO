@@ -9,7 +9,8 @@ import {
   limpiarRetiro
 } from "../services/retiroSesion";
 import {
-  finalizarRetiroPersonalPagado
+  finalizarRetiroPersonalPagado,
+  consultarEstadoCobroRetiroPersonal
 } from "../services/retiroFacialManualApi";
 
 const router = useRouter();
@@ -34,6 +35,7 @@ const orden = ref(
 );
 const verificando = ref(false);
 const completado = ref(false);
+const pagoConfirmado = ref(false);
 const mensaje = ref("");
 const casilleroFinal = ref("");
 const metodoSeleccionado = ref("");
@@ -43,8 +45,8 @@ const cambiandoMetodo = ref(false);
 // Preferencia visual; solo el backend y el operador confirman pagos.
 const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
 const indicacionesRetiro = {
-  Efectivo: "El operador confirmará el pago simulado en efectivo.",
-  Tarjeta: "El operador confirmará el pago simulado con tarjeta.",
+  Efectivo: "Pago en efectivo confirmado.",
+  Tarjeta: "Pago con tarjeta confirmado.",
   NFC: "El pago NFC aún no está habilitado. Elige otro método."
 };
 const indicacionRetiro = indicacionesRetiro[metodoRetiro] ||
@@ -57,11 +59,11 @@ const instrucciones = {
   },
   Tarjeta: {
     titulo: "Pago con tarjeta",
-    texto: "Inserta o acerca tu tarjeta."
+    texto: "Acerca tu tarjeta a la pantalla."
   },
   NFC: {
     titulo: "Pago sin contacto",
-    texto: "Acerca tu dispositivo al lector."
+    texto: "Acerca tu teléfono a la pantalla."
   }
 };
 
@@ -84,15 +86,79 @@ const importe = computed(() => {
     : "No disponible";
 });
 
+let temporizadorPago = null;
+let consultaEnCurso = false;
+let vistaDesmontada = false;
+
+async function actualizarEstadoPago() {
+  if (
+    esVistaPrevia ||
+    !orden.value ||
+    pagoConfirmado.value ||
+    consultaEnCurso ||
+    vistaDesmontada
+  ) return;
+
+  consultaEnCurso = true;
+
+  try {
+    const datos = await consultarEstadoCobroRetiroPersonal(
+      orden.value.autorizacionPago
+    );
+
+    if (vistaDesmontada) return;
+
+    mensaje.value = "";
+
+    if (datos.pagoConfirmado === true) {
+      pagoConfirmado.value = true;
+      window.clearInterval(temporizadorPago);
+      temporizadorPago = null;
+    }
+  } catch (error) {
+    if (vistaDesmontada) return;
+
+    mensaje.value = error instanceof Error
+      ? error.message
+      : "No se pudo consultar el pago.";
+
+    if (/vencida|expirad/i.test(mensaje.value)) {
+      mensaje.value += " Repite la verificacion facial y del PIN.";
+      window.clearInterval(temporizadorPago);
+      temporizadorPago = null;
+    }
+  } finally {
+    consultaEnCurso = false;
+  }
+}
 onMounted(() => {
   if (!orden.value) {
     router.replace("/retirar/rostro");
-  } else if (!esVistaPrevia && !metodoRetiro) {
-    router.replace("/retirar/pago");
+    return;
   }
+
+  if (esVistaPrevia) return;
+
+  if (!metodoRetiro) {
+    router.replace("/retirar/pago");
+    return;
+  }
+
+  void actualizarEstadoPago();
+
+  temporizadorPago = window.setInterval(() => {
+    void actualizarEstadoPago();
+  }, 6000);
 });
 
 onBeforeUnmount(() => {
+  vistaDesmontada = true;
+
+  if (temporizadorPago !== null) {
+    window.clearInterval(temporizadorPago);
+    temporizadorPago = null;
+  }
+
   // Ninguna autorizacion queda guardada al abandonar la vista.
   if (!completado.value && !esVistaPrevia && !cambiandoMetodo.value) {
     limpiarRetiro();
@@ -102,7 +168,7 @@ onBeforeUnmount(() => {
 async function comprobarPago() {
   // La vista previa nunca llama al backend.
   if (esVistaPrevia) return;
-  if (!orden.value || verificando.value || completado.value) return;
+  if (!pagoConfirmado.value || !orden.value || verificando.value || completado.value) return;
 
   verificando.value = true;
   mensaje.value = "";
@@ -162,7 +228,7 @@ function finalizar() {
       <header>
         <span class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
         <h1>Retiro completado</h1>
-        <p>El pago simulado fue confirmado y el retiro quedó registrado.</p>
+        <p>El pago fue confirmado y el retiro quedó registrado.</p>
       </header>
       <div class="tarjeta-resumen">
         <div class="dato">
@@ -185,6 +251,104 @@ function finalizar() {
       </button>
     </section>
 
+    <!-- SYNCHRO: animacion de pago antes de la confirmacion -->
+    <section
+      v-else-if="orden && !esVistaPrevia && !pagoConfirmado"
+      class="contenido-pago espera-animada"
+      aria-live="polite"
+    >
+      <header>
+        <span class="etiqueta">SYNCHRO · PAGO</span>
+        <h1>
+          {{
+            metodoRetiro === "Efectivo"
+              ? "Introduce el efectivo"
+              : metodoRetiro === "Tarjeta"
+                ? "Coloca tu tarjeta"
+                : "Acerca tu teléfono"
+          }}
+        </h1>
+        <p>
+          {{
+            metodoRetiro === "Efectivo"
+              ? "Deposita el importe en el recolector."
+              : metodoRetiro === "Tarjeta"
+                ? "Acerca tu tarjeta a la pantalla."
+                : "Acerca el teléfono al lector sin contacto."
+          }}
+        </p>
+      </header>
+
+      <!-- SYNCHRO-PAGO-V3 -->
+      <div class="escenario-cobro escena-pago-synchro" aria-hidden="true">
+        <template v-if="metodoRetiro === 'Efectivo'">
+          <div class="escena-efectivo-synchro">
+            <img
+              :src="`/iconos/pagos/efectivo${oscuro ? '-oscuro' : ''}.svg`"
+              class="icono-pago-v3 icono-efectivo-v3"
+              alt=""
+            />
+
+            <div class="depositador-efectivo">
+              <div class="ranura-deposito"></div>
+              <div class="panel-deposito"></div>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="metodoRetiro === 'Tarjeta'">
+          <div class="escena-tarjeta-synchro">
+            <div class="pantalla-cobro-v3">
+              <div class="panel-cobro-v3"></div>
+            </div>
+
+            <img
+              :src="`/iconos/pagos/tarjeta${oscuro ? '-oscuro' : ''}.svg`"
+              class="icono-pago-v3 icono-tarjeta-v3"
+              alt=""
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="escena-nfc-synchro">
+            <div class="pantalla-cobro-v3">
+              <div class="panel-cobro-v3"></div>
+            </div>
+
+            <img
+              :src="`/iconos/pagos/nfc${oscuro ? '-oscuro' : ''}.svg`"
+              class="icono-pago-v3 icono-nfc-v3"
+              alt=""
+            />
+
+            <div class="ondas-nfc-v3">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div class="esperando-operador" role="status">
+        <span class="pulso-espera"></span>
+        Esperando confirmación del pago
+      </div>
+
+      <p v-if="mensaje" class="mensaje" role="alert">
+        {{ mensaje }}
+      </p>
+
+      <p v-if="metodoRetiro === 'NFC'" class="nota">
+        NFC requiere habilitación administrativa adicional.
+      </p>
+
+      <p class="nota">
+        El casillero permanecerá ocupado
+        hasta que SYNCHRO autorice el retiro.
+      </p>
+    </section>
+
     <section v-else-if="orden" class="contenido-pago">
       <header>
         <span v-if="!esVistaPrevia" class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
@@ -196,8 +360,8 @@ function finalizar() {
           }}
         </h1>
         <p v-if="!completado && !esVistaPrevia">
-          Tu PIN ha sido verificado. El casillero permanece cerrado
-          hasta confirmar el pago.
+          El pago fue confirmado.
+          Revisa tu consumo antes de finalizar el retiro.
         </p>
       </header>
 
@@ -235,7 +399,7 @@ function finalizar() {
 
       <p v-if="!esVistaPrevia" class="estado">
         <span class="punto"></span>
-        Pago pendiente de confirmación administrativa
+        Pago confirmado por el administrador
       </p>
 
       <p v-if="completado" class="estado completado">
@@ -262,7 +426,7 @@ function finalizar() {
                 ? "Cambiar método"
                 : verificando
                   ? "Comprobando..."
-                  : "Verificar pago y retirar"
+                  : "Finalizar retiro"
           }}
         </span>
 
@@ -284,7 +448,7 @@ function finalizar() {
         Método: <strong>{{ metodoRetiro }}</strong>.
         {{ indicacionRetiro }}
         <template v-if="metodoRetiro !== 'NFC'">
-          Tras la confirmación, pulsa «Verificar pago y retirar».
+          Revisa el resumen y pulsa «Finalizar retiro».
         </template>
       </p>
     </section>
@@ -1018,6 +1182,483 @@ header p {
 
   .pantalla-pago.vista-previa-pago .total {
     min-height: 60px;
+  }
+}
+
+/* SYNCHRO - ANIMACION DEL PAGO SIMULADO */
+.espera-animada {
+  align-items: center;
+  text-align: center;
+  gap: clamp(18px, 3dvh, 32px);
+  padding-top: clamp(10px, 2dvh, 26px);
+}
+
+.escenario-cobro {
+  position: relative;
+  width: min(100%, 470px);
+  height: clamp(250px, 35dvh, 350px);
+  overflow: hidden;
+  border: 2px solid #c9e3ea;
+  border-radius: 28px;
+  background: linear-gradient(160deg, #fff, #dff4f8);
+}
+
+.escena-efectivo,
+.escena-tarjeta,
+.escena-nfc {
+  position: absolute;
+  inset: 0;
+}
+
+.billete-animado {
+  position: absolute;
+  top: 13%;
+  left: calc(50% - 65px);
+  display: grid;
+  place-items: center;
+  width: 130px;
+  height: 72px;
+  border: 5px double #328f82;
+  border-radius: 12px;
+  background: #b9f1cf;
+  color: #246f58;
+  font-size: 37px;
+  font-weight: 800;
+  animation: entrar-billete 2.6s ease-in-out infinite;
+}
+
+.recolector-animado {
+  position: absolute;
+  bottom: 18%;
+  left: calc(50% - 105px);
+  width: 210px;
+  height: 88px;
+  border-radius: 16px;
+  background: #01305c;
+  box-shadow: 0 12px 25px #01305c33;
+}
+
+.ranura-animada {
+  position: absolute;
+  top: 15px;
+  left: 20px;
+  right: 20px;
+  height: 13px;
+  border-radius: 8px;
+  background: #031b31;
+  border: 2px solid #5ec6e8;
+}
+
+.lector-animado,
+.lector-nfc {
+  position: absolute;
+  bottom: 17%;
+  left: calc(50% - 95px);
+  width: 190px;
+  height: 125px;
+  border: 7px solid #01305c;
+  border-radius: 22px;
+  background: #24627b;
+  box-shadow: 0 12px 25px #01305c33;
+}
+
+.pantalla-lector {
+  position: absolute;
+  top: 12px;
+  left: 17px;
+  right: 17px;
+  height: 50px;
+  border-radius: 9px;
+  background: #a5e9ee;
+}
+
+.tarjeta-animada {
+  position: absolute;
+  top: 11%;
+  left: calc(50% - 90px);
+  width: 180px;
+  height: 105px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #01305c, #00b9c7);
+  box-shadow: 0 8px 20px #01305c33;
+  animation: acercar-tarjeta 2.7s ease-in-out infinite;
+}
+
+.chip-animado {
+  position: absolute;
+  top: 38px;
+  left: 20px;
+  width: 36px;
+  height: 29px;
+  background: #f5d77c;
+  border-radius: 6px;
+}
+
+.telefono-animado {
+  position: absolute;
+  top: 8%;
+  left: calc(50% - 45px);
+  width: 90px;
+  height: 155px;
+  border: 7px solid #01305c;
+  border-radius: 19px;
+  background: #c8eff6;
+  animation: acercar-telefono 2.7s ease-in-out infinite;
+}
+
+.pantalla-telefono {
+  position: absolute;
+  inset: 12px 7px;
+  border-radius: 8px;
+  background: linear-gradient(150deg, #5ec6e8, #00b9c7);
+}
+
+.ondas-nfc {
+  position: absolute;
+  top: 42%;
+  left: 58%;
+  color: #008b9e;
+  font-size: 45px;
+  font-weight: 800;
+  letter-spacing: -9px;
+  animation: pulsar-nfc 1.5s ease-in-out infinite;
+}
+
+.esperando-operador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: clamp(16px, 2vw, 20px);
+  font-weight: 700;
+}
+
+.pulso-espera {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #00b9c7;
+  animation: pulsar-nfc 1.5s ease-in-out infinite;
+}
+
+.pantalla-pago.tema-oscuro .escenario-cobro {
+  background: linear-gradient(160deg, #103956, #061f36);
+  border-color: #42647e;
+}
+
+@keyframes entrar-billete {
+  0%, 15% { transform: translateY(0); opacity: 1; }
+  75%, 90% { transform: translateY(135px) scale(.85); opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+
+@keyframes acercar-tarjeta {
+  0%, 15% { transform: translateY(0); }
+  65%, 85% { transform: translateY(105px) scale(.9); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes acercar-telefono {
+  0%, 15% { transform: translateY(0); }
+  65%, 85% { transform: translateY(85px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes pulsar-nfc {
+  0%, 100% { opacity: .3; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billete-animado, .tarjeta-animada,
+  .telefono-animado, .ondas-nfc, .pulso-espera {
+    animation: none;
+  }
+}
+
+/* SYNCHRO - ICONOS DE PAGO ORIGINALES V2 */
+
+.escena-iconos-synchro {
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.circulo-lector {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(170px, 48%, 240px);
+  aspect-ratio: 1;
+  border: 3px solid #5ec6e8;
+  border-radius: 50%;
+  background: rgba(0,185,199,.07);
+  transform: translate(-50%, -50%);
+  animation: synchro-respirar 2.7s ease-in-out infinite;
+}
+
+.circulo-interior {
+  position: absolute;
+  inset: 16%;
+  border: 2px dashed #00b9c7;
+  border-radius: 50%;
+  opacity: .55;
+}
+
+.icono-cobro-synchro {
+  position: relative;
+  z-index: 2;
+  width: clamp(125px, 35%, 195px);
+  max-height: 190px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 14px rgba(1,48,92,.16));
+}
+
+.icono-cobro-synchro.efectivo {
+  animation: synchro-efectivo 2.8s ease-in-out infinite;
+}
+
+.icono-cobro-synchro.tarjeta,
+.icono-cobro-synchro.nfc {
+  animation: synchro-acercar 2.8s ease-in-out infinite;
+}
+
+.onda-lector {
+  position: absolute;
+  bottom: 15%;
+  left: calc(50% - 14px);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #00b9c7;
+  box-shadow: 0 0 0 12px rgba(0,185,199,.15);
+  animation: synchro-onda 1.8s ease-in-out infinite;
+}
+
+@keyframes synchro-efectivo {
+  0%, 12%, 100% {
+    transform: translateY(-38px);
+    opacity: 1;
+  }
+  70%, 90% {
+    transform: translateY(40px) scale(.85);
+    opacity: .35;
+  }
+}
+
+@keyframes synchro-acercar {
+  0%, 12%, 100% {
+    transform: translateY(-30px) scale(.86);
+  }
+  65%, 85% {
+    transform: translateY(20px) scale(1.08);
+  }
+}
+
+@keyframes synchro-respirar {
+  0%, 100% { opacity: .5; }
+  50% { opacity: 1; }
+}
+
+@keyframes synchro-onda {
+  0%, 100% {
+    opacity: .25;
+    transform: scale(.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .circulo-lector,
+  .icono-cobro-synchro,
+  .onda-lector {
+    animation: none !important;
+  }
+}
+
+/* SYNCHRO-PAGO-V3 */
+
+.escena-pago-synchro {
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.escena-efectivo-synchro,
+.escena-tarjeta-synchro,
+.escena-nfc-synchro {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: clamp(240px, 34dvh, 330px);
+}
+
+.icono-pago-v3 {
+  position: absolute;
+  z-index: 3;
+  width: clamp(120px, 24vw, 180px);
+  max-height: 180px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 14px rgba(1,48,92,.16));
+}
+
+/* EFECTIVO */
+.icono-efectivo-v3 {
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  animation: synchro-efectivo-deposito 2.8s ease-in-out infinite;
+}
+
+.depositador-efectivo {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  width: clamp(180px, 34vw, 260px);
+  height: clamp(95px, 14dvh, 130px);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #0a4276 0%, #01305c 100%);
+  box-shadow: 0 14px 28px rgba(1,48,92,.20);
+}
+
+.ranura-deposito {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  height: 14px;
+  border-radius: 12px;
+  background: #061b31;
+  border: 2px solid #5ec6e8;
+}
+
+.panel-deposito {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: 58%;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(94,198,232,.18);
+  border: 2px solid rgba(94,198,232,.28);
+}
+
+/* TARJETA Y NFC */
+.pantalla-cobro-v3 {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  width: clamp(170px, 32vw, 230px);
+  height: clamp(140px, 22dvh, 190px);
+  border-radius: 26px;
+  background: linear-gradient(180deg, #124c7f 0%, #01305c 100%);
+  box-shadow: 0 14px 28px rgba(1,48,92,.20);
+}
+
+.panel-cobro-v3 {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(94,198,232,.38) 0%, rgba(0,185,199,.20) 100%);
+  border: 2px solid rgba(94,198,232,.30);
+}
+
+.icono-tarjeta-v3,
+.icono-nfc-v3 {
+  left: 50%;
+  top: 10%;
+  transform: translateX(-50%);
+  animation: synchro-acercar-pantalla 2.8s ease-in-out infinite;
+}
+
+.ondas-nfc-v3 {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(55px);
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ondas-nfc-v3 span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 3px solid #00b9c7;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  transform: rotate(45deg);
+  animation: synchro-onda-nfc 1.4s ease-in-out infinite;
+}
+
+.ondas-nfc-v3 span:nth-child(2) {
+  animation-delay: .18s;
+}
+
+.ondas-nfc-v3 span:nth-child(3) {
+  animation-delay: .36s;
+}
+
+@keyframes synchro-efectivo-deposito {
+  0%, 12%, 100% {
+    transform: translateX(-50%) translateY(0) scale(.96);
+    opacity: 1;
+  }
+  70%, 90% {
+    transform: translateX(-50%) translateY(120px) scale(.78);
+    opacity: .35;
+  }
+}
+
+@keyframes synchro-acercar-pantalla {
+  0%, 12%, 100% {
+    transform: translateX(-50%) translateY(0) scale(.88);
+    opacity: .92;
+  }
+  65%, 85% {
+    transform: translateX(-50%) translateY(92px) scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes synchro-onda-nfc {
+  0%, 100% {
+    opacity: .25;
+    transform: rotate(45deg) scale(.82);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1.12);
+  }
+}
+
+.pantalla-pago.tema-oscuro .depositador-efectivo,
+.pantalla-pago.tema-oscuro .pantalla-cobro-v3 {
+  box-shadow: 0 14px 28px rgba(0,0,0,.28);
+}
+
+.pantalla-pago.tema-oscuro .icono-pago-v3 {
+  filter: drop-shadow(0 12px 14px rgba(0,0,0,.24));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icono-efectivo-v3,
+  .icono-tarjeta-v3,
+  .icono-nfc-v3,
+  .ondas-nfc-v3 span {
+    animation: none !important;
   }
 }
 </style>
