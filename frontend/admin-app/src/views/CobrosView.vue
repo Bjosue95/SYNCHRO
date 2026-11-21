@@ -56,10 +56,8 @@ async function confirmar(item) {
   const id = item?.cobroId;
   const metodo = metodos.value[id];
 
-  if (!id || procesando.value || cargando.value) return;
-
-  if (metodo !== "Efectivo" && metodo !== "Tarjeta") {
-    error.value = "Selecciona Efectivo o Tarjeta.";
+  if (!["Efectivo", "Tarjeta", "NFC"].includes(metodo)) {
+    error.value = "Selecciona un método de pago válido.";
     return;
   }
 
@@ -230,6 +228,7 @@ onMounted(cargar);
             <option value="">Seleccionar método</option>
             <option value="Efectivo">Efectivo (simulado)</option>
             <option value="Tarjeta">Tarjeta (simulado)</option>
+            <option value="NFC">NFC del celular (simulado)</option>
           </select>
 
           <label class="cobro-check">

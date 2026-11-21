@@ -36,11 +36,12 @@ BEGIN
 
         MetodoPago NVARCHAR(24) NOT NULL
             CHECK (
-                MetodoPago IN (
-                    N'EfectivoSimulado',
-                    N'TarjetaSimulada'
-                )
-            ),
+    MetodoPago IN (
+        N'EfectivoSimulado',
+        N'TarjetaSimulada',
+        N'NfcSimulado'
+    )
+)
 
         ConfirmadoUtc DATETIME2(3) NOT NULL,
 
@@ -79,7 +80,7 @@ BEGIN
        @Metodo IS NULL OR
        @Metodo NOT IN (
            N'EfectivoSimulado',
-           N'TarjetaSimulada'
+           N'TarjetaSimulada', N'NfcSimulado'
        )
         THROW 57911, 'Confirmacion invalida.', 1;
 

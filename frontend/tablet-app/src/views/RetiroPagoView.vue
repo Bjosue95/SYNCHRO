@@ -38,6 +38,23 @@ const completado = ref(false);
 const pagoConfirmado = ref(false);
 const mensaje = ref("");
 const casilleroFinal = ref("");
+const metodoConfirmado = ref("");
+const importeConfirmado = ref(null);
+
+const nombreMetodoConfirmado = computed(() => ({
+  EfectivoSimulado: "Efectivo",
+  TarjetaSimulada: "Tarjeta",
+  NfcSimulado: "NFC del celular"
+})[metodoConfirmado.value] || "No disponible");
+
+const totalConfirmado = computed(() =>
+  typeof importeConfirmado.value === "number"
+    ? new Intl.NumberFormat("es-HN", {
+        style: "currency",
+        currency: "HNL"
+      }).format(importeConfirmado.value)
+    : "No disponible"
+);
 const metodoSeleccionado = ref("");
 const pasoMetodo = ref(false);
 const cambiandoMetodo = ref(false);
@@ -47,7 +64,7 @@ const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
 const indicacionesRetiro = {
   Efectivo: "Pago en efectivo confirmado.",
   Tarjeta: "Pago con tarjeta confirmado.",
-  NFC: "El pago NFC aún no está habilitado. Elige otro método."
+  NFC: "Pago NFC confirmado."
 };
 const indicacionRetiro = indicacionesRetiro[metodoRetiro] ||
   "Solicita asistencia al operador para continuar.";
@@ -182,13 +199,13 @@ async function comprobarPago() {
     );
 
     casilleroFinal.value = resultado.codigoCasillero;
+    metodoConfirmado.value = resultado.metodoPago;
+    importeConfirmado.value = resultado.importeHnl;
     completado.value = true;
 
     limpiarRetiro();
 
-    mensaje.value =
-      "Retiro confirmado. En este prototipo, abre manualmente " +
-      "el casillero asignado.";
+    mensaje.value = "Retiro completado correctamente.";
   } catch (error) {
     const detalle = error instanceof Error
       ? error.message
@@ -222,36 +239,86 @@ function finalizar() {
 </script>
 
 <template>
-  <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro, 'vista-previa-pago': esVistaPrevia }">
+  <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro, 'vista-previa-pago': esVistaPrevia, 'retiro-para-finalizar': pagoConfirmado && !completado && !esVistaPrevia, 'retiro-terminado': completado && !esVistaPrevia }">
     <!-- Solo mostrar el resultado si el backend confirmó el retiro pagado. -->
-    <section v-if="completado && !esVistaPrevia" class="contenido-pago" aria-live="polite">
+
+    <!-- SYNCHRO-RETIRO-FINAL-V6 -->
+
+    <section
+      v-if="completado && !esVistaPrevia"
+      class="contenido-pago retiro-final"
+      aria-live="polite"
+    >
       <header>
         <span class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
         <h1>Retiro completado</h1>
-        <p>El pago fue confirmado y el retiro quedó registrado.</p>
+        <p>Tu retiro se registró correctamente.</p>
       </header>
-      <div class="tarjeta-resumen">
+
+      <div class="tarjeta-resumen tarjeta-final">
+        <div class="sello-final" aria-hidden="true">
+          <img
+            src="/iconos/complementarios/30_confirmar.svg"
+            class="icono-claro"
+            alt=""
+          />
+          <img
+            src="/iconos/complementarios/30_confirmar-oscuro.svg"
+            class="icono-oscuro"
+            alt=""
+          />
+        </div>
+
+        <div class="dato">
+          <span>Servicio</span>
+          <strong>Resguardo personal</strong>
+        </div>
+
         <div class="dato">
           <span>Casillero</span>
           <strong>{{ casilleroFinal }}</strong>
         </div>
-        <div class="dato total">
-          <span>Estado</span>
+
+        <div class="dato">
+          <span>Método de pago</span>
+          <strong>{{ nombreMetodoConfirmado }}</strong>
+        </div>
+
+        <div class="dato">
+          <span>Estado del casillero</span>
           <strong>Disponible</strong>
         </div>
+
+        <div class="dato total">
+          <span>Total pagado</span>
+          <strong>{{ totalConfirmado }}</strong>
+        </div>
       </div>
-      <p class="estado completado"><span class="punto"></span>Retiro autorizado por SYNCHRO</p>
-      <p class="nota">En este prototipo, abre manualmente el casillero asignado para recoger tus objetos.</p>
-      <button class="boton-principal" type="button" @click="finalizar">
+
+      <button
+        class="boton-principal"
+        type="button"
+        @click="finalizar"
+      >
         <span>Finalizar</span>
         <span class="icono-continuar" aria-hidden="true">
-          <img src="/iconos/complementarios/29_continuar.svg" class="icono-claro" alt="" />
-          <img src="/iconos/complementarios/29_continuar-oscuro.svg" class="icono-oscuro" alt="" />
+          <img
+            src="/iconos/complementarios/30_confirmar.svg"
+            class="icono-claro"
+            alt=""
+          />
+          <img
+            src="/iconos/complementarios/30_confirmar-oscuro.svg"
+            class="icono-oscuro"
+            alt=""
+          />
         </span>
       </button>
     </section>
 
     <!-- SYNCHRO: animacion de pago antes de la confirmacion -->
+
+
     <section
       v-else-if="orden && !esVistaPrevia && !pagoConfirmado"
       class="contenido-pago espera-animada"
@@ -339,9 +406,7 @@ function finalizar() {
         {{ mensaje }}
       </p>
 
-      <p v-if="metodoRetiro === 'NFC'" class="nota">
-        NFC requiere habilitación administrativa adicional.
-      </p>
+
 
       <p class="nota">
         El casillero permanecerá ocupado
@@ -349,58 +414,69 @@ function finalizar() {
       </p>
     </section>
 
-    <section v-else-if="orden" class="contenido-pago">
+        <!-- SYNCHRO-RESUMEN-SIN-TARJETAS-V1 -->
+<section v-else-if="orden" class="contenido-pago">
       <header>
         <span v-if="!esVistaPrevia" class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
-        <h1>
-          {{
-            esVistaPrevia
-              ? (pasoMetodo ? instruccionActual?.titulo : "Selecciona cómo pagar")
-              : (completado ? "Retiro completado" : "Resumen de tu consumo")
-          }}
-        </h1>
+        <h1>Resumen de tu consumo</h1>
         <p v-if="!completado && !esVistaPrevia">
           El pago fue confirmado.
           Revisa tu consumo antes de finalizar el retiro.
         </p>
       </header>
 
-      <div class="tarjeta-resumen">
+
+
+      <div class="tarjeta-resumen resumen-alto-v5">
+        <div class="resumen-intro-v5">
+          <span>DETALLE DE TU CONSUMO</span>
+          <strong>Resguardo personal</strong>
+        </div>
+
         <div class="dato">
-          <span>Casillero</span>
+          <span>Servicio</span>
+          <strong>Almacenamiento temporal</strong>
+        </div>
+
+        <div class="dato dato-casillero">
+          <span>Casillero utilizado</span>
           <strong>{{ orden.codigoCasillero }}</strong>
         </div>
+
         <div class="dato">
-          <span>{{ esVistaPrevia ? "Tiempo" : "Tiempo registrado" }}</span>
-          <strong>{{ orden.minutosUtilizados }} {{ esVistaPrevia ? "min" : "minuto(s)" }}</strong>
+          <span>Tiempo de uso</span>
+          <strong>{{ orden.minutosUtilizados }} min</strong>
         </div>
-        <div class="dato total">
-          <span>{{ esVistaPrevia ? "Total" : "Importe" }}</span>
-          <strong>{{ importe }}</strong>
+
+        <div class="dato">
+          <span>Modalidad</span>
+          <strong>Pago al finalizar</strong>
         </div>
+
+        <div
+          v-if="(!esVistaPrevia && metodoRetiro) ||
+                (esVistaPrevia && metodoSeleccionado)"
+          class="dato"
+        >
+          <span>Método de pago</span>
+          <strong>{{ esVistaPrevia ? metodoSeleccionado : metodoRetiro }}</strong>
+        </div>
+
         <p v-if="orden.descripcionTarifa" class="descripcion">
           {{ orden.descripcionTarifa }}
         </p>
+
+        <div class="dato total">
+          <span>Total del consumo</span>
+          <strong>{{ importe }}</strong>
+        </div>
       </div>
 
-      <SelectorMetodoPago
-        v-if="esVistaPrevia && !pasoMetodo"
-        v-model="metodoSeleccionado"
-        :oscuro="oscuro"
-      />
 
-      <section
-        v-if="esVistaPrevia && pasoMetodo && instruccionActual"
-        class="paso-pago-preview"
-        aria-live="polite"
-      >
-        <p>{{ instruccionActual.texto }}</p>
-      </section>
 
-      <p v-if="!esVistaPrevia" class="estado">
-        <span class="punto"></span>
-        Pago confirmado por el administrador
-      </p>
+
+
+
 
       <p v-if="completado" class="estado completado">
         <span class="punto"></span>
@@ -411,20 +487,18 @@ function finalizar() {
         {{ mensaje }}
       </p>
 
-      <button
-        class="boton-principal"
-        data-preview-permitido
+      <button class="boton-principal" data-preview-permitido
         type="button"
-        :disabled="verificando || (esVistaPrevia && !metodoSeleccionado)"
-        @click="esVistaPrevia ? avanzarVistaPrevia() : (metodoRetiro === 'NFC' ? cambiarMetodo() : comprobarPago())"
+        :disabled="verificando || (!esVistaPrevia && !pagoConfirmado)"
+        @click="esVistaPrevia
+    ? router.push('/vista-previa/pago')
+    : comprobarPago()"
       >
         <span>
           {{
             esVistaPrevia
               ? (pasoMetodo ? "Cambiar método" : "Continuar")
-              : metodoRetiro === "NFC"
-                ? "Cambiar método"
-                : verificando
+              : verificando
                   ? "Comprobando..."
                   : "Finalizar retiro"
           }}
@@ -445,12 +519,12 @@ function finalizar() {
       </button>
 
       <p v-if="!esVistaPrevia" class="nota">
-        Método: <strong>{{ metodoRetiro }}</strong>.
-        {{ indicacionRetiro }}
-        <template v-if="metodoRetiro !== 'NFC'">
-          Revisa el resumen y pulsa «Finalizar retiro».
-        </template>
-      </p>
+      {{
+        metodoRetiro === "NFC"
+          ? "El pago sin contacto a?n no est? disponible."
+          : "Revisa el detalle y pulsa ?Finalizar retiro?."
+      }}
+    </p>
     </section>
   </main>
 </template>
@@ -1661,4 +1735,547 @@ header p {
     animation: none !important;
   }
 }
+
+/* SYNCHRO-RETIRO-FINAL-V4
+   Ajuste visual del resumen confirmado y retiro completado.
+   No modifica la logica de cobro ni las animaciones. */
+
+.pantalla-pago.retiro-para-finalizar,
+.pantalla-pago.retiro-terminado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    clamp(12px, 2dvh, 22px)
+    clamp(12px, 2.4vw, 28px);
+}
+
+.pantalla-pago.retiro-para-finalizar .contenido-pago,
+.pantalla-pago.retiro-terminado .contenido-pago {
+  width: min(100%, 820px);
+  max-width: none;
+  margin: auto;
+  gap: clamp(10px, 1.6dvh, 19px);
+}
+
+.retiro-para-finalizar .contenido-pago > header,
+.retiro-terminado .contenido-pago > header {
+  gap: 7px;
+  text-align: center;
+}
+
+.retiro-para-finalizar .tarjeta-resumen,
+.retiro-terminado .tarjeta-resumen {
+  width: 100%;
+  padding:
+    clamp(15px, 2dvh, 24px)
+    clamp(20px, 3vw, 36px);
+  border-radius: 23px;
+}
+
+.retiro-para-finalizar .dato,
+.retiro-terminado .dato {
+  min-height: clamp(48px, 6.5dvh, 68px);
+  padding: 9px 0;
+}
+
+.retiro-para-finalizar .total,
+.retiro-terminado .total {
+  min-height: clamp(60px, 8dvh, 82px);
+}
+
+.retiro-para-finalizar .estado,
+.retiro-terminado .estado {
+  min-height: 43px;
+  padding: 9px 15px;
+}
+
+.retiro-para-finalizar .nota,
+.retiro-terminado .nota {
+  margin: 0;
+}
+
+.retiro-para-finalizar .boton-principal,
+.retiro-terminado .boton-principal {
+  min-height: 54px;
+}
+
+/* Confirmacion final: tarjeta amplia y equilibrada. */
+.retiro-terminado .tarjeta-resumen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: clamp(190px, 30dvh, 290px);
+}
+
+.retiro-terminado .tarjeta-resumen::before {
+  content: "\2713";
+  display: grid;
+  place-items: center;
+  align-self: center;
+  flex-shrink: 0;
+
+  width: 70px;
+  height: 70px;
+  margin-bottom: 12px;
+
+  border-radius: 50%;
+  background: #e0f7ef;
+  color: #078b70;
+  font-size: 42px;
+  font-weight: 800;
+}
+
+.retiro-terminado .total strong {
+  font-size: clamp(23px, 3vw, 34px);
+}
+
+.retiro-terminado.tema-oscuro
+.tarjeta-resumen::before {
+  background: #16483e;
+  color: #a8f7d1;
+}
+
+/* Ajuste para pantallas de poca altura. */
+@media (max-height: 700px) {
+  .pantalla-pago.retiro-para-finalizar,
+  .pantalla-pago.retiro-terminado {
+    padding: 10px 12px;
+  }
+
+  .retiro-para-finalizar .contenido-pago,
+  .retiro-terminado .contenido-pago {
+    gap: 8px;
+  }
+
+  .retiro-para-finalizar .tarjeta-resumen,
+  .retiro-terminado .tarjeta-resumen {
+    padding: 10px 18px;
+  }
+
+  .retiro-para-finalizar .dato,
+  .retiro-terminado .dato {
+    min-height: 43px;
+    padding: 7px 0;
+  }
+
+  .retiro-para-finalizar .total,
+  .retiro-terminado .total {
+    min-height: 54px;
+  }
+
+  .retiro-terminado .tarjeta-resumen {
+    min-height: 165px;
+  }
+
+  .retiro-terminado .tarjeta-resumen::before {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 5px;
+    font-size: 32px;
+  }
+
+  .retiro-para-finalizar .boton-principal,
+  .retiro-terminado .boton-principal {
+    min-height: 48px;
+  }
+}
+
+
+/* SYNCHRO-RETIRO-TITULO-V5
+   Titulo a la misma altura que "Coloca tus objetos".
+   Solo cambia la distribucion visual en tablet vertical. */
+
+@media (orientation: portrait)
+and (min-width: 600px)
+and (min-height: 720px) {
+
+  .pantalla-pago.retiro-para-finalizar,
+  .pantalla-pago.retiro-terminado {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding-top: 46px;
+  }
+
+  .pantalla-pago.retiro-para-finalizar .contenido-pago,
+  .pantalla-pago.retiro-terminado .contenido-pago {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    width: min(100%, 820px);
+    height: 100%;
+    margin: 0 auto;
+
+    padding-top: clamp(80px, 10dvh, 115px);
+  }
+
+  .pantalla-pago.retiro-para-finalizar
+  .contenido-pago > header,
+  .pantalla-pago.retiro-terminado
+  .contenido-pago > header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    gap: 7px;
+    text-align: center;
+  }
+
+  /* Las otras pantallas no llevan una etiqueta
+     encima del titulo principal. */
+  .retiro-para-finalizar .contenido-pago > header .etiqueta,
+  .retiro-terminado .contenido-pago > header .etiqueta {
+    display: none;
+  }
+
+  .retiro-para-finalizar .contenido-pago > header h1,
+  .retiro-terminado .contenido-pago > header h1 {
+    margin: 0;
+    font-size: clamp(29px, 3vw, 41px);
+    font-weight: 750;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+  }
+}
+
+
+/* SYNCHRO-RESUMEN-CONSUMO-V4 */
+
+.pantalla-pago .tarjeta-resumen.detalle-consumo-v4 {
+  padding: clamp(22px, 2.7vw, 34px);
+}
+
+.consumo-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 18px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0ebef;
+}
+
+.consumo-encabezado span {
+  color: #008b9e;
+  font-size: clamp(12px, 1.4vw, 15px);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.consumo-encabezado strong {
+  color: #01305c;
+  font-size: clamp(15px, 1.7vw, 19px);
+  font-weight: 750;
+}
+
+.consumo-cuadricula {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(9px, 1.4vw, 14px);
+}
+
+.consumo-dato {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 86px;
+  padding: 13px 15px;
+  border: 1px solid #dcebf0;
+  border-radius: 13px;
+  background: #f5fafc;
+}
+
+.consumo-dato span,
+.consumo-tarifa span {
+  color: #526b7c;
+  font-size: clamp(13px, 1.5vw, 16px);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.consumo-dato strong,
+.consumo-tarifa strong {
+  color: #01305c;
+  font-size: clamp(17px, 2vw, 23px);
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.consumo-tarifa {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 15px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e0ebef;
+}
+
+.pantalla-pago .detalle-consumo-v4 .dato.total {
+  margin-top: 12px;
+  min-height: 90px;
+  border-bottom: 0;
+}
+
+.pantalla-pago.tema-oscuro .consumo-encabezado,
+.pantalla-pago.tema-oscuro .consumo-tarifa {
+  border-color: #42647e;
+}
+
+.pantalla-pago.tema-oscuro .consumo-dato {
+  background: #163f5d;
+  border-color: #42647e;
+}
+
+.pantalla-pago.tema-oscuro .consumo-dato strong,
+.pantalla-pago.tema-oscuro .consumo-tarifa strong,
+.pantalla-pago.tema-oscuro .consumo-encabezado strong {
+  color: #ffffff;
+}
+
+.pantalla-pago.tema-oscuro .consumo-dato span,
+.pantalla-pago.tema-oscuro .consumo-tarifa span {
+  color: #d4e2ea;
+}
+
+.pantalla-pago.tema-oscuro .consumo-encabezado span {
+  color: #5ec6e8;
+}
+
+.synchro-app .pantalla-pago.vista-synchro {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (max-width: 480px) {
+  .pantalla-pago .tarjeta-resumen.detalle-consumo-v4 {
+    padding: 16px;
+  }
+
+  .consumo-dato {
+    min-height: 78px;
+    padding: 10px;
+  }
+
+  .consumo-dato strong {
+    font-size: 16px;
+  }
+}
+
+@media (max-height: 650px) and (orientation: landscape) {
+  .consumo-encabezado {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  .consumo-dato {
+    min-height: 65px;
+    padding: 9px 12px;
+    gap: 4px;
+  }
+
+  .pantalla-pago .detalle-consumo-v4 .dato.total {
+    min-height: 70px;
+  }
+}
+
+
+/* SYNCHRO-RESUMEN-ALTO-V5 */
+
+.pantalla-pago .tarjeta-resumen.resumen-alto-v5 {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: clamp(490px, 62dvh, 630px);
+  padding: clamp(20px, 2.8vw, 32px)
+           clamp(22px, 3.4vw, 38px);
+}
+
+.pantalla-pago .resumen-alto-v5 .resumen-intro-v5 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  min-height: 45px;
+  border-bottom: 1px solid #dce8ed;
+}
+
+.resumen-intro-v5 span {
+  color: #008b9e;
+  font-size: clamp(12px, 1.4vw, 15px);
+  font-weight: 800;
+  letter-spacing: .7px;
+}
+
+.resumen-intro-v5 strong {
+  color: #01305c;
+  font-size: clamp(14px, 1.5vw, 18px);
+  font-weight: 750;
+}
+
+.pantalla-pago .resumen-alto-v5 .dato {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1 0 auto;
+  gap: 12px;
+  min-height: clamp(52px, 6dvh, 74px);
+  padding: 11px 0;
+  border-bottom: 1px solid #e0ebef;
+}
+
+.pantalla-pago .resumen-alto-v5 .dato span {
+  font-size: clamp(14px, 1.7vw, 18px);
+}
+
+.pantalla-pago .resumen-alto-v5 .dato strong {
+  font-size: clamp(17px, 2vw, 24px);
+  text-align: right;
+}
+
+.pantalla-pago .resumen-alto-v5 .dato-casillero strong {
+  font-size: clamp(24px, 2.8vw, 32px);
+}
+
+.pantalla-pago .resumen-alto-v5 .dato.total {
+  flex: 0 0 auto;
+  min-height: 85px;
+  border-bottom: 0;
+}
+
+.pantalla-pago .resumen-alto-v5 .total span {
+  font-size: clamp(16px, 1.8vw, 21px);
+}
+
+.pantalla-pago .resumen-alto-v5 .total strong {
+  color: #008b9e;
+  font-size: clamp(31px, 4vw, 46px);
+}
+
+.pantalla-pago.tema-oscuro .resumen-intro-v5 {
+  border-bottom-color: #42647e;
+}
+
+.pantalla-pago.tema-oscuro .resumen-intro-v5 span,
+.pantalla-pago.tema-oscuro .resumen-alto-v5 .total strong {
+  color: #5ec6e8;
+}
+
+.pantalla-pago.tema-oscuro .resumen-intro-v5 strong {
+  color: #ffffff;
+}
+
+@media (max-width: 480px) {
+  .pantalla-pago .tarjeta-resumen.resumen-alto-v5 {
+    padding: 18px 20px;
+  }
+
+  .pantalla-pago .resumen-alto-v5 .dato strong {
+    font-size: 17px;
+  }
+
+  .pantalla-pago .resumen-alto-v5 .total strong {
+    font-size: 34px;
+  }
+}
+
+@media (max-height: 650px) and (orientation: landscape) {
+  .pantalla-pago .tarjeta-resumen.resumen-alto-v5 {
+    min-height: 0;
+  }
+
+  .pantalla-pago .resumen-alto-v5 .dato {
+    min-height: 45px;
+    padding: 8px 0;
+  }
+}
+
+
+
+
+/* SYNCHRO - tarjeta final de retiro */
+
+.pantalla-pago .retiro-final {
+  width: min(100%, 780px);
+  gap: clamp(12px, 2dvh, 22px);
+}
+
+.pantalla-pago .retiro-final .tarjeta-final {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 6px;
+  min-height: clamp(490px, 60dvh, 640px);
+  padding: clamp(22px, 3vw, 38px);
+}
+
+.pantalla-pago .retiro-final .tarjeta-final .dato {
+  flex: 1 1 auto;
+  min-height: 62px;
+  padding: 12px 0;
+}
+
+.pantalla-pago .retiro-final .tarjeta-final .dato.total {
+  min-height: 82px;
+  border-bottom: 0;
+}
+
+.pantalla-pago .retiro-final .tarjeta-final .total strong {
+  color: #008b9e;
+  font-size: clamp(30px, 3.6vw, 44px);
+}
+
+.sello-final {
+  position: relative;
+  align-self: center;
+  flex: 0 0 auto;
+  width: clamp(86px, 12dvh, 125px);
+  height: clamp(86px, 12dvh, 125px);
+  border: 2px solid #a9dcd3;
+  border-radius: 50%;
+  background: #e9f8f2;
+}
+
+.sello-final img {
+  position: absolute;
+  inset: 12%;
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+}
+
+.pantalla-pago.tema-oscuro .sello-final {
+  background: #18494c;
+  border-color: #5ec6e8;
+}
+
+.pantalla-pago.tema-oscuro .retiro-final .total strong {
+  color: #5ec6e8;
+}
+
+@media (max-height: 650px) {
+  .pantalla-pago .retiro-final .tarjeta-final {
+    min-height: 350px;
+    gap: 3px;
+  }
+
+  .pantalla-pago .retiro-final .tarjeta-final .dato {
+    min-height: 48px;
+    padding: 8px 0;
+  }
+
+  .sello-final {
+    width: 68px;
+    height: 68px;
+  }
+}
+
 </style>

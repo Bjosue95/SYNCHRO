@@ -45,8 +45,7 @@ test("retirar solo se completa despues de confirmacion protegida", () => {
   assert.match(codigo, /const resultado = await finalizarRetiroPersonalPagado/);
   assert.match(codigo, /completado\.value = true/);
   assert.match(codigo, /if \(esVistaPrevia\) return;/);
-
-  // El metodo NFC no simula un pago que no existe.
-  assert.match(codigo, /metodoRetiro === 'NFC'/);
-  assert.match(codigo, /Cambiar método/);
+  // NFC comparte las validaciones protegidas.
+  assert.match(codigo, /nombreMetodoConfirmado/);
+  assert.match(codigo, /comprobarPago/);
 });

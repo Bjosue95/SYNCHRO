@@ -112,7 +112,7 @@ async function continuar() {
           :disabled="!seleccion"
           @click="continuar"
         >
-          <span>Continuar</span>
+          <span>{{ seleccion === 'NFC' ? 'Cambiar m?todo de pago' : 'Continuar' }}</span>
 
           <span class="icono-continuar" aria-hidden="true">
             <img
@@ -388,4 +388,6 @@ async function continuar() {
   .pantalla-metodos, .boton-continuar { transition: none; }
   .boton-continuar:active:not(:disabled) { transform: none; }
 }
+
+
 </style>

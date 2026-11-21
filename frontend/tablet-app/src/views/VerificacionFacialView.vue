@@ -708,7 +708,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro }">
+  <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
       <h1>Registro facial</h1>
       <p>Casillero {{ casillero }}</p>
@@ -746,7 +746,7 @@ onBeforeUnmount(() => {
 
           <div v-if="!encendida && !tomada" class="sin-camara">
             <img
-              src="/iconos/complementarios/38_escanear_rostro-oscuro.svg"
+              :src="oscuro ? '/iconos/complementarios/38_escanear_rostro-oscuro.svg' : '/iconos/complementarios/38_escanear_rostro.svg'"
               alt=""
             />
           </div>
@@ -1173,4 +1173,173 @@ onBeforeUnmount(() => {
   height: 1.2rem;
   flex-shrink: 0;
 }
+
+/* SYNCHRO-FACIAL-TEMA-V6
+   Tema claro y oscuro para Guardar y Retirar.
+   La camara y la validacion permanecen intactas. */
+
+/* MODO CLARO */
+.pantalla-rostro:not(.tema-oscuro) {
+  background: #f2f7fa;
+  color: #01305c;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .visor {
+  background: #f2f7fa;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .titulo-paso h1 {
+  color: #01305c;
+  text-shadow: none;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .titulo-paso p {
+  color: #5b6770;
+  text-shadow: none;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .panel-facial::after {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(242,247,250,.70) 40%,
+    #f2f7fa 100%
+  );
+}
+
+.pantalla-rostro:not(.tema-oscuro) .guia-ovalo {
+  border-color: #01305c;
+  box-shadow: 0 0 0 999px rgba(1,48,92,.035);
+}
+
+.pantalla-rostro:not(.tema-oscuro) .guia-ovalo.activo {
+  border-color: #00a99b;
+  box-shadow: 0 0 18px rgba(0,185,199,.22);
+}
+
+.pantalla-rostro:not(.tema-oscuro) .guia-ovalo.terminado {
+  border-color: #00b9c7;
+  box-shadow: 0 0 18px rgba(0,185,199,.25);
+}
+
+.pantalla-rostro:not(.tema-oscuro) .texto-panel h2 {
+  color: #01305c;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .texto-panel p,
+.pantalla-rostro:not(.tema-oscuro) .retroalimentacion {
+  color: #465f70;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .retroalimentacion .error {
+  color: #a32f30;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .pie-facial {
+  background: linear-gradient(180deg, #0b4477 0%, #01305c 100%);
+  border-top: 1px solid rgba(94,198,232,.28);
+  color: #ffffff;
+}
+
+.pantalla-rostro:not(.tema-oscuro) .continuar {
+  background: #ffffff;
+  border-color: #5ec6e8;
+  color: #01305c;
+  box-shadow: 0 8px 20px rgba(0,0,0,.16);
+}
+
+/* CAMARA ACTIVA O FOTO CAPTURADA:
+   Conservar texto legible sobre la imagen. */
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.panel-facial::after {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(1,22,42,.65) 40%,
+    rgba(1,22,42,.96) 100%
+  );
+}
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.titulo-paso h1 {
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.55);
+}
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.titulo-paso p {
+  color: #e2f3f8;
+  text-shadow: 0 2px 10px rgba(0,0,0,.55);
+}
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.texto-panel h2 {
+  color: #ffffff;
+}
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.texto-panel p,
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.retroalimentacion {
+  color: #e2f3f8;
+}
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.retroalimentacion .error {
+  color: #ffcebd;
+}
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.guia-ovalo:not(.activo):not(.terminado) {
+  border-color: rgba(245,253,255,.94);
+}
+
+/* MODO OSCURO: identidad original */
+.pantalla-rostro.tema-oscuro {
+  background: #061f36;
+  color: #ffffff;
+}
+
+.pantalla-rostro.tema-oscuro .visor {
+  background: #061f36;
+}
+
+.pantalla-rostro.tema-oscuro .pie-facial {
+  background: rgba(1,22,42,.96);
+  color: #ffffff;
+}
+
+
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen .pie-facial {
+  background: linear-gradient(180deg, rgba(11,68,119,.98) 0%, rgba(1,48,92,.99) 100%);
+  border-top-color: rgba(94,198,232,.28);
+}
+
+/* SYNCHRO-FACIAL-PIE-FLOTANTE-V7
+   Elimina la barra rectangular inferior.
+   Conserva el boton y las funciones existentes. */
+
+.pantalla-rostro .pie-facial,
+.pantalla-rostro.tema-oscuro .pie-facial,
+.pantalla-rostro:not(.tema-oscuro) .pie-facial,
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen .pie-facial {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* El boton permanece flotante y visible. */
+.pantalla-rostro .pie-facial .continuar {
+  position: relative;
+  z-index: 2;
+}
+
+/* Mantener legibles los avisos del pie. */
+.pantalla-rostro:not(.tema-oscuro).facial-con-imagen
+.consentimiento-v3 {
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.65);
+}
+
 </style>

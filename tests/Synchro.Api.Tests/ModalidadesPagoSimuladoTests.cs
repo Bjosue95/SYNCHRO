@@ -23,6 +23,7 @@ public sealed class ModalidadesPagoSimuladoTests
     [Theory]
     [InlineData("Efectivo", "EfectivoSimulado")]
     [InlineData("Tarjeta", "TarjetaSimulada")]
+    [InlineData("NFC", "NfcSimulado")]
     public void RetiroPersonalUtilizaPoliticaCompartida(
         string metodo, string esperado)
     {
@@ -32,7 +33,6 @@ public sealed class ModalidadesPagoSimuladoTests
     }
 
     [Theory]
-    [InlineData("NFC")]
     [InlineData("EfectivoSimulado")]
     [InlineData("")]
     [InlineData(null)]

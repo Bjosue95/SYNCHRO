@@ -28,14 +28,17 @@ internal static class ModalidadesPagoSimulado
         };
     }
 
+
     internal static string ParaRetiroPersonal(string? metodoPago)
     {
         return metodoPago switch
         {
             "Efectivo" => "EfectivoSimulado",
             "Tarjeta" => "TarjetaSimulada",
+            "NFC" => "NfcSimulado",
             _ => throw new ArgumentException(
                 "Metodo de retiro simulado invalido.")
         };
     }
+
 }

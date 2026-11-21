@@ -130,7 +130,7 @@ BEGIN
            OR @MetodoPago IS NULL
            OR @MetodoPago NOT IN (
                 N'EfectivoSimulado',
-                N'TarjetaSimulada'
+                N'TarjetaSimulada', N'NfcSimulado'
            )
             THROW 57708, 'Pago no confirmado.', 1;
 
@@ -195,7 +195,8 @@ BEGIN
             N'Disponible' AS EstadoCasillero,
             CAST(1 AS BIT) AS PagoSimulado,
             @Importe AS ImporteHnl,
-            @Ahora AS FechaRetiro;
+            @Ahora AS FechaRetiro,
+            @MetodoPago AS MetodoPago;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;

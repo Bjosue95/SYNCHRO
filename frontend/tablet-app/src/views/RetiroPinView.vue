@@ -32,6 +32,11 @@ const terminado = ref(false);
 const autorizacionPagoPendiente = ref(null);
 let autorizacionGeneradaEn = 0;
 
+// Referencias para medir la cabecera real y alimentar --alto-cabecera.
+const pantallaRef = ref(null);
+const encabezadoRef = ref(null);
+let observadorEncabezado = null;
+
 const completo = computed(() =>
   (pin.value.length === 6 || Boolean(autorizacionPagoPendiente.value)) &&
   !procesando.value &&
@@ -204,7 +209,35 @@ async function verificar() {
   }
 }
 
+// Medir la altura real de la cabecera y publicarla como
+// custom property en la raiz de la pantalla. Sin esto,
+// la variable --alto-cabecera nunca se define y el calculo
+// del teclado usa siempre el fallback (112px), que no
+// coincide con la cabecera real (especialmente en horizontal,
+// donde mide ~60px, por lo que se reservaban 52px de mas).
+function actualizarAltoCabecera() {
+  if (!pantallaRef.value || !encabezadoRef.value) return;
+  const alto = encabezadoRef.value.offsetHeight;
+  if (alto > 0) {
+    pantallaRef.value.style.setProperty(
+      "--alto-cabecera",
+      `${alto}px`
+    );
+  }
+}
+
 onMounted(() => {
+  // Medicion de la cabecera (tambien util en vista previa).
+  actualizarAltoCabecera();
+  if (
+    typeof ResizeObserver !== "undefined" &&
+    encabezadoRef.value
+  ) {
+    observadorEncabezado = new ResizeObserver(actualizarAltoCabecera);
+    observadorEncabezado.observe(encabezadoRef.value);
+  }
+  window.addEventListener("resize", actualizarAltoCabecera);
+
   if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) return;
   if (!obtenerRetiro().capturaHecha) {
     router.replace("/retirar/rostro");
@@ -216,21 +249,27 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", tecladoFisico);
+  window.removeEventListener("resize", actualizarAltoCabecera);
+  if (observadorEncabezado) {
+    observadorEncabezado.disconnect();
+    observadorEncabezado = null;
+  }
   pin.value = "";
 });
 </script>
 
 <template>
   <main
+    ref="pantallaRef"
     class="pantalla-pin"
     :class="{ 'tema-oscuro': oscuro }"
   >
     <section class="pin-contenido">
 
-      <header class="pin-encabezado">
+      <header ref="encabezadoRef" class="pin-encabezado">
         <h1>{{ terminado ? "Retiro completado" : "Introduce tu PIN" }}</h1>
         <p v-if="!terminado">
-          Ingresa los 6 d&iacute;gitos recibidos por WhatsApp.
+          Ingresa los 6 d&iacute;gitos.
         </p>
       </header>
 
@@ -361,12 +400,19 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* SYNCHRO-PIN-CSS-LIMPIO-V8
+   Un solo sistema de dimensiones, con suelo y techo mas
+   flexibles. --alto-cabecera se mide en JS (ResizeObserver)
+   para que el calculo del teclado refleje el alto real de
+   la cabecera en cada orientacion.
+*/
+
 .pantalla-pin,
 .pantalla-pin * {
   box-sizing: border-box;
 }
 
-/* Superficie */
+/* Pantalla */
 
 .pantalla-pin {
   width: 100%;
@@ -374,32 +420,33 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
 
-  overflow-x: hidden;
-  overflow-y: auto;
+  /* Fallback si JS no llega a medir (por ejemplo en SSR). */
+  --alto-cabecera: 112px;
 
-  padding:
-    clamp(16px, 2.6dvh, 26px)
-    clamp(12px, 2.4vw, 28px)
-    18px;
+  padding: clamp(16px, 3dvh, 40px)
+           clamp(12px, 2.5vw, 28px)
+           18px;
 
   background: #f2f7fa;
   color: #01305c;
-
-  transition:
-    background-color 150ms ease,
-    color 150ms ease;
 }
 
-/* Contenido central */
+.pantalla-pin.vista-synchro {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Contenedor central */
 
 .pin-contenido {
   display: flex;
   flex-direction: column;
   align-items: center;
 
-  width: min(100%, 480px);
+  width: min(100%, 650px);
   margin: 0 auto;
-  padding: 0;
+  padding: 0 0 12px;
 }
 
 /* Titulo */
@@ -408,53 +455,51 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
 
   width: 100%;
+  gap: 6px;
   text-align: center;
 }
 
 .pin-encabezado h1 {
   margin: 0;
 
-  color: inherit;
-  font-size: clamp(24px, 3vw, 34px);
+  font-size: clamp(30px, 5vw, 42px);
   font-weight: 700;
   line-height: 1.18;
+  color: inherit;
 }
 
 .pin-encabezado p {
   margin: 0;
 
+  font-size: clamp(15px, 2.2vw, 20px);
+  line-height: 1.35;
   color: #5b7282;
-  font-size: clamp(12px, 1.5vw, 16px);
-  line-height: 1.4;
 
-  transition: color 150ms ease;
+  text-align: center;
 }
 
-/* Seis puntos de PIN */
+/* Los seis indicadores del PIN */
 
 .indicadores {
   display: flex;
   align-items: center;
   justify-content: center;
 
-  gap: clamp(13px, 3vw, 20px);
-
-  margin-top: clamp(14px, 2.4dvh, 20px);
+  gap: clamp(10px, 2.5vw, 18px);
+  margin-top: clamp(12px, 2dvh, 20px);
 }
 
 .indicador {
   display: block;
   flex-shrink: 0;
 
-  width: 15px;
-  height: 15px;
+  width: clamp(22px, 3vw, 28px);
+  height: clamp(22px, 3vw, 28px);
 
   border: 2px solid #86a8b8;
   border-radius: 50%;
-
   background: transparent;
 
   transition:
@@ -471,19 +516,32 @@ onBeforeUnmount(() => {
   border-color: #01305c;
 }
 
-/* Teclado circular
-   La anchura depende del viewport.
-   La altura disponible limita el diametro.
-   Los botones nunca se estiran verticalmente. */
+/* TECLADO
+   UNICA DECLARACION DE DIAMETRO (portrait).
+
+   Suelo 48px (antes 68px) y techo 132px (antes 144px).
+   La cabecera se descuenta con su altura real medida en JS.
+   La reserva inferior cubre indicadores + margen del teclado
+   + 3 separaciones + acciones + paddings.
+*/
 
 .teclado {
   --diametro: clamp(
-    78px,
-    min(24vw, calc((100dvh - 334px) / 4)),
-    160px
+    48px,
+    min(
+      31vw,
+      calc(
+        (
+          100dvh -
+          var(--alto-cabecera, 112px) -
+          clamp(220px, 28dvh, 320px)
+        ) / 4
+      )
+    ),
+    132px
   );
 
-  --separacion: clamp(7px, 1.8vw, 13px);
+  --separacion: clamp(6px, 1.2vw, 12px);
 
   display: grid;
   grid-template-columns: repeat(3, var(--diametro));
@@ -494,8 +552,10 @@ onBeforeUnmount(() => {
   width: max-content;
   max-width: 100%;
 
-  margin-top: clamp(18px, 2.8dvh, 24px);
+  margin-top: clamp(12px, 2dvh, 22px);
 }
+
+/* Botones circulares */
 
 .tecla {
   display: grid;
@@ -505,6 +565,9 @@ onBeforeUnmount(() => {
   height: var(--diametro);
 
   padding: 0;
+  overflow: hidden;
+
+  container-type: inline-size;
 
   border: 2px solid #a1cede;
   border-radius: 50%;
@@ -513,11 +576,9 @@ onBeforeUnmount(() => {
   color: #01305c;
 
   font: inherit;
-  font-size: clamp(32px, 5vw, 48px);
   font-weight: 500;
 
-  box-shadow:
-    0 5px 12px rgba(1,48,92,.07);
+  box-shadow: 0 5px 12px rgba(1, 48, 92, .07);
 
   cursor: pointer;
   touch-action: manipulation;
@@ -526,12 +587,20 @@ onBeforeUnmount(() => {
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
-    color 150ms ease,
     transform 120ms ease;
 }
 
+/* Numeros proporcionales al diametro.
+   Minimo 18px (antes 24px) para que quepan en botones de 48px. */
+
 .numero {
+  display: block;
+
+  font-size: clamp(18px, 32cqw, 52px);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .tecla:active {
@@ -539,7 +608,7 @@ onBeforeUnmount(() => {
   transform: scale(.96);
 }
 
-/* Limpiar y Borrar circulares */
+/* Limpiar */
 
 .tecla.utilidad {
   background: #f8fbfd;
@@ -552,59 +621,59 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
 
-  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  gap: 2px;
 
-  font-size: clamp(13px, 2vw, 19px);
+  font-size: clamp(8px, 11cqw, 15px);
   font-weight: 700;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 .contenido-limpiar svg {
   display: block;
+  flex-shrink: 0;
 
-  width: clamp(25px, 5vw, 39px);
-  height: clamp(25px, 5vw, 39px);
+  width: clamp(12px, 19cqw, 28px);
+  height: clamp(12px, 19cqw, 28px);
 }
+
+/* Borrar */
 
 .icono-borrar {
   display: block;
 
-  width: clamp(32px, 6vw, 45px);
-  height: clamp(32px, 6vw, 45px);
+  width: clamp(13px, 27cqw, 38px);
+  height: clamp(13px, 27cqw, 38px);
 }
 
-@media (hover: hover) {
-  .tecla:hover {
-    background: #e8f9fa;
-    border-color: #00b9c7;
-  }
-}
-
-/* Verificar PIN:
-   apariencia aprobada de SeleccionTamanoView.vue */
+/* Acciones */
 
 .acciones {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 9px;
 
   width: 100%;
-  margin-top: clamp(16px, 2.3dvh, 23px);
+  gap: 9px;
+
+  margin-top: clamp(12px, 2dvh, 20px);
 }
 
 .boton-ir-casilleros {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   gap: 12px;
 
   width: max-content;
   max-width: 100%;
   min-width: clamp(190px, 23vw, 250px);
-  min-height: clamp(54px, 7vh, 64px);
+  min-height: clamp(52px, 7vh, 64px);
 
-  padding: 10px 24px;
+  padding: 9px 22px;
 
   border: 2px solid #00b9c7;
   border-radius: 15px;
@@ -613,23 +682,17 @@ onBeforeUnmount(() => {
   color: #01305c;
 
   font: inherit;
-  font-size: clamp(17px, 1.7vw, 21px);
+  font-size: clamp(16px, 1.7vw, 21px);
   font-weight: 800;
   line-height: 1.2;
+  text-align: center;
 
   box-shadow:
     0 4px 0 #00a5b2,
-    0 7px 16px rgba(1,48,92,.10);
+    0 7px 16px rgba(1, 48, 92, .10);
 
   cursor: pointer;
   touch-action: manipulation;
-
-  transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    transform 150ms ease;
 }
 
 .boton-ir-casilleros:disabled {
@@ -642,10 +705,9 @@ onBeforeUnmount(() => {
 
 .boton-ir-casilleros:active:not(:disabled) {
   transform: translateY(3px) scale(.99);
-  box-shadow: 0 1px 0 #00a5b2;
 }
 
-/* Icono Continuar original */
+/* Icono original del boton */
 
 .icono-ir {
   position: relative;
@@ -665,16 +727,21 @@ onBeforeUnmount(() => {
   height: 100%;
 
   object-fit: contain;
-  transition: opacity 150ms ease;
 }
 
-.ir-claro { opacity: 1; }
-.ir-oscuro { opacity: 0; }
+.ir-claro {
+  opacity: 1;
+}
+
+.ir-oscuro {
+  opacity: 0;
+}
 
 /* Mensajes */
 
 .mensaje {
   width: min(100%, 380px);
+
   margin: 0;
   padding: 10px;
 
@@ -684,13 +751,9 @@ onBeforeUnmount(() => {
   color: #01305c;
 
   font-size: 13px;
+  line-height: 1.4;
   text-align: center;
-}
-
-.tecla:focus-visible,
-.boton-ir-casilleros:focus-visible {
-  outline: 3px solid #00b9c7;
-  outline-offset: 4px;
+  overflow-wrap: anywhere;
 }
 
 /* Modo oscuro */
@@ -721,9 +784,6 @@ onBeforeUnmount(() => {
   background: #103956;
   color: #ffffff;
   border-color: #42647e;
-
-  box-shadow:
-    0 5px 12px rgba(0,0,0,.13);
 }
 
 .tema-oscuro .tecla.utilidad {
@@ -735,15 +795,6 @@ onBeforeUnmount(() => {
   background: #245a77;
 }
 
-@media (hover: hover) {
-  .tema-oscuro .tecla:hover {
-    background: #194b68;
-    border-color: #5ec6e8;
-  }
-}
-
-/* Boton original en oscuro */
-
 .tema-oscuro .boton-ir-casilleros:not(:disabled) {
   background: #123d5b;
   color: #ffffff;
@@ -751,7 +802,7 @@ onBeforeUnmount(() => {
 
   box-shadow:
     0 4px 0 #087d93,
-    0 7px 16px rgba(0,0,0,.22);
+    0 7px 16px rgba(0, 0, 0, .22);
 }
 
 .tema-oscuro .boton-ir-casilleros:disabled {
@@ -761,84 +812,138 @@ onBeforeUnmount(() => {
   box-shadow: none;
 }
 
-.tema-oscuro .ir-claro { opacity: 0; }
-.tema-oscuro .ir-oscuro { opacity: 1; }
+.tema-oscuro .ir-claro {
+  opacity: 0;
+}
+
+.tema-oscuro .ir-oscuro {
+  opacity: 1;
+}
 
 .tema-oscuro .mensaje {
   background: #204766;
   color: #ffffff;
 }
 
-/* Ventanas de poca altura */
+/* Tablet vertical alta */
 
-@media (max-height: 700px) {
-  .pantalla-pin {
-    padding-top: 10px;
-  }
-
-  .teclado {
-    --diametro: clamp(
-      62px,
-      min(23vw, calc((100dvh - 290px) / 4)),
-      104px
-    );
-
-    --separacion: 7px;
-
-    margin-top: 12px;
-  }
-
-  .indicadores {
-    margin-top: 10px;
-  }
-
-  .acciones {
-    margin-top: 11px;
-  }
-
-  .icono-ir {
-    width: 30px;
-    height: 30px;
-    flex-basis: 30px;
-  }
-
-  .boton-ir-casilleros {
-    min-height: 48px;
-    padding: 5px 14px;
-  }
-}
-
-/* Tablet vertical alta: titulo alineado con el menu, sin reducir
-   el tamaño de los botones del teclado. Se recupera la altura extra
-   en las separaciones entre encabezado, indicadores, teclado y acciones. */
 @media (orientation: portrait) and (min-width: 600px) and (min-height: 900px) {
   .pantalla-pin {
     padding-top: 46px;
   }
+}
+
+/* Horizontal: se redefine SOLO el diametro y la reserva.
+   Suelo 44px (mas bajo que en portrait) y techo 118px.
+   El resto de tamanos tipograficos y margenes se reducen
+   como antes. */
+
+@media (orientation: landscape) {
+  .pantalla-pin {
+    padding: 10px 12px 12px;
+  }
+
+  .pin-encabezado {
+    gap: 3px;
+  }
+
+  .pin-encabezado h1 {
+    font-size: clamp(24px, 2.8vw, 36px);
+  }
+
+  .pin-encabezado p {
+    font-size: clamp(12px, 1.4vw, 16px);
+  }
 
   .indicadores {
-    margin-top: 12px;
+    margin-top: 8px;
+    gap: clamp(7px, 1.5vw, 14px);
+  }
+
+  .indicador {
+    width: clamp(16px, 2vw, 21px);
+    height: clamp(16px, 2vw, 21px);
   }
 
   .teclado {
-    margin-top: 16px;
+    --diametro: clamp(
+      44px,
+      min(
+        28vw,
+        calc(
+          (
+            100dvh -
+            var(--alto-cabecera, 60px) -
+            clamp(140px, 19dvh, 200px)
+          ) / 4
+        )
+      ),
+      118px
+    );
+
+    margin-top: 10px;
+    --separacion: clamp(5px, 1dvh, 9px);
   }
 
   .acciones {
-    margin-top: 19px;
+    margin-top: 10px;
+    gap: 5px;
+  }
+
+  .boton-ir-casilleros {
+    min-height: 46px;
+    padding: 6px 14px;
+    font-size: clamp(14px, 1.7vw, 18px);
+  }
+
+  .icono-ir {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
   }
 }
 
-/* Movimiento reducido */
+/* Pantallas extremadamente bajas */
+
+@media (max-height: 550px) {
+  .pantalla-pin {
+    padding-top: 8px;
+  }
+
+  .teclado {
+    margin-top: 7px;
+    --separacion: 5px;
+  }
+
+  .acciones {
+    margin-top: 7px;
+  }
+}
+
+/* Interaccion */
+
+@media (hover: hover) {
+  .tecla:hover {
+    background: #e8f9fa;
+    border-color: #00b9c7;
+  }
+
+  .tema-oscuro .tecla:hover {
+    background: #194b68;
+    border-color: #5ec6e8;
+  }
+}
+
+.tecla:focus-visible,
+.boton-ir-casilleros:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .pantalla-pin,
-  .pin-encabezado p,
-  .indicador,
-  .tecla,
-  .boton-ir-casilleros,
-  .icono-ir img {
-    transition: none !important;
+  .pantalla-pin *,
+  .pantalla-pin {
+    transition: none;
   }
 
   .tecla:active,
@@ -847,15 +952,16 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Lectores de pantalla */
+/* Accesibilidad */
 
 .solo-lectura {
   position: absolute;
+
   width: 1px;
   height: 1px;
 
-  padding: 0;
   margin: -1px;
+  padding: 0;
 
   overflow: hidden;
   clip-path: inset(50%);

@@ -37,7 +37,7 @@ const propiedades = computed(() => {
 
 function bloquear(evento) {
   const permitido =
-    vista.value?.id === "pago" &&
+    (vista.value?.id === "pago" || vista.value?.id === "pago-resumen") &&
     ["click", "keydown"].includes(evento.type) &&
     evento.target?.closest?.("[data-preview-permitido]");
 
@@ -58,7 +58,7 @@ function bloquear(evento) {
   >
     <div
       class="pantalla-real"
-    :class="{ 'pago-interactivo': vista?.id === 'pago' }"
+    :class="{ 'pago-interactivo': vista?.id === 'pago' || vista?.id === 'pago-resumen' }"
       @click.capture="bloquear"
       @submit.capture="bloquear"
       @change.capture="bloquear"

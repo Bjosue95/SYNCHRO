@@ -514,6 +514,9 @@ public static class WhatsAppManualEndpoints
                 decimal importe = resultado.GetDecimal(
                     resultado.GetOrdinal("ImporteHnl"));
 
+                string metodoPago = resultado.GetString(
+                    resultado.GetOrdinal("MetodoPago"));
+
                 DateTime fecha = DateTime.SpecifyKind(
                     resultado.GetDateTime(
                         resultado.GetOrdinal("FechaRetiro")),
@@ -527,6 +530,7 @@ public static class WhatsAppManualEndpoints
                     codigoCasillero = codigo,
                     estadoCasillero = estado,
                     importeHnl = importe,
+                    metodoPago,
                     moneda = "HNL",
                     fechaRetiro = fecha,
                     hardwareSimulado = true
