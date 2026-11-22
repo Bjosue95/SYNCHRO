@@ -14,7 +14,11 @@ const router = useRouter();
 const dispositivo = computed(() => ["Celular", "Laptop"].includes(route.query.dispositivo) ? route.query.dispositivo : "");
 const modalidad = computed(() => dispositivo.value === "Laptop" ? "Laptop" :
   ["Inalambrica", "Cable"].includes(route.query.modalidad) ? route.query.modalidad : "");
-const regreso = computed(() => dispositivo.value === "Laptop" ? "/cargar" : "/cargar/modalidad");
+const regreso = computed(() => esVistaPrevia
+  ? (dispositivo.value === "Laptop"
+    ? "/vista-previa/carga-dispositivo"
+    : "/vista-previa/carga-modalidad")
+  : (dispositivo.value === "Laptop" ? "/cargar" : "/cargar/modalidad"));
 const espacios = ref([]);
 const seleccionado = ref("");
 const cargando = ref(true);
@@ -52,8 +56,18 @@ function cambiarPagina(p) {
   seleccionado.value = "";
 }
 function continuar() {
-  if (esVistaPrevia) return;
   if (!dispositivo.value || !modalidad.value || !puedeContinuar.value) return;
+  if (esVistaPrevia) {
+    router.push({
+      path: "/vista-previa/carga-rostro",
+      query: {
+        dispositivo: dispositivo.value,
+        modalidad: modalidad.value,
+        espacio: seleccionado.value
+      }
+    });
+    return;
+  }
   router.push({ path: "/cargar/rostro", query: {
     dispositivo: dispositivo.value, modalidad: modalidad.value, espacio: seleccionado.value,
   }});
@@ -103,6 +117,7 @@ onMounted(() => {
           class="tarjeta"
           :class="{ seleccionada: seleccionado === item.codigo }"
           :aria-pressed="seleccionado === item.codigo"
+          data-preview-permitido
           @click="seleccionado = item.codigo"
         >
           <span class="contenedor-icono" aria-hidden="true">
@@ -119,11 +134,11 @@ onMounted(() => {
 
       <div class="accion-guardar" :class="{ 'con-paginacion': totalPaginas > 1 }">
         <div v-if="totalPaginas > 1" class="paginacion">
-          <button type="button" class="pagina-boton" :disabled="pagina === 0" @click="cambiarPagina(pagina - 1)" aria-label="Página anterior">‹</button>
+          <button type="button" class="pagina-boton" :disabled="pagina === 0" data-preview-permitido @click="cambiarPagina(pagina - 1)" aria-label="Página anterior">‹</button>
           <span>{{ pagina + 1 }} / {{ totalPaginas }}</span>
-          <button type="button" class="pagina-boton" :disabled="pagina === totalPaginas - 1" @click="cambiarPagina(pagina + 1)" aria-label="Página siguiente">›</button>
+          <button type="button" class="pagina-boton" :disabled="pagina === totalPaginas - 1" data-preview-permitido @click="cambiarPagina(pagina + 1)" aria-label="Página siguiente">›</button>
         </div>
-        <button type="button" class="boton-continuar" :disabled="!puedeContinuar" @click="continuar">
+        <button type="button" class="boton-continuar" :disabled="!puedeContinuar" data-preview-permitido @click="continuar">
           <span class="texto-continuar">Continuar</span>
           <span class="icono-continuar" aria-hidden="true">
             <img src="/iconos/complementarios/29_continuar.svg" class="continuar-claro" alt="" />
