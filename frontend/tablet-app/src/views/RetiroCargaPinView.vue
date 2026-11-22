@@ -7,7 +7,8 @@ import {
   obtenerEspacioRetiroCarga,
   obtenerTokenFacialRetiroCarga,
   obtenerTokenCobroRetiroCarga,
-  guardarOrdenCobroRetiroCarga
+  guardarOrdenCobroRetiroCarga,
+  guardarMetodoPagoRetiroCarga
 } from "../services/retiroCargaSesion.js";
 
 import {
@@ -99,7 +100,15 @@ async function verificar() {
     // y abrir directamente la seleccion de metodo de pago.
     const orden = await prepararCobroRetiroCarga();
     guardarOrdenCobroRetiroCarga(orden);
-    await router.replace("/retirar/dispositivo/pago");
+    if (orden.pagoSimulado === true) {
+      if (!["Efectivo", "Tarjeta", "NFC"].includes(orden.metodoPago)) {
+        throw new Error("El cobro confirmado no tiene un metodo valido.");
+      }
+      guardarMetodoPagoRetiroCarga(orden.metodoPago);
+      await router.replace("/retirar/dispositivo/pago/resumen");
+    } else {
+      await router.replace("/retirar/dispositivo/pago");
+    }
   } catch (e) {
     mensaje.value =
       e?.message || "No se pudo verificar el PIN.";
@@ -119,7 +128,15 @@ async function finalizar() {
     }
     const orden = await prepararCobroRetiroCarga();
     guardarOrdenCobroRetiroCarga(orden);
-    await router.replace("/retirar/dispositivo/pago");
+    if (orden.pagoSimulado === true) {
+      if (!["Efectivo", "Tarjeta", "NFC"].includes(orden.metodoPago)) {
+        throw new Error("El cobro confirmado no tiene un metodo valido.");
+      }
+      guardarMetodoPagoRetiroCarga(orden.metodoPago);
+      await router.replace("/retirar/dispositivo/pago/resumen");
+    } else {
+      await router.replace("/retirar/dispositivo/pago");
+    }
   } catch (e) {
     mensaje.value = e?.message || "No se pudo preparar el cobro.";
   } finally {
