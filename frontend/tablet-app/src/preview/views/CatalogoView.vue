@@ -19,7 +19,15 @@ const secciones = computed(() =>
     <div class="contenido">
       <header>
         <h1>Vistas previas</h1>
-        <p>Selecciona una pantalla para revisar su diseño.</p>
+        <p>Selecciona una pantalla o reproduce un recorrido con acciones animadas, sin acceder al backend.</p>
+        <nav class="recorridos" aria-label="Recorridos interactivos">
+          <RouterLink to="/vista-previa/carga-dispositivo" class="recorrido">
+            <span>▶</span> Probar carga de dispositivo
+          </RouterLink>
+          <RouterLink to="/vista-previa/retiro-carga-rostro" class="recorrido">
+            <span>▶</span> Probar retiro de dispositivo
+          </RouterLink>
+        </nav>
       </header>
 
       <section
@@ -79,6 +87,39 @@ h1 {
 header p {
   color: #5b7282;
   font-size: 15px;
+}
+
+.recorridos {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0 26px;
+}
+
+.recorrido {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 49px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 2px solid #00b9c7;
+  color: #01305c;
+  background: #e0f7fa;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.recorrido:hover, .recorrido:focus-visible {
+  background: #bdeef3;
+  outline-offset: 3px;
+}
+
+.tema-oscuro .recorrido {
+  color: #ffffff;
+  background: #194b68;
+  border-color: #5ec6e8;
 }
 
 .seccion {
