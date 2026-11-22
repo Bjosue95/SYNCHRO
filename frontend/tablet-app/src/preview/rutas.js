@@ -47,7 +47,13 @@ export function registrarRutasVistaPrevia(router) {
       const id = String(to.params.pantalla ?? "");
       if (!buscarPantalla(id)) return "/vista-previa";
 
-      const esperado = ejemplos[id] || {};
+      const esperado = { ...(ejemplos[id] || {}) };
+      // Mantener Tarjeta/NFC al navegar desde la vista previa de
+      // seleccion de pago, sin sobrescribirlos por el valor inicial.
+      if ("metodo" in esperado &&
+          ["Efectivo", "Tarjeta", "NFC"].includes(to.query.metodo)) {
+        esperado.metodo = to.query.metodo;
+      }
       const falta = Object.keys(esperado).some(
         campo => to.query[campo] !== esperado[campo]
       );
