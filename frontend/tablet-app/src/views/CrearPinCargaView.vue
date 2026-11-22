@@ -22,6 +22,11 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: { type: Boolean, default: false },
+  pasoEjemplo: { type: String, default: "crear" }
+});
+const esVistaPrevia = import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia;
 
 const paso = ref("crear");
 const pin = ref("");
@@ -81,6 +86,13 @@ function avanzar() {
     primerPin.value = "";
     paso.value = "crear";
     error.value = "Los PIN no coinciden. Crea uno nuevamente.";
+    return;
+  }
+
+  if (esVistaPrevia) {
+    pin.value = "";
+    primerPin.value = "";
+    paso.value = "listo";
     return;
   }
 
@@ -180,6 +192,11 @@ function regresar() {
 }
 
 onMounted(() => {
+  if (esVistaPrevia) {
+    paso.value = propsVistaPrevia.pasoEjemplo === "confirmar"
+      ? "confirmar" : "crear";
+    return;
+  }
   if (!verificacionCargaValida(datos.value)) {
     regresar();
   }
