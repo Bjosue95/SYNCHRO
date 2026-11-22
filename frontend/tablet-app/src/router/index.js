@@ -68,6 +68,11 @@ const router = createRouter({
     {
       path: "/retirar/dispositivo/pago",
       name: "retirar-dispositivo-pago",
+      component: () => import("../views/SeleccionMetodoPagoView.vue")
+    },
+    {
+      path: "/retirar/dispositivo/pago/resumen",
+      name: "retirar-dispositivo-pago-resumen",
       component: () => import("../views/RetiroCargaPagoView.vue")
     },
     { path: "/retirar/pertenencias", name: "retirar-pertenencias", redirect: "/retirar/rostro" },
