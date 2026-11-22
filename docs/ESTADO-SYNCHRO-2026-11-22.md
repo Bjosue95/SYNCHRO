@@ -71,3 +71,10 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - Respaldar antes de tocar lógica sensible; no usar comandos destructivos de SQL/Git.
 - Los archivos excluidos al publicar ee5bc1d quedaron locales: `demos/`, respaldo SQL de cobro, archivos `.log`, y copia `.bak` de servicio JS. No se presume que estén en GitHub.
 - Este documento es una **fotografía de código y conversaciones**, no un certificado de aprobación técnica o prueba biométrica.
+
+## 9. Resultado real de comparación facial (22/11/2026)
+- El backend respondió a `GET /api/espacios-carga`: `W1` ocupado; `W2,C1-C4,L1,L2` disponibles.
+- En un intento de retirada de dispositivo mediante `POST /api/terminales/carga/retiro/identificar-v3`, el registro técnico devolvió `SYNCHRO_DIAG_V3 | Dimension=1024 | Distancia=0.3242 | Umbral=0.2200 | Resultado=NO_COINCIDE`. La distancia superó el umbral en `0.1042`, provocando HTTP 400.
+- Esto confirma una referencia facial válida en formato y una comparación calculada, pero **no demuestra** ni suplantación ni un fallo del algoritmo. Faltan pruebas de repetibilidad con las mismas condiciones de cámara/luz y calibración de umbral.
+- Se verificó en el código que ambas vistas de registro y retiro de carga usan `Human.js 3.3.6`, 1024 componentes y la misma configuración de modelos. El backend usa distancia coseno `1 - coseno`; no confundirla con la métrica nativa de coincidencia de Human.js.
+- **Siguiente acción segura:** obtener como máximo otras dos distancias agregadas de intentos consentidos del mismo rostro y misma sesión, sin registrar imágenes, descriptores ni PIN. Comparar variación entre intentos. No modificar umbral, tokens, autorizaciones ni SQL para forzar una aceptación.
