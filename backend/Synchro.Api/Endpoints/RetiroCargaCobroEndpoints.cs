@@ -66,7 +66,7 @@ public static class RetiroCargaCobroEndpoints
                   AND CONVERT(nvarchar(10),value) = N'1'
               )
               AND OBJECT_ID(N'dbo.CobrosRetiroCargaSynchro', N'U') IS NOT NULL
-              AND OBJECT_ID(N'dbo.TarifasCarga', N'U') IS NOT NULL
+              AND OBJECT_ID(N'dbo.TarifasCargaSynchro', N'U') IS NOT NULL
             THEN 1 ELSE 0 END;
             """, db);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancel)) == 1;
@@ -167,7 +167,7 @@ public static class RetiroCargaCobroEndpoints
                     await using (var tarifa = new SqlCommand("""
                         SELECT MinutosBase, PrecioBase,
                                MinutosAdicionales, PrecioAdicional
-                        FROM dbo.TarifasCarga WITH (HOLDLOCK)
+                        FROM dbo.TarifasCargaSynchro WITH (HOLDLOCK)
                         WHERE TipoDispositivo = @dispositivo;
                         """, db, tx))
                     {
