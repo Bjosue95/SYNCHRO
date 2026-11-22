@@ -22,12 +22,13 @@ const { oscuro } = useTema();
 const pin = ref("");
 const mensaje = ref("");
 const procesando = ref(false);
-const terminado = ref(false);
+// La autorizacion PIN se reutiliza solo ante fallo al preparar la orden.
+// No se presenta una pantalla intermedia tras verificarlo.
+const pinComprobado = ref(false);
 
 const completo = computed(() =>
-  pin.value.length === 6 &&
-  !procesando.value &&
-  !terminado.value
+  (pin.value.length === 6 || pinComprobado.value) &&
+  !procesando.value
 );
 
 const teclas = [
@@ -38,7 +39,7 @@ const teclas = [
 ];
 
 function pulsar(valor) {
-  if (procesando.value || terminado.value) return;
+  if (procesando.value || pinComprobado.value) return;
 
   mensaje.value = "";
 
@@ -80,24 +81,20 @@ function tecladoFisico(evento) {
 
 async function verificar() {
   if (!completo.value || procesando.value) return;
-
-  if (!obtenerTokenFacialRetiroCarga()) {
-    mensaje.value =
-      "La autorizacion facial vencio. Repite el escaneo.";
+  if (!pinComprobado.value && !obtenerTokenFacialRetiroCarga()) {
+    mensaje.value = "La autorizacion facial vencio. Repite el escaneo.";
     pin.value = "";
     return;
   }
 
   procesando.value = true;
   mensaje.value = "";
-
   try {
-    await verificarPinRetiroCarga(pin.value);
-
-    terminado.value = true;
-
-    // Mismo recorrido que retiro personal: tras PIN, preparar el cobro
-    // y abrir directamente la seleccion de metodo de pago.
+    // Si falla la preparacion se reintenta sin volver a consumir el PIN.
+    if (!pinComprobado.value) {
+      await verificarPinRetiroCarga(pin.value);
+      pinComprobado.value = true;
+    }
     const orden = await prepararCobroRetiroCarga();
     guardarOrdenCobroRetiroCarga(orden);
     if (orden.pagoSimulado === true) {
@@ -110,44 +107,18 @@ async function verificar() {
       await router.replace("/retirar/dispositivo/pago");
     }
   } catch (e) {
-    mensaje.value =
-      e?.message || "No se pudo verificar el PIN.";
+    mensaje.value = e?.message || "No se pudo verificar el PIN.";
+    if (pinComprobado.value && !obtenerTokenCobroRetiroCarga()) {
+      await router.replace("/retirar/dispositivo");
+    }
   } finally {
     pin.value = "";
     procesando.value = false;
   }
 }
 
-async function finalizar() {
-  if (!terminado.value || procesando.value) return;
-  procesando.value = true;
-  mensaje.value = "";
-  try {
-    if (!obtenerTokenCobroRetiroCarga()) {
-      throw new Error("La autorizacion vencio. Repite rostro y PIN.");
-    }
-    const orden = await prepararCobroRetiroCarga();
-    guardarOrdenCobroRetiroCarga(orden);
-    if (orden.pagoSimulado === true) {
-      if (!["Efectivo", "Tarjeta", "NFC"].includes(orden.metodoPago)) {
-        throw new Error("El cobro confirmado no tiene un metodo valido.");
-      }
-      guardarMetodoPagoRetiroCarga(orden.metodoPago);
-      await router.replace("/retirar/dispositivo/pago/resumen");
-    } else {
-      await router.replace("/retirar/dispositivo/pago");
-    }
-  } catch (e) {
-    mensaje.value = e?.message || "No se pudo preparar el cobro.";
-  } finally {
-    procesando.value = false;
-  }
-}
-
 onMounted(() => {
-  if (
-    !obtenerTokenFacialRetiroCarga()
-  ) {
+  if (!obtenerTokenFacialRetiroCarga() && !obtenerTokenCobroRetiroCarga()) {
     router.replace("/retirar/dispositivo");
     return;
   }
@@ -170,14 +141,14 @@ onBeforeUnmount(() => {
     <section class="pin-contenido">
 
       <header ref="encabezadoRef" class="pin-encabezado">
-        <h1>{{ terminado ? "PIN validado" : "Introduce tu PIN" }}</h1>
-        <p v-if="!terminado">
+        <h1>Introduce tu PIN</h1>
+        <p v-if="!pinComprobado">
           Ingresa el PIN de 6 dígitos que creaste al iniciar la carga.
         </p>
       </header>
 
       <div
-        v-if="!terminado"
+        v-if="!pinComprobado || procesando"
         class="indicadores"
         role="group"
         :aria-label="`${pin.length} de 6 digitos ingresados`"
@@ -195,7 +166,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div
-        v-if="!terminado"
+        v-if="!pinComprobado || procesando"
         class="teclado"
         role="group"
         aria-label="Teclado numerico"
@@ -267,10 +238,10 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="boton-ir-casilleros"
-          :disabled="!terminado && !completo"
-          @click="terminado ? finalizar() : verificar()"
+          :disabled="!completo"
+          @click="verificar"
         >
-          <span>{{ terminado ? "Reintentar cobro" : "Verificar PIN" }}</span>
+          <span>{{ procesando ? "Continuando..." : pinComprobado ? "Reintentar cobro" : "Verificar PIN" }}</span>
 
           <span class="icono-ir" aria-hidden="true">
             <img
@@ -287,7 +258,7 @@ onBeforeUnmount(() => {
         </button>
 
         <p
-          v-if="mensaje" :style="{ order: terminado ? -1 : 0 }"
+          v-if="mensaje"
           class="mensaje"
           role="status"
         >
@@ -296,7 +267,7 @@ onBeforeUnmount(() => {
       </footer>
     </section>
 
-    <span v-if="!terminado" class="solo-lectura" aria-live="polite">
+    <span v-if="!pinComprobado || procesando" class="solo-lectura" aria-live="polite">
       {{ pin.length }} de 6 d&iacute;gitos ingresados.
     </span>
   </main>
