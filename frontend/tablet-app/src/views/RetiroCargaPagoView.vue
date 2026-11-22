@@ -108,7 +108,7 @@ onMounted(async () => {
       if (fase.value === "esperando") {
         comprobador = window.setInterval(() => {
           void comprobarPago();
-        }, 3000);
+        }, 10000);
       }
     }
   } catch (error) {
