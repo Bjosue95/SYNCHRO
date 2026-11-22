@@ -867,6 +867,7 @@ onBeforeUnmount(() => {
       <label
         v-if="esVistaPrevia && !encendida && !tomada"
         class="consentimiento-v3"
+        data-preview-permitido
       >
         <input
           v-model="consentimientoDemo"
