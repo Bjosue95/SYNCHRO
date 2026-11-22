@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
           :disabled="!terminado && !completo"
           @click="terminado ? finalizar() : verificar()"
         >
-          <span>{{ terminado ? "Volver al menú" : "Verificar PIN" }}</span>
+          <span>{{ terminado ? "Continuar al pago" : "Verificar PIN" }}</span>
 
           <span class="icono-ir" aria-hidden="true">
             <img
