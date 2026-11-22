@@ -29,6 +29,7 @@ const procesando = ref(false);
 // La autorizacion PIN se reutiliza solo ante fallo al preparar la orden.
 // No se presenta una pantalla intermedia tras verificarlo.
 const pinComprobado = ref(false);
+let temporizadorDemo = null;
 
 const completo = computed(() =>
   (pin.value.length === 6 || pinComprobado.value) &&
@@ -84,7 +85,16 @@ function tecladoFisico(evento) {
 }
 
 async function verificar() {
-  if (esVistaPrevia) return;
+  if (esVistaPrevia) {
+    if (!completo.value || procesando.value) return;
+    procesando.value = true;
+    temporizadorDemo = window.setTimeout(() => {
+      pin.value = "";
+      procesando.value = false;
+      router.push("/vista-previa/retiro-carga-pago");
+    }, 750);
+    return;
+  }
   if (!completo.value || procesando.value) return;
   if (!pinComprobado.value && !obtenerTokenFacialRetiroCarga()) {
     mensaje.value = "La autorizacion facial vencio. Repite el escaneo.";
@@ -123,10 +133,7 @@ async function verificar() {
 }
 
 onMounted(() => {
-  if (esVistaPrevia) {
-    actualizarAltoCabecera();
-    return;
-  }
+  if (esVistaPrevia) return;
   if (!obtenerTokenFacialRetiroCarga() && !obtenerTokenCobroRetiroCarga()) {
     router.replace("/retirar/dispositivo");
     return;
@@ -136,6 +143,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.clearTimeout(temporizadorDemo);
   window.removeEventListener("keydown", tecladoFisico);
   pin.value = "";
 });
@@ -185,6 +193,7 @@ onBeforeUnmount(() => {
           :key="tecla"
           type="button"
           class="tecla"
+          data-preview-permitido
           :class="{
             utilidad:
               tecla === 'limpiar' ||
@@ -248,6 +257,7 @@ onBeforeUnmount(() => {
           type="button"
           class="boton-ir-casilleros"
           :disabled="!completo"
+          data-preview-permitido
           @click="verificar"
         >
           <span>{{ procesando ? "Continuando..." : pinComprobado ? "Reintentar cobro" : "Verificar PIN" }}</span>
