@@ -106,8 +106,7 @@ async function verificar() {
 }
 
 function finalizar() {
-  limpiarRetiroCarga();
-  router.replace("/menu");
+  router.replace("/retirar/dispositivo/pago");
 }
 
 onMounted(() => {
