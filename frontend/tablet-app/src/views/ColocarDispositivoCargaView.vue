@@ -225,7 +225,7 @@ onBeforeUnmount(() => {
         <h1>
           {{
             estado === "confirmado"
-              ? "Colocaci&oacute;n confirmada"
+              ? "Colocación confirmada"
               : "Coloca tu dispositivo"
           }}
         </h1>
@@ -325,7 +325,7 @@ onBeforeUnmount(() => {
               {{
                 confirmando
                   ? "Comprobando..."
-                  : "Ya coloqu&eacute; mi dispositivo"
+                  : "Ya coloqué mi dispositivo"
               }}
             </button>
 
