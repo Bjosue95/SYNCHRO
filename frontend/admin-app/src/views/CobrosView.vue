@@ -134,8 +134,8 @@ async function confirmar(item) {
   }
 }
 
-async function cargarCarga() {
-  if (procesandoCarga.value) return;
+async function cargarCarga(forzar = false) {
+  if (procesandoCarga.value && !forzar) return;
   cargandoCarga.value = true;
   try {
     const datos = await apiAdmin("/api/admin/carga/cobros/pendientes");
@@ -206,7 +206,7 @@ async function confirmarCarga(item) {
     aviso.value = "Pago simulado de carga confirmado para " +
       item.codigoEspacio +
       ". La tablet continuará con el resumen y la recogida.";
-    await cargarCarga();
+    await cargarCarga(true);
   } catch (e) {
     error.value = e?.message || "No se pudo confirmar el pago de carga.";
   } finally {
