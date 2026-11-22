@@ -80,6 +80,108 @@ export const pantallas = [
     titulo: "Seleccionar pago",
     grupo: "Retiro",
     componente: cargar(() => import("../views/SeleccionMetodoPagoView.vue"))
+  },
+  {
+    id: "carga-dispositivo",
+    titulo: "Qué deseas cargar",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/CargaDispositivoView.vue"))
+  },
+  {
+    id: "carga-modalidad",
+    titulo: "Modalidad de carga",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/ModalidadCargaView.vue"))
+  },
+  {
+    id: "carga-espacios-inalambrica",
+    titulo: "Espacios inalámbricos",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/EspaciosCargaView.vue"))
+  },
+  {
+    id: "carga-espacios-cable",
+    titulo: "Espacios por cable",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/EspaciosCargaView.vue"))
+  },
+  {
+    id: "carga-espacios-laptop",
+    titulo: "Espacios para laptop",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/EspaciosCargaView.vue"))
+  },
+  {
+    id: "carga-rostro",
+    titulo: "Registrar rostro de carga",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/VerificacionFacialCargaView.vue"))
+  },
+  {
+    id: "carga-crear-pin",
+    titulo: "Crear PIN de carga",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/CrearPinCargaView.vue"))
+  },
+  {
+    id: "carga-confirmar-pin",
+    titulo: "Confirmar PIN de carga",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/CrearPinCargaView.vue"))
+  },
+  {
+    id: "carga-pin-confirmado",
+    titulo: "PIN confirmado (transición)",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/ConfirmacionPinCargaView.vue"))
+  },
+  {
+    id: "carga-colocar",
+    titulo: "Colocar dispositivo · reloj",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/ColocarDispositivoCargaView.vue"))
+  },
+  {
+    id: "carga-colocacion-confirmada",
+    titulo: "Colocación confirmada",
+    grupo: "Carga",
+    componente: cargar(() => import("../views/ColocarDispositivoCargaView.vue"))
+  },
+  {
+    id: "retiro-carga-rostro",
+    titulo: "Verificación facial de retiro",
+    grupo: "Retiro de dispositivos",
+    componente: cargar(() => import("../views/RetiroCargaRostroView.vue"))
+  },
+  {
+    id: "retiro-carga-pin",
+    titulo: "Verificar PIN de retiro",
+    grupo: "Retiro de dispositivos",
+    componente: cargar(() => import("../views/RetiroCargaPinView.vue"))
+  },
+  {
+    id: "retiro-carga-pago",
+    titulo: "Seleccionar forma de pago",
+    grupo: "Retiro de dispositivos",
+    componente: cargar(() => import("../views/SeleccionMetodoPagoView.vue"))
+  },
+  {
+    id: "retiro-carga-espera",
+    titulo: "Esperando pago del administrador",
+    grupo: "Retiro de dispositivos",
+    componente: cargar(() => import("../views/RetiroCargaPagoView.vue"))
+  },
+  {
+    id: "retiro-carga-resumen",
+    titulo: "Resumen de consumo",
+    grupo: "Retiro de dispositivos",
+    componente: cargar(() => import("../views/RetiroCargaPagoView.vue"))
+  },
+  {
+    id: "retiro-carga-completado",
+    titulo: "Retiro completado",
+    grupo: "Retiro de dispositivos",
+    componente: cargar(() => import("../views/RetiroCargaPagoView.vue"))
   }
 ];
 
