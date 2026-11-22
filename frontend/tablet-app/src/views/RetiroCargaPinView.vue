@@ -94,9 +94,8 @@ async function verificar() {
     terminado.value = true;
 
     mensaje.value =
-      "PIN validado correctamente. El dispositivo " +
-      "permanece resguardado. La confirmacion del " +
-      "pago y la recogida todavia estan pendientes.";
+      "PIN validado correctamente. Continua para revisar " +
+      "el cobro antes de retirar tu dispositivo.";
   } catch (e) {
     mensaje.value =
       e?.message || "No se pudo verificar el PIN.";
