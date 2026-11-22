@@ -78,3 +78,10 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - Esto confirma una referencia facial válida en formato y una comparación calculada, pero **no demuestra** ni suplantación ni un fallo del algoritmo. Faltan pruebas de repetibilidad con las mismas condiciones de cámara/luz y calibración de umbral.
 - Se verificó en el código que ambas vistas de registro y retiro de carga usan `Human.js 3.3.6`, 1024 componentes y la misma configuración de modelos. El backend usa distancia coseno `1 - coseno`; no confundirla con la métrica nativa de coincidencia de Human.js.
 - **Siguiente acción segura:** obtener como máximo otras dos distancias agregadas de intentos consentidos del mismo rostro y misma sesión, sin registrar imágenes, descriptores ni PIN. Comparar variación entre intentos. No modificar umbral, tokens, autorizaciones ni SQL para forzar una aceptación.
+
+## 10. Tres resultados de W1 y diagnóstico de estabilidad (22/11)
+- Rechazos reales: distancia coseno `0.3242`, `0.4353`, `0.2673`; umbral `0.2200`. Variación máxima-mínima `0.1680`. Todos mostraron `Dimension=1024` y `NO_COINCIDE`.
+- La variación contra la referencia almacenada **no permite** saber si el origen del error es el registro o las capturas de retirada.
+- Se añadió al frontend de retiro (`RetiroCargaRostroView.vue`) un diagnóstico solo en `import.meta.env.DEV`: compara la distancia coseno entre las tres capturas de un mismo escaneo y muestra solo esos tres valores en pantalla. Los vectores son temporales en memoria, se limpian tras el cálculo y no se envían al backend. Se mantienen las validaciones y el umbral sin cambios.
+- **Prueba siguiente:** actualizar la rama local desde GitHub, reiniciar el frontend en modo desarrollo, ir al flujo facial de retiro W1 y copiar solo los tres números que aparecen tras la captura, incluso antes de pulsar Continuar.
+- Si las distancias internas varían mucho, examinar estabilidad de la captura, rotación, luz y pose; si son bajas pero la comparación con la referencia sigue alta, investigar calidad del enrolamiento original. No aprobar la retirada ni reescribir una referencia activa para superar el rechazo.
