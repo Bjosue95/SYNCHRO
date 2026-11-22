@@ -1,9 +1,11 @@
 <script setup>
 import { ref } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 const { oscuro } = useTema();
 const router = useRouter();
+const route = useRoute();
+const esVistaPrevia = import.meta.env.DEV && route.path.startsWith("/vista-previa/");
 const seleccion = ref("");
 const modalidades = [
   { codigo: "Inalambrica", titulo: "Inalámbrica", icono: "/iconos/04_carga_inalambrica" },
@@ -11,13 +13,19 @@ const modalidades = [
 ];
 function continuar() {
   if (!modalidades.some(x => x.codigo === seleccion.value)) return;
+  if (esVistaPrevia) {
+    router.push(seleccion.value === "Cable"
+      ? "/vista-previa/carga-espacios-cable"
+      : "/vista-previa/carga-espacios-inalambrica");
+    return;
+  }
   router.push({ path: "/cargar/espacios", query: { dispositivo: "Celular", modalidad: seleccion.value } });
 }
 </script>
 
 <template>
   <main class="pantalla-guardar" :class="{ 'tema-oscuro': oscuro }">
-    <RouterLink to="/cargar" class="regresar">
+    <RouterLink :to="esVistaPrevia ? '/vista-previa/carga-dispositivo' : '/cargar'" class="regresar">
       <span class="icono-regresar" aria-hidden="true">
         <img src="/iconos/complementarios/28_regresar.svg" alt="" class="regresar-claro" />
         <img src="/iconos/complementarios/28_regresar-oscuro.svg" alt="" class="regresar-oscuro" />
@@ -29,7 +37,7 @@ function continuar() {
       <section class="cuadricula dos-opciones" aria-label="Modalidades de carga">
         <button v-for="item in modalidades" :key="item.codigo" type="button" class="tarjeta"
           :class="{ seleccionada: seleccion === item.codigo }" :aria-pressed="seleccion === item.codigo"
-          @click="seleccion = item.codigo">
+          data-preview-permitido @click="seleccion = item.codigo">
           <span class="contenedor-icono" aria-hidden="true">
             <img :src="`${item.icono}.svg`" alt="" class="imagen-icono icono-claro" />
             <img :src="`${item.icono}-oscuro.svg`" alt="" class="imagen-icono icono-oscuro" />
@@ -38,7 +46,7 @@ function continuar() {
         </button>
       </section>
       <div class="accion-guardar">
-        <button type="button" class="boton-continuar" :disabled="!seleccion" @click="continuar">
+        <button type="button" class="boton-continuar" :disabled="!seleccion" data-preview-permitido @click="continuar">
           <span class="texto-continuar">Continuar</span>
           <span class="icono-continuar" aria-hidden="true">
             <img src="/iconos/complementarios/29_continuar.svg" class="continuar-claro" alt="" />
