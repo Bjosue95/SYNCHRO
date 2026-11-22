@@ -7,7 +7,6 @@ import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { registrarVerificacionCarga } from "../services/verificacionCargaTemporal.js";
 import { infoCarga } from "../services/catalogoEspaciosCarga.js";
-import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
 import { registrarCaptura } from "../services/retiroSesion";
 import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
 import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumirDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
@@ -838,7 +837,7 @@ onBeforeUnmount(() => {
       <p>Espacio {{ espacioCarga }}</p>
     </header>
 
-    <section class="zona-facial" aria-label="Registro facial de demostración">
+    <section class="zona-facial" aria-label="Registro facial">
       <div class="panel-facial">
         <div class="visor">
           <video
@@ -904,9 +903,8 @@ onBeforeUnmount(() => {
       >
         <input v-model="aceptaRetiroV3" type="checkbox" />
         <span>
-          Autorizo comparar mi descriptor facial V3 con la
-          referencia cifrada de mi depósito. Es una prueba
-          experimental y el PIN seguirá siendo obligatorio.
+          Autorizo comparar mi rostro con el registrado para verificar
+          mi identidad al retirar el dispositivo. También utilizaré mi PIN.
         </span>
       </label>      <label
         v-if="pruebaDescriptorV3 && registroV3Habilitado && !retirando && !encendida && !tomada"
@@ -917,7 +915,8 @@ onBeforeUnmount(() => {
           type="checkbox"
         />
         <span>
-          Autorizo la captura facial V3 para la prueba de carga. El backend valida el descriptor, pero esta etapa no inicia una carga ni autoriza pagos. Versi&oacute;n del aviso: {{ VERSION_CONSENTIMIENTO_V3 }}.
+          Autorizo registrar mi rostro para proteger el dispositivo
+          y verificar mi identidad al retirarlo.
         </span>
       </label>
       <button
