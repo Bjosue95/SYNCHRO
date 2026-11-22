@@ -20,6 +20,11 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: { type: Boolean, default: false },
+  estadoEjemplo: { type: String, default: "listo" }
+});
+const esVistaPrevia = import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia;
 
 const datos = computed(() => ({
   espacio: String(route.query.espacio ?? ""),
@@ -145,6 +150,7 @@ async function iniciar() {
 }
 
 async function confirmarColocacion() {
+  if (esVistaPrevia) return;
   if (
     estado.value !== "listo" ||
     confirmando.value ||
@@ -200,6 +206,12 @@ function volverAlMenu() {
 }
 
 onMounted(() => {
+  if (esVistaPrevia) {
+    estado.value = propsVistaPrevia.estadoEjemplo === "confirmado"
+      ? "confirmado" : "listo";
+    if (estado.value === "listo") comenzarReloj();
+    return;
+  }
   void iniciar();
 });
 
@@ -333,6 +345,7 @@ onBeforeUnmount(() => {
               class="deposito-boton-secundario"
               type="button"
               :disabled="confirmando"
+              data-preview-permitido
               @click="agregarMinuto"
             >
               Agregar 1 minuto m&aacute;s
