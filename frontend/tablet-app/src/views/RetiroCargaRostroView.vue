@@ -18,6 +18,10 @@ import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumir
 // Retiro: comparar con la referencia registrada.
 
 const route = useRoute();
+const esVistaPrevia = import.meta.env.DEV &&
+  route.path.startsWith("/vista-previa/");
+const consentimientoDemo = ref(false);
+let temporizadorDemo = null;
 
 const modoCarga = computed(() => route.path === "/cargar/rostro");
 
@@ -675,6 +679,14 @@ function cancelar() {
 }
 
 async function continuar() {
+  if (esVistaPrevia) {
+    if (!tomada.value) return;
+    await router.push({
+      path: "/vista-previa/retiro-carga-pin",
+      query: route.query
+    });
+    return;
+  }
   if (!tomada.value || !fotoBase64.value ||
       validandoEnServidor.value) return;
 
@@ -716,6 +728,21 @@ async function continuar() {
 }
 
 function comenzarEscaneo() {
+  if (esVistaPrevia) {
+    if (!consentimientoDemo.value || encendida.value || tomada.value) return;
+    error.value = "";
+    detectado.value = true;
+    encendida.value = true;
+    estado.value = "Escaneando rostro...";
+    window.clearTimeout(temporizadorDemo);
+    temporizadorDemo = window.setTimeout(() => {
+      if (!montada) return;
+      encendida.value = false;
+      tomada.value = true;
+      estado.value = "Escaneo visual completado.";
+    }, 1800);
+    return;
+  }
   if (modoCarga.value && (
     !pruebaDescriptorV3 ||
     !registroV3Habilitado ||
@@ -761,6 +788,7 @@ function ocultar() {
 document.addEventListener("visibilitychange", ocultar);
 
 onBeforeUnmount(() => {
+  window.clearTimeout(temporizadorDemo);
   borrarDescriptorV3();
   montada = false;
   detenerCamara();
@@ -772,8 +800,8 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>Registro facial</h1>
-      <p>Espacio {{ espacioCarga }}</p>
+      <h1>Verificación facial</h1>
+      <p>Verifica tu identidad para retirar el dispositivo.</p>
     </header>
 
     <section class="zona-facial" aria-label="Registro facial">
@@ -787,7 +815,7 @@ onBeforeUnmount(() => {
           ></video>
 
           <img
-            v-if="tomada"
+            v-if="tomada && !esVistaPrevia"
             class="foto-tomada"
             :src="fotoUrl"
             alt="Captura facial temporal preparada"
@@ -806,7 +834,7 @@ onBeforeUnmount(() => {
             <span v-if="tomada" class="marca-ok">✓</span>
           </div>
 
-          <div v-if="!encendida && !tomada" class="sin-camara">
+          <div v-if="(!encendida && !tomada) || (esVistaPrevia && encendida)" class="sin-camara">
             <img
               :src="oscuro ? '/iconos/complementarios/38_escanear_rostro-oscuro.svg' : '/iconos/complementarios/38_escanear_rostro.svg'"
               alt=""
@@ -837,7 +865,20 @@ onBeforeUnmount(() => {
 
     <footer class="pie-facial">
       <label
-        v-if="retiroV3Habilitado && retirando && !encendida && !tomada"
+        v-if="esVistaPrevia && !encendida && !tomada"
+        class="consentimiento-v3"
+      >
+        <input
+          v-model="consentimientoDemo"
+          data-preview-permitido
+          type="checkbox"
+        />
+        <span>
+          Autorizo verificar mi identidad para retirar el dispositivo.
+        </span>
+      </label>
+      <label
+        v-if="!esVistaPrevia && retiroV3Habilitado && retirando && !encendida && !tomada"
         class="consentimiento-v3"
       >
         <input v-model="aceptaRetiroV3" type="checkbox" />
@@ -846,7 +887,7 @@ onBeforeUnmount(() => {
           mi identidad al retirar el dispositivo. También utilizaré mi PIN.
         </span>
       </label>      <label
-        v-if="pruebaDescriptorV3 && registroV3Habilitado && !retirando && !encendida && !tomada"
+        v-if="!esVistaPrevia && pruebaDescriptorV3 && registroV3Habilitado && !retirando && !encendida && !tomada"
         class="consentimiento-v3"
       >
         <input
@@ -862,6 +903,8 @@ onBeforeUnmount(() => {
         v-if="!tomada && !encendida && !iniciando"
         type="button"
         class="continuar"
+        :disabled="esVistaPrevia && !consentimientoDemo"
+        data-preview-permitido
         @click="comenzarEscaneo"
       >
         <span>
@@ -883,6 +926,7 @@ onBeforeUnmount(() => {
         type="button"
         v-if="tomada && !error"
         :disabled="validandoEnServidor"
+        data-preview-permitido
         @click="continuar"
       >
         <span>Continuar</span>
