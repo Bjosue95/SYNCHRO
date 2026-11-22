@@ -106,3 +106,15 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - La primera migracion fallaba ANTES de aplicar nada por su dependencia de `dbo.TarifasCarga` heredada. Reparacion: migracion crea dos tablas nuevas del servicio de carga (`dbo.TarifasCargaSynchro`, vacia por defecto, y `dbo.CobrosRetiroCargaSynchro`); API consulta el catalogo V3. Herramienta de preparacion ya no exige tablas de tarifa antiguas.
 - Nuevo script `tools/Configurar-TarifaCargaSynchro-Pruebas.ps1` solicita precios y bloques explicitamente para Celular/Laptop. No inventar tarifas comerciales.
 - Reiniciar backend con DPAPI original y repetir facial+PIN solo si el token efimero vencio. No cancelar W1 de nuevo. Verificar que `Estado=Finalizada` cumpla las restricciones CHECK locales antes de confirmar recogida.
+
+
+## Esquema confirmado por diagnostico SQL real (22/11/2026)
+- El usuario informo que las tablas dbo.CobrosRetiroCargaSynchro y dbo.TarifasCargaSynchro existen. La primera tiene 10 columnas, la segunda tiene Modalidad, MinutosBase, PrecioBase, MinutosAdicionales y PrecioAdicional.
+- TarifasCargaSynchro utiliza Modalidad, NO TipoDispositivo, y carece de ActualizadoUtc. Conservar la tabla original; no recrearla.
+- CK_SesionesCargaSynchro_Estado admite Preparada, Activa, CobroPendiente, PagoConfirmado, Retirada y Cancelada. El cierre correcto es Retirada, NO Finalizada.
+- La migracion anterior confirmo SQL y fallo despues al intentar consultar TipoDispositivo, por eso no hay que repetirla ni cancelar W1.
+- API corregida para buscar tarifas usando s.Modalidad (Inalambrica/Cable/Laptop) y cerrar con Estado=Retirada.
+- Scripts de diagnostico, preparacion y configuracion ya utilizan Modalidad. El configurador no intenta actualizar una columna de fecha inexistente.
+- Verificar por lectura que hay una tarifa valida para la modalidad Inalambrica (W1), y que el CHECK permite Retirada.
+- Falta comprobacion del nuevo build .NET y flujo real en laptop; publicar codigo en GitHub no demuestra que ya se ejecuto.
+- Si Vite o el backend recarga y se pierde el token efimero, repetir solo rostro y PIN, sin volver a depositar el dispositivo.
