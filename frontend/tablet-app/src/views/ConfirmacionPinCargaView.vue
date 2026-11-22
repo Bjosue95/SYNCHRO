@@ -8,6 +8,9 @@ import { pasoCargaDemoValido } from "../services/pasoCargaDemostracion.js";
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: { type: Boolean, default: false }
+});
 
 const datos = computed(() => ({
   espacio: String(route.query.espacio ?? ""),
@@ -21,6 +24,10 @@ const datos = computed(() => ({
 let temporizador = null;
 
 onMounted(() => {
+  // Mantener visible la transicion para revisarla en el catalogo
+  // sin consumir autorizaciones ni iniciar la colocacion.
+  if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) return;
+
   if (
     !pasoCargaDemoValido(datos.value) ||
     obtenerPreparacionCarga()?.codigoEspacio !== datos.value.espacio
