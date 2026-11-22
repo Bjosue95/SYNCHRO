@@ -4,6 +4,11 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { espaciosPara } from "../services/catalogoEspaciosCarga.js";
 const { oscuro } = useTema();
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: { type: Boolean, default: false },
+  espaciosEjemplo: { type: Array, default: () => [] }
+});
+const esVistaPrevia = import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia;
 const route = useRoute();
 const router = useRouter();
 const dispositivo = computed(() => ["Celular", "Laptop"].includes(route.query.dispositivo) ? route.query.dispositivo : "");
@@ -21,6 +26,7 @@ const totalPaginas = computed(() => Math.max(1, Math.ceil(disponibles.value.leng
 const visibles = computed(() => disponibles.value.slice(pagina.value * porPagina, (pagina.value + 1) * porPagina));
 const puedeContinuar = computed(() => !cargando.value && !error.value && disponibles.value.some(x => x.codigo === seleccionado.value));
 async function consultar() {
+  if (esVistaPrevia) return;
   cargando.value = true;
   error.value = "";
   try {
@@ -46,12 +52,21 @@ function cambiarPagina(p) {
   seleccionado.value = "";
 }
 function continuar() {
+  if (esVistaPrevia) return;
   if (!dispositivo.value || !modalidad.value || !puedeContinuar.value) return;
   router.push({ path: "/cargar/rostro", query: {
     dispositivo: dispositivo.value, modalidad: modalidad.value, espacio: seleccionado.value,
   }});
 }
 onMounted(() => {
+  if (esVistaPrevia) {
+    espacios.value = propsVistaPrevia.espaciosEjemplo.map(item => ({
+      codigo: String(item.codigo),
+      estado: String(item.estado)
+    }));
+    cargando.value = false;
+    return;
+  }
   if (!dispositivo.value) { router.replace("/cargar"); return; }
   if (dispositivo.value === "Celular" && !modalidad.value) { router.replace("/cargar/modalidad"); return; }
   void consultar();
