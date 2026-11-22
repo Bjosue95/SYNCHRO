@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import {
@@ -9,7 +9,8 @@ import {
   limpiarRetiroCarga
 } from "../services/retiroCargaSesion.js";
 import {
-  confirmarPagoSimuladoRetiroCarga,
+  seleccionarMetodoRetiroCarga,
+  consultarPagoRetiroCarga,
   confirmarRecogidaRetiroCarga
 } from "../services/retiroCargaApi.js";
 
@@ -20,20 +21,23 @@ const { oscuro } = useTema();
 // El negocio y la autorizacion del cobro siguen siendo exclusivos de carga.
 const orden = ref(obtenerOrdenCobroRetiroCarga());
 const metodoVisual = obtenerMetodoPagoRetiroCarga();
-const fase = ref(orden.value?.pagoSimulado ? "resumen" : "pago");
+const fase = ref(orden.value?.pagoSimulado ? "resumen" : "iniciando");
 const procesando = ref(false);
+const consultando = ref(false);
 const mensaje = ref("");
 const codigoFinal = ref("");
 const recogidaConfirmada = ref(false);
+let comprobador = null;
 
-const mostrarAnimacionPago = computed(() => fase.value === "pago");
+const mostrarAnimacionPago = computed(() =>
+  fase.value === "iniciando" || fase.value === "esperando"
+);
 const mostrarPantallaFinal = computed(() => fase.value === "completado");
 const importe = computed(() => {
   const valor = orden.value?.importeHnl;
   return typeof valor === "number" && Number.isFinite(valor)
     ? new Intl.NumberFormat("es-HN", {
-        style: "currency",
-        currency: "HNL"
+        style: "currency", currency: "HNL"
       }).format(valor)
     : "No disponible";
 });
@@ -43,29 +47,77 @@ const nombreMetodo = computed(() => ({
   NFC: "NFC del celular"
 })[metodoVisual] || "No disponible");
 
-onMounted(() => {
+function detenerConsultas() {
+  if (comprobador !== null) {
+    window.clearInterval(comprobador);
+    comprobador = null;
+  }
+}
+
+function reiniciarVerificacion() {
+  detenerConsultas();
+  limpiarRetiroCarga();
+  router.replace("/retirar/dispositivo");
+}
+
+async function comprobarPago() {
+  if (fase.value !== "esperando" || consultando.value) return;
+  if (!obtenerTokenCobroRetiroCarga()) {
+    fase.value = "vencido";
+    detenerConsultas();
+    mensaje.value = "La autorización venció. Repite rostro y PIN sin iniciar otra carga.";
+    return;
+  }
+  consultando.value = true;
+  try {
+    const estado = await consultarPagoRetiroCarga();
+    if (estado?.codigoEspacio !== orden.value?.codigoEspacio ||
+        estado?.metodoPago !== metodoVisual) {
+      throw new Error("La orden confirmada no corresponde a esta sesión.");
+    }
+    if (estado.pagoConfirmado === true) {
+      fase.value = "resumen";
+      detenerConsultas();
+      mensaje.value = "";
+    }
+  } catch (error) {
+    mensaje.value = error?.message || "No se pudo consultar el pago.";
+    if (!obtenerTokenCobroRetiroCarga()) {
+      fase.value = "vencido";
+      detenerConsultas();
+    }
+  } finally {
+    consultando.value = false;
+  }
+}
+
+onMounted(async () => {
   if (!orden.value || !metodoVisual || !obtenerTokenCobroRetiroCarga()) {
     router.replace("/retirar/dispositivo");
+    return;
+  }
+  if (fase.value === "resumen") return;
+  try {
+    const seleccionado = await seleccionarMetodoRetiroCarga(metodoVisual);
+    if (seleccionado?.codigoEspacio !== orden.value.codigoEspacio) {
+      throw new Error("El espacio seleccionado no coincide con tu sesión.");
+    }
+    fase.value = seleccionado.pagoConfirmado ? "resumen" : "esperando";
+    if (fase.value === "esperando") {
+      await comprobarPago();
+      if (fase.value === "esperando") {
+        comprobador = window.setInterval(() => {
+          void comprobarPago();
+        }, 3000);
+      }
+    }
+  } catch (error) {
+    mensaje.value = error?.message || "No se pudo registrar el método de pago.";
+    fase.value = "vencido";
   }
 });
 
-async function confirmarPago() {
-  if (fase.value !== "pago" || procesando.value ||
-      !obtenerTokenCobroRetiroCarga()) return;
-  mensaje.value = "";
-  procesando.value = true;
-  try {
-    const resultado = await confirmarPagoSimuladoRetiroCarga(metodoVisual);
-    if (resultado?.codigoEspacio !== orden.value?.codigoEspacio) {
-      throw new Error("El espacio confirmado no coincide con la sesion.");
-    }
-    fase.value = "resumen";
-  } catch (error) {
-    mensaje.value = error?.message || "No se pudo confirmar el pago simulado.";
-  } finally {
-    procesando.value = false;
-  }
-}
+onBeforeUnmount(detenerConsultas);
 
 async function finalizarRetiro() {
   if (fase.value !== "resumen" || !recogidaConfirmada.value ||
@@ -244,15 +296,16 @@ function finalizar() {
 
       <div class="esperando-operador" role="status">
         <span class="pulso-espera"></span>
-        Confirmación simulada del pago
+        {{ fase === "iniciando" ? "Registrando método de pago..." : "Esperando confirmación del administrador" }}
       </div>
 
       <button
+        v-if="fase === 'esperando'"
         type="button" class="boton-principal"
-        :disabled="procesando"
-        @click="confirmarPago"
+        :disabled="consultando"
+        @click="comprobarPago"
       >
-        <span>{{ procesando ? "Confirmando..." : "Confirmar pago simulado" }}</span>
+        <span>{{ consultando ? "Consultando..." : "Comprobar pago" }}</span>
         <span class="icono-continuar" aria-hidden="true">
           <img
             src="/iconos/complementarios/29_continuar.svg"
@@ -267,9 +320,21 @@ function finalizar() {
 
       <p v-if="mensaje" class="mensaje" role="alert">{{ mensaje }}</p>
       <p class="nota">
-        Demostración: no se efectúa ningún cobro real.
-        El espacio permanece ocupado hasta finalizar la recogida.
+        Pago únicamente simulado. La administración debe comprobarlo
+        y confirmarlo; el espacio sigue ocupado hasta la recogida.
       </p>
+    </section>
+
+    <section v-else-if="fase === 'vencido'" class="contenido-pago" role="alert">
+      <header>
+        <span class="etiqueta">SYNCHRO · RETIRO DE DISPOSITIVO</span>
+        <h1>Verificación necesaria</h1>
+        <p>{{ mensaje }}</p>
+      </header>
+      <button class="boton-principal" type="button"
+        @click="reiniciarVerificacion">
+        Repetir rostro y PIN
+      </button>
     </section>
 
     <section v-else-if="orden" class="contenido-pago">
@@ -277,7 +342,7 @@ function finalizar() {
         <span class="etiqueta">SYNCHRO · RETIRO DE DISPOSITIVO</span>
         <h1>Resumen de tu consumo</h1>
         <p>
-          El pago simulado fue confirmado.
+          El pago simulado fue confirmado por administración.
           Revisa tu consumo antes de finalizar el retiro.
         </p>
       </header>
