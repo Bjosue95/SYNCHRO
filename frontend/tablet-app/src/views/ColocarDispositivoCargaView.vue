@@ -33,6 +33,11 @@ const datos = computed(() => ({
 const estado = ref("verificando");
 const segundos = ref(60);
 const ventanaSegundos = ref(60);
+const avisoMinuto = ref(false);
+const recargaReloj = ref(0);
+const escalaTiempo = computed(() =>
+  formatearTiempoDeposito(ventanaSegundos.value)
+);
 const confirmando = ref(false);
 const error = ref("");
 
@@ -52,6 +57,7 @@ const avanceReloj = computed(() =>
 let limiteMs = 0;
 let reloj = null;
 let redireccion = null;
+let avisoTimer = null;
 let vivo = true;
 
 function comprobarTiempo() {
@@ -65,26 +71,26 @@ function comprobarTiempo() {
 
 function comenzarReloj() {
   limiteMs = Date.now() + MINUTO_DEPOSITO_MS;
-  segundos.value = 60;
   ventanaSegundos.value = 60;
-
+  comprobarTiempo();
+  window.clearInterval(reloj);
   reloj = window.setInterval(comprobarTiempo, 250);
 }
 
 function agregarMinuto() {
-  if (estado.value !== "listo" || confirmando.value) return;
+  if (!vivo || estado.value !== "listo" || confirmando.value) return;
 
-  limiteMs = extenderLimiteDeposito(
-    limiteMs,
-    Date.now()
-  );
-
-  ventanaSegundos.value = Math.max(
-    60,
-    segundosRestantesDeposito(limiteMs, Date.now())
-  );
-
+  const ahora = Date.now();
+  limiteMs = extenderLimiteDeposito(limiteMs, ahora);
+  ventanaSegundos.value = segundosRestantesDeposito(limiteMs, ahora);
   comprobarTiempo();
+
+  recargaReloj.value += 1;
+  avisoMinuto.value = true;
+  window.clearTimeout(avisoTimer);
+  avisoTimer = window.setTimeout(() => {
+    if (vivo) avisoMinuto.value = false;
+  }, 1500);
 }
 
 async function verificarDisponibilidad() {
@@ -168,7 +174,9 @@ async function confirmarColocacion() {
     if (!vivo) return;
 
     window.clearInterval(reloj);
+    window.clearTimeout(avisoTimer);
     reloj = null;
+    avisoTimer = null;
 
     estado.value = "confirmado";
     limpiarPasoCargaDemo();
@@ -199,6 +207,7 @@ onBeforeUnmount(() => {
   vivo = false;
   window.clearInterval(reloj);
   window.clearTimeout(redireccion);
+  window.clearTimeout(avisoTimer);
 });
 </script>
 
@@ -207,7 +216,8 @@ onBeforeUnmount(() => {
     class="deposito-pantalla"
     :class="{
       'tema-oscuro': oscuro,
-      'deposito-en-curso': estado === 'listo'
+      'deposito-en-curso': estado === 'listo',
+      'deposito-finalizado': estado === 'confirmado'
     }"
   >
     <div class="deposito-contenedor">
@@ -242,8 +252,7 @@ onBeforeUnmount(() => {
           <div class="deposito-instruccion">
             <h2>Coloca tu dispositivo en {{ datos.espacio }}</h2>
             <p class="deposito-descripcion">
-              Conecta tu dispositivo y comprueba que
-              quede correctamente colocado.
+              Conecta tu dispositivo y comprueba que esté bien colocado.
             </p>
           </div>
 
@@ -253,6 +262,25 @@ onBeforeUnmount(() => {
               viewBox="0 0 176 176"
               aria-hidden="true"
             >
+              <defs>
+                <linearGradient
+                  id="synchro-timer-gradient-v3"
+                  x1="0%" y1="0%" x2="100%" y2="100%"
+                >
+                  <stop offset="0%" stop-color="#5EC6E8" />
+                  <stop offset="55%" stop-color="#00B9C7" />
+                  <stop offset="100%" stop-color="#008C99" />
+                </linearGradient>
+              </defs>
+              <circle
+                cx="88" cy="88" r="84" fill="none"
+                stroke="#5EC6E8" stroke-opacity="0.30"
+                stroke-width="1.6" stroke-dasharray="2 7"
+              />
+              <circle class="deposito-halo"
+                cx="88" cy="88" r="84" fill="none"
+                stroke-width="1.5"
+              />
               <circle
                 class="deposito-pista"
                 cx="88"
@@ -275,9 +303,15 @@ onBeforeUnmount(() => {
               />
             </svg>
 
-            <div class="deposito-tiempo" role="timer">
-              <span class="deposito-digitos">{{ textoTiempo }}</span>
+            <Transition name="deposito-minuto">
+              <span v-if="avisoMinuto" class="deposito-aviso-minuto" role="status">
+                +1:00
+              </span>
+            </Transition>
+            <div class="deposito-tiempo" role="timer" aria-live="off">
+              <span :key="recargaReloj" class="deposito-digitos">{{ textoTiempo }}</span>
               <span class="deposito-unidad">tiempo restante</span>
+              <span class="deposito-referencia">escala {{ escalaTiempo }}</span>
             </div>
           </div>
 
@@ -320,10 +354,8 @@ onBeforeUnmount(() => {
           <h2>Colocaci&oacute;n confirmada</h2>
 
           <p class="deposito-descripcion">
-            Has confirmado que colocaste tu dispositivo.
-            SYNCHRO registro el inicio de la sesion
-            y marco el espacio como ocupado.
-            Conserva tu PIN para retirar el dispositivo.
+            Tu dispositivo quedó registrado correctamente.
+            Conserva tu PIN para retirarlo.
           </p>
 
           <p class="deposito-retorno" role="status">
