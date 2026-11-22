@@ -50,6 +50,7 @@ const teclas = [
 ];
 
 const registrandoCarga = ref(false);
+let temporizadorVistaPrevia = null;
 
 const titulo = computed(() => {
   if (paso.value === "crear") return "Crea tu PIN de retiro";
@@ -93,6 +94,12 @@ function avanzar() {
     pin.value = "";
     primerPin.value = "";
     paso.value = "listo";
+    temporizadorVistaPrevia = window.setTimeout(() => {
+      router.push({
+        path: "/vista-previa/carga-pin-confirmado",
+        query: { ...route.query, recorrido: "1" }
+      });
+    }, 550);
     return;
   }
 
@@ -170,7 +177,7 @@ async function registrarCargaReal(pinElegido) {
   }
 }
 function irCondiciones() {
-  if (paso.value !== "listo") return;
+  if (paso.value !== "listo" || esVistaPrevia) return;
 
   // El PIN no se transmite ni se almacena desde esta vista.
   // Su registro seguro requiere el endpoint de carga.
@@ -203,6 +210,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.clearTimeout(temporizadorVistaPrevia);
   pin.value = "";
   primerPin.value = "";
 });
@@ -254,6 +262,7 @@ onBeforeUnmount(() => {
           :key="tecla"
           type="button"
           class="tecla"
+          data-preview-permitido
           :class="{ utilidad: tecla === 'limpiar' || tecla === 'borrar' }"
           @click="pulsar(tecla)"
         >
@@ -291,10 +300,11 @@ onBeforeUnmount(() => {
           class="boton-ir-casilleros"
           type="button"
           :disabled="paso !== 'listo' && pin.length !== 6"
+          data-preview-permitido
           @click="paso === 'listo' ? irCondiciones() : avanzar()"
         >
           <span>
-            {{ paso === 'listo' ? 'Ver condiciones' : 'Continuar' }}
+            {{ paso === 'listo' ? 'Continuar' : 'Continuar' }}
           </span>
 
           <span class="icono-ir" aria-hidden="true">
