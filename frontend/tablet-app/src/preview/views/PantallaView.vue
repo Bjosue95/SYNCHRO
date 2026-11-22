@@ -95,11 +95,24 @@ const propiedades = computed(() => {
   return {};
 });
 
+const vistasInteractivas = new Set([
+  "pago", "pago-resumen", "retiro-carga-pago",
+  "carga-dispositivo", "carga-modalidad",
+  "carga-espacios-inalambrica", "carga-espacios-cable",
+  "carga-espacios-laptop", "carga-rostro",
+  "carga-crear-pin", "carga-confirmar-pin",
+  "carga-colocar", "retiro-carga-rostro",
+  "retiro-carga-pin", "retiro-carga-resumen",
+  "retiro-carga-espera", "retiro-carga-completado"
+]);
+const pantallaInteractiva = computed(() =>
+  vistasInteractivas.has(vista.value?.id)
+);
+
 function bloquear(evento) {
-  const id = vista.value?.id;
   const permitido =
-    ["pago", "pago-resumen", "retiro-carga-pago", "carga-colocar"].includes(id) &&
-    ["click", "keydown"].includes(evento.type) &&
+    pantallaInteractiva.value &&
+    ["click", "keydown", "change"].includes(evento.type) &&
     evento.target?.closest?.("[data-preview-permitido]");
 
   if (permitido) return;
@@ -119,7 +132,7 @@ function bloquear(evento) {
   >
     <div
       class="pantalla-real"
-    :class="{ 'pago-interactivo': ['pago', 'pago-resumen', 'retiro-carga-pago', 'carga-colocar'].includes(vista?.id) }"
+        :class="{ 'pago-interactivo': pantallaInteractiva }"
       @click.capture="bloquear"
       @submit.capture="bloquear"
       @change.capture="bloquear"
