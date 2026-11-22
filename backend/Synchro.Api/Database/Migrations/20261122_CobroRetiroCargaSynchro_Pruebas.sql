@@ -13,11 +13,34 @@ IF OBJECT_ID(N'dbo.SesionesCargaSynchro', N'U') IS NULL
     THROW 57922, 'Falta SesionesCargaSynchro.', 1;
 IF OBJECT_ID(N'dbo.EspaciosCarga', N'U') IS NULL
     THROW 57923, 'Falta EspaciosCarga.', 1;
-IF OBJECT_ID(N'dbo.TarifasCarga', N'U') IS NULL
-    THROW 57924, 'Faltan TarifasCarga existentes.', 1;
+-- El prototipo actual no tiene la antigua dbo.TarifasCarga.
+-- Crear catalogo propio de precios para los servicios de CARGA.
+-- NO insertar valores predeterminados ni copiar precios de resguardo.
 
 BEGIN TRY
     BEGIN TRANSACTION;
+    IF OBJECT_ID(N'dbo.TarifasCargaSynchro', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.TarifasCargaSynchro (
+            TipoDispositivo NVARCHAR(12) NOT NULL
+                CONSTRAINT PK_TarifasCargaSynchro PRIMARY KEY,
+            MinutosBase INT NOT NULL,
+            PrecioBase DECIMAL(12,2) NOT NULL,
+            MinutosAdicionales INT NOT NULL,
+            PrecioAdicional DECIMAL(12,2) NOT NULL,
+            ActualizadoUtc DATETIME2(3) NOT NULL
+                CONSTRAINT DF_TarifaCargaV3Actualizada
+                DEFAULT SYSUTCDATETIME(),
+            CONSTRAINT CK_TarifaCargaV3Dispositivo CHECK
+                (TipoDispositivo IN (N'Celular', N'Laptop')),
+            CONSTRAINT CK_TarifaCargaV3Minutos CHECK
+                (MinutosBase BETWEEN 1 AND 1440 AND
+                 MinutosAdicionales BETWEEN 1 AND 1440),
+            CONSTRAINT CK_TarifaCargaV3Precios CHECK
+                (PrecioBase > 0 AND PrecioAdicional > 0)
+        );
+    END;
+
     IF OBJECT_ID(N'dbo.CobrosRetiroCargaSynchro', N'U') IS NULL
     BEGIN
         CREATE TABLE dbo.CobrosRetiroCargaSynchro (
@@ -54,3 +77,6 @@ END CATCH;
 SELECT N'CobrosRetiroCargaSynchro' AS Modulo,
        COUNT(*) AS CobrosRegistrados
 FROM dbo.CobrosRetiroCargaSynchro;
+SELECT N'TarifasCargaSynchro' AS Catalogo,
+       COUNT(*) AS TarifasConfiguradas
+FROM dbo.TarifasCargaSynchro;
