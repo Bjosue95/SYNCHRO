@@ -233,6 +233,13 @@ public static class RetiroCargaCobroEndpoints
                     importeHnl = cobro.Importe,
                     descripcionTarifa = cobro.Descripcion,
                     estadoCobro = cobro.Estado,
+                    metodoPago = cobro.MetodoPago switch
+                    {
+                        "EfectivoSimulado" => "Efectivo",
+                        "TarjetaSimulada" => "Tarjeta",
+                        "NfcSimulado" => "NFC",
+                        _ => (string?)null
+                    },
                     pagoSimulado = cobro.Estado is "ConfirmadoSimulado" or "Aplicado",
                     retiroConfirmado = false
                 });
@@ -247,15 +254,17 @@ public static class RetiroCargaCobroEndpoints
             }
         });
 
-        // La terminal marca claramente pago SIMULADO; no afirma transferencia real.
-        rutas.MapPost("/confirmar-simulado", async (
+        // La tablet solo declara el metodo: NUNCA confirma el pago.
+        // Un Operador o Administrador debe aprobarlo en /api/admin/carga/cobros.
+        rutas.MapPost("/seleccionar-metodo", async (
             ConfirmarPagoCargaSolicitud solicitud, HttpContext http,
             IAntiforgery csrf, IDataProtectionProvider proteccion,
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             if (!Permitido(app, config)) return Results.NotFound();
-            if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http))
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
                 return Results.StatusCode(403);
             string? metodo = solicitud.MetodoPago switch
             {
@@ -265,50 +274,146 @@ public static class RetiroCargaCobroEndpoints
                 _ => null
             };
             if (metodo is null)
-                return Results.BadRequest(new { mensaje = "Metodo de pago invalido." });
+                return Results.BadRequest(new {
+                    mensaje = "Metodo de pago invalido."
+                });
             if (!LeerId(solicitud.TokenCobro, proteccion, out var id))
-                return Results.BadRequest(new { mensaje = "Verificacion vencida: repite rostro y PIN." });
+                return Results.BadRequest(new {
+                    mensaje = "Verificacion vencida: repite rostro y PIN."
+                });
 
             try
             {
-                await using var db = new SqlConnection(config.GetConnectionString("SynchroDB"));
+                await using var db = new SqlConnection(
+                    config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
                 if (!await EsquemaValido(db, http.RequestAborted))
-                    return Results.Problem(statusCode: 503, title: "Falta el modulo de cobro de carga.");
-                await using var tx = (SqlTransaction)await db.BeginTransactionAsync(
-                    IsolationLevel.Serializable, http.RequestAborted);
+                    return Results.Problem(statusCode: 503,
+                        title: "Falta el modulo de cobro de carga.");
+                await using var tx = (SqlTransaction)
+                    await db.BeginTransactionAsync(
+                        IsolationLevel.Serializable, http.RequestAborted);
                 var sesion = await LeerSesion(db, tx, id, http.RequestAborted);
                 if (!EstaActiva(sesion))
-                    return Results.Conflict(new { mensaje = "La sesion ya no esta activa." });
+                    return Results.Conflict(new {
+                        mensaje = "La sesion de carga no esta activa."
+                    });
                 var cobro = await LeerCobro(db, tx, id, http.RequestAborted);
                 if (cobro is null)
-                    return Results.Conflict(new { mensaje = "Prepara primero el cobro." });
-                if (cobro.Estado == "Pendiente")
+                    return Results.Conflict(new {
+                        mensaje = "Prepara primero el cobro."
+                    });
+
+                if (cobro.Estado == "Pendiente" &&
+                    (cobro.MetodoPago is null || cobro.MetodoPago == metodo))
                 {
-                    await using var cmd = Comando(db, tx, """
+                    await using var seleccionar = Comando(db, tx, """
                         UPDATE dbo.CobrosRetiroCargaSynchro
-                        SET Estado=N'ConfirmadoSimulado', MetodoPago=@metodo,
-                            ConfirmadoUtc=SYSUTCDATETIME()
-                        WHERE SesionId=@id AND Estado=N'Pendiente';
+                        SET MetodoPago=@metodo
+                        WHERE SesionId=@id AND Estado=N'Pendiente'
+                          AND (MetodoPago IS NULL OR MetodoPago=@metodo);
                         """, id);
-                    cmd.Parameters.Add("@metodo", SqlDbType.NVarChar, 24).Value = metodo;
-                    if (await cmd.ExecuteNonQueryAsync(http.RequestAborted) != 1)
-                        return Results.Conflict(new { mensaje = "No se pudo confirmar el pago simulado." });
+                    seleccionar.Parameters.Add("@metodo",
+                        SqlDbType.NVarChar, 24).Value = metodo;
+                    if (await seleccionar.ExecuteNonQueryAsync(
+                        http.RequestAborted) != 1)
+                        return Results.Conflict(new {
+                            mensaje = "No se pudo registrar el metodo de pago."
+                        });
                 }
                 else if (cobro.Estado != "ConfirmadoSimulado" ||
-                    !string.Equals(cobro.MetodoPago, metodo, StringComparison.Ordinal))
-                    return Results.Conflict(new { mensaje = "Este cobro ya tiene otro estado o metodo." });
-                tx.Commit();
+                    cobro.MetodoPago != metodo)
+                    return Results.Conflict(new {
+                        mensaje = "El cobro tiene otro metodo o estado."
+                    });
+                await tx.CommitAsync(http.RequestAborted);
                 return Results.Ok(new
                 {
-                    pagoSimulado = true, pagoRealProcesado = false,
-                    retiroConfirmado = false, codigoEspacio = sesion!.Codigo,
-                    importeHnl = cobro.Importe, metodoPago = metodo
+                    metodoSeleccionado = true,
+                    pagoConfirmado = cobro.Estado == "ConfirmadoSimulado",
+                    pagoSimulado = true,
+                    pagoRealProcesado = false,
+                    retiroConfirmado = false,
+                    codigoEspacio = sesion!.Codigo
                 });
             }
             catch (SqlException)
             {
-                return Results.Problem(statusCode: 503, title: "No se pudo confirmar el pago simulado.");
+                return Results.Problem(statusCode: 503,
+                    title: "No se pudo seleccionar el metodo de pago.");
+            }
+        });
+
+        // El estado es consultable con la autorizacion temporal de rostro+PIN.
+        // La tablet no puede cambiar el estado a ConfirmadoSimulado.
+        rutas.MapPost("/estado", async (
+            PrepararCobroCargaSolicitud solicitud, HttpContext http,
+            IAntiforgery csrf, IDataProtectionProvider proteccion,
+            IConfiguration config) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!Permitido(app, config)) return Results.NotFound();
+            if (!http.Request.IsHttps ||
+                !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+            if (!LeerId(solicitud.TokenCobro, proteccion, out var id))
+                return Results.BadRequest(new {
+                    mensaje = "Verificacion vencida: repite rostro y PIN."
+                });
+            try
+            {
+                await using var db = new SqlConnection(
+                    config.GetConnectionString("SynchroDB"));
+                await db.OpenAsync(http.RequestAborted);
+                if (!await EsquemaValido(db, http.RequestAborted))
+                    return Results.Problem(statusCode: 503,
+                        title: "Falta el modulo de cobro de carga.");
+
+                await using var cmd = new SqlCommand("""
+                    SELECT c.Estado, c.MetodoPago, c.CodigoEspacio
+                    FROM dbo.CobrosRetiroCargaSynchro AS c
+                    INNER JOIN dbo.SesionesCargaSynchro AS s
+                      ON s.Id = c.SesionId
+                    INNER JOIN dbo.EspaciosCarga AS e
+                      ON e.Codigo = c.CodigoEspacio
+                    WHERE c.SesionId = @id
+                      AND s.CodigoEspacio=c.CodigoEspacio
+                      AND s.Estado=N'Activa'
+                      AND s.RetiroUtc IS NULL
+                      AND e.Estado=N'Ocupado'
+                      AND c.Estado IN (
+                        N'Pendiente',N'ConfirmadoSimulado');
+                    """, db);
+                cmd.Parameters.Add("@id", SqlDbType.UniqueIdentifier).Value=id;
+                await using var lector =
+                    await cmd.ExecuteReaderAsync(http.RequestAborted);
+                if (!await lector.ReadAsync(http.RequestAborted))
+                    return Results.Conflict(new {
+                        mensaje = "El cobro no esta disponible."
+                    });
+                var estado = lector.GetString(0);
+                var metodo = lector.IsDBNull(1) ? null : lector.GetString(1);
+                var codigo = lector.GetString(2);
+                return Results.Ok(new
+                {
+                    estadoCobro = estado,
+                    pagoConfirmado = estado == "ConfirmadoSimulado",
+                    metodoPago = metodo switch
+                    {
+                        "EfectivoSimulado" => "Efectivo",
+                        "TarjetaSimulada" => "Tarjeta",
+                        "NfcSimulado" => "NFC",
+                        _ => (string?)null
+                    },
+                    codigoEspacio = codigo,
+                    retiroConfirmado = false,
+                    pagoRealProcesado = false
+                });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(statusCode: 503,
+                    title: "No se pudo consultar el estado del cobro.");
             }
         });
 
