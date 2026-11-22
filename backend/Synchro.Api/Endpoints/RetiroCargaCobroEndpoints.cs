@@ -18,7 +18,7 @@ public static class RetiroCargaCobroEndpoints
     private const string PropositoPin = "SYNCHRO.Carga.RetiroPinValidado.v1";
 
     private sealed record EstadoCarga(
-        string Codigo, string Dispositivo, DateTime InicioUtc,
+        string Codigo, string Dispositivo, string Modalidad, DateTime InicioUtc,
         string Estado, DateTime? RetiroUtc, string EstadoEspacio);
 
     private sealed record CobroCarga(
@@ -84,7 +84,7 @@ public static class RetiroCargaCobroEndpoints
         SqlTransaction tx, Guid id, CancellationToken cancel)
     {
         await using var cmd = Comando(db, tx, """
-            SELECT s.CodigoEspacio, s.Dispositivo, s.InicioUtc,
+            SELECT s.CodigoEspacio, s.Dispositivo, s.Modalidad, s.InicioUtc,
                    s.Estado, s.RetiroUtc, e.Estado
             FROM dbo.SesionesCargaSynchro AS s WITH (UPDLOCK, HOLDLOCK)
             INNER JOIN dbo.EspaciosCarga AS e WITH (UPDLOCK, HOLDLOCK)
@@ -94,9 +94,10 @@ public static class RetiroCargaCobroEndpoints
         await using var reader = await cmd.ExecuteReaderAsync(cancel);
         if (!await reader.ReadAsync(cancel)) return null;
         return new EstadoCarga(
-            reader.GetString(0), reader.GetString(1), reader.GetDateTime(2),
-            reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetDateTime(4),
-            reader.GetString(5));
+            reader.GetString(0), reader.GetString(1), reader.GetString(2),
+            reader.GetDateTime(3), reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+            reader.GetString(6));
     }
 
     private static async Task<CobroCarga?> LeerCobro(SqlConnection db,
@@ -168,11 +169,11 @@ public static class RetiroCargaCobroEndpoints
                         SELECT MinutosBase, PrecioBase,
                                MinutosAdicionales, PrecioAdicional
                         FROM dbo.TarifasCargaSynchro WITH (HOLDLOCK)
-                        WHERE TipoDispositivo = @dispositivo;
+                        WHERE Modalidad = @modalidad;
                         """, db, tx))
                     {
-                        tarifa.Parameters.Add("@dispositivo", SqlDbType.NVarChar, 20)
-                            .Value = sesion!.Dispositivo;
+                        tarifa.Parameters.Add("@modalidad", SqlDbType.NVarChar, 20)
+                            .Value = sesion!.Modalidad;
                         await using var reader = await tarifa.ExecuteReaderAsync(http.RequestAborted);
                         if (!await reader.ReadAsync(http.RequestAborted))
                             return Results.Conflict(new { mensaje = "No hay tarifa de carga configurada." });
@@ -201,7 +202,7 @@ public static class RetiroCargaCobroEndpoints
                     if (importe <= 0 || importe > 9999999999.99m)
                         return Results.Conflict(new { mensaje = "Importe fuera de rango." });
 
-                    string descripcion = $"{sesion.Dispositivo}: {minutos} min; " +
+                    string descripcion = $"{sesion.Dispositivo} ({sesion.Modalidad}): {minutos} min; " +
                         $"base {minutosBase} min y {bloquesExtra} bloque(s) adicionales de {minutosAdicionales} min.";
                     if (descripcion.Length > 160)
                         return Results.Conflict(new { mensaje = "Descripcion de tarifa invalida." });
@@ -343,7 +344,7 @@ public static class RetiroCargaCobroEndpoints
                 if (cobro is null)
                     return Results.Conflict(new { mensaje = "El cobro no existe." });
 
-                if (sesion.Estado == "Finalizada" && sesion.RetiroUtc is not null &&
+                if (sesion.Estado == "Retirada" && sesion.RetiroUtc is not null &&
                     cobro.Estado == "Aplicado" && sesion.EstadoEspacio == "Disponible")
                 {
                     tx.Commit();
@@ -358,7 +359,7 @@ public static class RetiroCargaCobroEndpoints
 
                 await using (var cerrar = Comando(db, tx, """
                     UPDATE dbo.SesionesCargaSynchro
-                    SET Estado=N'Finalizada', RetiroUtc=SYSUTCDATETIME()
+                    SET Estado=N'Retirada', RetiroUtc=SYSUTCDATETIME()
                     WHERE Id=@id AND Estado=N'Activa' AND RetiroUtc IS NULL;
                     """, id))
                 {
