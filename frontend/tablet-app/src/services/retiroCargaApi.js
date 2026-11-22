@@ -157,7 +157,8 @@ export async function prepararCobroRetiroCarga() {
   return datos;
 }
 
-export async function confirmarPagoSimuladoRetiroCarga(metodoPago) {
+// La tablet solo comunica el metodo elegido, el administrador aprueba el pago.
+export async function seleccionarMetodoRetiroCarga(metodoPago) {
   const tokenCobro = obtenerTokenCobroRetiroCarga();
   if (!tokenCobro) {
     throw new Error("La autorizacion del PIN vencio. Repite rostro y PIN.");
@@ -166,12 +167,31 @@ export async function confirmarPagoSimuladoRetiroCarga(metodoPago) {
     throw new Error("Selecciona un metodo de pago.");
   }
   const datos = await publicar(
-    "/api/terminales/carga/retiro/cobro/confirmar-simulado",
+    "/api/terminales/carga/retiro/cobro/seleccionar-metodo",
     { tokenCobro, metodoPago }, false
   );
-  if (datos?.pagoSimulado !== true || datos?.pagoRealProcesado !== false ||
+  if (datos?.metodoSeleccionado !== true ||
+      datos?.pagoRealProcesado !== false ||
       datos?.retiroConfirmado !== false) {
-    throw new Error("No se pudo confirmar el pago simulado.");
+    throw new Error("No se pudo registrar el metodo de pago.");
+  }
+  return datos;
+}
+
+export async function consultarPagoRetiroCarga() {
+  const tokenCobro = obtenerTokenCobroRetiroCarga();
+  if (!tokenCobro) {
+    throw new Error("La autorizacion del PIN vencio. Repite rostro y PIN.");
+  }
+  const datos = await publicar(
+    "/api/terminales/carga/retiro/cobro/estado",
+    { tokenCobro }, false
+  );
+  if (!["Pendiente", "ConfirmadoSimulado"].includes(datos?.estadoCobro) ||
+      typeof datos?.pagoConfirmado !== "boolean" ||
+      datos?.pagoRealProcesado !== false ||
+      datos?.retiroConfirmado !== false) {
+    throw new Error("El backend no devolvio un estado de pago valido.");
   }
   return datos;
 }
