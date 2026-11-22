@@ -82,6 +82,11 @@ function avanzar() {
     return;
   }
 
+  // En la vista suelta de "Confirmar PIN", el visitante puede
+  // probar cualquier PIN ficticio. Dentro del recorrido desde
+  // "Crear PIN" seguimos exigiendo coincidencia.
+  if (esVistaPrevia && !primerPin.value) primerPin.value = pin.value;
+
   if (pin.value !== primerPin.value) {
     pin.value = "";
     primerPin.value = "";
@@ -304,7 +309,7 @@ onBeforeUnmount(() => {
           @click="paso === 'listo' ? irCondiciones() : avanzar()"
         >
           <span>
-            {{ paso === 'listo' ? 'Continuar' : 'Continuar' }}
+            Continuar
           </span>
 
           <span class="icono-ir" aria-hidden="true">
