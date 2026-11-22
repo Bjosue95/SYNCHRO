@@ -76,6 +76,17 @@ FROM dbo.TarifasCargaSynchro ORDER BY Modalidad;
     Estado "Al menos una tarifa configurada" ($n -gt 0)
     if ($n -eq 0) { Write-Host "[PENDIENTE] Ejecutar Configurar-TarifaCargaSynchro-Pruebas.ps1; no hay precios inventados." }
 
+    $tarifaW1 = $db.CreateCommand()
+    $tarifaW1.CommandText = @'
+SELECT COUNT(*)
+FROM dbo.TarifasCargaSynchro
+WHERE Modalidad=N'Inalambrica'
+AND MinutosBase >= 1 AND MinutosAdicionales >= 1
+AND PrecioBase > 0 AND PrecioAdicional > 0;
+'@
+    $cuantasW1 = [int]$tarifaW1.ExecuteScalar()
+    Estado "Tarifa valida para W1/W2 (Inalambrica)" ($cuantasW1 -eq 1)
+
     $restricciones = $db.CreateCommand()
     $restricciones.CommandText = @'
 SELECT name, definition
@@ -93,6 +104,14 @@ WHERE parent_object_id = OBJECT_ID(N'dbo.SesionesCargaSynchro')
         }
     } finally { $r.Close() }
     if ($n -eq 0) { Write-Host "(Sin CHECK de Estado detectado)" }
+    $estadoRetirada = $db.CreateCommand()
+    $estadoRetirada.CommandText = @'
+SELECT COUNT(*)
+FROM sys.check_constraints
+WHERE parent_object_id=OBJECT_ID(N'dbo.SesionesCargaSynchro')
+  AND definition LIKE N'%Retirada%';
+'@
+    Estado "Estado final Retirada permitido en CHECK" ([int]$estadoRetirada.ExecuteScalar() -gt 0)
 
     $actual = $db.CreateCommand()
     $actual.CommandText = @'
