@@ -18,6 +18,10 @@ import {
 
 const router = useRouter();
 const { oscuro } = useTema();
+const propsVistaPrevia = defineProps({
+  modoVistaPrevia: { type: Boolean, default: false }
+});
+const esVistaPrevia = import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia;
 
 const pin = ref("");
 const mensaje = ref("");
@@ -80,6 +84,7 @@ function tecladoFisico(evento) {
 }
 
 async function verificar() {
+  if (esVistaPrevia) return;
   if (!completo.value || procesando.value) return;
   if (!pinComprobado.value && !obtenerTokenFacialRetiroCarga()) {
     mensaje.value = "La autorizacion facial vencio. Repite el escaneo.";
@@ -118,6 +123,10 @@ async function verificar() {
 }
 
 onMounted(() => {
+  if (esVistaPrevia) {
+    actualizarAltoCabecera();
+    return;
+  }
   if (!obtenerTokenFacialRetiroCarga() && !obtenerTokenCobroRetiroCarga()) {
     router.replace("/retirar/dispositivo");
     return;
