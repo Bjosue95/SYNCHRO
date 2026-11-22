@@ -26,7 +26,19 @@ let temporizador = null;
 onMounted(() => {
   // Mantener visible la transicion para revisarla en el catalogo
   // sin consumir autorizaciones ni iniciar la colocacion.
-  if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) return;
+  if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) {
+    // Al recorrer el flujo se reproduce el mismo intervalo de 2 s;
+    // al abrir la pantalla suelta desde el catálogo queda fija.
+    if (route.query.recorrido === "1") {
+      temporizador = window.setTimeout(() => {
+        router.replace({
+          path: "/vista-previa/carga-colocar",
+          query: { ...datos.value, recorrido: "1" }
+        });
+      }, 2000);
+    }
+    return;
+  }
 
   if (
     !pasoCargaDemoValido(datos.value) ||
