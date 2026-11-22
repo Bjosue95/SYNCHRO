@@ -118,3 +118,14 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - Verificar por lectura que hay una tarifa valida para la modalidad Inalambrica (W1), y que el CHECK permite Retirada.
 - Falta comprobacion del nuevo build .NET y flujo real en laptop; publicar codigo en GitHub no demuestra que ya se ejecuto.
 - Si Vite o el backend recarga y se pierde el token efimero, repetir solo rostro y PIN, sin volver a depositar el dispositivo.
+
+
+## 14. Uniformidad visual: retiro de dispositivo = retiro personal tras PIN (22/11/2026)
+- Solicitud de usuario: despues del PIN de retiro de dispositivo se deben utilizar exactamente los mismos diseños y secuencia del retiro de pertenencias.
+- Se modifico RetiroCargaPinView.vue: despues de validar el PIN, el frontend prepara la cotizacion de carga y navega DIRECTAMENTE al selector de pagos. Si falla la cotizacion se permite reintentar sin volver a introducir el PIN mientras el token siga vigente.
+- SeleccionMetodoPagoView.vue ahora se comparte entre ambos servicios y distingue el contexto por la ruta: /retirar/pago (personal) y /retirar/dispositivo/pago (carga). Es la MISMA cuadrícula 2x2, tarjetas ServiceCard, iconos, boton Continuar, dark/light mode, geometria y CSS.
+- RetiroCargaPagoView.vue utiliza el MISMO CSS scoped de RetiroPagoView.vue, con resumen-alto-v5, animaciones de efectivo/tarjeta/NFC y tarjeta final. La secuencia es: facial -> PIN -> seleccion del metodo -> animacion y confirmacion simulada -> resumen del consumo -> comprobacion de recogida -> pantalla Retiro completado.
+- Ruta /retirar/dispositivo/pago/resumen añadida para la pantalla de resumen, /retirar/dispositivo/pago ahora es selector. Tarjetas y CSS de retiro personal conservados.
+- La unica diferencia funcional es que el pago de carga se confirma como SIMULADO en backend Development, sin dinero real, y la recogida fisica se marca explicitamente antes de liberar W1. En retiro personal la confirmacion corresponde al operador administrativo.
+- Token PIN, orden y seleccion de metodo para carga siguen solo en memoria en retiroCargaSesion.js; nunca URL/localStorage. No se alteran tablas SQL ni el backend de carga en este cambio visual.
+- Se verificaron estaticamente importaciones, rutas, CSS identico, aislamiento de servicios y que la pantalla final depende de confirmarRecogidaRetiroCarga; falta npm build y prueba real en la tablet.
