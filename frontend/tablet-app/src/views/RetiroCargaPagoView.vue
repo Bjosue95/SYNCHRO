@@ -193,7 +193,8 @@ function finalizar() {
     :class="{
       'tema-oscuro': oscuro,
       'retiro-para-finalizar': fase === 'resumen',
-      'retiro-terminado': mostrarPantallaFinal
+      'retiro-terminado': mostrarPantallaFinal,
+      'pago-preview-animado': esVistaPrevia
     }"
   >
     <!-- Mismas pantallas, tarjetas, iconos y animaciones que RetiroPagoView. -->
@@ -2185,4 +2186,16 @@ and (min-height: 720px) {
 }
 
 
+
+/* Animacion solo en vista previa, sin alterar el cobro operativo. */
+.pago-preview-animado .contenido-pago {
+  animation: synchro-paso-preview .55s cubic-bezier(.2,.65,.2,1) both;
+}
+@keyframes synchro-paso-preview {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pago-preview-animado .contenido-pago { animation: none; }
+}
 </style>
