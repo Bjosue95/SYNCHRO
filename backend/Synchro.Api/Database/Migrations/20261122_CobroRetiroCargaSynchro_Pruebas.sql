@@ -19,27 +19,33 @@ IF OBJECT_ID(N'dbo.EspaciosCarga', N'U') IS NULL
 
 BEGIN TRY
     BEGIN TRANSACTION;
+    -- La base del prototipo posee el catalogo por modalidad:
+    -- Inalambrica, Cable o Laptop (no por TipoDispositivo).
     IF OBJECT_ID(N'dbo.TarifasCargaSynchro', N'U') IS NULL
     BEGIN
         CREATE TABLE dbo.TarifasCargaSynchro (
-            TipoDispositivo NVARCHAR(12) NOT NULL
+            Modalidad NVARCHAR(20) NOT NULL
                 CONSTRAINT PK_TarifasCargaSynchro PRIMARY KEY,
             MinutosBase INT NOT NULL,
             PrecioBase DECIMAL(12,2) NOT NULL,
             MinutosAdicionales INT NOT NULL,
             PrecioAdicional DECIMAL(12,2) NOT NULL,
-            ActualizadoUtc DATETIME2(3) NOT NULL
-                CONSTRAINT DF_TarifaCargaV3Actualizada
-                DEFAULT SYSUTCDATETIME(),
-            CONSTRAINT CK_TarifaCargaV3Dispositivo CHECK
-                (TipoDispositivo IN (N'Celular', N'Laptop')),
+            CONSTRAINT CK_TarifaCargaV3Modalidad CHECK
+                (Modalidad IN (N'Inalambrica', N'Cable', N'Laptop')),
             CONSTRAINT CK_TarifaCargaV3Minutos CHECK
-                (MinutosBase BETWEEN 1 AND 1440 AND
-                 MinutosAdicionales BETWEEN 1 AND 1440),
+                (MinutosBase BETWEEN 1 AND 1440
+                 AND MinutosAdicionales BETWEEN 1 AND 1440),
             CONSTRAINT CK_TarifaCargaV3Precios CHECK
                 (PrecioBase > 0 AND PrecioAdicional > 0)
         );
     END;
+
+    IF COL_LENGTH(N'dbo.TarifasCargaSynchro',N'Modalidad') IS NULL
+        OR COL_LENGTH(N'dbo.TarifasCargaSynchro',N'MinutosBase') IS NULL
+        OR COL_LENGTH(N'dbo.TarifasCargaSynchro',N'PrecioBase') IS NULL
+        OR COL_LENGTH(N'dbo.TarifasCargaSynchro',N'MinutosAdicionales') IS NULL
+        OR COL_LENGTH(N'dbo.TarifasCargaSynchro',N'PrecioAdicional') IS NULL
+        THROW 57925, 'El catalogo de tarifas existente no es compatible.', 1;
 
     IF OBJECT_ID(N'dbo.CobrosRetiroCargaSynchro', N'U') IS NULL
     BEGIN
