@@ -28,7 +28,7 @@ SELECT
   ) THEN 1 ELSE 0 END,
   CASE WHEN OBJECT_ID(N'dbo.CobrosRetiroCargaSynchro',N'U') IS NOT NULL
     THEN 1 ELSE 0 END,
-  CASE WHEN OBJECT_ID(N'dbo.TarifasCarga',N'U') IS NOT NULL
+  CASE WHEN OBJECT_ID(N'dbo.TarifasCargaSynchro',N'U') IS NOT NULL
     THEN 1 ELSE 0 END,
   CASE WHEN OBJECT_ID(N'dbo.SesionesCargaSynchro',N'U') IS NOT NULL
     THEN 1 ELSE 0 END,
@@ -48,7 +48,7 @@ SELECT
     Estado "Base SynchroDB_Pruebas" ($nombre -ceq "SynchroDB_Pruebas")
     Estado "Marcador de fixture autorizado" $marcador
     Estado "Tabla nueva de cobro" $cobro
-    Estado "Tarifas de carga existentes" $tarifas
+    Estado "Catalogo de tarifas de carga" $tarifas
     Estado "Sesiones de carga" $sesiones
     Estado "Espacios de carga" $espacios
 
@@ -60,7 +60,7 @@ SELECT
     $tar.CommandText = @'
 SELECT TipoDispositivo, MinutosBase, PrecioBase,
        MinutosAdicionales, PrecioAdicional
-FROM dbo.TarifasCarga ORDER BY TipoDispositivo;
+FROM dbo.TarifasCargaSynchro ORDER BY TipoDispositivo;
 '@
     Write-Host "=== TARIFAS EXISTENTES (NO MODIFICADAS) ==="
     $r = $tar.ExecuteReader()
@@ -74,6 +74,7 @@ FROM dbo.TarifasCarga ORDER BY TipoDispositivo;
         }
     } finally { $r.Close() }
     Estado "Al menos una tarifa configurada" ($n -gt 0)
+    if ($n -eq 0) { Write-Host "[PENDIENTE] Ejecutar Configurar-TarifaCargaSynchro-Pruebas.ps1; no hay precios inventados." }
 
     $restricciones = $db.CreateCommand()
     $restricciones.CommandText = @'
