@@ -43,3 +43,15 @@ Recorrido: rostro -> PIN -> resumen de consumo -> elección de Efectivo/Tarjeta/
 - Migracion ajustada: crea CobrosRetiroCargaSynchro y **TarifasCargaSynchro** vacia; la API cotiza usando esta tabla, no TarifasCarga.
 - Preparar-CobroRetiroCarga-Pruebas.ps1 y Verificar-RetiroCargaV3.ps1 ahora usan esquema V3. Configurar-TarifaCargaSynchro-Pruebas.ps1 permite introducir de forma expresa tarifas para Celular y Laptop, sin precios asumidos.
 - Requiere nueva compilacion local y ejecucion/validacion de tarifas; codigo publicado en rama de trabajo, sin cambios de SQL ejecutados por ChatGPT.
+
+
+## Esquema confirmado por diagnostico SQL real (22/11/2026)
+- El usuario informo que las tablas dbo.CobrosRetiroCargaSynchro y dbo.TarifasCargaSynchro existen. La primera tiene 10 columnas, la segunda tiene Modalidad, MinutosBase, PrecioBase, MinutosAdicionales y PrecioAdicional.
+- TarifasCargaSynchro utiliza Modalidad, NO TipoDispositivo, y carece de ActualizadoUtc. Conservar la tabla original; no recrearla.
+- CK_SesionesCargaSynchro_Estado admite Preparada, Activa, CobroPendiente, PagoConfirmado, Retirada y Cancelada. El cierre correcto es Retirada, NO Finalizada.
+- La migracion anterior confirmo SQL y fallo despues al intentar consultar TipoDispositivo, por eso no hay que repetirla ni cancelar W1.
+- API corregida para buscar tarifas usando s.Modalidad (Inalambrica/Cable/Laptop) y cerrar con Estado=Retirada.
+- Scripts de diagnostico, preparacion y configuracion ya utilizan Modalidad. El configurador no intenta actualizar una columna de fecha inexistente.
+- Verificar por lectura que hay una tarifa valida para la modalidad Inalambrica (W1), y que el CHECK permite Retirada.
+- Falta comprobacion del nuevo build .NET y flujo real en laptop; publicar codigo en GitHub no demuestra que ya se ejecuto.
+- Si Vite o el backend recarga y se pierde el token efimero, repetir solo rostro y PIN, sin volver a depositar el dispositivo.
