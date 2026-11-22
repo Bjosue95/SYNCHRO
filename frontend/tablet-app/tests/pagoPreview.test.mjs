@@ -21,7 +21,9 @@ test("la pantalla real sigue protegiendo el backend", () => {
 
   assert.match(codigo, /if \(esVistaPrevia\) return;/);
   assert.match(codigo, /finalizarRetiroPersonalPagado/);
-  assert.match(codigo, /SelectorMetodoPago/);
+  assert.match(codigo, /nombreMetodoPagoDemo/);
+  assert.match(codigo, /metodoEjemplo/);
+  assert.match(codigo, /avanzarDemostracion/);
 });
 
 test("el visor solo habilita opciones de pago", () => {
@@ -36,7 +38,8 @@ test("retirar solo se completa despues de confirmacion protegida", () => {
   const codigo = leer("../src/views/RetiroPagoView.vue");
 
   // El resumen y la pantalla final son estados distintos.
-  assert.match(codigo, /v-if="completado && !esVistaPrevia"/);
+  assert.match(codigo, /v-if="mostrarPantallaFinal"/);
+  assert.match(codigo, /esVistaPrevia \? faseDemostracion\.value === "completado" : completado\.value/);
   assert.match(codigo, /Retiro completado/);
   assert.match(codigo, /Casillero/);
   assert.match(codigo, /obtenerMetodoPagoRetiro/);

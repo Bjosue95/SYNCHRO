@@ -61,7 +61,10 @@ async function continuar() {
   if (!orden || !seleccion.value) return;
 
   if (vistaPrevia) {
-    await router.push("/vista-previa/pago-resumen");
+    await router.push({
+      path: "/vista-previa/pago-resumen",
+      query: { metodo: seleccion.value }
+    });
     return;
   }
 
@@ -112,7 +115,7 @@ async function continuar() {
           :disabled="!seleccion"
           @click="continuar"
         >
-          <span>{{ seleccion === 'NFC' ? 'Cambiar m?todo de pago' : 'Continuar' }}</span>
+          <span>Continuar</span>
 
           <span class="icono-continuar" aria-hidden="true">
             <img

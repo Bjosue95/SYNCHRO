@@ -2,7 +2,12 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
-import SelectorMetodoPago from "../components/pagos/SelectorMetodoPago.vue";
+import {
+  normalizarMetodoPagoDemo,
+  nombreMetodoPagoDemo,
+  etiquetaLecturaDemo,
+  siguienteFasePagoDemo
+} from "../preview/pagoDemo.js";
 import {
   obtenerOrdenRetiroPagado,
   obtenerMetodoPagoRetiro,
@@ -22,6 +27,10 @@ const props = defineProps({
   ordenEjemplo: {
     type: Object,
     default: null
+  },
+  metodoEjemplo: {
+    type: String,
+    default: "NFC"
   }
 });
 
@@ -38,59 +47,53 @@ const completado = ref(false);
 const pagoConfirmado = ref(false);
 const mensaje = ref("");
 const casilleroFinal = ref("");
+const faseDemostracion = ref("resumen");
+const metodoVistaPrevia = computed(() =>
+  normalizarMetodoPagoDemo(props.metodoEjemplo) || "NFC"
+);
+const mostrarPantallaFinal = computed(() =>
+  esVistaPrevia ? faseDemostracion.value === "completado" : completado.value
+);
+const mostrarAnimacionPago = computed(() =>
+  Boolean(orden.value) && (esVistaPrevia
+    ? ["lectura", "espera"].includes(faseDemostracion.value)
+    : !pagoConfirmado.value)
+);
+const casilleroMostrado = computed(() =>
+  esVistaPrevia ? orden.value?.codigoCasillero || "" : casilleroFinal.value
+);
 const metodoConfirmado = ref("");
 const importeConfirmado = ref(null);
 
-const nombreMetodoConfirmado = computed(() => ({
-  EfectivoSimulado: "Efectivo",
-  TarjetaSimulada: "Tarjeta",
-  NfcSimulado: "NFC del celular"
-})[metodoConfirmado.value] || "No disponible");
+const nombreMetodoConfirmado = computed(() => esVistaPrevia
+  ? nombreMetodoPagoDemo(metodoVistaPrevia.value)
+  : ({
+      EfectivoSimulado: "Efectivo",
+      TarjetaSimulada: "Tarjeta",
+      NfcSimulado: "NFC del celular"
+    })[metodoConfirmado.value] || "No disponible"
+);
 
-const totalConfirmado = computed(() =>
-  typeof importeConfirmado.value === "number"
+const totalConfirmado = computed(() => {
+  const total = esVistaPrevia ? orden.value?.importeHnl : importeConfirmado.value;
+  return typeof total === "number" && Number.isFinite(total)
     ? new Intl.NumberFormat("es-HN", {
         style: "currency",
         currency: "HNL"
-      }).format(importeConfirmado.value)
-    : "No disponible"
-);
-const metodoSeleccionado = ref("");
-const pasoMetodo = ref(false);
-const cambiandoMetodo = ref(false);
+      }).format(total)
+    : "No disponible";
+});
 
 // Preferencia visual; solo el backend y el operador confirman pagos.
 const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
-const indicacionesRetiro = {
-  Efectivo: "Pago en efectivo confirmado.",
-  Tarjeta: "Pago con tarjeta confirmado.",
-  NFC: "Pago NFC confirmado."
-};
-const indicacionRetiro = indicacionesRetiro[metodoRetiro] ||
-  "Solicita asistencia al operador para continuar.";
-
-const instrucciones = {
-  Efectivo: {
-    titulo: "Pago en efectivo",
-    texto: "Introduce el efectivo en el recolector."
-  },
-  Tarjeta: {
-    titulo: "Pago con tarjeta",
-    texto: "Acerca tu tarjeta a la pantalla."
-  },
-  NFC: {
-    titulo: "Pago sin contacto",
-    texto: "Acerca tu teléfono a la pantalla."
-  }
-};
-
-const instruccionActual = computed(
-  () => instrucciones[metodoSeleccionado.value] || null
+const metodoVisual = computed(() => esVistaPrevia
+  ? metodoVistaPrevia.value
+  : metodoRetiro
 );
 
-function avanzarVistaPrevia() {
-  if (!esVistaPrevia || !metodoSeleccionado.value) return;
-  pasoMetodo.value = !pasoMetodo.value;
+function avanzarDemostracion() {
+  if (!esVistaPrevia || !orden.value) return;
+  faseDemostracion.value = siguienteFasePagoDemo(faseDemostracion.value);
 }
 
 const importe = computed(() => {
@@ -177,7 +180,7 @@ onBeforeUnmount(() => {
   }
 
   // Ninguna autorizacion queda guardada al abandonar la vista.
-  if (!completado.value && !esVistaPrevia && !cambiandoMetodo.value) {
+  if (!completado.value && !esVistaPrevia) {
     limpiarRetiro();
   }
 });
@@ -220,17 +223,6 @@ async function comprobarPago() {
   }
 }
 
-async function cambiarMetodo() {
-  if (esVistaPrevia || completado.value || verificando.value) return;
-  cambiandoMetodo.value = true;
-  try {
-    await router.push("/retirar/pago");
-  } catch (error) {
-    cambiandoMetodo.value = false;
-    mensaje.value = "No fue posible volver a elegir el método de pago.";
-  }
-}
-
 function finalizar() {
   if (esVistaPrevia) return;
   limpiarRetiro();
@@ -239,20 +231,20 @@ function finalizar() {
 </script>
 
 <template>
-  <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro, 'vista-previa-pago': esVistaPrevia, 'retiro-para-finalizar': pagoConfirmado && !completado && !esVistaPrevia, 'retiro-terminado': completado && !esVistaPrevia }">
-    <!-- Solo mostrar el resultado si el backend confirmó el retiro pagado. -->
+  <main class="pantalla-pago" :class="{ 'tema-oscuro': oscuro, 'vista-previa-pago': esVistaPrevia, 'retiro-para-finalizar': pagoConfirmado && !completado && !esVistaPrevia, 'retiro-terminado': mostrarPantallaFinal }">
+    <!-- El retiro real requiere confirmación del backend; la vista previa solo simula el resultado. -->
 
     <!-- SYNCHRO-RETIRO-FINAL-V6 -->
 
     <section
-      v-if="completado && !esVistaPrevia"
+      v-if="mostrarPantallaFinal"
       class="contenido-pago retiro-final"
       aria-live="polite"
     >
       <header>
         <span class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
         <h1>Retiro completado</h1>
-        <p>Tu retiro se registró correctamente.</p>
+        <p>{{ esVistaPrevia ? "Demostración finalizada. No se registró ningún retiro real." : "Tu retiro se registró correctamente." }}</p>
       </header>
 
       <div class="tarjeta-resumen tarjeta-final">
@@ -263,7 +255,7 @@ function finalizar() {
             alt=""
           />
           <img
-            src="/iconos/complementarios/30_confirmar-oscuro.svg"
+            src="/iconos/complementarios/30_confirmar.svg"
             class="icono-oscuro"
             alt=""
           />
@@ -276,7 +268,7 @@ function finalizar() {
 
         <div class="dato">
           <span>Casillero</span>
-          <strong>{{ casilleroFinal }}</strong>
+          <strong>{{ casilleroMostrado }}</strong>
         </div>
 
         <div class="dato">
@@ -286,11 +278,11 @@ function finalizar() {
 
         <div class="dato">
           <span>Estado del casillero</span>
-          <strong>Disponible</strong>
+          <strong>{{ esVistaPrevia ? "Disponible (demo)" : "Disponible" }}</strong>
         </div>
 
         <div class="dato total">
-          <span>Total pagado</span>
+          <span>{{ esVistaPrevia ? "Total simulado" : "Total pagado" }}</span>
           <strong>{{ totalConfirmado }}</strong>
         </div>
       </div>
@@ -298,9 +290,10 @@ function finalizar() {
       <button
         class="boton-principal"
         type="button"
-        @click="finalizar"
+        data-preview-permitido
+        @click="esVistaPrevia ? router.push('/vista-previa/pago') : finalizar()"
       >
-        <span>Finalizar</span>
+        <span>{{ esVistaPrevia ? "Probar otro método" : "Finalizar" }}</span>
         <span class="icono-continuar" aria-hidden="true">
           <img
             src="/iconos/complementarios/30_confirmar.svg"
@@ -308,7 +301,7 @@ function finalizar() {
             alt=""
           />
           <img
-            src="/iconos/complementarios/30_confirmar-oscuro.svg"
+            src="/iconos/complementarios/30_confirmar.svg"
             class="icono-oscuro"
             alt=""
           />
@@ -320,7 +313,7 @@ function finalizar() {
 
 
     <section
-      v-else-if="orden && !esVistaPrevia && !pagoConfirmado"
+      v-else-if="mostrarAnimacionPago"
       class="contenido-pago espera-animada"
       aria-live="polite"
     >
@@ -328,18 +321,18 @@ function finalizar() {
         <span class="etiqueta">SYNCHRO · PAGO</span>
         <h1>
           {{
-            metodoRetiro === "Efectivo"
+            metodoVisual === "Efectivo"
               ? "Introduce el efectivo"
-              : metodoRetiro === "Tarjeta"
+              : metodoVisual === "Tarjeta"
                 ? "Coloca tu tarjeta"
                 : "Acerca tu teléfono"
           }}
         </h1>
         <p>
           {{
-            metodoRetiro === "Efectivo"
+            metodoVisual === "Efectivo"
               ? "Deposita el importe en el recolector."
-              : metodoRetiro === "Tarjeta"
+              : metodoVisual === "Tarjeta"
                 ? "Acerca tu tarjeta a la pantalla."
                 : "Acerca el teléfono al lector sin contacto."
           }}
@@ -348,7 +341,7 @@ function finalizar() {
 
       <!-- SYNCHRO-PAGO-V3 -->
       <div class="escenario-cobro escena-pago-synchro" aria-hidden="true">
-        <template v-if="metodoRetiro === 'Efectivo'">
+        <template v-if="metodoVisual === 'Efectivo'">
           <div class="escena-efectivo-synchro">
             <img
               :src="`/iconos/pagos/efectivo${oscuro ? '-oscuro' : ''}.svg`"
@@ -363,7 +356,7 @@ function finalizar() {
           </div>
         </template>
 
-        <template v-else-if="metodoRetiro === 'Tarjeta'">
+        <template v-else-if="metodoVisual === 'Tarjeta'">
           <div class="escena-tarjeta-synchro">
             <div class="pantalla-cobro-v3">
               <div class="panel-cobro-v3"></div>
@@ -399,8 +392,30 @@ function finalizar() {
       </div>
       <div class="esperando-operador" role="status">
         <span class="pulso-espera"></span>
-        Esperando confirmación del pago
+        {{ esVistaPrevia
+          ? (faseDemostracion === "lectura" ? "Simulación del método de pago" : "Esperando confirmación simulada")
+          : "Esperando confirmación del pago" }}
       </div>
+
+      <p v-if="esVistaPrevia" class="nota">
+        Vista previa: no se efectúan cobros ni cambios de estado del casillero.
+      </p>
+
+      <button
+        v-if="esVistaPrevia"
+        type="button"
+        class="boton-principal"
+        data-preview-permitido
+        @click="avanzarDemostracion"
+      >
+        <span>{{ faseDemostracion === "lectura"
+          ? etiquetaLecturaDemo(metodoVisual)
+          : "Simular confirmación del operador" }}</span>
+        <span class="icono-continuar" aria-hidden="true">
+          <img src="/iconos/complementarios/29_continuar.svg" class="icono-claro" alt="" />
+          <img src="/iconos/complementarios/29_continuar-oscuro.svg" class="icono-oscuro" alt="" />
+        </span>
+      </button>
 
       <p v-if="mensaje" class="mensaje" role="alert">
         {{ mensaje }}
@@ -408,7 +423,7 @@ function finalizar() {
 
 
 
-      <p class="nota">
+      <p v-if="!esVistaPrevia" class="nota">
         El casillero permanecerá ocupado
         hasta que SYNCHRO autorice el retiro.
       </p>
@@ -419,9 +434,12 @@ function finalizar() {
       <header>
         <span v-if="!esVistaPrevia" class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
         <h1>Resumen de tu consumo</h1>
-        <p v-if="!completado && !esVistaPrevia">
+        <p v-if="!esVistaPrevia">
           El pago fue confirmado.
           Revisa tu consumo antes de finalizar el retiro.
+        </p>
+        <p v-else>
+          Vista previa: el pago y el retiro son únicamente demostrativos.
         </p>
       </header>
 
@@ -453,13 +471,9 @@ function finalizar() {
           <strong>Pago al finalizar</strong>
         </div>
 
-        <div
-          v-if="(!esVistaPrevia && metodoRetiro) ||
-                (esVistaPrevia && metodoSeleccionado)"
-          class="dato"
-        >
+        <div v-if="metodoVisual" class="dato">
           <span>Método de pago</span>
-          <strong>{{ esVistaPrevia ? metodoSeleccionado : metodoRetiro }}</strong>
+          <strong>{{ nombreMetodoPagoDemo(metodoVisual) }}</strong>
         </div>
 
         <p v-if="orden.descripcionTarifa" class="descripcion">
@@ -478,9 +492,9 @@ function finalizar() {
 
 
 
-      <p v-if="completado" class="estado completado">
+      <p v-if="esVistaPrevia && faseDemostracion === 'confirmado'" class="estado completado">
         <span class="punto"></span>
-        Casillero {{ casilleroFinal }} disponible
+        Pago confirmado en la demostración
       </p>
 
       <p v-if="mensaje" class="mensaje" role="status">
@@ -490,14 +504,14 @@ function finalizar() {
       <button class="boton-principal" data-preview-permitido
         type="button"
         :disabled="verificando || (!esVistaPrevia && !pagoConfirmado)"
-        @click="esVistaPrevia
-    ? router.push('/vista-previa/pago')
-    : comprobarPago()"
+        @click="esVistaPrevia ? avanzarDemostracion() : comprobarPago()"
       >
         <span>
           {{
             esVistaPrevia
-              ? (pasoMetodo ? "Cambiar método" : "Continuar")
+              ? (faseDemostracion === "resumen"
+                  ? "Continuar al pago (demo)"
+                  : "Finalizar retiro (demo)")
               : verificando
                   ? "Comprobando..."
                   : "Finalizar retiro"
@@ -519,12 +533,11 @@ function finalizar() {
       </button>
 
       <p v-if="!esVistaPrevia" class="nota">
-      {{
-        metodoRetiro === "NFC"
-          ? "El pago sin contacto a?n no est? disponible."
-          : "Revisa el detalle y pulsa ?Finalizar retiro?."
-      }}
-    </p>
+        Revisa el detalle y pulsa «Finalizar retiro».
+      </p>
+      <p v-else class="nota">
+        Ningún cobro ni retiro real se ejecuta en esta demostración.
+      </p>
     </section>
   </main>
 </template>

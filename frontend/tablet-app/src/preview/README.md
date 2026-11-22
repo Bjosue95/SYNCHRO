@@ -23,7 +23,11 @@ Las pantallas en vista previa no deben:
 - Modificar SQL Server.
 - Crear sesiones reales.
 
-Los botones permanecen bloqueados en el visor.
+Los botones permanecen bloqueados en el visor, excepto la secuencia
+explicita de demostración de pago (Efectivo, Tarjeta y NFC). Esta secuencia
+solo modifica estado visual en memoria y no consulta endpoints, procesa
+cobros, consume PIN ni libera casilleros. La selección se transmite como
+un valor enumerado no sensible en la ruta de vista previa.
 Cada componente con carga automatica debe tener
 una proteccion explicita para vista previa.
 

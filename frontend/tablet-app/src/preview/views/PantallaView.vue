@@ -5,6 +5,7 @@ import { useTema } from "../../composables/useTema";
 import { buscarPantalla } from "../pantallas.js";
 import { casillerosEjemplo } from "../datos/casilleros.js";
 import { ordenPagoEjemplo } from "../datos/pago.js";
+import { normalizarMetodoPagoDemo } from "../pagoDemo.js";
 
 const route = useRoute();
 const { oscuro } = useTema();
@@ -28,8 +29,15 @@ const propiedades = computed(() => {
     return { modoRetiroEjemplo: true };
   }
 
-  if (id === "pago" || id === "pago-resumen") {
+  if (id === "pago") {
     return { ordenEjemplo: ordenPagoEjemplo };
+  }
+
+  if (id === "pago-resumen") {
+    return {
+      ordenEjemplo: ordenPagoEjemplo,
+      metodoEjemplo: normalizarMetodoPagoDemo(route.query.metodo) || "NFC"
+    };
   }
 
   return {};
