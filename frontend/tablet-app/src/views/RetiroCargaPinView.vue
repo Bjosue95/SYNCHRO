@@ -6,11 +6,13 @@ import { useTema } from "../composables/useTema";
 import {
   obtenerEspacioRetiroCarga,
   obtenerTokenFacialRetiroCarga,
-  limpiarRetiroCarga
+  obtenerTokenCobroRetiroCarga,
+  guardarOrdenCobroRetiroCarga
 } from "../services/retiroCargaSesion.js";
 
 import {
-  verificarPinRetiroCarga
+  verificarPinRetiroCarga,
+  prepararCobroRetiroCarga
 } from "../services/retiroCargaApi.js";
 
 const router = useRouter();
@@ -93,9 +95,11 @@ async function verificar() {
 
     terminado.value = true;
 
-    mensaje.value =
-      "PIN validado correctamente. Continua para revisar " +
-      "el cobro antes de retirar tu dispositivo.";
+    // Mismo recorrido que retiro personal: tras PIN, preparar el cobro
+    // y abrir directamente la seleccion de metodo de pago.
+    const orden = await prepararCobroRetiroCarga();
+    guardarOrdenCobroRetiroCarga(orden);
+    await router.replace("/retirar/dispositivo/pago");
   } catch (e) {
     mensaje.value =
       e?.message || "No se pudo verificar el PIN.";
@@ -105,8 +109,22 @@ async function verificar() {
   }
 }
 
-function finalizar() {
-  router.replace("/retirar/dispositivo/pago");
+async function finalizar() {
+  if (!terminado.value || procesando.value) return;
+  procesando.value = true;
+  mensaje.value = "";
+  try {
+    if (!obtenerTokenCobroRetiroCarga()) {
+      throw new Error("La autorizacion vencio. Repite rostro y PIN.");
+    }
+    const orden = await prepararCobroRetiroCarga();
+    guardarOrdenCobroRetiroCarga(orden);
+    await router.replace("/retirar/dispositivo/pago");
+  } catch (e) {
+    mensaje.value = e?.message || "No se pudo preparar el cobro.";
+  } finally {
+    procesando.value = false;
+  }
 }
 
 onMounted(() => {
@@ -235,7 +253,7 @@ onBeforeUnmount(() => {
           :disabled="!terminado && !completo"
           @click="terminado ? finalizar() : verificar()"
         >
-          <span>{{ terminado ? "Continuar al pago" : "Verificar PIN" }}</span>
+          <span>{{ terminado ? "Reintentar cobro" : "Verificar PIN" }}</span>
 
           <span class="icono-ir" aria-hidden="true">
             <img
