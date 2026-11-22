@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import ServiceCard from "../components/ServiceCard.vue";
 import { useTema } from "../composables/useTema";
@@ -8,6 +8,10 @@ import {
   obtenerOrdenRetiroPagado,
   registrarMetodoPagoRetiro
 } from "../services/retiroSesion";
+import {
+  obtenerOrdenCobroRetiroCarga,
+  guardarMetodoPagoRetiroCarga
+} from "../services/retiroCargaSesion.js";
 
 const props = defineProps({
   ordenEjemplo: {
@@ -17,14 +21,18 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const route = useRoute();
 const { oscuro } = useTema();
+const esCarga = route.path === "/retirar/dispositivo/pago";
 
 const vistaPrevia =
   import.meta.env.DEV && props.ordenEjemplo !== null;
 
 const orden = vistaPrevia
   ? props.ordenEjemplo
-  : obtenerOrdenRetiroPagado();
+  : esCarga
+    ? obtenerOrdenCobroRetiroCarga()
+    : obtenerOrdenRetiroPagado();
 
 const seleccion = ref("");
 
@@ -48,7 +56,7 @@ const metodos = [
 
 onMounted(() => {
   if (!orden) {
-    router.replace("/retirar/rostro");
+    router.replace(esCarga ? "/retirar/dispositivo" : "/retirar/rostro");
   }
 });
 
@@ -68,9 +76,15 @@ async function continuar() {
     return;
   }
 
-  // Elegir el metodo no significa que el pago fue realizado.
-  registrarMetodoPagoRetiro(seleccion.value);
-  await router.push("/retirar/pago/resumen");
+  // Seleccion visual compartida; servicios y tokens independientes.
+  // Elegir el metodo NO confirma un pago.
+  if (esCarga) {
+    guardarMetodoPagoRetiroCarga(seleccion.value);
+    await router.push("/retirar/dispositivo/pago/resumen");
+  } else {
+    registrarMetodoPagoRetiro(seleccion.value);
+    await router.push("/retirar/pago/resumen");
+  }
 }
 </script>
 
