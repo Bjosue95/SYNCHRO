@@ -26,7 +26,6 @@ const procesando = ref(false);
 const consultando = ref(false);
 const mensaje = ref("");
 const codigoFinal = ref("");
-const recogidaConfirmada = ref(false);
 let comprobador = null;
 
 const mostrarAnimacionPago = computed(() =>
@@ -120,8 +119,7 @@ onMounted(async () => {
 onBeforeUnmount(detenerConsultas);
 
 async function finalizarRetiro() {
-  if (fase.value !== "resumen" || !recogidaConfirmada.value ||
-      procesando.value) return;
+  if (fase.value !== "resumen" || procesando.value) return;
   mensaje.value = "";
   procesando.value = true;
   try {
@@ -299,25 +297,6 @@ function finalizar() {
         {{ fase === "iniciando" ? "Registrando método de pago..." : "Esperando confirmación del administrador" }}
       </div>
 
-      <button
-        v-if="fase === 'esperando'"
-        type="button" class="boton-principal"
-        :disabled="consultando"
-        @click="comprobarPago"
-      >
-        <span>{{ consultando ? "Consultando..." : "Comprobar pago" }}</span>
-        <span class="icono-continuar" aria-hidden="true">
-          <img
-            src="/iconos/complementarios/29_continuar.svg"
-            class="icono-claro" alt=""
-          />
-          <img
-            src="/iconos/complementarios/29_continuar-oscuro.svg"
-            class="icono-oscuro" alt=""
-          />
-        </span>
-      </button>
-
       <p v-if="mensaje" class="mensaje" role="alert">{{ mensaje }}</p>
       <p class="nota">
         Pago únicamente simulado. La administración debe comprobarlo
@@ -388,16 +367,11 @@ function finalizar() {
         </div>
       </div>
 
-      <label class="confirmacion-recogida">
-        <input type="checkbox" v-model="recogidaConfirmada" />
-        Confirmo que ya retiré físicamente mi dispositivo.
-      </label>
-
       <p v-if="mensaje" class="mensaje" role="alert">{{ mensaje }}</p>
 
       <button
         class="boton-principal" type="button"
-        :disabled="!recogidaConfirmada || procesando"
+        :disabled="procesando"
         @click="finalizarRetiro"
       >
         <span>{{ procesando ? "Comprobando..." : "Finalizar retiro" }}</span>
@@ -414,8 +388,8 @@ function finalizar() {
       </button>
 
       <p class="nota">
-        La apertura del prototipo es manual. El espacio seguirá ocupado
-        hasta que el backend confirme la recogida.
+        Retira tu dispositivo antes de pulsar «Finalizar retiro».
+        Al pulsarlo confirmas la recogida y SYNCHRO libera el espacio.
       </p>
     </section>
   </main>
@@ -2170,25 +2144,5 @@ and (min-height: 720px) {
   }
 }
 
-
-/* Unica diferencia funcional: confirmar la recogida fisica del dispositivo. */
-.confirmacion-recogida {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  color: #01305c;
-  font-weight: 750;
-  font-size: clamp(14px, 1.6vw, 18px);
-  line-height: 1.35;
-}
-.confirmacion-recogida input {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  accent-color: #00b9c7;
-  cursor: pointer;
-}
-.tema-oscuro .confirmacion-recogida { color: #f5fafc; }
 
 </style>
