@@ -822,7 +822,7 @@ onBeforeUnmount(() => {
           <p>
             {{
               tomada
-                ? (retirando ? "Continúa para introducir el PIN de retiro." : "Contin\u00faa para revisar las condiciones de carga.")
+                ? (retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para crear tu PIN de retiro.")
                 : "La captura se realizará automáticamente."
             }}
           </p>
