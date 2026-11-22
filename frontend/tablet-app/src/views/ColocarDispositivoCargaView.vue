@@ -63,6 +63,7 @@ let limiteMs = 0;
 let reloj = null;
 let redireccion = null;
 let avisoTimer = null;
+let temporizadorDemo = null;
 let vivo = true;
 
 function comprobarTiempo() {
@@ -150,7 +151,23 @@ async function iniciar() {
 }
 
 async function confirmarColocacion() {
-  if (esVistaPrevia) return;
+  if (esVistaPrevia) {
+    if (estado.value !== "listo" || confirmando.value) return;
+    confirmando.value = true;
+    temporizadorDemo = window.setTimeout(() => {
+      if (!vivo) return;
+      window.clearInterval(reloj);
+      window.clearTimeout(avisoTimer);
+      confirmando.value = false;
+      estado.value = "confirmado";
+      if (route.query.recorrido === "1") {
+        redireccion = window.setTimeout(() => {
+          if (vivo) router.replace("/vista-previa");
+        }, 2800);
+      }
+    }, 800);
+    return;
+  }
   if (
     estado.value !== "listo" ||
     confirmando.value ||
@@ -220,6 +237,7 @@ onBeforeUnmount(() => {
   window.clearInterval(reloj);
   window.clearTimeout(redireccion);
   window.clearTimeout(avisoTimer);
+  window.clearTimeout(temporizadorDemo);
 });
 </script>
 
@@ -332,6 +350,7 @@ onBeforeUnmount(() => {
               class="deposito-boton-principal"
               type="button"
               :disabled="confirmando"
+              data-preview-permitido
               @click="confirmarColocacion"
             >
               {{
