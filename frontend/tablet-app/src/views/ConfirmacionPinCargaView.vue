@@ -63,9 +63,8 @@ onBeforeUnmount(() => {
         <h2>Tu PIN de 6 d&iacute;gitos coincide</h2>
 
         <p class="deposito-descripcion">
-          El PIN de retiro y la referencia facial V3
-          quedaron registrados de forma protegida
-          en el backend de pruebas.
+          Tu PIN y tu registro facial están listos
+          para proteger el dispositivo.
         </p>
 
         <p class="deposito-retorno" role="status">
