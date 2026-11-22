@@ -100,3 +100,9 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - Frontend: `RetiroCargaPinView.vue` -> `/retirar/dispositivo/pago` (`RetiroCargaPagoView.vue`) -> resumen y método de pago -> confirmación simulada -> confirmación de recogida -> finalizar. Tokens en memoria, sin URL ni persistencia.
 - Migración: `backend/Synchro.Api/Database/Migrations/20261122_CobroRetiroCargaSynchro_Pruebas.sql`; preparador seguro `tools/Preparar-CobroRetiroCarga-Pruebas.ps1`, con confirmación explícita.
 - **Falta:** usuario debe hacer pull, dotnet build, npm build, aplicar migración con inspección de tarifas y CHECK de Estado, y probar HTTP/SQL real. No afirmar que ya funciona sin esta evidencia. Referencia: `docs/RETIRO-DISPOSITIVOS-CARGA-V3.md`.
+
+## 13. Fallo real de preparacion de cobros y correccion de tarifas (22/11)
+- Usuario confirmo compilacion backend .NET 10 y Vite 150 modulos correctos. Diagnostico SQL: `SynchroDB_Pruebas` y marcador OK; sesiones y espacios OK; `dbo.CobrosRetiroCargaSynchro` PENDIENTE y `dbo.TarifasCarga` NO EXISTE.
+- La primera migracion fallaba ANTES de aplicar nada por su dependencia de `dbo.TarifasCarga` heredada. Reparacion: migracion crea dos tablas nuevas del servicio de carga (`dbo.TarifasCargaSynchro`, vacia por defecto, y `dbo.CobrosRetiroCargaSynchro`); API consulta el catalogo V3. Herramienta de preparacion ya no exige tablas de tarifa antiguas.
+- Nuevo script `tools/Configurar-TarifaCargaSynchro-Pruebas.ps1` solicita precios y bloques explicitamente para Celular/Laptop. No inventar tarifas comerciales.
+- Reiniciar backend con DPAPI original y repetir facial+PIN solo si el token efimero vencio. No cancelar W1 de nuevo. Verificar que `Estado=Finalizada` cumpla las restricciones CHECK locales antes de confirmar recogida.
