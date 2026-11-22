@@ -58,9 +58,9 @@ SELECT
 
     $tar = $db.CreateCommand()
     $tar.CommandText = @'
-SELECT TipoDispositivo, MinutosBase, PrecioBase,
+SELECT Modalidad, MinutosBase, PrecioBase,
        MinutosAdicionales, PrecioAdicional
-FROM dbo.TarifasCargaSynchro ORDER BY TipoDispositivo;
+FROM dbo.TarifasCargaSynchro ORDER BY Modalidad;
 '@
     Write-Host "=== TARIFAS EXISTENTES (NO MODIFICADAS) ==="
     $r = $tar.ExecuteReader()
