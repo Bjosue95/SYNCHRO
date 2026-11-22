@@ -78,3 +78,12 @@ Recorrido: rostro -> PIN -> resumen de consumo -> elección de Efectivo/Tarjeta/
 - Admin `CasillerosView.vue`: MISMA ruta y menu `/admin/casilleros`, dos bloques: casilleros resguardo existentes + espacios de carga con el mismo formato/filtrados/estado. No se crea menu adicional ni tablas nuevas.
 - Se mapearon rutas en Program.cs. Revision estatica de codigos, tokens/CSRF, grupos roles, aislamiento SQL, y referencias completada. No hay ejecucion dotnet/npm en laptop validada tras estos commits. PENDIENTE: `dotnet build`, `npm admin build`, `npm tablet build` y prueba integral por admin; W1 previamente retirado no aparece en cobros pendientes: se requiere nueva sesion de prueba (sin reusar ni alterar las antiguas).
 - Reiniciar backend con `tools/Iniciar-BackendCargaSegura.ps1` que importa la clave HMAC original y DPAPI. Admin local Vite puerto 5174, tablet Vite 5173.
+
+
+## 16. Simplificacion de pantallas de retiro de carga (22/11/2026)
+- Revisados `frontend/tablet-app/src/views/RetiroCargaPinView.vue`, `RetiroCargaPagoView.vue`, `RetiroPinView.vue`, `RetiroPagoView.vue`, `SeleccionMetodoPagoView.vue`, router y servicios de carga.
+- Eliminada la pantalla intermedia `PIN validado`: la vista del PIN mantiene su misma interfaz mientras valida, prepara la orden y navega al mismo selector de pago usado por pertenencias. En caso de fallo de preparacion, reintenta con autorizacion temporal sin volver a consumir el PIN.
+- Retirado el boton redundante `Comprobar pago` en la pantalla de espera de carga; sigue la consulta automatica del estado de aprobacion por administrador cada 10 segundos.
+- Retirada la casilla de verificacion de recogida. Unicamente el clic explicito en `Finalizar retiro`, despues de mostrar resumen y pedir retirar el dispositivo, manda al backend la confirmacion de recogida; no se libera W1/W2/C/L antes de pago aprobado y esta accion.
+- Se conservaron las animaciones, la cuadricula de seleccion de metodo, el resumen y la pantalla final con estilos identicos al retiro personal. Se conservaron las rutas y las exigencias del backend.
+- Revision estatica de 13 invariantes OK. Pendiente de validar `npm.cmd --prefix frontend/tablet-app run build` en el equipo y prueba visual en Tab A11. Ninguna migracion SQL ni backend requerida.
