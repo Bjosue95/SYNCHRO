@@ -1,9 +1,11 @@
 <script setup>
 import { ref } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 const { oscuro } = useTema();
 const router = useRouter();
+const route = useRoute();
+const esVistaPrevia = import.meta.env.DEV && route.path.startsWith("/vista-previa/");
 const seleccion = ref("");
 const dispositivos = [
   { codigo: "Celular", titulo: "Celular", icono: "/iconos/04_carga_inalambrica" },
@@ -11,6 +13,12 @@ const dispositivos = [
 ];
 function continuar() {
   if (!dispositivos.some(x => x.codigo === seleccion.value)) return;
+  if (esVistaPrevia) {
+    router.push(seleccion.value === "Celular"
+      ? "/vista-previa/carga-modalidad"
+      : "/vista-previa/carga-espacios-laptop");
+    return;
+  }
   if (seleccion.value === "Celular") router.push("/cargar/modalidad");
   else router.push({ path: "/cargar/espacios", query: { dispositivo: "Laptop" } });
 }
@@ -18,7 +26,7 @@ function continuar() {
 
 <template>
   <main class="pantalla-guardar" :class="{ 'tema-oscuro': oscuro }">
-    <RouterLink to="/menu" class="regresar">
+    <RouterLink :to="esVistaPrevia ? '/vista-previa' : '/menu'" class="regresar">
       <span class="icono-regresar" aria-hidden="true">
         <img src="/iconos/complementarios/28_regresar.svg" alt="" class="regresar-claro" />
         <img src="/iconos/complementarios/28_regresar-oscuro.svg" alt="" class="regresar-oscuro" />
@@ -37,6 +45,7 @@ function continuar() {
           class="tarjeta"
           :class="{ seleccionada: seleccion === item.codigo }"
           :aria-pressed="seleccion === item.codigo"
+          data-preview-permitido
           @click="seleccion = item.codigo"
         >
           <span class="contenedor-icono" aria-hidden="true">
@@ -48,7 +57,7 @@ function continuar() {
       </section>
 
       <div class="accion-guardar">
-        <button type="button" class="boton-continuar" :disabled="!seleccion" @click="continuar">
+        <button type="button" class="boton-continuar" :disabled="!seleccion" data-preview-permitido @click="continuar">
           <span class="texto-continuar">Continuar</span>
           <span class="icono-continuar" aria-hidden="true">
             <img src="/iconos/complementarios/29_continuar.svg" class="continuar-claro" alt="" />
