@@ -1,5 +1,6 @@
 // SYNCHRO - Catalogo visual, exclusivo del desarrollo local.
 import { buscarPantalla } from "./pantallas.js";
+import { infoCarga } from "../services/catalogoEspaciosCarga.js";
 
 const cargaCelular = Object.freeze({
   dispositivo: "Celular",
@@ -48,6 +49,18 @@ export function registrarRutasVistaPrevia(router) {
       if (!buscarPantalla(id)) return "/vista-previa";
 
       const esperado = { ...(ejemplos[id] || {}) };
+      // En un recorrido animado, respetar el espacio elegido en las
+      // tarjetas de muestra sin permitir una combinacion incompatible.
+      if (Object.prototype.hasOwnProperty.call(esperado, "espacio")) {
+        const info = infoCarga(to.query.espacio);
+        if (info &&
+            info.dispositivo === to.query.dispositivo &&
+            info.modalidad === to.query.modalidad) {
+          esperado.espacio = to.query.espacio;
+          esperado.dispositivo = to.query.dispositivo;
+          esperado.modalidad = to.query.modalidad;
+        }
+      }
       // Mantener Tarjeta/NFC al navegar desde la vista previa de
       // seleccion de pago, sin sobrescribirlos por el valor inicial.
       if ("metodo" in esperado &&
