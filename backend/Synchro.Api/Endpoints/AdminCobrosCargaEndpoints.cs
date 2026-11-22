@@ -173,8 +173,8 @@ public static class AdminCobrosCargaEndpoints
                 // No permitir que el operador la altere al confirmar.
                 await using var cmd = new SqlCommand("""
                     UPDATE c
-                    SET c.Estado=N'ConfirmadoSimulado',
-                        c.ConfirmadoUtc=SYSUTCDATETIME()
+                    SET Estado=N'ConfirmadoSimulado',
+                        ConfirmadoUtc=SYSUTCDATETIME()
                     OUTPUT inserted.SesionId, inserted.CodigoEspacio,
                            inserted.ImporteHnl
                     FROM dbo.CobrosRetiroCargaSynchro AS c
