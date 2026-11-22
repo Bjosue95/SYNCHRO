@@ -7,7 +7,7 @@ import { pantallas } from "../pantallas.js";
 const { oscuro } = useTema();
 
 const secciones = computed(() =>
-  ["Inicio", "Depósito", "Retiro"].map(nombre => ({
+  ["Inicio", "Depósito", "Carga", "Retiro", "Retiro de dispositivos"].map(nombre => ({
     nombre,
     vistas: pantallas.filter(p => p.grupo === nombre)
   }))
