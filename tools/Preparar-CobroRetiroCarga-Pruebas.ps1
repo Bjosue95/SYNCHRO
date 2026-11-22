@@ -1,5 +1,5 @@
-# SYNCHRO: aplicar exclusivamente la tabla de cobro de CARGA.
-# No crea tarifas ni modifica sesiones activas.
+# SYNCHRO: preparar catalogo y cobros de carga SIN recrear tablas existentes.
+# No inventa tarifas ni modifica sesiones activas.
 $ErrorActionPreference = "Stop"
 $raiz = Split-Path -Parent $PSScriptRoot
 $rutaSql = Join-Path $raiz "backend\Synchro.Api\Database\Migrations\20261122_CobroRetiroCargaSynchro_Pruebas.sql"
@@ -26,7 +26,7 @@ THEN 1 ELSE 0 END
         throw "Base de pruebas, marcador o esquema necesario no comprobado. No se aplico nada."
     }
     Write-Host "[OK] Base aislada y esquema existente verificados."
-    $confirmacion = Read-Host "Para crear solo la tabla de cobro de carga escribe PREPARAR COBRO"
+    $confirmacion = Read-Host "Para comprobar y preparar las tablas de carga escribe PREPARAR COBRO"
     if ($confirmacion -cne "PREPARAR COBRO") {
         Write-Host "Operacion cancelada. Sin cambios."
         return
@@ -38,7 +38,7 @@ THEN 1 ELSE 0 END
     Write-Host "[OK] Catalogo de tarifas y cobros de carga preparados; sesiones sin cambios."
     Write-Host "=== TARIFAS DE CARGA EXISTENTES ==="
     $tarifas = $conexion.CreateCommand()
-    $tarifas.CommandText = "SELECT TipoDispositivo, MinutosBase, PrecioBase, MinutosAdicionales, PrecioAdicional FROM dbo.TarifasCargaSynchro ORDER BY TipoDispositivo"
+    $tarifas.CommandText = "SELECT Modalidad, MinutosBase, PrecioBase, MinutosAdicionales, PrecioAdicional FROM dbo.TarifasCargaSynchro ORDER BY Modalidad"
     $lector = $tarifas.ExecuteReader()
     try {
         while ($lector.Read()) {
