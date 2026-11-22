@@ -17,13 +17,15 @@ const props = defineProps({
   ordenEjemplo: {
     type: Object,
     default: null
-  }
+  },
+  esCargaEjemplo: { type: Boolean, default: false }
 });
 
 const router = useRouter();
 const route = useRoute();
 const { oscuro } = useTema();
-const esCarga = route.path === "/retirar/dispositivo/pago";
+const esCarga = route.path === "/retirar/dispositivo/pago" ||
+  (import.meta.env.DEV && props.esCargaEjemplo);
 
 const vistaPrevia =
   import.meta.env.DEV && props.ordenEjemplo !== null;
@@ -70,7 +72,7 @@ async function continuar() {
 
   if (vistaPrevia) {
     await router.push({
-      path: "/vista-previa/pago-resumen",
+      path: esCarga ? "/vista-previa/retiro-carga-espera" : "/vista-previa/pago-resumen",
       query: { metodo: seleccion.value }
     });
     return;
