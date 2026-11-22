@@ -42,6 +42,7 @@ const codigoFinal = ref(esVistaPrevia && propsVistaPrevia.faseEjemplo === "compl
   ? String(orden.value?.codigoEspacio || "")
   : "");
 let comprobador = null;
+let temporizadorDemo = null;
 
 const mostrarAnimacionPago = computed(() =>
   fase.value === "iniciando" || fase.value === "esperando"
@@ -107,7 +108,16 @@ async function comprobarPago() {
 }
 
 onMounted(async () => {
-  if (esVistaPrevia) return;
+  if (esVistaPrevia) {
+    if (fase.value === "esperando") {
+      // La animacion de efectivo/tarjeta/NFC permanece visible antes
+      // de mostrar la confirmacion ficticia de administracion.
+      temporizadorDemo = window.setTimeout(() => {
+        fase.value = "resumen";
+      }, 4800);
+    }
+    return;
+  }
   if (!orden.value || !metodoVisual || !obtenerTokenCobroRetiroCarga()) {
     router.replace("/retirar/dispositivo");
     return;
@@ -133,10 +143,22 @@ onMounted(async () => {
   }
 });
 
-onBeforeUnmount(detenerConsultas);
+onBeforeUnmount(() => {
+  detenerConsultas();
+  window.clearTimeout(temporizadorDemo);
+});
 
 async function finalizarRetiro() {
-  if (esVistaPrevia) return;
+  if (esVistaPrevia) {
+    if (fase.value !== "resumen" || procesando.value) return;
+    procesando.value = true;
+    temporizadorDemo = window.setTimeout(() => {
+      codigoFinal.value = String(orden.value?.codigoEspacio || "");
+      fase.value = "completado";
+      procesando.value = false;
+    }, 900);
+    return;
+  }
   if (fase.value !== "resumen" || procesando.value) return;
   mensaje.value = "";
   procesando.value = true;
@@ -155,7 +177,10 @@ async function finalizarRetiro() {
 }
 
 function finalizar() {
-  if (esVistaPrevia) return;
+  if (esVistaPrevia) {
+    router.replace("/vista-previa");
+    return;
+  }
   if (fase.value !== "completado") return;
   limpiarRetiroCarga();
   router.replace("/menu");
@@ -224,7 +249,7 @@ function finalizar() {
         </div>
       </div>
 
-      <button class="boton-principal" type="button" @click="finalizar">
+      <button class="boton-principal" type="button" data-preview-permitido @click="finalizar">
         <span>Finalizar</span>
         <span class="icono-continuar" aria-hidden="true">
           <img
@@ -386,6 +411,7 @@ function finalizar() {
       <button
         class="boton-principal" type="button"
         :disabled="procesando"
+        data-preview-permitido
         @click="finalizarRetiro"
       >
         <span>{{ procesando ? "Comprobando..." : "Finalizar retiro" }}</span>
