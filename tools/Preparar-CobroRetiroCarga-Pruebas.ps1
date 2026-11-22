@@ -20,7 +20,6 @@ AND EXISTS (SELECT 1 FROM sys.extended_properties
     AND CONVERT(nvarchar(10),value)=N'1')
 AND OBJECT_ID(N'dbo.SesionesCargaSynchro',N'U') IS NOT NULL
 AND OBJECT_ID(N'dbo.EspaciosCarga',N'U') IS NOT NULL
-AND OBJECT_ID(N'dbo.TarifasCarga',N'U') IS NOT NULL
 THEN 1 ELSE 0 END
 '@
     if ([int]$verificar.ExecuteScalar() -ne 1) {
@@ -36,10 +35,10 @@ THEN 1 ELSE 0 END
     $cmd.CommandTimeout = 45
     $cmd.CommandText = Get-Content -LiteralPath $rutaSql -Raw
     $null = $cmd.ExecuteNonQuery()
-    Write-Host "[OK] CobrosRetiroCargaSynchro preparada; otras tablas y sesiones sin cambios."
+    Write-Host "[OK] Catalogo de tarifas y cobros de carga preparados; sesiones sin cambios."
     Write-Host "=== TARIFAS DE CARGA EXISTENTES ==="
     $tarifas = $conexion.CreateCommand()
-    $tarifas.CommandText = "SELECT TipoDispositivo, MinutosBase, PrecioBase, MinutosAdicionales, PrecioAdicional FROM dbo.TarifasCarga ORDER BY TipoDispositivo"
+    $tarifas.CommandText = "SELECT TipoDispositivo, MinutosBase, PrecioBase, MinutosAdicionales, PrecioAdicional FROM dbo.TarifasCargaSynchro ORDER BY TipoDispositivo"
     $lector = $tarifas.ExecuteReader()
     try {
         while ($lector.Read()) {
@@ -50,6 +49,7 @@ THEN 1 ELSE 0 END
     } finally {
         $lector.Close()
     }
+    Write-Host "Si no hay tarifas listadas, ejecutar el configurador de tarifa." 
     Write-Host "=== REGLAS DE ESTADO EN SESIONES DE CARGA ==="
     $reglas = $conexion.CreateCommand()
     $reglas.CommandText = @'
