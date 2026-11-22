@@ -65,6 +65,11 @@ const router = createRouter({
       name: "retirar-dispositivo-pin",
       component: () => import("../views/RetiroCargaPinView.vue")
     },
+    {
+      path: "/retirar/dispositivo/pago",
+      name: "retirar-dispositivo-pago",
+      component: () => import("../views/RetiroCargaPagoView.vue")
+    },
     { path: "/retirar/pertenencias", name: "retirar-pertenencias", redirect: "/retirar/rostro" },
     { path: "/retirar/rostro", name: "retirar-rostro", component: VerificacionFacialView },
     { path: "/retirar/pin", name: "retirar-pin", component: () => import("../views/RetiroPinView.vue") },
