@@ -29,7 +29,7 @@ test("la pantalla real sigue protegiendo el backend", () => {
 test("el visor solo habilita opciones de pago", () => {
   const codigo = leer("../src/preview/views/PantallaView.vue");
 
-  assert.match(codigo, /vista\.value\?\.id === "pago"/);
+  assert.match(codigo, /"pago", "pago-resumen", "retiro-carga-pago"/);
   assert.match(codigo, /\[data-preview-permitido\]/);
   assert.match(codigo, /evento\.preventDefault\(\)/);
 });
