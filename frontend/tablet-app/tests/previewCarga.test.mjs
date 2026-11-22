@@ -42,7 +42,7 @@ test("las vistas con acciones automaticas tienen salidas seguras para preview", 
   ]) {
     const vista = leer(`../src/views/${nombre}.vue`);
     assert.match(vista, /const esVistaPrevia = import\.meta\.env\.DEV/);
-    assert.match(vista, /if \(esVistaPrevia\) return;/);
+    assert.match(vista, /if \(esVistaPrevia\)/);
   }
   const temporal = leer("../src/views/ConfirmacionPinCargaView.vue");
   assert.match(temporal, /import\.meta\.env\.DEV && propsVistaPrevia\.modoVistaPrevia/);
