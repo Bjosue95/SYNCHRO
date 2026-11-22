@@ -23,13 +23,23 @@ Las pantallas en vista previa no deben:
 - Modificar SQL Server.
 - Crear sesiones reales.
 
-Los botones permanecen bloqueados en el visor, excepto la secuencia
-explicita de demostración de pago (Efectivo, Tarjeta y NFC). Esta secuencia
-solo modifica estado visual en memoria y no consulta endpoints, procesa
-cobros, consume PIN ni libera casilleros. La selección se transmite como
-un valor enumerado no sensible en la ruta de vista previa.
-Cada componente con carga automatica debe tener
-una proteccion explicita para vista previa.
+Los controles de las pantallas operativas permanecen bloqueados por
+defecto. Solamente se habilitan controles marcados explícitamente
+`data-preview-permitido` en el visor de desarrollo.
+
+Los recorridos interactivos de Carga y Retiro de dispositivos permiten
+elegir el dispositivo y el espacio, simular el escaneo sin cámara, introducir
+PIN ficticios, observar la transición de confirmación, ampliar el contador,
+seleccionar efectivo/tarjeta/NFC y observar una confirmación administrativa
+ficticia. La colocación y el retiro finales cambian solamente el estado
+visual en memoria: **no consultan endpoints, consumen PIN reales,
+crean sesiones, procesan cobros ni liberan casilleros**.
+
+Durante el recorrido, PIN confirmado dura 2 segundos, el escaneo visual
+dura 1.8 segundos y la animación de pago pasa a resumen después de
+4.8 segundos; la pantalla de PIN confirmado abierta desde el catálogo
+permanece fija para inspección. Cada vista con efectos automáticos tiene
+guardias de desarrollo para evitar ejecutar operaciones reales.
 
 ## UI/UX
 
@@ -79,3 +89,21 @@ npm.cmd --prefix frontend/tablet-app run dev -- --host 0.0.0.0 --port 5173 --str
 
 Desde la computadora, navegar a `https://localhost:5173/vista-previa`.
 El modo demo (puerto 4173) no ofrece este catalogo.
+
+### Cómo revisar el recorrido animado
+
+1. Abre `https://localhost:5173/vista-previa` (Vite en desarrollo).
+2. Pulsa **Probar carga de dispositivo** y selecciona dispositivo, modalidad y
+   espacio de muestra. Marca el consentimiento de demostración y pulsa
+   **Comenzar escaneo**. El óvalo se anima sin encender la cámara.
+3. Introduce cualquier PIN de seis dígitos y repítelo. Observa la
+   confirmación durante 2 segundos, el contador de colocación,
+   **Agregar 1 minuto más** y **Ya coloqué mi dispositivo**.
+4. Desde el catálogo pulsa **Probar retiro de dispositivo**. Repite el
+   escaneo visual, introduce seis dígitos ficticios, elige un método de pago
+   y observa la secuencia hasta **Finalizar retiro**.
+5. Cada pantalla sigue disponible por separado en el catálogo para revisar
+   diseños, incluso los estados breves.
+
+Después de cualquier cambio, ejecuta `npm.cmd --prefix frontend/tablet-app test`
+y `npm.cmd --prefix frontend/tablet-app run build`.
