@@ -92,11 +92,34 @@ let secuencia = 0;
 let consecutivos = 0;
 let mejorCaptura = null;
 let muestrasCalidad = 0;
+let muestrasDistanciaV3 = [];
+let ultimoResumenDistanciaV3 = "";
+
+// Diagnostico local: no envia ni conserva vectores, solo distancias agregadas.
+function distanciaInternaV3(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) ||
+      a.length !== 1024 || b.length !== 1024) return null;
+  let producto = 0;
+  let normaA = 0;
+  let normaB = 0;
+  for (let i = 0; i < 1024; i++) {
+    producto += a[i] * b[i];
+    normaA += a[i] * a[i];
+    normaB += b[i] * b[i];
+  }
+  if (normaA <= 1e-8 || normaB <= 1e-8) return null;
+  return 1 - Math.max(-1, Math.min(1, producto / Math.sqrt(normaA * normaB)));
+}
+function limpiarMuestrasDistanciaV3() {
+  for (const muestra of muestrasDistanciaV3) muestra.fill(0);
+  muestrasDistanciaV3 = [];
+}
 
 function limpiarMejorCaptura() {
   if (mejorCaptura) mejorCaptura.descriptor.fill(0);
   mejorCaptura = null;
   muestrasCalidad = 0;
+  limpiarMuestrasDistanciaV3();
 }
 let montada = true;
 
@@ -444,6 +467,9 @@ async function analizar() {
         }
 
         muestrasCalidad++;
+        if (import.meta.env.DEV) {
+          muestrasDistanciaV3.push(Array.from(embedding));
+        }
 
         if (!mejorCaptura ||
             calidad.puntaje > mejorCaptura.puntaje) {
@@ -464,6 +490,19 @@ async function analizar() {
             `Comparando capturas ${muestrasCalidad}/3...`;
           return;
         }
+
+        if (import.meta.env.DEV && muestrasDistanciaV3.length === 3) {
+          const m = muestrasDistanciaV3;
+          const distancias = [
+            distanciaInternaV3(m[0], m[1]),
+            distanciaInternaV3(m[0], m[2]),
+            distanciaInternaV3(m[1], m[2])
+          ];
+          ultimoResumenDistanciaV3 = distancias.every(Number.isFinite)
+            ? distancias.map(d => d.toFixed(4)).join(" / ")
+            : "no calculable";
+        }
+        limpiarMuestrasDistanciaV3();
 
         png = mejorCaptura.png;
         descriptor = mejorCaptura.descriptor;
@@ -502,6 +541,10 @@ async function analizar() {
         estado.value = modoV3
           ? "V3: mejor captura seleccionada entre tres tomas."
           : "Captura lista.";
+        if (import.meta.env.DEV && modoV3 && ultimoResumenDistanciaV3) {
+          estado.value += " Distancias internas: " +
+            ultimoResumenDistanciaV3 + ".";
+        }
 
         // Mantener la validacion V3 del deposito.
         if (modoV3 &&
@@ -615,6 +658,7 @@ async function iniciarCamara() {
 }
 
 function repetir() {
+  ultimoResumenDistanciaV3 = "";
   borrarDescriptorV3();
   detenerCamara();
   limpiarCaptura();
@@ -661,7 +705,10 @@ async function continuar() {
   } catch (e) {
     if (montada) {
       error.value = e?.message || "No se pudo verificar el rostro.";
-      estado.value = "Repite el escaneo si es necesario.";
+      estado.value = import.meta.env.DEV && ultimoResumenDistanciaV3
+        ? "Distancias entre las tres tomas: " +
+          ultimoResumenDistanciaV3 + "."
+        : "Repite el escaneo si es necesario.";
     }
   } finally {
     descriptor.fill(0);
