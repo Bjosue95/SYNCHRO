@@ -84,7 +84,7 @@ OUTER APPLY (
     LEFT JOIN dbo.CobrosRetiroCargaSynchro c
       ON c.SesionId=s.Id
     WHERE s.CodigoEspacio=e.Codigo
-    ORDER BY s.PreparadoUtc DESC, s.Id DESC
+    ORDER BY s.FechaCreacionUtc DESC, s.Id DESC
 ) ult
 WHERE e.Codigo IN
   (N'W1',N'W2',N'C1',N'C2',N'C3',N'C4',N'L1',N'L2')
