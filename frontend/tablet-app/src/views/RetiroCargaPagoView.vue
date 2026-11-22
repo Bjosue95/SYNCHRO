@@ -200,7 +200,7 @@ function finalizar() {
         </div>
 
         <div class="dato total">
-          <span>Total simulado</span>
+          <span>Total del consumo</span>
           <strong>{{ importe }}</strong>
         </div>
       </div>
@@ -218,7 +218,6 @@ function finalizar() {
           />
         </span>
       </button>
-      <p class="nota">Pago simulado para el prototipo, sin dinero real.</p>
     </section>
 
     <section
@@ -298,10 +297,6 @@ function finalizar() {
       </div>
 
       <p v-if="mensaje" class="mensaje" role="alert">{{ mensaje }}</p>
-      <p class="nota">
-        Pago únicamente simulado. La administración debe comprobarlo
-        y confirmarlo; el espacio sigue ocupado hasta la recogida.
-      </p>
     </section>
 
     <section v-else-if="fase === 'vencido'" class="contenido-pago" role="alert">
@@ -321,7 +316,7 @@ function finalizar() {
         <span class="etiqueta">SYNCHRO · RETIRO DE DISPOSITIVO</span>
         <h1>Resumen de tu consumo</h1>
         <p>
-          El pago simulado fue confirmado por administración.
+          La administración confirmó el cobro.
           Revisa tu consumo antes de finalizar el retiro.
         </p>
       </header>
