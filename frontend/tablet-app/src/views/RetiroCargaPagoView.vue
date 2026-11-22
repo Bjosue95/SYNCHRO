@@ -16,16 +16,31 @@ import {
 
 const router = useRouter();
 const { oscuro } = useTema();
+const propsVistaPrevia = defineProps({
+  ordenEjemplo: { type: Object, default: null },
+  metodoEjemplo: { type: String, default: "Efectivo" },
+  faseEjemplo: { type: String, default: "resumen" }
+});
+const esVistaPrevia = import.meta.env.DEV && propsVistaPrevia.ordenEjemplo !== null;
 
 // Este recorrido reutiliza exactamente la identidad visual de RetiroPagoView.
 // El negocio y la autorizacion del cobro siguen siendo exclusivos de carga.
-const orden = ref(obtenerOrdenCobroRetiroCarga());
-const metodoVisual = obtenerMetodoPagoRetiroCarga();
-const fase = ref(orden.value?.pagoSimulado ? "resumen" : "iniciando");
+const orden = ref(esVistaPrevia
+  ? propsVistaPrevia.ordenEjemplo
+  : obtenerOrdenCobroRetiroCarga());
+const metodoVisual = esVistaPrevia
+  ? propsVistaPrevia.metodoEjemplo
+  : obtenerMetodoPagoRetiroCarga();
+const fase = ref(esVistaPrevia
+  ? (["esperando", "resumen", "completado"].includes(propsVistaPrevia.faseEjemplo)
+    ? propsVistaPrevia.faseEjemplo : "resumen")
+  : orden.value?.pagoSimulado ? "resumen" : "iniciando");
 const procesando = ref(false);
 const consultando = ref(false);
 const mensaje = ref("");
-const codigoFinal = ref("");
+const codigoFinal = ref(esVistaPrevia && propsVistaPrevia.faseEjemplo === "completado"
+  ? String(orden.value?.codigoEspacio || "")
+  : "");
 let comprobador = null;
 
 const mostrarAnimacionPago = computed(() =>
@@ -60,6 +75,7 @@ function reiniciarVerificacion() {
 }
 
 async function comprobarPago() {
+  if (esVistaPrevia) return;
   if (fase.value !== "esperando" || consultando.value) return;
   if (!obtenerTokenCobroRetiroCarga()) {
     fase.value = "vencido";
@@ -91,6 +107,7 @@ async function comprobarPago() {
 }
 
 onMounted(async () => {
+  if (esVistaPrevia) return;
   if (!orden.value || !metodoVisual || !obtenerTokenCobroRetiroCarga()) {
     router.replace("/retirar/dispositivo");
     return;
@@ -119,6 +136,7 @@ onMounted(async () => {
 onBeforeUnmount(detenerConsultas);
 
 async function finalizarRetiro() {
+  if (esVistaPrevia) return;
   if (fase.value !== "resumen" || procesando.value) return;
   mensaje.value = "";
   procesando.value = true;
@@ -137,6 +155,7 @@ async function finalizarRetiro() {
 }
 
 function finalizar() {
+  if (esVistaPrevia) return;
   if (fase.value !== "completado") return;
   limpiarRetiroCarga();
   router.replace("/menu");
