@@ -48,9 +48,10 @@ THEN 1 ELSE 0 END;
 
     Write-Host "=== CONFIGURACION DE TARIFAS DE CARGA (SOLO PROTOTIPO) ==="
     Write-Host "Se aplican a sesiones futuras de cobro que aun no tienen importe preparado."
-    $dispositivo = (Read-Host "Tipo de dispositivo: Celular o Laptop").Trim()
-    if ($dispositivo -cnotin @("Celular","Laptop")) {
-        throw "Dispositivo invalido. No se modifico nada."
+    Write-Host "Modalidades reales: Inalambrica (W1/W2), Cable (C1-C4), Laptop (L1/L2)."
+    $modalidad = (Read-Host "Modalidad: Inalambrica, Cable o Laptop").Trim()
+    if ($modalidad -cnotin @("Inalambrica","Cable","Laptop")) {
+        throw "Modalidad invalida. No se modifico nada."
     }
 
     $minBase = LeerMinutos "Minutos incluidos en precio base"
@@ -59,14 +60,16 @@ THEN 1 ELSE 0 END;
     $precioExtra = LeerPrecio "Precio de cada bloque adicional"
 
     $comprobar = $db.CreateCommand()
-    $comprobar.CommandText = "SELECT COUNT(*) FROM dbo.TarifasCargaSynchro WHERE TipoDispositivo=@tipo;"
-    $null = $comprobar.Parameters.Add("@tipo", [System.Data.SqlDbType]::NVarChar, 12)
-    $comprobar.Parameters["@tipo"].Value = $dispositivo
-    $existe = [int]$comprobar.ExecuteScalar() -gt 0
+    $comprobar.CommandText = "SELECT COUNT(*) FROM dbo.TarifasCargaSynchro WHERE Modalidad=@modalidad;"
+    $null = $comprobar.Parameters.Add("@modalidad", [System.Data.SqlDbType]::NVarChar, 20)
+    $comprobar.Parameters["@modalidad"].Value = $modalidad
+    $n = [int]$comprobar.ExecuteScalar()
+    if ($n -gt 1) { throw "Existen tarifas duplicadas para esa modalidad. No se modifico nada." }
+    $existe = $n -eq 1
 
     Write-Host ""
-    Write-Host ("RESUMEN: {0}, {1} min base por L {2}; {3} min extra por L {4}" -f
-        $dispositivo, $minBase, $precioBase, $minExtra, $precioExtra)
+    Write-Host ("RESUMEN: modalidad {0}, {1} min base por L {2}; {3} min extra por L {4}" -f
+        $modalidad, $minBase, $precioBase, $minExtra, $precioExtra)
     $accion = if ($existe) { "ACTUALIZAR TARIFA" } else { "GUARDAR TARIFA" }
     $respuesta = Read-Host "Para confirmar escribe $accion"
     if ($respuesta -cne $accion) {
@@ -80,20 +83,19 @@ THEN 1 ELSE 0 END;
     $comando.CommandText = @'
 IF EXISTS (
     SELECT 1 FROM dbo.TarifasCargaSynchro WITH (UPDLOCK,HOLDLOCK)
-    WHERE TipoDispositivo=@tipo
+    WHERE Modalidad=@modalidad
 )
     UPDATE dbo.TarifasCargaSynchro
     SET MinutosBase=@minBase, PrecioBase=@precioBase,
-        MinutosAdicionales=@minExtra, PrecioAdicional=@precioExtra,
-        ActualizadoUtc=SYSUTCDATETIME()
-    WHERE TipoDispositivo=@tipo;
+        MinutosAdicionales=@minExtra, PrecioAdicional=@precioExtra
+    WHERE Modalidad=@modalidad;
 ELSE
     INSERT dbo.TarifasCargaSynchro
-        (TipoDispositivo,MinutosBase,PrecioBase,MinutosAdicionales,PrecioAdicional)
-    VALUES (@tipo,@minBase,@precioBase,@minExtra,@precioExtra);
+        (Modalidad,MinutosBase,PrecioBase,MinutosAdicionales,PrecioAdicional)
+    VALUES (@modalidad,@minBase,@precioBase,@minExtra,@precioExtra);
 '@
-    $null = $comando.Parameters.Add("@tipo", [System.Data.SqlDbType]::NVarChar, 12)
-    $comando.Parameters["@tipo"].Value = $dispositivo
+    $null = $comando.Parameters.Add("@modalidad", [System.Data.SqlDbType]::NVarChar, 20)
+    $comando.Parameters["@modalidad"].Value = $modalidad
     $null = $comando.Parameters.Add("@minBase", [System.Data.SqlDbType]::Int)
     $comando.Parameters["@minBase"].Value = $minBase
     $null = $comando.Parameters.Add("@minExtra", [System.Data.SqlDbType]::Int)
@@ -108,7 +110,7 @@ ELSE
     if ($filas -lt 1) { throw "No se guardo la tarifa." }
     $tx.Commit()
     $tx = $null
-    Write-Host "[OK] Tarifa de $dispositivo guardada. Ninguna sesion ni cobro modificado."
+    Write-Host "[OK] Tarifa de $modalidad guardada. Ninguna sesion ni cobro modificado."
 }
 catch {
     if ($null -ne $tx) {
