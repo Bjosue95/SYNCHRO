@@ -41,17 +41,15 @@ function volverAlMenu() { router.push("/menu"); }
         </article>
         <article class="tarjeta tarjeta-informativa">
           <span class="etiqueta-info">Espacio elegido</span>
-          <strong class="nombre-tarjeta">{{ codigoValido ? espacio : "Espacio no vÃ¡lido" }}</strong>
+          <strong class="nombre-tarjeta">{{ codigoValido ? espacio : "Espacio no válido" }}</strong>
         </article>
         <article class="tarjeta tarjeta-informativa">
           <span class="etiqueta-info">Seguridad</span>
-          <strong class="nombre-tarjeta">Verificación facial</strong>
-          <span class="nota-info">Pendiente de integrar</span>
+          <strong class="nombre-tarjeta">Rostro y PIN</strong>
         </article>
         <article class="tarjeta tarjeta-informativa">
           <span class="etiqueta-info">Pago</span>
           <strong class="nombre-tarjeta">Después del uso</strong>
-          <span class="nota-info">Pendiente de integrar</span>
         </article>
       </section>
 
