@@ -175,3 +175,14 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - La vista previa usa datos ficticios en `frontend/tablet-app/src/preview/datos/carga.js` y guardias de `import.meta.env.DEV`; no consulta SQL, no inicia/termina sesiones, no activa camara ni confirma cobros.
 - Se amplio `preview/rutas.js`, `pantallas.js`, `views/PantallaView.vue`, `views/CatalogoView.vue` y modo preview de seis componentes de carga/retiro; se conserva la ruta operativa original.
 - Hay pruebas estaticas nuevas en `tests/previewCarga.test.mjs` y se adapto `tests/pagoPreview.test.mjs`. Pendiente ejecutar `npm.cmd --prefix frontend/tablet-app test` y `npm.cmd --prefix frontend/tablet-app run build` en la laptop; no es posible comprobar visualmente `https://localhost:5173` desde este entorno.
+
+
+## 20. Recorridos animados de vista previa sin backend
+- Peticion: la vista previa debe reproducir acciones, no solo mostrar pantallas fijas.
+- Nuevas acciones del catalogo: **Probar carga de dispositivo** y **Probar retiro de dispositivo**.
+- Carga: seleccionar dispositivo/modalidad/espacio ficticio; simular escaneo facial con linea animada y marca de confirmacion sin usar camara; crear/confirmar PIN en teclado local; transicion PIN confirmado de 2 s; contador visual real con +1 minuto; confirmar colocacion local y retorno al catalogo. En preview las combinaciones de W1/W2, C1-C4 y L1-L2 provienen solo de `preview/datos/carga.js`.
+- Retiro: verificacion facial visual sin camara; PIN ficticio; seleccionar Efectivo/Tarjeta/NFC; animacion de pago 4.8 s; resumen y boton de finalizar que lleva a retiro completado solo visualmente.
+- Seguridad: controles permitidos marcados con `data-preview-permitido`, resto bloqueado en `preview/views/PantallaView.vue`. Toda accion animada con guardia `esVistaPrevia` / desarrollo antes de fetch, confirmar carga, validar rostro/PIN, preparar cobro o confirmar retiro. Los componentes reales y SQL no cambian de estado en preview.
+- Las vistas sueltas del catalogo se conservan para inspeccion; los estados fugaces se mantienen abiertos al acceder por separado.
+- Se creo `tests/previewAnimaciones.test.mjs` y se actualizo el README del preview.
+- Se verificaron estaticamente 18 invariantes de rutas, guardias y animaciones mediante lectura de archivos del repositorio: 18/18. Pendiente ejecutar `npm.cmd --prefix frontend/tablet-app test` y `npm.cmd --prefix frontend/tablet-app run build` en la maquina del usuario. No se tiene acceso a `localhost` para abrir la pantalla directamente desde aqui.
