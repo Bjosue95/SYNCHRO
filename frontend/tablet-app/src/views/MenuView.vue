@@ -14,14 +14,14 @@ const servicios = [
   {
     titulo: "Guardar",
     descripcion: "Pertenencias personales",
-    icono: "01_guardar_depositar",
+    icono: "32_guardar_pertenencias_personales",
     ruta: "/guardar",
   },
   {
-    titulo: "Retirar",
-    descripcion: "Recoge tus objetos",
-    icono: "02_retirar",
-    ruta: "/retirar",
+    titulo: "Cargar dispositivo",
+    descripcion: "Celular o laptop",
+    icono: "31_carga_celular_laptop",
+    ruta: "/cargar",
   },
   {
     titulo: "Tengo una reserva",
@@ -29,9 +29,10 @@ const servicios = [
     icono: "03_reserva",
   },
   {
-    titulo: "Cargar dispositivo",
-    descripcion: "Celular o laptop",
-    icono: "04_carga_inalambrica",
+    titulo: "Retirar",
+    descripcion: "Recoge tus objetos",
+    icono: "02_retirar",
+    ruta: "/retirar",
   },
 ];
 

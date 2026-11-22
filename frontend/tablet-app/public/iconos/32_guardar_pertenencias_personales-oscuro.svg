@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 128 128"
+     width="512"
+     height="512"
+     role="img"
+     aria-label="Pertenencias personales">
+  <g fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round">
+
+    <!-- Contenedor de pertenencias -->
+    <rect x="13" y="36" width="75" height="58"
+          rx="8"
+          stroke="#FFFFFF"
+          stroke-width="5"/>
+
+    <path d="M13 50H88"
+          stroke="#FFFFFF"
+          stroke-width="4"/>
+
+    <!-- Asa del contenedor -->
+    <path d="M39 35V28H62V35"
+          stroke="#00B9C7"
+          stroke-width="4.5"/>
+
+    <!-- Detalles del contenedor -->
+    <path d="M29 66H53"
+          stroke="#00B9C7"
+          stroke-width="4"/>
+
+    <path d="M29 79H47"
+          stroke="#00B9C7"
+          stroke-width="4"/>
+
+    <!-- Mochila personal -->
+    <path d="M79 57
+             C79 47 85 42 95 42
+             C105 42 111 47 111 57
+             V88
+             C111 95 106 100 99 100
+             H91
+             C84 100 79 95 79 88Z"
+          stroke="#FFFFFF"
+          stroke-width="5"/>
+
+    <!-- Asa mochila -->
+    <path d="M88 43V39
+             C88 31 102 31 102 39V43"
+          stroke="#00B9C7"
+          stroke-width="4"/>
+
+    <!-- Bolsillo mochila -->
+    <rect x="87" y="68"
+          width="16" height="15"
+          rx="4"
+          stroke="#00B9C7"
+          stroke-width="4"/>
+
+  </g>
+</svg>

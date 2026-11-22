@@ -32,7 +32,8 @@ builder.Services.AddDataProtection();
 // Al habilitar el flujo automatico, exigir claves persistentes cifradas por DPAPI.
 // El directorio debe ser privado de la cuenta Windows que ejecuta el servicio.
 if (builder.Configuration.GetValue<bool>("WhatsApp:SolicitudesInicioWorker:Habilitado") ||
-    builder.Configuration.GetValue<bool>("WhatsApp:VerificacionOutbox:Habilitado"))
+    builder.Configuration.GetValue<bool>("WhatsApp:VerificacionOutbox:Habilitado") ||
+    builder.Configuration.GetValue<bool>("CargaDispositivos:RegistroHabilitado"))
 {
     if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("El flujo requiere proteccion DPAPI de Windows.");
     var directorioClaves = builder.Configuration["ProteccionDatos:DirectorioClaves"];
@@ -580,6 +581,9 @@ if (app.Environment.IsDevelopment() &&
     app.MapEncomiendasTerminalEndpoints();
     app.MapFlujoEncomiendasTerminalEndpoints();
     app.MapServiciosTemporalesEndpoints();
+    app.MapCargaSesionSeguraEndpoints();
+    app.MapRetiroCargaIdentidadEndpoints();
+    app.MapRetiroCargaAutoIdentificacionEndpoints();
     app.MapUsuariosAdministrativosEndpoints();
     app.MapOpenApi().RequireAuthorization("SoloAdministradores");
 }

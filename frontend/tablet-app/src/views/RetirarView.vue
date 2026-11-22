@@ -16,7 +16,12 @@ const pertenencias = [
   {
     id: "personal",
     titulo: "Mis pertenencias",
-    icono: "/iconos/02_retirar",
+    icono: "/iconos/32_guardar_pertenencias_personales",
+  },
+  {
+    id: "dispositivo",
+    titulo: "Mi dispositivo",
+    icono: "/iconos/31_carga_celular_laptop",
   },
   {
     id: "encomienda",
@@ -32,6 +37,10 @@ function seleccionarPertenencia(tipo) {
 }
 
 function continuar() {
+  if (seleccion.value === "dispositivo") {
+    router.push("/retirar/dispositivo");
+    return;
+  }
   if (seleccion.value !== "personal") return;
 
   iniciarRetiro();
@@ -105,7 +114,7 @@ function continuar() {
         <button
           type="button"
           class="boton-continuar"
-          :disabled="seleccion !== 'personal'"
+          :disabled="!['personal', 'dispositivo'].includes(seleccion)"
           @click="continuar"
         >
           <span class="texto-continuar">Continuar</span>

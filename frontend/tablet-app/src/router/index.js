@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { iniciarRetiroCarga } from "../services/retiroCargaSesion.js";
 import { registrarRutasVistaPrevia } from "../preview/rutas.js";
 
 import BienvenidaView from "../views/BienvenidaView.vue";
@@ -49,15 +50,45 @@ const router = createRouter({
     },
 
     { path: "/retirar", name: "retirar", component: () => import("../views/RetirarView.vue") },
+    {
+      path: "/retirar/dispositivo",
+      name: "retirar-dispositivo",
+      component: () => import("../views/RetirarDispositivoView.vue")
+    },
+    {
+      path: "/retirar/dispositivo/rostro",
+      name: "retirar-dispositivo-rostro",
+      component: () => import("../views/RetiroCargaRostroView.vue")
+    },
+    {
+      path: "/retirar/dispositivo/pin",
+      name: "retirar-dispositivo-pin",
+      component: () => import("../views/RetiroCargaPinView.vue")
+    },
     { path: "/retirar/pertenencias", name: "retirar-pertenencias", redirect: "/retirar/rostro" },
     { path: "/retirar/rostro", name: "retirar-rostro", component: VerificacionFacialView },
     { path: "/retirar/pin", name: "retirar-pin", component: () => import("../views/RetiroPinView.vue") },
     { path: "/retirar/pago", name: "retirar-pago", component: () => import("../views/SeleccionMetodoPagoView.vue") },
     { path: "/retirar/pago/resumen", name: "retirar-pago-resumen", component: () => import("../views/RetiroPagoView.vue") },
+    { path: "/cargar", name: "cargar-dispositivo", component: () => import("../views/CargaDispositivoView.vue") },
+    { path: "/cargar/modalidad", name: "cargar-modalidad", component: () => import("../views/ModalidadCargaView.vue") },
+    { path: "/cargar/espacios", name: "cargar-espacios", component: () => import("../views/EspaciosCargaView.vue") },
+    { path: "/cargar/rostro", name: "cargar-rostro", component: () => import("../views/VerificacionFacialCargaView.vue") },
+    { path: "/cargar/crear-pin", name: "cargar-crear-pin", component: () => import("../views/CrearPinCargaView.vue") },
+    { path: "/cargar/pin-confirmado", name: "cargar-pin-confirmado", component: () => import("../views/ConfirmacionPinCargaView.vue") },
+    { path: "/cargar/colocar", name: "cargar-colocar", component: () => import("../views/ColocarDispositivoCargaView.vue") },
+    { path: "/cargar/condiciones", name: "cargar-condiciones", component: () => import("../views/CondicionesCargaView.vue") },
     { path: "/:pathMatch(.*)*", redirect: "/menu" },
   ],
 });
 
+// SYNCHRO-RETIRO-AUTO-GUARD-V1: el usuario no elige espacio.
+router.beforeEach((to) => {
+  if (to.path === "/retirar/dispositivo") {
+    iniciarRetiroCarga();
+    return "/retirar/dispositivo/rostro";
+  }
+});
 registrarRutasVistaPrevia(router);
 
 export default router;
