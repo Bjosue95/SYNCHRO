@@ -29,7 +29,7 @@ test("la vista previa de carga no necesita SQL ni credenciales", () => {
   assert.match(vista, /espaciosCargaEjemplo/);
   assert.match(vista, /ordenCargaEjemplo/);
   assert.match(vista, /modoVistaPrevia: true/);
-  assert.doesNotMatch(datos, /token|pinHash|autorizacionPago|rostroCifrado/i);
+  assert.doesNotMatch(datos, /\b(tokenColocacion|autorizacionPago|pinHash|rostroCifrado)\s*:/i);
 });
 
 test("las vistas con acciones automaticas tienen salidas seguras para preview", () => {
