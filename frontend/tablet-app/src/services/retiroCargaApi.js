@@ -8,6 +8,7 @@
 import {
   obtenerEspacioRetiroCarga,
   obtenerTokenFacialRetiroCarga,
+  obtenerTokenCobroRetiroCarga,
   guardarRostroRetiroCarga,
   guardarPinValidadoRetiroCarga
 } from "./retiroCargaSesion.js";
@@ -134,4 +135,59 @@ export async function verificarPinRetiroCarga(pin) {
     pagoPendiente: true,
     retiroConfirmado: false
   };
+}
+
+// Continuacion del retiro de CARGA. El token nunca pasa por URL.
+export async function prepararCobroRetiroCarga() {
+  const tokenCobro = obtenerTokenCobroRetiroCarga();
+  if (!tokenCobro) {
+    throw new Error("La autorizacion del PIN vencio. Repite rostro y PIN.");
+  }
+  const datos = await publicar(
+    "/api/terminales/carga/retiro/cobro/preparar",
+    { tokenCobro }, false
+  );
+  if (!/^(W[12]|C[1-4]|L[12])$/.test(datos?.codigoEspacio) ||
+      !Number.isFinite(datos?.importeHnl) || datos.importeHnl <= 0 ||
+      !Number.isInteger(datos?.minutosUtilizados) ||
+      datos.minutosUtilizados < 1 ||
+      !["Pendiente", "ConfirmadoSimulado"].includes(datos?.estadoCobro)) {
+    throw new Error("El backend no devolvio una cotizacion valida.");
+  }
+  return datos;
+}
+
+export async function confirmarPagoSimuladoRetiroCarga(metodoPago) {
+  const tokenCobro = obtenerTokenCobroRetiroCarga();
+  if (!tokenCobro) {
+    throw new Error("La autorizacion del PIN vencio. Repite rostro y PIN.");
+  }
+  if (!["Efectivo", "Tarjeta", "NFC"].includes(metodoPago)) {
+    throw new Error("Selecciona un metodo de pago.");
+  }
+  const datos = await publicar(
+    "/api/terminales/carga/retiro/cobro/confirmar-simulado",
+    { tokenCobro, metodoPago }, false
+  );
+  if (datos?.pagoSimulado !== true || datos?.pagoRealProcesado !== false ||
+      datos?.retiroConfirmado !== false) {
+    throw new Error("No se pudo confirmar el pago simulado.");
+  }
+  return datos;
+}
+
+export async function confirmarRecogidaRetiroCarga() {
+  const tokenCobro = obtenerTokenCobroRetiroCarga();
+  if (!tokenCobro) {
+    throw new Error("La autorizacion del PIN vencio. Repite rostro y PIN.");
+  }
+  const datos = await publicar(
+    "/api/terminales/carga/retiro/cobro/confirmar-recogida",
+    { tokenCobro, dispositivoRetirado: true }, false
+  );
+  if (datos?.retiroConfirmado !== true ||
+      datos?.espacioDisponible !== true || datos?.pagoSimulado !== true) {
+    throw new Error("No se confirmo la finalizacion del retiro.");
+  }
+  return datos;
 }
