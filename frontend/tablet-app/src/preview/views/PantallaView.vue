@@ -5,6 +5,7 @@ import { useTema } from "../../composables/useTema";
 import { buscarPantalla } from "../pantallas.js";
 import { casillerosEjemplo } from "../datos/casilleros.js";
 import { ordenPagoEjemplo } from "../datos/pago.js";
+import { espaciosCargaEjemplo, ordenCargaEjemplo } from "../datos/carga.js";
 import { normalizarMetodoPagoDemo } from "../pagoDemo.js";
 
 const route = useRoute();
@@ -40,12 +41,64 @@ const propiedades = computed(() => {
     };
   }
 
+  // Vistas nuevas reutilizan el componente operativo, con datos locales
+  // y un modo que impide peticiones HTTP y cambios de sesiones.
+  if (id?.startsWith("carga-espacios-")) {
+    return { modoVistaPrevia: true, espaciosEjemplo: espaciosCargaEjemplo };
+  }
+
+  if (id === "carga-crear-pin" || id === "carga-confirmar-pin") {
+    return {
+      modoVistaPrevia: true,
+      pasoEjemplo: id === "carga-confirmar-pin" ? "confirmar" : "crear"
+    };
+  }
+
+  if (id === "carga-pin-confirmado") {
+    return { modoVistaPrevia: true };
+  }
+
+  if (id === "carga-colocar" || id === "carga-colocacion-confirmada") {
+    return {
+      modoVistaPrevia: true,
+      estadoEjemplo: id === "carga-colocacion-confirmada" ? "confirmado" : "listo"
+    };
+  }
+
+  if (id === "retiro-carga-rostro") {
+    return { modoRetiroEjemplo: true };
+  }
+
+  if (id === "retiro-carga-pin") {
+    return { modoVistaPrevia: true };
+  }
+
+  if (id === "retiro-carga-pago") {
+    return { ordenEjemplo: ordenCargaEjemplo, esCargaEjemplo: true };
+  }
+
+  if (id?.startsWith("retiro-carga-")) {
+    const faseEjemplo = ({
+      "retiro-carga-espera": "esperando",
+      "retiro-carga-resumen": "resumen",
+      "retiro-carga-completado": "completado"
+    })[id];
+    if (faseEjemplo) {
+      return {
+        ordenEjemplo: ordenCargaEjemplo,
+        faseEjemplo,
+        metodoEjemplo: normalizarMetodoPagoDemo(route.query.metodo) || "Efectivo"
+      };
+    }
+  }
+
   return {};
 });
 
 function bloquear(evento) {
+  const id = vista.value?.id;
   const permitido =
-    (vista.value?.id === "pago" || vista.value?.id === "pago-resumen") &&
+    ["pago", "pago-resumen", "retiro-carga-pago", "carga-colocar"].includes(id) &&
     ["click", "keydown"].includes(evento.type) &&
     evento.target?.closest?.("[data-preview-permitido]");
 
@@ -66,7 +119,7 @@ function bloquear(evento) {
   >
     <div
       class="pantalla-real"
-    :class="{ 'pago-interactivo': vista?.id === 'pago' || vista?.id === 'pago-resumen' }"
+    :class="{ 'pago-interactivo': ['pago', 'pago-resumen', 'retiro-carga-pago', 'carga-colocar'].includes(vista?.id) }"
       @click.capture="bloquear"
       @submit.capture="bloquear"
       @change.capture="bloquear"
