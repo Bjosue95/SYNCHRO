@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 
 namespace Synchro.Api.Tests;
 
@@ -8,7 +10,18 @@ namespace Synchro.Api.Tests;
 // Protegen el limite entre tablet y aprobacion administrativa.
 public sealed class IntegracionCargaAdminHttpTests
 {
-    private static HttpClient Cliente(FabricaTerminalCookieReal fabrica) =>
+    // El test verifica los limites HTTP, no el modulo WhatsApp.
+    // No deshabilitar salvaguardas SQL ni alterar la API en produccion.
+    private static WebApplicationFactory<Program> Fabrica() =>
+        new FabricaTerminalCookieReal().WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, config) =>
+                config.AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["WhatsAppManual:Habilitado"] = "false"
+                    })));
+
+    private static HttpClient Cliente(WebApplicationFactory<Program> fabrica) =>
         fabrica.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"),
@@ -21,7 +34,7 @@ public sealed class IntegracionCargaAdminHttpTests
     [InlineData("/api/admin/carga/cobros/pendientes")]
     public async Task InventarioYCobrosCargaRequierenSesionAdmin(string ruta)
     {
-        using var fabrica = new FabricaTerminalCookieReal();
+        using var fabrica = Fabrica();
         using var cliente = Cliente(fabrica);
         using var respuesta = await cliente.GetAsync(ruta);
         Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
@@ -30,7 +43,7 @@ public sealed class IntegracionCargaAdminHttpTests
     [Fact]
     public async Task ConfirmarPagoCargaRequiereOperadorAutenticado()
     {
-        using var fabrica = new FabricaTerminalCookieReal();
+        using var fabrica = Fabrica();
         using var cliente = Cliente(fabrica);
         using var respuesta = await cliente.PostAsJsonAsync(
             "/api/admin/carga/cobros/confirmar",
@@ -45,7 +58,7 @@ public sealed class IntegracionCargaAdminHttpTests
     [Fact]
     public async Task RutaAntiguaNoPermiteConfirmarPagoDesdeTablet()
     {
-        using var fabrica = new FabricaTerminalCookieReal();
+        using var fabrica = Fabrica();
         using var cliente = Cliente(fabrica);
         using var respuesta = await cliente.PostAsJsonAsync(
             "/api/terminales/carga/retiro/cobro/confirmar-simulado",
