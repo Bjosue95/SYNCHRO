@@ -150,3 +150,11 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - Retirada la casilla de verificacion de recogida. Unicamente el clic explicito en `Finalizar retiro`, despues de mostrar resumen y pedir retirar el dispositivo, manda al backend la confirmacion de recogida; no se libera W1/W2/C/L antes de pago aprobado y esta accion.
 - Se conservaron las animaciones, la cuadricula de seleccion de metodo, el resumen y la pantalla final con estilos identicos al retiro personal. Se conservaron las rutas y las exigencias del backend.
 - Revision estatica de 13 invariantes OK. Pendiente de validar `npm.cmd --prefix frontend/tablet-app run build` en el equipo y prueba visual en Tab A11. Ninguna migracion SQL ni backend requerida.
+
+
+## 17. Resultados locales de diagnostico y correccion de fabrica HTTP (22/11/2026)
+- GitHub pull de `IntegracionCargaAdminHttpTests.cs` y `Diagnosticar-IntegracionCargaSynchro-Pruebas.ps1` correcto.
+- Diagnostico SQL solo lectura confirmado: base `SynchroDB_Pruebas` y fixture correctos; tarifa Inalambrica 60 minutos/L 10 y bloques 30 minutos/L 5; todos los espacios W1/W2/C1-C4/L1/L2 Disponibles, sin sesiones activas; ultima sesion de W1 Retirada y cobro Aplicado L 10. Cuatro cobros Aplicado total L 40, sin pendientes administrativos.
+- Las 4 pruebas HTTP fallaron DURANTE ARRANQUE del servidor de test, no por respuesta del endpoint: `WhatsAppManualEndpoints.MapWhatsAppManualEndpoints` detecto una conexion `SYNCHRO_Suite_Test` sin autorizacion `SYNCHRO_SQL_DEPOSITO_TEST` para el modulo WhatsApp. No se deben alterar controles de autorizacion ni cambiar conexion a base operativa.
+- Solucion: en `tests/Synchro.Api.Tests/IntegracionCargaAdminHttpTests.cs` `Fabrica()` crea el host a partir de `FabricaTerminalCookieReal` y pone `WhatsAppManual:Habilitado=false` SOLO en el test HTTP de rutas de carga. Esta prueba no necesita WhatsApp y verifica permisos ANTES de cualquier lectura/escritura SQL; evita tocar otras fabricas.
+- Pendiente nueva ejecucion en laptop: `dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --filter "FullyQualifiedName~IntegracionCargaAdminHttpTests"`. No hay cambios de SQL/backend productivo ni frontend por este ajuste.
