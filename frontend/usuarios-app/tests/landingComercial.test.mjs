@@ -53,7 +53,7 @@ test("mapa se carga a demanda y reconoce Plaza Ciudad Nueva, Comayagua", () => {
   assert.match(mapa, /IntersectionObserver/);
   assert.match(mapa, /mapa\?\.remove\(\)/);
   assert.match(mapa, /Plaza Ciudad Nueva, Comayagua/);
-  assert.match(mapa, /Ubicaciones propuestas/);
+  assert.match(mapa, /Lugares de referencia/);
   assert.match(mapa, /OpenStreetMap/);
   assert.match(mapa, /linkMaps\(lugar\)/);
   assert.doesNotMatch(mapa, /apiClientes|reservarCasillero|cobrar/);
