@@ -20,6 +20,9 @@ const { tema, alternarTema } = useTheme();
 
 <style scoped>
 .boton-tema {
+  width: 132px;
+  min-width: 132px;
+  height: 44px;
   min-height: 44px;
   padding: 0 12px;
   display: inline-flex;
@@ -40,9 +43,15 @@ const { tema, alternarTema } = useTheme();
   background: var(--surface-hover);
   border-color: var(--brand-accent);
 }
-.etiqueta-tema { letter-spacing: .005em; }
+.boton-tema :deep(.icono-ui) { flex: 0 0 22px; }
+.etiqueta-tema {
+  width: 52px;
+  flex: 0 0 52px;
+  text-align: left;
+  letter-spacing: .005em;
+}
 @media (max-width: 540px) {
-  .boton-tema { width: 44px; padding: 0; }
+  .boton-tema { width: 44px; min-width: 44px; padding: 0; }
   .etiqueta-tema { display: none; }
 }
 </style>
