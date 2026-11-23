@@ -11,7 +11,6 @@ const inicial = computed(() => usuario.value.charAt(0).toLocaleUpperCase("es-HN"
 <template>
   <section class="pagina-interna">
     <div class="encabezado-pagina">
-      <span class="eyebrow">MI CUENTA</span>
       <h1>Hola, {{ usuario }}</h1>
       <p>Desde aquí puedes gestionar tus solicitudes de SYNCHRO.</p>
     </div>
