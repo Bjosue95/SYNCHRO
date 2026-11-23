@@ -27,10 +27,13 @@ test("el carrusel contiene los tres contenidos acordados", () => {
   assert.match(codigo, /<Transition name="beneficio"/);
 });
 
-test("las barras permiten seleccionar contenido y la animación se puede pausar", () => {
+test("el carrusel avanza solo, ofrece navegación manual y no muestra botón de pausa", () => {
   const codigo = leer("src/components/ui/AccessHighlights.vue");
   assert.match(codigo, /@click="mostrar\(numero\)"/);
-  assert.match(codigo, /@click="alternarReproduccion"/);
+  assert.match(codigo, /setInterval\(avanzarTiempo, 100\)/);
+  assert.match(codigo, /detenidoPorUsuario/);
+  assert.doesNotMatch(codigo, /class="acceso-pausa"/);
+  assert.doesNotMatch(codigo, /alternarReproduccion/);
   assert.match(codigo, /:aria-current=/);
   assert.match(codigo, /@mouseenter=/);
   assert.match(codigo, /@focusin=/);
