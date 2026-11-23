@@ -59,3 +59,25 @@ test("la navegación y el contacto utilizan iconos en lugar de emojis o dibujos 
   assert.match(cotizacion, /nombre="enviar"/);
   assert.match(cotizacion, /nombre="copiar"/);
 });
+
+
+test("la estación ilustra sus compartimentos y módulos propios", () => {
+  const escena = leer("src/components/ui/LockerJourney.vue");
+  assert.match(escena, /"M04"/);
+  assert.match(escena, /"M09"/);
+  assert.match(escena, /"especial-frio"/);
+  assert.match(escena, /"especial-calor"/);
+  assert.match(escena, /syn-station-braille/);
+  assert.match(escena, /syn-wireless-pads/);
+  assert.match(escena, /nombre-azul\.png/);
+  assert.match(escena, /codigo === 'M03'/);
+});
+
+test("energía solar cuenta con un recorrido visual y movimiento reducido", () => {
+  const seccion = leer("src/components/landing/SmartSolutions.vue");
+  assert.match(seccion, /Esquema de alimentación energética/);
+  assert.match(seccion, /Captación solar/);
+  assert.match(seccion, /Respaldo/);
+  assert.match(seccion, /Estación SYNCHRO/);
+  assert.match(seccion, /prefers-reduced-motion:reduce/);
+});
