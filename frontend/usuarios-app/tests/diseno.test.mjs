@@ -64,6 +64,6 @@ test("no se inventan metricas ni historial de reservas en el panel", () => {
   const panel = leer("src/views/PanelView.vue");
   assert.match(panel, /crear y consultar|gestionar tus solicitudes|crear y consultar/i);
   assert.doesNotMatch(panel, /reservas activas\s*\d|pr[oó]ximos vencimientos\s*\d/i);
-  assert.match(panel, /AppIcon nombre="reservas"/);
+  assert.match(panel, /AppIcon nombre="encomienda"/);
   assert.match(panel, /AppIcon nombre="buscar"/);
 });
