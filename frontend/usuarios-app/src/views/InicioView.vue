@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppIcon from "../components/ui/AppIcon.vue";
 import modeloMultiple from "../assets/multiple.webp";
@@ -38,16 +38,11 @@ const servicios = [
     estado: "Servicio presencial"
   }
 ];
-const modulos = [
-  { id: "guardar", nombre: "Compartimentos", icono: "casillero", x: "27%", y: "43%",
-    detalle: "Elige el tamaño según lo que quieras guardar, desde una mochila hasta una encomienda.", servicio: "#pertenencias" },
-  { id: "termico", nombre: "Frío y calor", icono: "temperatura", x: "47%", y: "47%",
-    detalle: "Las zonas térmicas están separadas para resguardar productos compatibles con frío o calor.", servicio: "#temperatura" },
-  { id: "recargar", nombre: "Módulo de carga", icono: "carga", x: "71%", y: "70%",
-    detalle: "Conecta tu celular o laptop durante una pausa desde el módulo de carga presencial.", servicio: "#carga" }
+const usos = [
+  { icono: "casillero", titulo: "Estudiantes y trabajadores", descripcion: "Un lugar para dejar la mochila, la laptop o las compras entre clases, diligencias o jornadas de trabajo." },
+  { icono: "encomienda", titulo: "Emprendedores y comercios", descripcion: "Un punto de entrega para pedidos locales cuando los horarios del comercio y del comprador no coinciden." },
+  { icono: "carga", titulo: "Viajeros y visitantes", descripcion: "Espacio para resguardar el equipaje o recargar un dispositivo mientras aprovechas una pausa." }
 ];
-const moduloActivo = ref(modulos[0].id);
-const modulo = computed(() => modulos.find(item => item.id === moduloActivo.value));
 const preguntas = [
   {
     pregunta: "¿Qué puedo gestionar desde la web?",
@@ -92,7 +87,7 @@ onUnmounted(() => observador?.disconnect());
           <p class="portada-contexto">SYNCHRO · Comayagua</p>
           <h1 id="titulo-portada">Casilleros inteligentes <span>para tu día</span></h1>
           <p class="portada-intro">
-            Guarda tus pertenencias, usa un compartimento con control de temperatura o recarga tus dispositivos. Desde tu cuenta puedes crear y consultar pre-reservas de encomiendas.
+            Guarda tus pertenencias, usa un compartimento con control de temperatura o recarga tus dispositivos. En el portal ya puedes crear y consultar pre-reservas de encomiendas.
           </p>
           <div class="botones-portada">
             <a href="#servicios" class="boton boton-portada">Explorar servicios <span aria-hidden="true">↓</span></a>
@@ -118,7 +113,7 @@ onUnmounted(() => observador?.disconnect());
     <section id="servicios" class="contenedor bloque-servicios" aria-labelledby="titulo-servicios">
       <header class="cabecera-servicios">
         <p class="rotulo-seccion">Nuestros servicios</p>
-        <h2 id="titulo-servicios">Del bolso al paquete</h2>
+        <h2 id="titulo-servicios">Cuatro soluciones en un casillero</h2>
       </header>
 
       <div class="escenas-servicio">
@@ -140,34 +135,29 @@ onUnmounted(() => observador?.disconnect());
       </div>
     </section>
 
+    <section class="contenedor casos-synchro" aria-labelledby="titulo-casos">
+      <h2 id="titulo-casos">Pensado para moverte por la ciudad</h2>
+      <div class="casos-rejilla">
+        <article v-for="uso in usos" :key="uso.titulo">
+          <AppIcon :nombre="uso.icono" :tamano="28"/>
+          <h3>{{ uso.titulo }}</h3>
+          <p>{{ uso.descripcion }}</p>
+        </article>
+      </div>
+    </section>
+
     <section id="modelo-synchro" class="contenedor modelo-synchro" aria-labelledby="titulo-modelo">
-      <header class="modelo-descripcion">
+      <figure class="modelo-imagen">
+        <img :src="modeloMultiple" width="1400" height="788" loading="lazy" decoding="async"
+          alt="Casillero SYNCHRO con compartimentos a la izquierda y módulo de carga a la derecha">
+      </figure>
+      <div class="modelo-descripcion">
         <h2 id="titulo-modelo">Conoce el casillero SYNCHRO</h2>
-        <p>Selecciona un punto del casillero para ver qué hace cada módulo.</p>
-      </header>
-      <div class="modelo-interactivo">
-        <figure class="modelo-imagen">
-          <img :src="modeloMultiple" width="1400" height="788" loading="lazy" decoding="async"
-            alt="Casillero SYNCHRO con compartimentos a la izquierda y módulo de carga a la derecha">
-          <div class="modelo-puntos" role="group" aria-label="Módulos del casillero">
-            <button v-for="item in modulos" :key="item.id" type="button" class="modelo-punto"
-              :style="{ '--punto-x': item.x, '--punto-y': item.y }"
-              :aria-label="item.nombre" :aria-pressed="moduloActivo === item.id"
-              aria-controls="detalle-modulo" @click="moduloActivo = item.id">
-              <AppIcon :nombre="item.icono" :tamano="20"/>
-            </button>
-          </div>
-        </figure>
-        <div id="detalle-modulo" class="modelo-detalle" aria-live="polite">
-          <Transition name="modulo" mode="out-in">
-            <div :key="modulo.id" class="modelo-ficha">
-              <AppIcon :nombre="modulo.icono" :tamano="28"/>
-              <h3>{{ modulo.nombre }}</h3>
-              <p>{{ modulo.detalle }}</p>
-              <a :href="modulo.servicio" class="enlace-texto">Ver el servicio <AppIcon nombre="flecha"/></a>
-            </div>
-          </Transition>
-        </div>
+        <dl class="modelo-partes">
+          <div><dt>Compartimentos de varios tamaños</dt><dd>Para pertenencias y encomiendas de distinto volumen.</dd></div>
+          <div><dt>Zonas de frío y calor</dt><dd>Separadas según lo que necesita cada producto compatible.</dd></div>
+          <div><dt>Módulo de carga</dt><dd>Para celulares y laptops durante una pausa.</dd></div>
+        </dl>
       </div>
     </section>
 
@@ -203,6 +193,16 @@ onUnmounted(() => observador?.disconnect());
           buscar un lugar para recargar el celular o coordinar una entrega cuando los horarios no coinciden.
           Diseñamos casilleros inteligentes que reúnen esos servicios en un mismo lugar.
         </p>
+      </div>
+      <div class="historia-proposito">
+        <article>
+          <h3>Misión</h3>
+          <p>Optimizar el tiempo y la movilidad de las personas y los negocios mediante casilleros inteligentes automatizados para el resguardo de pertenencias, la gestión de encomiendas y la carga de dispositivos electrónicos, integrando tecnología innovadora, seguridad y espacios con temperatura controlada, con un compromiso de accesibilidad e inclusión que contribuya al bienestar de la comunidad.</p>
+        </article>
+        <article>
+          <h3>Visión</h3>
+          <p>Convertirnos en un emprendimiento tecnológico hondureño reconocido por transformar la manera en que las personas y los negocios acceden a servicios de almacenamiento y gestión autónoma, mediante una red de casilleros inteligentes que promueva la innovación, la seguridad y la accesibilidad, contribuyendo al desarrollo de comunidades más conectadas.</p>
+        </article>
       </div>
     </section>
 
