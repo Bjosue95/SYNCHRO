@@ -2,18 +2,27 @@ import { createRouter, createWebHistory } from "vue-router";
 import { comprobarSesion } from "../services/sesion.js";
 
 const rutas = [
-  { path: "/", name: "inicio", component: () => import("../views/InicioView.vue") },
-  { path: "/acceso", name: "acceso", component: () => import("../views/AccesoView.vue") },
   {
-    path: "/mi-cuenta", name: "cuenta", meta: { privada: true },
+    path: "/", name: "inicio",
+    component: () => import("../views/InicioView.vue")
+  },
+  {
+    path: "/acceso", name: "acceso",
+    component: () => import("../views/AccesoView.vue")
+  },
+  {
+    path: "/mi-cuenta", name: "cuenta",
+    meta: { privada: true, titulo: "Mi espacio" },
     component: () => import("../views/PanelView.vue")
   },
   {
-    path: "/reservar/encomienda", name: "encomienda", meta: { privada: true },
+    path: "/reservar/encomienda", name: "encomienda",
+    meta: { privada: true, titulo: "Nueva pre-reserva" },
     component: () => import("../views/PreReservaView.vue")
   },
   {
-    path: "/consultar", name: "consultar", meta: { privada: true },
+    path: "/consultar", name: "consultar",
+    meta: { privada: true, titulo: "Consultar solicitud" },
     component: () => import("../views/ConsultarReservaView.vue")
   },
   { path: "/:pathMatch(.*)*", redirect: "/" }
@@ -22,7 +31,10 @@ const rutas = [
 export const router = createRouter({
   history: createWebHistory(),
   routes: rutas,
-  scrollBehavior: () => ({ top: 0 })
+  scrollBehavior(to) {
+    if (to.hash) return { el: to.hash, behavior: "smooth" };
+    return { top: 0 };
+  }
 });
 
 router.beforeEach(async to => {
