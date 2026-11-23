@@ -22,7 +22,7 @@ const etiqueta = computed(() => esAcceso.value ? "Volver al sitio" :
         </RouterLink>
         <div class="header-acciones">
           <ThemeToggle />
-          <RouterLink :to="destino" class="acceso-enlace">
+          <RouterLink v-if="!esAcceso" :to="destino" class="acceso-enlace">
             {{ etiqueta }}
           </RouterLink>
         </div>
