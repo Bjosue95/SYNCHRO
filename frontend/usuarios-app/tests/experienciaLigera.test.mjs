@@ -9,7 +9,7 @@ const leer = ruta => readFileSync(join(base, ruta), "utf8");
 
 test("el frontend conserva dependencias ligeras y rutas separadas", () => {
   const pkg = JSON.parse(leer("package.json"));
-  assert.deepEqual(Object.keys(pkg.dependencies).sort(), ["vue", "vue-router"]);
+  assert.deepEqual(Object.keys(pkg.dependencies).sort(), ["leaflet", "vue", "vue-router"]);
   assert.ok(pkg.devDependencies.vite);
   assert.ok(pkg.devDependencies["@vitejs/plugin-vue"]);
   const rutas = leer("src/router/index.js");
