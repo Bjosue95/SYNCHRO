@@ -1,0 +1,244 @@
+/* Cabecera reducida: navegación pública sin pestañas innecesarias. */
+.header-publico {
+  min-height: 74px;
+  gap: 20px;
+}
+.header-acciones { margin-left: auto; gap: 16px; }
+.acceso-enlace {
+  padding: 10px 2px;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--text-strong);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.acceso-enlace:hover { color: var(--accent-text); }
+
+/*
+ * Acceso: llena el alto útil de la ventana sin introducir un segundo
+ * desplazamiento. Cuando el alto es insuficiente (teclado abierto, zoom,
+ * accesibilidad), permitimos desplazamiento para no ocultar el botón final.
+ */
+.publico.es-acceso {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.es-acceso .cabecera-publica { flex: 0 0 auto; }
+.es-acceso .contenido-publico {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.es-acceso .acceso-pagina {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+}
+.es-acceso .acceso-diseno {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: clamp(24px, 5vw, 85px);
+  align-items: center;
+  justify-content: center;
+  width: min(1060px, calc(100% - 48px));
+  height: 100%;
+  min-height: 0;
+  padding: clamp(14px, 3vh, 35px) 0;
+  margin: 0 auto;
+}
+.es-acceso .acceso-presentacion {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0;
+  padding: 0 0 0 30px;
+  min-width: 0;
+  position: relative;
+}
+.es-acceso .acceso-presentacion::before {
+  display: block;
+  width: 3px;
+  height: 100%;
+  min-height: 170px;
+  inset: 0 auto 0 0;
+}
+.acceso-sello {
+  display: grid;
+  place-items: center;
+  width: 67px;
+  height: 67px;
+  border: 1px solid var(--border);
+  background: var(--surface-accent);
+  border-radius: 18px;
+  margin-bottom: 24px;
+}
+.es-acceso .acceso-presentacion h2 {
+  margin: 0;
+  font-size: clamp(29px, 3.7vw, 48px);
+  letter-spacing: -.05em;
+  line-height: 1.14;
+  color: var(--text-strong);
+  font-weight: 790;
+}
+.es-acceso .acceso-presentacion h2 span { color: var(--accent-text); }
+.es-acceso .acceso-presentacion > p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 20px 0 0;
+  max-width: 330px;
+}
+.acceso-lineas { display: flex; gap: 7px; margin-top: 32px; }
+.acceso-lineas span {
+  display: block;
+  width: 28px;
+  height: 4px;
+  border-radius: 10px;
+  background: var(--border-strong);
+}
+.acceso-lineas span:first-child { width: 65px; background: var(--brand-accent); }
+
+.es-acceso .acceso-formulario {
+  justify-self: end;
+  width: min(100%, 452px);
+  max-width: 452px;
+  padding: clamp(21px, 2.7vw, 34px);
+  border-radius: 19px;
+}
+.acceso-form-header { margin-bottom: 18px; }
+.acceso-form-header h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 33px);
+  color: var(--text-strong);
+  letter-spacing: -.04em;
+  line-height: 1.18;
+  font-weight: 790;
+}
+.acceso-form-header p {
+  margin: 9px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.es-acceso .formulario {
+  margin: 0;
+  gap: 16px;
+}
+.es-acceso .campo { gap: 6px; }
+.es-acceso .campo > span {
+  font-size: 13px;
+}
+.es-acceso .campo input {
+  height: 47px;
+  min-height: 47px;
+  padding: 10px 13px;
+}
+.es-acceso .formulario > .boton {
+  min-height: 47px;
+  margin-top: 3px;
+}
+.es-acceso .acceso-cambiar {
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.es-acceso .acceso-cambiar button {
+  color: var(--accent-text);
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  font-size: inherit;
+  font-weight: 820;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Ancho de tablet / móvil: nada de columna promocional ni pie en login. */
+@media (max-width: 850px) {
+  .es-acceso .acceso-diseno {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    width: min(440px, calc(100% - 32px));
+    padding: 14px 0;
+    justify-items: center;
+    align-content: center;
+  }
+  .es-acceso .acceso-presentacion { display: none; }
+  .es-acceso .acceso-formulario {
+    justify-self: center;
+    width: 100%;
+    max-width: 440px;
+    padding: clamp(19px, 4.5vw, 30px);
+  }
+}
+
+/* Ventanas pequeñas: mantener un formulario compacto. */
+@media (max-height: 740px) {
+  .es-acceso .acceso-formulario { padding-top: 21px; padding-bottom: 20px; }
+  .es-acceso .acceso-form-header { margin-bottom: 14px; }
+  .es-acceso .formulario { gap: 12px; }
+  .es-acceso .acceso-cambiar { margin-top: 15px; padding-top: 12px; }
+  .es-acceso .acceso-presentacion h2 { font-size: 34px; }
+  .es-acceso .acceso-sello { width: 53px; height: 53px; margin-bottom: 14px; }
+  .es-acceso .acceso-lineas { margin-top: 18px; }
+}
+
+/* En móvil, la marca y el tema comparten una única fila. */
+@media (max-width: 620px) {
+  .header-publico {
+    min-height: 63px;
+    padding: 8px 0;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .header-acciones { gap: 10px; }
+  .acceso-enlace { font-size: 12px; }
+  .es-acceso .acceso-diseno { width: min(420px, calc(100% - 24px)); padding: 10px 0; }
+  .es-acceso .acceso-formulario { padding: 20px; border-radius: 16px; }
+  .es-acceso .acceso-form-header h1 { font-size: 27px; }
+  .es-acceso .acceso-form-header p { font-size: 12px; margin-top: 6px; }
+  .es-acceso .campo input { min-height: 45px; height: 45px; }
+}
+@media (max-width: 370px) {
+  .es-acceso .acceso-formulario { padding: 16px 15px; }
+  .es-acceso .formulario { gap: 11px; }
+  .es-acceso .acceso-cambiar { margin-top: 12px; padding-top: 10px; }
+}
+/* Priorizar acceso y controles cuando se reduce la altura (teclado/zoom).
+   No se fuerza overflow:hidden si ello recortaría contenido interactivo. */
+@media (max-height: 580px) {
+  .publico.es-acceso {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .es-acceso .contenido-publico {
+    overflow: visible;
+    min-height: calc(100dvh - 65px);
+  }
+  .es-acceso .acceso-pagina { min-height: inherit; height: auto; }
+  .es-acceso .acceso-diseno {
+    height: auto;
+    min-height: inherit;
+    padding-top: 12px;
+    padding-bottom: 15px;
+  }
+  .es-acceso .acceso-presentacion { display: none; }
+  .es-acceso .acceso-diseno { grid-template-columns: 1fr; }
+  .es-acceso .acceso-formulario { margin: auto; justify-self: center; }
+}
