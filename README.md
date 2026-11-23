@@ -49,7 +49,9 @@ En desarrollo.
 - [API de servicios temporales, prepago y configuración](docs/SERVICIOS-TEMPORALES.md).
 - OpenAPI generado: `/openapi/v1.json`, solo administrador, HTTPS y entorno de pruebas.
 
-Las encomiendas se reservan solo desde cuentas web registradas; la terminal deposita y
-retira reservas existentes. El rostro, hardware y pagos del prototipo son simulados; las integraciones reales y la
-validación SQL pendientes están identificadas en el informe. No ejecutar migraciones
-de prueba contra la base principal `SynchroDB`.
+Las pre-reservas web de encomiendas están limitadas a cuentas de clientes
+registradas y no permiten depósitos ni asignan casilleros por sí solas.
+Los procesos de depósito y retiro requieren las verificaciones posteriores
+establecidas por el backend. El reconocimiento facial, hardware y pagos
+del prototipo tienen componentes simulados. No ejecutar migraciones de
+prueba contra la base principal `SynchroDB`.
