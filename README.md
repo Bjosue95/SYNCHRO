@@ -19,6 +19,23 @@ resguardo temporal y carga de dispositivos.
 - Integración con WhatsApp Business.
 - Prototipo de reconocimiento facial.
 
+
+## Aplicaciones web independientes
+
+| Aplicación | Carpeta | Desarrollo local |
+|---|---|---|
+| Terminal/tablet | `frontend/tablet-app` | HTTPS :5173 |
+| Administración | `frontend/admin-app` | HTTPS :5174 |
+| Usuarios y pre-reservas | `frontend/usuarios-app` | HTTPS :5175 |
+
+El portal de usuarios dispone de registro, acceso, consulta de sesión y
+pre-reserva web de encomiendas vinculada al backend de clientes. Una pre-reserva
+no asigna automáticamente casillero ni habilita el depósito. Las reservas de
+pertenencias y módulos térmicos requieren contratos web adicionales.
+
+Guía de instalación y comandos:
+[frontend/usuarios-app/README.md](frontend/usuarios-app/README.md).
+
 ## Estado del proyecto
 
 En desarrollo.
