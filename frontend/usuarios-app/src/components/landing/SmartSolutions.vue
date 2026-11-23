@@ -3,36 +3,87 @@ import AppIcon from "../ui/AppIcon.vue";
 
 const protecciones = Object.freeze([
   {
-    icono: "facial", titulo: "Verificación facial",
-    descripcion: "Un paso adicional de identificación para proteger el acceso y la entrega de pertenencias."
+    "icono": "facial",
+    "titulo": "Verificación facial",
+    "descripcion": "Identificación para proteger depósitos, accesos y retiros."
   },
   {
-    icono: "pin", titulo: "Códigos de acceso",
-    descripcion: "Validación por PIN de un solo uso para reforzar la seguridad en los retiros."
+    "icono": "pin",
+    "titulo": "Códigos de un solo uso",
+    "descripcion": "Validación con PIN temporal para reforzar la seguridad de las operaciones."
   },
   {
-    icono: "alarma", titulo: "Alertas ante incidentes",
-    descripcion: "Sistemas de aviso pensados para responder ante incidencias y situaciones fuera de lo habitual."
+    "icono": "control-acceso",
+    "titulo": "Control de acceso",
+    "descripcion": "Autorizaciones para que cada entrega llegue a la persona indicada."
   },
   {
-    icono: "sensores", titulo: "Monitoreo con sensores",
-    descripcion: "Supervisión de condiciones y eventos para apoyar el cuidado de los objetos almacenados."
+    "icono": "alarma",
+    "titulo": "Alarmas y alertas",
+    "descripcion": "Avisos ante incidencias, aperturas no autorizadas o situaciones de riesgo."
   },
   {
-    icono: "braille", titulo: "Identificación en braille",
-    descripcion: "Identificación táctil bajo el código de cada casillero para facilitar su reconocimiento."
+    "icono": "sensores",
+    "titulo": "Sensores inteligentes",
+    "descripcion": "Monitoreo de aperturas, ocupación y condiciones dentro de las estaciones."
   },
   {
-    icono: "control-acceso", titulo: "Control de acceso",
-    descripcion: "Procesos de autorización que ayudan a que cada entrega llegue a la persona indicada."
+    "icono": "integridad",
+    "titulo": "Integridad de casilleros",
+    "descripcion": "Supervisión de eventos y del estado físico de los compartimentos."
   },
   {
-    icono: "trazabilidad", titulo: "Registro de operaciones",
-    descripcion: "Seguimiento de las acciones realizadas para dar claridad a la administración del servicio."
+    "icono": "cifrado",
+    "titulo": "Protección de información",
+    "descripcion": "Seguridad de identidad, permisos y datos de las operaciones."
   },
   {
-    icono: "sensor-temperatura", titulo: "Cuidado de la temperatura",
-    descripcion: "Espacios preparados para necesidades específicas de conservación en frío o calor."
+    "icono": "trazabilidad",
+    "titulo": "Registro y trazabilidad",
+    "descripcion": "Seguimiento de operaciones para una administración responsable."
+  },
+  {
+    "icono": "braille",
+    "titulo": "Identificación en braille",
+    "descripcion": "Código de casillero con identificación táctil para una experiencia más inclusiva."
+  },
+  {
+    "icono": "sensor-temperatura",
+    "titulo": "Control térmico",
+    "descripcion": "Monitoreo de las condiciones de los módulos de frío y calor."
+  },
+  {
+    "icono": "notificacion",
+    "titulo": "Notificaciones",
+    "descripcion": "Avisos que mantienen informadas a las personas sobre sus operaciones."
+  },
+  {
+    "icono": "resiliencia",
+    "titulo": "Continuidad operativa",
+    "descripcion": "Arquitectura orientada a reducir interrupciones y recuperarse de fallos."
+  }
+]);
+
+const energia = Object.freeze([
+  {
+    "icono": "solar",
+    "titulo": "Paneles solares",
+    "descripcion": "Aprovechamiento de energía renovable como fuente complementaria."
+  },
+  {
+    "icono": "bateria-respaldo",
+    "titulo": "Respaldo de energía",
+    "descripcion": "Almacenamiento eléctrico para mantener servicios esenciales ante cortes."
+  },
+  {
+    "icono": "eficiencia",
+    "titulo": "Eficiencia energética",
+    "descripcion": "Optimización del consumo de equipos, iluminación y climatización."
+  },
+  {
+    "icono": "energia",
+    "titulo": "Supervisión energética",
+    "descripcion": "Seguimiento de energía disponible y consumo para anticipar necesidades."
   }
 ]);
 
@@ -60,7 +111,7 @@ const beneficios = Object.freeze([
         <h2>La tecnología tiene sentido cuando resuelve problemas.</h2>
         <p>
           Una experiencia segura también debe ser accesible, clara y fácil de utilizar.
-          Así conectamos servicios con necesidades reales.
+          Así combinamos protección, tecnología y atención a distintas necesidades.
         </p>
       </div>
 
@@ -71,6 +122,27 @@ const beneficios = Object.freeze([
           <h3>{{ item.titulo }}</h3>
           <p>{{ item.descripcion }}</p>
         </article>
+      </div>
+
+      <div class="syn-energy">
+        <div class="syn-energy-heading">
+          <div>
+            <span class="syn-solutions-kicker">ENERGÍA Y CONTINUIDAD</span>
+            <h2>Energía inteligente para seguir conectados.</h2>
+            <p>
+              SYNCHRO se diseña para integrar paneles solares, respaldo eléctrico
+              y gestión del consumo que aporten resiliencia y sostenibilidad.
+            </p>
+          </div>
+          <span class="syn-energy-emblem"><AppIcon nombre="solar" :tamano="62"/></span>
+        </div>
+        <div class="syn-energy-grid">
+          <article v-for="item in energia" :key="item.icono" class="syn-energy-card">
+            <AppIcon :nombre="item.icono" :tamano="31"/>
+            <h3>{{ item.titulo }}</h3>
+            <p>{{ item.descripcion }}</p>
+          </article>
+        </div>
       </div>
 
       <div class="syn-social-impact">
@@ -97,6 +169,21 @@ const beneficios = Object.freeze([
 </template>
 
 <style scoped>
+.syn-energy { margin-top:clamp(45px,6vw,76px); padding:clamp(25px,4vw,46px); border-radius:20px; background:#01305C; color:#ECFAFF; }
+.syn-energy-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+.syn-energy-heading .syn-solutions-kicker { color:#8CE5EC; }
+.syn-energy-heading h2 { font-size:clamp(29px,3.4vw,42px); font-weight:650; line-height:1.16; letter-spacing:-.035em; margin:12px 0; color:#fff; max-width:580px; }
+.syn-energy-heading p { color:#D0E7F0; font-size:14px; line-height:1.75; max-width:570px; margin:0; }
+.syn-energy-emblem { display:grid; place-items:center; width:92px; height:92px; flex:0 0 92px; border-radius:20px; background:#174967; border:1px solid #4C8FA5; }
+.syn-energy-emblem :deep(svg) { filter:brightness(0) invert(1); }
+.syn-energy-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:#476A81; border:1px solid #476A81; border-radius:12px; overflow:hidden; margin-top:31px; }
+.syn-energy-card { min-width:0; padding:21px 18px; background:#123D60; }
+.syn-energy-card :deep(svg) { filter:brightness(0) invert(1); }
+.syn-energy-card h3 { font-size:14px; color:#fff; font-weight:700; margin:14px 0 7px; }
+.syn-energy-card p { color:#D0E7F0; font-size:12px; line-height:1.65; margin:0; }
+@media(max-width:960px) { .syn-energy-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:560px) { .syn-energy-grid { grid-template-columns:1fr; } .syn-energy-card { display:grid; grid-template-columns:36px 1fr; gap:2px 12px; } .syn-energy-card > .icono-ui { grid-row:span 2; } .syn-energy-card h3 { margin:0; } .syn-energy-emblem { width:58px; height:58px; flex-basis:58px; } .syn-energy-emblem :deep(svg) { width:38px; height:38px; } }
+
 .syn-solutions { padding: clamp(66px, 8vw, 110px) 0; background: var(--surface-soft); border-block: 1px solid var(--border); }
 .syn-solutions-heading { max-width: 780px; margin-bottom: 35px; }
 .syn-solutions-kicker { display: block; color: var(--accent-text); font-size: 12px; font-weight: 720; letter-spacing: .095em; }
