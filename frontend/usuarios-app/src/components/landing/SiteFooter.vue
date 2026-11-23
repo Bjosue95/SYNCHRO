@@ -2,7 +2,7 @@
 import { RouterLink } from "vue-router";
 import BrandLogo from "../ui/BrandLogo.vue";
 import AppIcon from "../ui/AppIcon.vue";
-import { empresa, linkWhatsapp, soluciones } from "../../data/empresa.js";
+import { empresa, linkWhatsapp } from "../../data/empresa.js";
 const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
 </script>
 
@@ -64,6 +64,7 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
           <h3>Explorar</h3>
           <RouterLink to="/acceso">Mi cuenta</RouterLink>
           <RouterLink to="/reservar/encomienda">Pre-reservas</RouterLink>
+          <a href="/#nosotros">Quiénes somos</a>
           <a href="/#ubicaciones">Ubicaciones contempladas</a>
           <a href="/#cotizacion">Solicitar cotización</a>
           <a href="/#contacto">Contacto</a>
