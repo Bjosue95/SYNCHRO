@@ -3,6 +3,9 @@ import { onMounted, onBeforeUnmount, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppIcon from "../components/ui/AppIcon.vue";
 import LockerJourney from "../components/ui/LockerJourney.vue";
+import LocationsMap from "../components/landing/LocationsMap.vue";
+import QuoteForm from "../components/landing/QuoteForm.vue";
+import ContactSection from "../components/landing/ContactSection.vue";
 
 const pagina = ref(null);
 let observador = null;
@@ -123,6 +126,10 @@ onBeforeUnmount(() => observador?.disconnect());
         </article>
       </div>
     </section>
+
+    <LocationsMap />
+    <QuoteForm />
+    <ContactSection />
 
     <section class="contenedor syn-bottom-message" data-reveal>
       <AppIcon nombre="seguridad" :tamano="26"/>
