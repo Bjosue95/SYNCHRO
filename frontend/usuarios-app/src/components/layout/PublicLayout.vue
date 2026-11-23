@@ -34,7 +34,7 @@ import AppIcon from "../ui/AppIcon.vue";
     </main>
     <footer class="footer-publico">
       <div class="contenedor footer-interior">
-        <img src="/branding/marca-completa.svg" alt="SYNCHRO, el punto donde todo se conecta" class="footer-logo"/>
+        <RouterLink to="/" class="enlace-marca"><BrandLogo compacto /></RouterLink>
         <span>© {{ new Date().getFullYear() }} SYNCHRO</span>
         <RouterLink to="/acceso">Acceso de clientes</RouterLink>
       </div>
