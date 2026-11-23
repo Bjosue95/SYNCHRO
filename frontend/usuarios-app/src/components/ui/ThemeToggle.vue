@@ -13,15 +13,15 @@ const { tema, alternarTema } = useTheme();
     :title="tema === 'claro' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'"
     @click="alternarTema"
   >
-    <AppIcon :nombre="tema === 'claro' ? 'luna' : 'sol'" :tamano="22" />
+    <AppIcon :nombre="tema === 'claro' ? 'luna' : 'sol'" />
     <span class="etiqueta-tema">{{ tema === 'claro' ? 'Oscuro' : 'Claro' }}</span>
   </button>
 </template>
 
 <style scoped>
 .boton-tema {
-  width: 132px;
-  min-width: 132px;
+  width: 96px;
+  min-width: 96px;
   height: 44px;
   min-height: 44px;
   padding: 0 12px;
@@ -30,25 +30,23 @@ const { tema, alternarTema } = useTheme();
   justify-content: center;
   gap: 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--surface-soft);
   color: var(--text);
   font-size: 12px;
-  font-weight: 720;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
-  transition: border-color .18s ease, background-color .18s ease;
+  transition: border-color 160ms var(--ease-ui), background-color 160ms var(--ease-ui);
 }
 .boton-tema:hover {
   background: var(--surface-hover);
-  border-color: var(--brand-accent);
+  border-color: var(--ring);
 }
-.boton-tema :deep(.icono-ui) { flex: 0 0 22px; }
 .etiqueta-tema {
-  width: 52px;
-  flex: 0 0 52px;
+  width: 40px;
+  flex: 0 0 40px;
   text-align: left;
-  letter-spacing: .005em;
 }
 @media (max-width: 540px) {
   .boton-tema { width: 44px; min-width: 44px; padding: 0; }

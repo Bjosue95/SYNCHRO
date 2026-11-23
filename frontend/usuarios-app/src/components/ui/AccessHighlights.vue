@@ -128,7 +128,7 @@ onBeforeUnmount(() => {
           aria-roledescription="diapositiva"
           :aria-label="`${indice + 1} de ${mensajes.length}`">
           <span class="acceso-sello">
-            <AppIcon :nombre="actual.icono" :tamano="35" />
+            <AppIcon :nombre="actual.icono" />
           </span>
           <h2>{{ actual.titulo }}<br /><span>{{ actual.destacado }}</span></h2>
           <p>{{ actual.descripcion }}</p>
@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
           :aria-current="indice === numero ? 'true' : undefined"
           @click="mostrar(numero)">
           <span class="acceso-progreso" aria-hidden="true"
-            :style="{ width: indice === numero ? `${Math.max(progreso * 100, 6)}%` : '0%' }"></span>
+            :style="{ transform: `scaleX(${indice === numero ? Math.max(progreso, .08) : 0})` }"></span>
         </button>
       </div>
 
@@ -160,114 +160,69 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.acceso-slide-area {
-  width: 100%;
-  min-height: 285px;
-  display: grid;
-  align-items: start;
-}
-.acceso-slide {
-  grid-area: 1 / 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  min-width: 0;
-}
+.acceso-slide-area { min-height: 220px; }
 .acceso-slide > p {
-  margin: 20px 0 0;
-  max-width: 330px;
+  max-width: 36ch;
+  margin: 16px 0 0;
   color: var(--text-muted);
   font-size: 14px;
-  line-height: 1.7;
 }
-.beneficio-enter-active,
-.beneficio-leave-active {
-  transition: opacity 330ms ease, transform 330ms ease;
-}
-.beneficio-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.beneficio-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-.acceso-controles {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 17px;
-  margin-top: 11px;
-}
-.acceso-paginacion {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-}
-.acceso-paso {
-  position: relative;
-  display: block;
-  width: 39px;
-  height: 12px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 10px;
-}
-.acceso-paso::before {
-  content: "";
-  position: absolute;
-  inset: 4px 0;
-  border-radius: 99px;
-  background: var(--border-strong);
-}
-.acceso-paso.activo { width: 64px; }
-.acceso-paso.activo::before { background: var(--surface-hover); }
-.acceso-progreso {
-  position: absolute;
-  left: 0;
-  top: 4px;
-  height: 4px;
-  border-radius: 99px;
-  background: var(--brand-accent);
-  z-index: 1;
-  transition: width 70ms linear;
-}
-.acceso-paso:hover::before { background: var(--text-subtle); }
-.acceso-pausa {
-  border: none;
-  padding: 6px 4px;
+.beneficio-enter-active, .beneficio-leave-active { transition: opacity 160ms var(--ease-ui); }
+.beneficio-enter-from, .beneficio-leave-to { opacity: 0; }
+.acceso-controles, .acceso-paginacion {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.acceso-controles { flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.acceso-paso {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+.acceso-paso::before, .acceso-progreso {
+  position: absolute;
+  inset: 14px 0;
+  border-radius: 2px;
+}
+.acceso-paso::before { content: ""; background: var(--border-strong); }
+.acceso-paso.activo::before, .acceso-paso:hover::before { background: var(--text-subtle); }
+.acceso-progreso {
+  background: var(--brand-accent);
+  transform-origin: left center;
+  transition: transform 70ms linear;
+}
+.acceso-pausa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
 }
 .acceso-pausa:hover { color: var(--text-strong); }
 .pausa-simbolo {
-  display: block;
-  width: 11px;
+  width: 12px;
   height: 12px;
-  border-left: 3px solid currentColor;
-  border-right: 3px solid currentColor;
+  border-inline: 3px solid currentColor;
 }
 .pausa-simbolo.reproducir {
-  width: 0;
+  width: 12px;
   height: 0;
-  border-left: 10px solid currentColor;
-  border-right: 0;
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-}
-@media (max-height: 740px) {
-  .acceso-slide-area { min-height: 250px; }
+  border-inline: 9px solid transparent;
+  border-inline-start-color: currentColor;
+  border-inline-end: 0;
+  border-block: 6px solid transparent;
 }
 @media (prefers-reduced-motion: reduce) {
-  .beneficio-enter-active,
-  .beneficio-leave-active,
-  .acceso-progreso { transition: none !important; }
+  .beneficio-enter-active, .beneficio-leave-active, .acceso-progreso { transition: none !important; }
 }
 </style>

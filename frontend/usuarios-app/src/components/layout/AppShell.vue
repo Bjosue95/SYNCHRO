@@ -43,28 +43,27 @@ async function salir() {
 <template>
   <div class="app-shell">
     <div v-if="abierto" class="sidebar-overlay" @click="abierto = false" aria-hidden="true"></div>
-    <aside class="sidebar" :class="{ abierta: abierto }" aria-label="Menú de usuario">
+    <aside id="menu-usuario" class="sidebar" :class="{ abierta: abierto }" aria-label="Menú de usuario">
       <div class="sidebar-marca">
         <RouterLink to="/mi-cuenta" class="enlace-marca"><BrandLogo /></RouterLink>
         <button type="button" class="cerrar-sidebar" aria-label="Cerrar menú" @click="abierto = false">
-          <AppIcon nombre="volver" :tamano="19"/>
+          <AppIcon nombre="volver"/>
         </button>
       </div>
       <div class="sidebar-cuerpo">
-        <p class="sidebar-titulo">TU CUENTA</p>
+        <p class="sidebar-titulo">Tu cuenta</p>
         <nav class="sidebar-navegacion" aria-label="Navegación de cuenta">
           <RouterLink v-for="item in secciones" :key="item.ruta" :to="item.ruta"
             class="sidebar-link" active-class="activo">
-            <span class="sidebar-icono"><AppIcon :nombre="item.icono" :tamano="21"/></span>
+            <span class="sidebar-icono"><AppIcon :nombre="item.icono"/></span>
             <span>{{ item.nombre }}</span>
             <span v-if="route.path === item.ruta" class="sidebar-indicador" aria-hidden="true"></span>
           </RouterLink>
         </nav>
 
         <div class="sidebar-separador"></div>
-        <p class="sidebar-titulo">SYNCHRO</p>
         <RouterLink to="/" class="sidebar-link">
-          <span class="sidebar-icono"><AppIcon nombre="volver" :tamano="21"/></span>
+          <span class="sidebar-icono"><AppIcon nombre="volver"/></span>
           <span>Volver al sitio</span>
         </RouterLink>
       </div>
@@ -75,7 +74,7 @@ async function salir() {
           <span class="perfil-datos"><strong>{{ nombre }}</strong><small>Cuenta personal</small></span>
         </div>
         <button type="button" class="sidebar-cerrar-sesion" :disabled="saliendo" @click="salir">
-          <AppIcon nombre="salir" :tamano="20"/>
+          <AppIcon nombre="salir"/>
           {{ saliendo ? "Saliendo..." : "Cerrar sesión" }}
         </button>
         <p v-if="error" class="error-cerrar" role="alert">{{ error }}</p>
@@ -85,12 +84,10 @@ async function salir() {
     <div class="app-principal">
       <header class="topbar">
         <div class="topbar-identidad">
-          <button type="button" class="boton-menu" :aria-expanded="abierto"
+          <button type="button" class="boton-menu" aria-controls="menu-usuario" :aria-expanded="abierto"
             aria-label="Abrir menú de usuario" @click="abierto = true">
-            <AppIcon nombre="menu" :tamano="23"/>
+            <AppIcon nombre="menu"/>
           </button>
-          <span class="topbar-titulo">SYNCHRO</span>
-          <span class="topbar-separador" aria-hidden="true"></span>
           <span class="topbar-seccion">{{ route.meta?.titulo || "Mi espacio" }}</span>
         </div>
         <div class="topbar-acciones">

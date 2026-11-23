@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useTheme } from "../../composables/useTheme.js";
 const props = defineProps({
   nombre: { type: String, required: true },
-  tamano: { type: Number, default: 22 },
+  tamano: { type: Number, default: 18 },
   etiqueta: { type: String, default: "" }
 });
 const { tema } = useTheme();

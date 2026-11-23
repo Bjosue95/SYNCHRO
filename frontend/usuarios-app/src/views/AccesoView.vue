@@ -82,8 +82,8 @@ async function enviar() {
           </h1>
           <p>
             {{ esRegistro
-              ? "Completa tus datos para comenzar."
-              : "Ingresa a tu cuenta SYNCHRO." }}
+              ? "Registra tu usuario y número de WhatsApp"
+              : "Accede a tus pre-reservas de encomienda" }}
           </p>
         </header>
 
@@ -95,8 +95,7 @@ async function enviar() {
           <label class="campo">
             <span>Nombre de usuario</span>
             <input v-model="formulario.nombreUsuario" type="text" required
-              maxlength="80" autocomplete="username"
-              placeholder="Tu usuario" />
+              maxlength="80" autocomplete="username" />
           </label>
 
           <label v-if="esRegistro" class="campo">
@@ -105,20 +104,21 @@ async function enviar() {
               autocomplete="tel" inputmode="tel" placeholder="+504XXXXXXXX" />
           </label>
 
-          <label class="campo">
-            <span>Contraseña</span>
-            <input v-model="formulario.contrasena" type="password" required
+          <div class="campo">
+            <label for="contrasena-acceso">Contraseña</label>
+            <input id="contrasena-acceso" v-model="formulario.contrasena" type="password" required
               :minlength="esRegistro ? 12 : undefined" maxlength="128"
               :autocomplete="esRegistro ? 'new-password' : 'current-password'"
-              :placeholder="esRegistro ? '12 caracteres como mínimo' : 'Tu contraseña'" />
-          </label>
+              :aria-describedby="esRegistro ? 'requisito-contrasena' : undefined" />
+            <small v-if="esRegistro" id="requisito-contrasena">12 caracteres como mínimo</small>
+          </div>
 
           <p v-if="error" class="alerta" role="alert">{{ error }}</p>
 
           <button type="submit" class="boton boton-primario boton-ancho"
             :disabled="enviando" :aria-busy="enviando">
             {{ enviando ? "Comprobando..." : esRegistro ? "Crear cuenta" : "Ingresar" }}
-            <AppIcon nombre="flecha" :tamano="19" />
+            <AppIcon nombre="flecha" />
           </button>
         </form>
 

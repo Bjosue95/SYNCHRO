@@ -70,16 +70,15 @@ const enlaceWhatsAppValido = valor =>
 </script>
 
 <template>
-  <section class="contenedor pagina-interna">
+  <section class="pagina-interna">
     <div class="encabezado-pagina">
-      <RouterLink to="/mi-cuenta" class="enlace-volver"><AppIcon nombre="volver" :tamano="20"/> Mi cuenta</RouterLink>
-      <span class="eyebrow">Encomiendas · Solicitud web</span>
+      <RouterLink to="/mi-cuenta" class="enlace-texto enlace-volver"><AppIcon nombre="volver"/> Mi cuenta</RouterLink>
       <h1>Nueva pre-reserva</h1>
-      <p>Registra una solicitud de encomienda. El casillero se asignará solamente mediante un proceso posterior autorizado.</p>
+      <p>Solicita una pre-reserva de encomienda. La asignación del casillero requiere verificaciones posteriores.</p>
     </div>
 
     <div class="reserva-grid">
-      <div class="formulario-tarjeta">
+      <div class="formulario-tarjeta" :class="{ 'detalle-reserva': creada }">
         <template v-if="!creada">
           <h2>Datos de la encomienda</h2>
           <p class="texto-suave">Indica el teléfono del destinatario y el tamaño aproximado del paquete.</p>
@@ -103,18 +102,16 @@ const enlaceWhatsAppValido = valor =>
             <button class="boton boton-primario boton-ancho" type="submit"
               :disabled="preparando" :aria-busy="preparando">
               {{ preparando ? "Creando solicitud..." : "Crear pre-reserva" }}
-              <AppIcon nombre="flecha" :tamano="20"/>
+              <AppIcon nombre="flecha"/>
             </button>
           </form>
         </template>
 
         <template v-else>
-          <div class="confirmacion-icono" aria-hidden="true"><AppIcon nombre="check" :tamano="39"/></div>
-          <span class="eyebrow">Solicitud registrada</span>
-          <h2>Pre-reserva creada</h2>
+          <h2 class="titulo-confirmacion"><AppIcon nombre="check"/> Pre-reserva creada</h2>
           <p class="texto-suave">Tu solicitud quedó registrada, pero aún no tienes un casillero asignado.</p>
           <div class="resumen-reserva">
-            <div><span>Referencia</span><strong>#{{ creada.id }}</strong></div>
+            <div class="fila-referencia"><span>Referencia</span><strong class="referencia-reserva">#{{ creada.id }}</strong></div>
             <div><span>Estado</span><strong>{{ nombreEstadoReserva(creada.estado) }}</strong></div>
             <div><span>Válida hasta</span><strong>{{ fechaHonduras(creada.fechaExpiracion) }}</strong></div>
           </div>
@@ -128,8 +125,7 @@ const enlaceWhatsAppValido = valor =>
             @click="copiar(creada.tokenGestion)">Copiar clave privada</button>
           <p v-if="avisoCopia" class="mensaje-exito" role="status">{{ avisoCopia }}</p>
 
-          <div class="separador-suave"></div>
-          <h3>Consentimiento del destinatario</h3>
+          <h3 class="separador-suave">Consentimiento del destinatario</h3>
           <p class="texto-suave">La solicitud de consentimiento es un paso aparte. No se envía automáticamente ningún WhatsApp desde esta pantalla.</p>
           <p v-if="error" class="alerta" role="alert">{{ error }}</p>
           <button type="button" class="boton boton-primario boton-ancho"
@@ -161,13 +157,12 @@ const enlaceWhatsAppValido = valor =>
             <small class="texto-suave">El mensaje debe ser enviado por el destinatario desde su propio número al WhatsApp de SYNCHRO.</small>
           </template>
           <RouterLink to="/consultar" class="enlace-texto enlace-destacado">
-            Consultar una solicitud →
+            Consultar una solicitud <AppIcon nombre="flecha"/>
           </RouterLink>
         </template>
       </div>
 
       <aside class="panel-pasos">
-        <span class="eyebrow">Cómo funciona</span>
         <h2>Antes de utilizar un casillero</h2>
         <ol class="pasos-lista">
           <li><b>1</b><div><strong>Crear la solicitud</strong><span>Se registra una pre-reserva de encomienda a tu cuenta.</span></div></li>

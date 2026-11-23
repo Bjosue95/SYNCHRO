@@ -36,10 +36,9 @@ async function consultar() {
 </script>
 
 <template>
-  <section class="contenedor pagina-interna">
+  <section class="pagina-interna">
     <div class="encabezado-pagina">
-      <RouterLink to="/mi-cuenta" class="enlace-volver"><AppIcon nombre="volver" :tamano="20"/> Mi cuenta</RouterLink>
-      <span class="eyebrow">Seguimiento privado</span>
+      <RouterLink to="/mi-cuenta" class="enlace-texto enlace-volver"><AppIcon nombre="volver"/> Mi cuenta</RouterLink>
       <h1>Consulta tu pre-reserva</h1>
       <p>Utiliza la referencia y clave de consulta que recibiste al crear la solicitud.</p>
     </div>
@@ -65,14 +64,14 @@ async function consultar() {
           <button type="submit" class="boton boton-primario boton-ancho"
             :disabled="consultando" :aria-busy="consultando">
             {{ consultando ? "Consultando..." : "Consultar estado" }}
-            <AppIcon nombre="flecha" :tamano="20"/>
+            <AppIcon nombre="flecha"/>
           </button>
         </form>
 
         <div v-if="resultado" class="resultado-consulta" role="status">
-          <span class="eyebrow">Resultado de la consulta</span>
-          <h3>Pre-reserva #{{ resultado.id }}</h3>
+          <h3>Resultado de la consulta</h3>
           <div class="resumen-reserva">
+            <div class="fila-referencia"><span>Referencia</span><strong class="referencia-reserva">#{{ resultado.id }}</strong></div>
             <div><span>Estado actual</span><strong>{{ nombreEstadoReserva(resultado.estado) }}</strong></div>
             <div><span>Tamaño solicitado</span><strong>{{ resultado.tamanoSolicitado }}</strong></div>
             <div><span>Expiración</span><strong>{{ fechaHonduras(resultado.fechaExpiracion) }}</strong></div>
@@ -83,7 +82,6 @@ async function consultar() {
       </div>
 
       <aside class="panel-pasos">
-        <span class="eyebrow">Seguridad</span>
         <h2>Tu solicitud es privada</h2>
         <p>La referencia sola no permite consultar una pre-reserva. También se requiere su clave privada y una sesión iniciada con la cuenta que la creó.</p>
         <div class="nota-seguridad">
@@ -91,7 +89,7 @@ async function consultar() {
           <p>SYNCHRO no puede recuperar la clave original cuando consultas una solicitud. Tendrás que crear una nueva pre-reserva si no la conservaste.</p>
         </div>
         <RouterLink to="/reservar/encomienda" class="boton boton-secundario boton-ancho">
-          Nueva pre-reserva <span aria-hidden="true">→</span>
+          Nueva pre-reserva <AppIcon nombre="flecha"/>
         </RouterLink>
       </aside>
     </div>
