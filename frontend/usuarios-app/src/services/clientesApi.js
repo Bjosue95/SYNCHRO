@@ -31,7 +31,11 @@ async function interpretar(respuesta) {
 async function solicitar(ruta, { metodo = "GET", datos, cabeceras = {} } = {}) {
   const headers = { Accept: "application/json", ...cabeceras };
   if (metodo !== "GET" && metodo !== "HEAD") {
-    const csrf = await obtenerCsrf();
+    // Los tokens antifalsificación están asociados a la identidad.
+    // Antes de autenticar: token anónimo. Después: token del cliente actual.
+    const accesoPublico = ruta === "/api/web/clientes/acceso/registro" ||
+      ruta === "/api/web/clientes/acceso/login";
+    const csrf = await obtenerCsrf({ autenticado: !accesoPublico });
     headers["X-CSRF-TOKEN"] = csrf;
     if (datos !== undefined) headers["Content-Type"] = "application/json";
   }
@@ -51,10 +55,15 @@ async function solicitar(ruta, { metodo = "GET", datos, cabeceras = {} } = {}) {
   return interpretar(respuesta);
 }
 
-export async function obtenerCsrf() {
+export async function obtenerCsrf({ autenticado = false } = {}) {
+  // El endpoint privado emite un token vinculado a la cookie Clientes.
+  // No utilizar el endpoint anónimo para logout ni para pre-reservas.
+  const rutaCsrf = autenticado
+    ? "/api/web/clientes/csrf-token"
+    : "/api/web/clientes/acceso/csrf-token";
   let respuesta;
   try {
-    respuesta = await fetch("/api/web/clientes/acceso/csrf-token", {
+    respuesta = await fetch(rutaCsrf, {
       method: "GET",
       credentials: "same-origin",
       cache: "no-store",
