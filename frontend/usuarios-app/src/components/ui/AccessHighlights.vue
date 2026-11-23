@@ -175,7 +175,11 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .acceso-slide > p {
+  margin: 20px 0 0;
+  max-width: 330px;
   color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
 }
 .beneficio-enter-active,
 .beneficio-leave-active {
