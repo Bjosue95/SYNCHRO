@@ -229,7 +229,7 @@ textarea { resize: vertical; }
   .panel-pasos { padding: 24px; }
 }
 @media (max-width: 720px) {
-  .contenedor { width: min(100% - 28px, 1160px); }
+  .contenedor { width: min(1160px, calc(100% - 28px)); }
   .barra { flex-wrap: wrap; padding: 14px 0; gap: 16px; }
   .marca-nombre { font-size: 19px; }
   .marca-simbolo { width: 38px; height: 38px; }
