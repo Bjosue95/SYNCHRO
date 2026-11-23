@@ -72,6 +72,7 @@ const mapa = "https://www.google.com/maps/search/?api=1&query=" +
 .syn-contacto-heading p { margin:0; color:var(--text-muted); font-size:14px; line-height:1.7; }
 .syn-contacto-cta { display:inline-flex; align-items:center; justify-content:center; gap:12px; flex-shrink:0; padding:14px 19px; border-radius:12px; font-size:13px; text-decoration:none; font-weight:770; color:#062b3a; background:#67dfde; }
 .syn-contacto-cta:hover { background:#8fefec; }
+.syn-contacto-cta :deep(.icono-ui) { filter:brightness(0); }
 .syn-contacto-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .syn-contacto-item { display:flex; min-width:0; align-items:flex-start; gap:15px; padding:24px 21px; text-decoration:none; border:1px solid var(--border); background:var(--surface); border-radius:15px; transition:border-color .2s; }
 a.syn-contacto-item:hover { border-color:var(--brand-accent); }
