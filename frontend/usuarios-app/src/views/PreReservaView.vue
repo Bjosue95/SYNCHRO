@@ -157,11 +157,11 @@ const enlaceWhatsAppValido = valor =>
               @click="copiar(consentimiento.mensajeParaCompartirConDestinatario)">
               Copiar mensaje
             </button>
-            <a v-if="enlaceWhatsAppValido(consentimiento.enlaceParaDestinatario)"
-              :href="consentimiento.enlaceParaDestinatario" target="_blank"
-              rel="noopener noreferrer" class="enlace-texto enlace-destacado">
-              Abrir enlace de WhatsApp preparado por SYNCHRO ↗
-            </a>
+            <button v-if="enlaceWhatsAppValido(consentimiento.enlaceParaDestinatario)"
+              type="button" class="boton boton-secundario boton-ancho"
+              @click="copiar(consentimiento.enlaceParaDestinatario)">
+              Copiar enlace para el destinatario
+            </button>
             <small class="texto-suave">El mensaje debe ser enviado por el destinatario desde su propio número al WhatsApp de SYNCHRO.</small>
           </template>
           <RouterLink to="/consultar" class="enlace-texto enlace-destacado">
