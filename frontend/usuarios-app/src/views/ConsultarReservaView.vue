@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppIcon from "../components/ui/AppIcon.vue";
+import { fechaHonduras, nombreEstadoReserva } from "../services/formatos.js";
 import { apiClientes } from "../services/clientesApi.js";
 import { tokenReservaValido, referenciaReservaValida } from "../services/validaciones.js";
 
@@ -11,13 +12,6 @@ const consultando = ref(false);
 const error = ref("");
 const resultado = ref(null);
 
-function fechaLocal(valor) {
-  if (!valor || Number.isNaN(Date.parse(valor))) return "No disponible";
-  return new Intl.DateTimeFormat("es-HN", {
-    dateStyle: "medium", timeStyle: "short",
-    timeZone: "America/Tegucigalpa"
-  }).format(new Date(valor));
-}
 
 async function consultar() {
   if (consultando.value) return;
@@ -79,9 +73,9 @@ async function consultar() {
           <span class="eyebrow">Resultado de la consulta</span>
           <h3>Pre-reserva #{{ resultado.id }}</h3>
           <div class="resumen-reserva">
-            <div><span>Estado actual</span><strong>{{ resultado.estado }}</strong></div>
+            <div><span>Estado actual</span><strong>{{ nombreEstadoReserva(resultado.estado) }}</strong></div>
             <div><span>Tamaño solicitado</span><strong>{{ resultado.tamanoSolicitado }}</strong></div>
-            <div><span>Expiración</span><strong>{{ fechaLocal(resultado.fechaExpiracion) }}</strong></div>
+            <div><span>Expiración</span><strong>{{ fechaHonduras(resultado.fechaExpiracion) }}</strong></div>
             <div><span>Depósito habilitado</span><strong>{{ resultado.depositoHabilitado ? "Sí" : "No" }}</strong></div>
           </div>
           <p class="texto-suave">{{ resultado.mensaje }}</p>
