@@ -20,7 +20,7 @@ const mapa = "https://www.google.com/maps/search/?api=1&query=" +
         <a class="syn-contacto-cta" :href="whatsapp" target="_blank" rel="noopener noreferrer">
           <AppIcon nombre="whatsapp" :tamano="26"/>
           Escribir por WhatsApp
-          <span aria-hidden="true">↗</span>
+          <AppIcon nombre="enlace-externo" :tamano="17"/>
         </a>
       </div>
 
@@ -56,7 +56,7 @@ const mapa = "https://www.google.com/maps/search/?api=1&query=" +
         <div>
           <strong>Dirección de contacto</strong>
           <p>{{ empresa.direccion }}</p>
-          <a :href="mapa" target="_blank" rel="noopener noreferrer">Consultar dirección en el mapa ↗</a>
+          <a :href="mapa" target="_blank" rel="noopener noreferrer">Consultar dirección en el mapa <AppIcon nombre="enlace-externo" :tamano="17"/></a>
         </div>
       </div>
     </div>
@@ -85,7 +85,7 @@ a.syn-contacto-item:hover { border-color:var(--brand-accent); }
 .syn-contacto-address-icon { display:grid; place-items:center; width:45px; height:45px; flex-shrink:0; background:var(--surface-accent); border-radius:12px; }
 .syn-contacto-address strong { color:var(--text-strong); font-size:13px; }
 .syn-contacto-address p { color:var(--text-muted); font-size:13px; line-height:1.65; margin:6px 0 8px; }
-.syn-contacto-address a { text-decoration:none; color:var(--accent-text); font-weight:720; font-size:12px; }
+.syn-contacto-address a { display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:var(--accent-text); font-weight:720; font-size:12px; }
 .syn-contacto-address a:hover { text-decoration:underline; }
 @media(max-width:940px) { .syn-contacto-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .syn-contacto-heading { align-items:flex-start; flex-direction:column; gap:19px; } }
 @media(max-width:580px) { .syn-contacto-grid { grid-template-columns:1fr; gap:11px; } .syn-contacto-item { padding:19px; } .syn-contacto-address { padding:18px; } }
