@@ -24,18 +24,17 @@ test("iconografia completa en claro y oscuro con estilo de tablet", () => {
   }
 });
 
-test("logo original de SYNCHRO integrado en el frontend", () => {
+test("logo original de SYNCHRO integrado en el frontend sin Base64", () => {
   for (const nombre of [
     "marca-completa", "nombre-azul", "nombre-blanco",
     "isotipo-claro", "isotipo-oscuro"
   ]) {
-    const logo = leer(`public/branding/${nombre}.svg`);
-    assert.match(logo, /<svg\b/);
-    assert.match(logo, /image\/png;base64/);
+    const logo = readFileSync(join(root, "public/branding", nombre + ".png"));
+    assert.deepEqual([...logo.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   }
-  const logo = leer("src/components/ui/BrandLogo.vue");
-  assert.match(logo, /\/branding\/nombre-blanco.svg/);
-  assert.match(logo, /\/branding\/nombre-azul.svg/);
+  const componente = leer("src/components/ui/BrandLogo.vue");
+  assert.match(componente, /\/branding\/nombre-blanco\.png/);
+  assert.match(componente, /\/branding\/nombre-azul\.png/);
 });
 
 test("tema accesible y variables semanticas aplicadas", () => {
