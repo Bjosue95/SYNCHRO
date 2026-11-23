@@ -22,7 +22,7 @@ export const soluciones = Object.freeze([
   { id: "otra", nombre: "Otra consulta" }
 ]);
 
-// Coordenadas verificadas de espacios geográficos públicos, no de estaciones SYNCHRO.
+// Coordenadas de referencia de recintos públicos, no ubicaciones de estaciones SYNCHRO.
 // null = ubicación pendiente de un punto inequívoco; no inventar latitud o longitud.
 // Referencias geográficas:
 // CURC y otros campus: mapcarta.com/W1196631891 /W315846408;
