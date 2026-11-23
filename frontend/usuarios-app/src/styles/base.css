@@ -44,6 +44,8 @@ fieldset { min-width: 0; }
 }
 .boton-secundario:hover:not(:disabled) { background: var(--surface-hover); }
 .boton-ancho { width: 100%; }
+.boton-primario .icono-ui { filter: brightness(0) invert(1); }
+:root[data-theme="oscuro"] .boton-primario .icono-ui { filter: brightness(0); }
 :root[data-theme="oscuro"] .boton-primario { background: #5EC6E8; color: #061D31; }
 :root[data-theme="oscuro"] .boton-primario:hover:not(:disabled) { background: #89DDF1; }
 
