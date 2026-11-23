@@ -62,10 +62,10 @@ onUnmounted(() => observador?.disconnect());
     <section id="inicio" class="portada" aria-labelledby="titulo-portada">
       <div class="contenedor montaje-portada">
         <div class="portada-texto">
-          <p class="portada-contexto">Casilleros inteligentes · Comayagua</p>
-          <h1 id="titulo-portada">De tu mochila <span>a tu próximo envío</span></h1>
+          <p class="portada-contexto">SYNCHRO · Comayagua</p>
+          <h1 id="titulo-portada">Casilleros inteligentes <span>para tu día</span></h1>
           <p class="portada-intro">
-            Guarda tus pertenencias, carga tus dispositivos y prepara encomiendas en tu cuenta SYNCHRO.
+            Guarda tus pertenencias, usa un compartimento con control de temperatura o recarga tus dispositivos. Desde tu cuenta puedes crear y consultar pre-reservas de encomiendas.
           </p>
           <div class="botones-portada">
             <a href="#servicios" class="boton boton-portada">Explorar servicios <span aria-hidden="true">↓</span></a>
@@ -92,8 +92,7 @@ onUnmounted(() => observador?.disconnect());
     <section id="servicios" class="contenedor bloque-servicios" aria-labelledby="titulo-servicios">
       <header class="cabecera-servicios">
         <p class="rotulo-seccion">Nuestros servicios</p>
-        <h2 id="titulo-servicios">Casilleros inteligentes para tu día</h2>
-        <p>Deja tu mochila, prepara un envío o recarga antes de seguir.</p>
+        <h2 id="titulo-servicios">Del bolso al paquete</h2>
       </header>
 
       <div ref="recorrido" class="escenas-servicio">

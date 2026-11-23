@@ -121,8 +121,7 @@
 .bloque-servicios { padding-block: clamp(48px, 7vw, 92px); }
 .cabecera-servicios { margin-bottom: 24px; }
 .cabecera-servicios h2, .guia-encomiendas h2, .historia-synchro h2 { font-size: clamp(45px, 6vw, 84px); }
-.cabecera-servicios > p:last-child, .guia-encomiendas p, .historia-synchro p { color: var(--text-muted); }
-.cabecera-servicios > p:last-child { margin: 12px 0 0; }
+.guia-encomiendas p, .historia-synchro p { color: var(--text-muted); }
 .escenas-servicio {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
