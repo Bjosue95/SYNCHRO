@@ -175,3 +175,31 @@ una sesión ya autenticada. Se solicita uno nuevo por cada operación mutable.
 Las pruebas `tests/csrfAutenticado.test.mjs` verifican que cada operación
 utiliza la ruta correspondiente, y que un CSRF privado no disponible no
 provoca un intento de cerrar sesión sin protección.
+
+
+## Landing empresarial, cotizaciones y ubicaciones
+
+Los datos oficiales se centralizan en src/data/empresa.js: correo, WhatsApp, Instagram, TikTok, horario y dirección de referencia CURC.
+
+Componentes independientes en src/components/landing/:
+- AboutSynchro.vue: origen, misión y visión tomados de los documentos de SYNCHRO.
+- LocationsMap.vue: mapa interactivo con filtros y listado accesible de siete ubicaciones contempladas. No son estaciones instaladas. Plaza Ciudad Nueva está en Comayagua; el pin exacto queda pendiente de coordenadas verificadas.
+- QuoteForm.vue: prepara el mensaje en el cliente de correo del visitante mediante mailto:synchrohn@gmail.com y permite copiar la solicitud. NO envía ni almacena información desde el servidor; el usuario debe enviar desde su correo.
+- ContactSection.vue: WhatsApp oficial, correo, horario y dirección.
+- SiteFooter.vue: logo, soluciones, navegación, Instagram, TikTok y contacto.
+
+### Dependencia del mapa y rendimiento
+
+Leaflet 1.9.4 es la única dependencia añadida al portal. Su JavaScript se importa dinámicamente al acercarse al mapa mediante IntersectionObserver; no afecta la carga inicial de la portada. Las teselas cartográficas requieren internet; se muestra atribución OpenStreetMap y no se descargan teselas por adelantado.
+
+Para un despliegue de alto tráfico revisar la política de teselas y elegir un proveedor adecuado: https://operations.osmfoundation.org/policies/tiles/
+
+### Pruebas
+
+Después de actualizar GitHub, ejecutar:
+
+    npm.cmd --prefix frontend/usuarios-app install
+    npm.cmd --prefix frontend/usuarios-app test
+    npm.cmd --prefix frontend/usuarios-app run build
+
+tests/landingComercial.test.mjs verifica datos oficiales, Plaza Ciudad Nueva en Comayagua, mapa, cotizaciones, historia institucional y footer.
