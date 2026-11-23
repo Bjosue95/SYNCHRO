@@ -38,9 +38,9 @@ import { estadoSesion } from "../services/sesion.js";
     <div class="panel-informativo">
       <h3>¿Y las reservas de pertenencias?</h3>
       <p>
-        Todavía no están habilitadas en la web. El backend actual solo tiene el
-        procedimiento de pre-reserva web de encomiendas; aquí iremos integrando
-        el resto de los servicios conforme se implementen sus endpoints.
+        Las reservas de pertenencias por tamaño, fecha y duración todavía
+        no están disponibles en el portal web. Por ahora puedes gestionar
+        pre-reservas de encomiendas y consultar sus estados.
       </p>
     </div>
   </section>
