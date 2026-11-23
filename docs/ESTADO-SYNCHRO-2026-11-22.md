@@ -210,3 +210,13 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - `src/services/formatos.js` presenta 'Pendiente de consentimiento' y fechas en Honduras; datos de reserva no se alteran.
 - `tests/diseno.test.mjs` verifica logotipos, iconos ambos temas, tokens, layouts y ausencia de estadísticas ficticias; las otras pruebas de contrato siguen.
 - Revisión estática de 17 archivos efectuada: Vue SFC bien cerrados, todos los nombres de AppIcon conocidos, modo oscuro definido, sin menciones de simulación o backend en cinco vistas principales. Falta ejecutar `npm.cmd --prefix frontend/usuarios-app test` y `npm.cmd --prefix frontend/usuarios-app run build` en la laptop; no se obtuvo acceso de red en el contenedor para clonar GitHub y ejecutarlos aquí.
+
+
+## 23. Acceso responsive y fundido global de tema como en tablet
+- Se eliminaron las pestañas `Inicio` y `Servicios` del encabezado público, y en acceso se muestra solo el logo original y el selector de tema (sin footer).
+- La vista `AccesoView.vue` usa títulos cortos "Inicia sesión" y "Crea tu cuenta", sin microtítulo de cuenta ni pestañas superiores. Se conserva el formulario real, su validación, el login, el registro y el enlace entre ambos modos.
+- `src/styles/access.css` implementa ajuste a `100dvh`, centrado en escritorio y una columna en móvil. Cuando el alto es insuficiente (teclado/zoom), se habilita desplazamiento para mantener controles accesibles.
+- Nuevos iconos de luna y sol con estilo de tablet, en ambos temas. `ThemeToggle.vue` ofrece botón compacto con nombre de tema y solo icono a menos de 540px.
+- Basado directamente en `frontend/tablet-app/src/composables/useTema.js` y estilo `SYNCHRO-FUNDIDO-TEMA-V2` de `frontend/tablet-app/src/App.vue`, el portal usa `document.startViewTransition`, `nextTick`, bloqueo de cambios en menos de 250ms, clase temporal `synchro-tema-instantaneo` y un único fundido de 220ms para la pantalla completa. Prefers-reduced-motion y falta de soporte tienen alternativa sin View Transition.
+- Añadidos `src/styles/theme-transition.css` y pruebas `tests/accesoResponsive.test.mjs`, `tests/temaTransicion.test.mjs`.
+- Cambios solo en `frontend/usuarios-app`; ningún endpoint, dato SQL, tablet o admin fue modificado. Pendiente ejecutar pruebas y compilación en laptop: no se tiene acceso al navegador del usuario.
