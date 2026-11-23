@@ -28,7 +28,11 @@ const etapas = Object.freeze([
 const activa = ref(0);
 const etapa = computed(() => etapas[activa.value]);
 const puertaAbierta = computed(() => activa.value === 2);
-const numeros = Object.freeze(["M01","M02","M03","M04","M05","M06","M07","M08","M09","M10"]);
+// Diez compartimentos principales y dos inferiores especiales.
+const numeros = Object.freeze([
+  "M01","M02","M03","M04","M05","M06","M07","M08","M09","M10",
+  "especial-frio","especial-calor"
+]);
 const fase = computed(() => ["01", "02", "03"][activa.value]);
 
 function elegir(indice) {
@@ -59,17 +63,24 @@ function controlarTeclado(evento) {
               v-for="(codigo, i) in numeros"
               :key="codigo"
               class="syn-station-cell"
-              :class="{ 'is-active': codigo === 'M04' && activa === 2 }"
+              :class="{
+                'is-active': codigo === 'M03' && activa === 2,
+                'is-cold': codigo === 'M04' || codigo === 'especial-frio',
+                'is-warm': codigo === 'M09' || codigo === 'especial-calor'
+              }"
             >
               <span class="syn-station-cavity"></span>
-              <span v-if="codigo === 'M04'" class="syn-station-package">
+              <span v-if="codigo === 'M03'" class="syn-station-package">
                 <AppIcon nombre="encomienda" :tamano="25"/>
               </span>
               <div
                 class="syn-station-door"
-                :class="{ 'is-open': codigo === 'M04' && puertaAbierta }"
+                :class="{ 'is-open': codigo === 'M03' && puertaAbierta }"
               >
-                <span class="syn-station-code">{{ codigo }}</span>
+                <span class="syn-station-label">
+                  <span class="syn-station-code">{{ codigo.startsWith("especial") ? "" : codigo }}</span>
+                  <span v-if="!codigo.startsWith('especial')" class="syn-station-braille"></span>
+                </span>
                 <span class="syn-station-handle"></span>
               </div>
             </div>
@@ -81,7 +92,10 @@ function controlarTeclado(evento) {
               <span class="syn-screen-line"></span>
               <span class="syn-screen-line short"></span>
             </div>
-            <div class="syn-console-connector">
+            <div class="syn-wireless-pads" aria-hidden="true">
+              <span></span><span></span>
+            </div>
+            <div class="syn-console-connector" aria-hidden="true">
               <span></span><span></span>
             </div>
             <div class="syn-console-mark">SYNCHRO</div>
@@ -159,7 +173,7 @@ function controlarTeclado(evento) {
 .syn-station-top img { width: 115px; max-height: 22px; object-fit: contain; object-position: left center; }
 .syn-station-signal { width: 8px; height: 8px; border-radius: 50%; background: #00b9c7; box-shadow: 0 0 0 3px #d9f2f2; }
 .syn-station-body { display: grid; grid-template-columns: 1fr 68px; height: 229px; gap: 9px; }
-.syn-station-lockers { display: grid; grid-template-columns: repeat(2,1fr); grid-template-rows: repeat(5,1fr); gap: 4px; perspective: 560px; }
+.syn-station-lockers { display: grid; grid-template-columns: repeat(2,1fr); grid-template-rows: repeat(6,1fr); gap: 4px; perspective: 560px; }
 .syn-station-cell { position: relative; border-radius: 2px; background: #adc6d0; overflow: visible; }
 .syn-station-cavity { position: absolute; inset: 2px; border-radius: 2px; background: #648190; box-shadow: inset 4px 4px 8px rgba(0,0,0,.25); }
 .syn-station-door {
@@ -171,12 +185,16 @@ function controlarTeclado(evento) {
   transition: transform 700ms cubic-bezier(.18,.8,.25,1), box-shadow 400ms ease, border-color 400ms ease;
   backface-visibility: hidden;
 }
-.syn-station-code { font: 600 8px/1.2 ui-monospace,monospace; color: #426173; }
+.syn-station-label { display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+.syn-station-code { font: 600 7px/1.2 ui-monospace,monospace; color: #426173; }
+.syn-station-braille { display:block; width:9px; height:10px; opacity:.7; background-image:radial-gradient(circle,#587787 1px,transparent 1.2px); background-size:4px 4px; background-position:0 0; }
+.syn-station-cell.is-cold .syn-station-door { background:#E1F4FA; border-color:#7BBAD1; }
+.syn-station-cell.is-warm .syn-station-door { background:#F7EEE4; border-color:#D2AD8B; }
 .syn-station-handle { align-self: center; width: 3px; height: 13px; border-radius: 2px; background: #7aa4b1; }
 .syn-station-cell.is-active .syn-station-door { border-color: #00b9c7; }
 .syn-station-door.is-open { transform: rotateY(-73deg); box-shadow: 7px 2px 8px rgba(0,0,0,.13); }
 .syn-station-package { position: absolute; z-index: 1; top: 6px; left: 10px; }
-.syn-station-package :deep(img) { filter: brightness(0) invert(1); }
+.syn-station-package :deep(svg) { filter: brightness(0) invert(1); }
 .syn-station-console { background: #cedfe6; border: 1px solid #aac5d0; border-radius: 5px; padding: 10px 7px 5px; display: flex; flex-direction: column; align-items: center; }
 .syn-console-screen { width: 100%; aspect-ratio: 1; background: #01305c; border: 3px solid #375c74; border-radius: 5px; display: flex; flex-direction: column; align-items: center; padding: 6px 4px; }
 .syn-console-screen img { width: 17px; height: 19px; object-fit: contain; margin: auto; }
@@ -184,7 +202,9 @@ function controlarTeclado(evento) {
 .syn-screen-status.is-ready { background: #00b9c7; }
 .syn-screen-line { margin-top: 4px; width: 77%; height: 2px; border-radius: 3px; background: #62879d; opacity: .65; }
 .syn-screen-line.short { width: 45%; margin-top: 3px; }
-.syn-console-connector { display: flex; gap: 9px; margin-top: 23px; }
+.syn-wireless-pads { display:flex; justify-content:center; gap:8px; margin-top:13px; }
+.syn-wireless-pads span { width:15px; height:15px; border:2px solid #3A8FA4; border-radius:50%; background:radial-gradient(circle,#00B9C7 2px,transparent 2.3px); }
+.syn-console-connector { display: flex; gap: 9px; margin-top: 12px; }
 .syn-console-connector span { width: 8px; height: 8px; border-radius: 2px; border: 2px solid #44728c; }
 .syn-console-mark { margin-top: auto; color: #466879; letter-spacing: .04em; font-size: 6px; font-weight: 700; }
 .syn-station-base { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 4px; background: #6f929f; border-radius: 3px; }
