@@ -124,7 +124,7 @@ const beneficios = Object.freeze([
         </article>
       </div>
 
-      <div class="syn-energy">
+      <div id="energia" class="syn-energy">
         <div class="syn-energy-heading">
           <div>
             <span class="syn-solutions-kicker">ENERGÍA Y CONTINUIDAD</span>
