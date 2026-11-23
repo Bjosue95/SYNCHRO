@@ -42,7 +42,7 @@
   font-size: 14px;
   font-weight: 600;
 }
-.portada h1, .cabecera-servicios h2, .guia-encomiendas h2, .historia-synchro h2 {
+.portada h1, .cabecera-servicios h2, .guia-encomiendas h2, .historia-synchro h2, .modelo-synchro h2, .preguntas-synchro h2 {
   margin: 0;
   color: var(--text-strong);
   font-family: var(--tipografia-cartel);
@@ -87,15 +87,6 @@
   animation: aproximar-estacion 3600ms var(--ease-ui) both;
 }
 @keyframes aproximar-estacion { from { transform: scale(1.11) translateX(2%); } }
-.portada-modelo figcaption, .foto-servicio figcaption {
-  position: absolute;
-  inset: auto auto 12px 12px;
-  max-width: calc(100% - 24px);
-  padding: 4px 8px;
-  color: #e5eef5;
-  background: #071827;
-  font-size: 11px;
-}
 .acceso-modelo {
   position: absolute;
   inset: auto 36px 44px auto;
@@ -120,7 +111,7 @@
 
 .bloque-servicios { padding-block: clamp(48px, 7vw, 92px); }
 .cabecera-servicios { margin-bottom: 24px; }
-.cabecera-servicios h2, .guia-encomiendas h2, .historia-synchro h2 { font-size: clamp(45px, 6vw, 84px); }
+.cabecera-servicios h2, .guia-encomiendas h2, .historia-synchro h2, .modelo-synchro h2, .preguntas-synchro h2 { font-size: clamp(45px, 6vw, 84px); }
 .guia-encomiendas p, .historia-synchro p { color: var(--text-muted); }
 .escenas-servicio {
   display: grid;
@@ -158,7 +149,6 @@
 .escena-servicio:last-child .foto-servicio { grid-column: 2; grid-row: 1; }
 .escena-servicio:last-child .foto-servicio::after { background: linear-gradient(90deg, #0a1d31, transparent 32%); }
 .escena-servicio:last-child .ficha-servicio { grid-column: 1; grid-row: 1; }
-.foto-servicio figcaption { z-index: 1; inset: auto 8px 8px auto; }
 .escena-servicio.escena-visible .foto-servicio { animation: abrir-escena 870ms var(--ease-ui) both; }
 @keyframes abrir-escena {
   from { clip-path: inset(0 95% 0 0); }
@@ -175,7 +165,7 @@
     to { transform: scale(1.13) translateY(-5%); }
   }
 }
-.ficha-servicio { max-width: 52ch; padding: clamp(20px, 3vw, 40px) clamp(20px, 3vw, 40px) 42px; }
+.ficha-servicio { max-width: 52ch; padding: clamp(20px, 3vw, 40px) clamp(20px, 3vw, 40px); }
 .ficha-servicio .nombre-servicio {
   display: flex;
   align-items: center;
@@ -201,7 +191,7 @@
   align-items: center;
   gap: clamp(24px, 6vw, 96px);
 }
-.guia-encomiendas h2, .historia-synchro h2 { font-size: clamp(45px, 5.5vw, 72px); }
+.guia-encomiendas h2, .historia-synchro h2, .modelo-synchro h2, .preguntas-synchro h2 { font-size: clamp(45px, 5.5vw, 72px); }
 .guia-encomiendas .rotulo-seccion, .historia-synchro .rotulo-seccion { color: var(--accent-text); }
 .pasos-guia { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; counter-reset: paso; }
 .pasos-guia li {
@@ -222,20 +212,63 @@
   font: 500 15px var(--font-ref);
 }
 .pasos-guia span { color: var(--text-muted); font-size: 14px; }
-.historia-synchro {
+.modelo-synchro {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: clamp(20px, 4vw, 52px);
   align-items: center;
-  gap: 32px 48px;
-  padding-block: 72px 40px;
+  padding-bottom: clamp(48px, 7vw, 88px);
 }
+.modelo-partes { margin: 24px 0 0; }
+.modelo-partes > div { padding: 12px 0; border-top: 1px solid var(--border); }
+.modelo-partes dt { color: var(--text-strong); font-weight: 600; }
+.modelo-partes dd { margin: 4px 0 0; color: var(--text-muted); }
+.modelo-imagen { margin: 0; overflow: hidden; background: #0a1d31; }
+.modelo-imagen img { display: block; width: 100%; height: auto; }
+.modelo-synchro.escena-visible .modelo-imagen img {
+  animation: aproximar-estacion 1200ms var(--ease-ui);
+}
+.historia-synchro { padding-block: clamp(48px, 6vw, 72px); }
+.historia-texto { max-width: 72ch; }
 .historia-intro { font-size: 17px; }
-.historia-modelo { margin: 0; align-self: center; background: var(--surface); border: 1px solid var(--border); box-shadow: 12px 12px 0 var(--surface-accent); }
-.historia-modelo img { display: block; width: 100%; height: auto; }
-.historia-modelo figcaption { padding: 8px 12px; color: var(--text-muted); font-size: 12px; }
-.acceso-final { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 56px; padding: 24px; border-inline-start: 3px solid var(--brand-accent); background: var(--surface-soft); }
-.acceso-final h2 { margin: 0; color: var(--text-strong); font-size: 24px; }
-.acceso-final p { margin: 4px 0 0; color: var(--text-muted); }
+.preguntas-synchro {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: clamp(20px, 5vw, 72px);
+  padding-block: 32px 56px;
+  border-top: 1px solid var(--border);
+}
+.preguntas-lista details { border-bottom: 1px solid var(--border); }
+.preguntas-lista details:first-child { border-top: 1px solid var(--border); }
+.preguntas-lista summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 4px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.preguntas-lista summary::-webkit-details-marker { display: none; }
+.preguntas-lista summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  margin-inline-end: 6px;
+  border: solid var(--accent-text);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  transition: transform 180ms var(--ease-ui);
+}
+.preguntas-lista details[open] summary::after { transform: rotate(225deg); }
+.preguntas-lista details p { margin: 0; padding: 0 24px 16px 4px; color: var(--text-muted); }
+.preguntas-lista details[open] p { animation: entrada-respuesta 220ms var(--ease-ui); }
+@keyframes entrada-respuesta { from { opacity: 0; transform: translateY(-4px); } }
 
 @media (max-width: 900px) {
   .montaje-portada { grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); }
@@ -252,8 +285,8 @@
   }
   .sitio-secciones { order: 3; grid-column: 1 / -1; justify-content: space-between; gap: 8px; }
   .sitio-secciones a { font-size: 13px; }
-  .inicio-servicios section[id], .escena-servicio, .historia-modelo { scroll-margin-block-start: 36px; }
-  .montaje-portada, .guia-encomiendas, .historia-synchro { grid-template-columns: minmax(0, 1fr); }
+  .inicio-servicios section[id], .escena-servicio { scroll-margin-block-start: 36px; }
+  .montaje-portada, .guia-encomiendas, .modelo-synchro, .preguntas-synchro { grid-template-columns: minmax(0, 1fr); }
   .portada { padding-block: 32px; }
   .portada-escena { padding: 0 12px 12px 0; }
   .portada-contexto { margin-bottom: 8px; }
@@ -282,5 +315,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .portada-texto, .portada-modelo, .portada-modelo > img, .acceso-modelo,
-  .foto-servicio img, .escena-servicio.escena-visible .foto-servicio { animation: none; }
+  .foto-servicio img, .escena-servicio.escena-visible .foto-servicio,
+  .modelo-synchro.escena-visible .modelo-imagen img, .preguntas-lista details[open] p { animation: none; }
 }

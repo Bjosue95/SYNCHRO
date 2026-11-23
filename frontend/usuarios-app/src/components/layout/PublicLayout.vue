@@ -8,10 +8,8 @@ import ThemeToggle from "../ui/ThemeToggle.vue";
 const route = useRoute();
 const esAcceso = computed(() => route.path === "/acceso");
 const esInicio = computed(() => route.name === "inicio");
-const destino = computed(() => esAcceso.value ? "/" :
-  estadoSesion.cliente ? "/mi-cuenta" : "/acceso");
-const etiqueta = computed(() => esAcceso.value ? "Volver al sitio" :
-  estadoSesion.cliente ? "Mi espacio" : "Ingresar");
+const destino = computed(() => estadoSesion.cliente ? "/mi-cuenta" : "/acceso");
+const etiqueta = computed(() => estadoSesion.cliente ? "Mi espacio" : "Ingresar");
 </script>
 
 <template>
@@ -41,9 +39,27 @@ const etiqueta = computed(() => esAcceso.value ? "Volver al sitio" :
 
     <footer v-if="!esAcceso" class="footer-publico">
       <div class="contenedor footer-interior">
-        <RouterLink to="/" class="enlace-marca"><BrandLogo compacto /></RouterLink>
+        <div class="footer-marca">
+          <RouterLink to="/" class="enlace-marca"><BrandLogo compacto /></RouterLink>
+          <p>Casilleros inteligentes · Comayagua, Honduras</p>
+        </div>
+        <nav class="footer-enlaces" aria-label="Explorar SYNCHRO">
+          <h2>Explora SYNCHRO</h2>
+          <RouterLink to="/#servicios">Nuestros servicios</RouterLink>
+          <RouterLink to="/#modelo-synchro">El casillero SYNCHRO</RouterLink>
+          <RouterLink to="/#historia">Nuestra historia</RouterLink>
+        </nav>
+        <nav class="footer-enlaces" aria-label="Cuenta y ayuda">
+          <h2>Cuenta y ayuda</h2>
+          <RouterLink :to="destino">{{ estadoSesion.cliente ? "Mi espacio" : "Acceso de clientes" }}</RouterLink>
+          <RouterLink v-if="!estadoSesion.cliente" :to="{ name: 'acceso', query: { registro: '1' } }">Crear cuenta</RouterLink>
+          <RouterLink to="/consultar">Consultar solicitud</RouterLink>
+          <RouterLink to="/#preguntas">Preguntas frecuentes</RouterLink>
+        </nav>
+      </div>
+      <div class="contenedor footer-cierre">
         <span>© {{ new Date().getFullYear() }} SYNCHRO</span>
-        <RouterLink to="/acceso">Acceso de clientes</RouterLink>
+        <RouterLink to="/#inicio">Volver arriba ↑</RouterLink>
       </div>
     </footer>
   </div>
