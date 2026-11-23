@@ -46,7 +46,7 @@ import { estadoSesion } from "../services/sesion.js";
       <div class="titulo-seccion">
         <span class="eyebrow">Servicios SYNCHRO</span>
         <h2>Todo conectado en un mismo lugar</h2>
-        <p>El prototipo integra distintos servicios según las necesidades de cada ubicación.</p>
+        <p>Integramos distintos servicios según las necesidades de cada ubicación.</p>
       </div>
 
       <div class="rejilla-servicios">
@@ -54,7 +54,7 @@ import { estadoSesion } from "../services/sesion.js";
           <span class="servicio-icono">▣</span>
           <h3>Almacenamiento personal</h3>
           <p>Espacios para resguardar temporalmente tus pertenencias.</p>
-          <span class="servicio-estado">Reserva web pendiente de integración</span>
+          <span class="servicio-estado">Próximamente en la web</span>
         </article>
         <article class="tarjeta-servicio destacada">
           <span class="servicio-icono">▤</span>
@@ -68,7 +68,7 @@ import { estadoSesion } from "../services/sesion.js";
           <span class="servicio-icono">❄</span>
           <h3>Temperatura controlada</h3>
           <p>Opciones de frío y calor para artículos compatibles.</p>
-          <span class="servicio-estado">Reserva web pendiente de integración</span>
+          <span class="servicio-estado">Próximamente en la web</span>
         </article>
         <article class="tarjeta-servicio">
           <span class="servicio-icono">ϟ</span>
