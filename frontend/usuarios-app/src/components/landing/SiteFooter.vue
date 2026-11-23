@@ -49,6 +49,8 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
           <a href="/#servicios">Encomiendas</a>
           <a href="/#servicios">Temperatura controlada</a>
           <a href="/#servicios">Carga de dispositivos</a>
+          <a href="/#seguridad">Seguridad y accesibilidad</a>
+          <a href="/#energia">Energía solar y respaldo</a>
         </div>
 
         <div class="syn-footer-column">
