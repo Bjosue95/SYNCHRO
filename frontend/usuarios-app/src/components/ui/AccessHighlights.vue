@@ -19,8 +19,8 @@ const mensajes = Object.freeze([
     control: "Gestionar solicitudes"
   },
   {
-    titulo: "Comunicación clara.",
-    destacado: "Con tu destinatario.",
+    titulo: "Comunicación.",
+    destacado: "Más sencilla.",
     descripcion: "Prepara el consentimiento por WhatsApp para coordinar una encomienda.",
     icono: "whatsapp",
     control: "Comunicación por WhatsApp"
