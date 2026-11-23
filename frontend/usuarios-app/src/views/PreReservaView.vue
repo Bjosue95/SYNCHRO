@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppIcon from "../components/ui/AppIcon.vue";
+import { fechaHonduras, nombreEstadoReserva } from "../services/formatos.js";
 import { apiClientes } from "../services/clientesApi.js";
 import {
   TAMANOS_ENCOMIENDA, normalizarTelefono, tamanoValido
@@ -16,12 +17,6 @@ const consentimiento = ref(null);
 const solicitandoConsentimiento = ref(false);
 const avisoCopia = ref("");
 
-function fechaLocal(valor) {
-  if (!valor || Number.isNaN(Date.parse(valor))) return "No disponible";
-  return new Intl.DateTimeFormat("es-HN", {
-    dateStyle: "medium", timeStyle: "short", timeZone: "America/Tegucigalpa"
-  }).format(new Date(valor));
-}
 
 async function crear() {
   if (preparando.value) return;
@@ -120,8 +115,8 @@ const enlaceWhatsAppValido = valor =>
           <p class="texto-suave">Tu solicitud quedó registrada, pero aún no tienes un casillero asignado.</p>
           <div class="resumen-reserva">
             <div><span>Referencia</span><strong>#{{ creada.id }}</strong></div>
-            <div><span>Estado</span><strong>{{ creada.estado }}</strong></div>
-            <div><span>Válida hasta</span><strong>{{ fechaLocal(creada.fechaExpiracion) }}</strong></div>
+            <div><span>Estado</span><strong>{{ nombreEstadoReserva(creada.estado) }}</strong></div>
+            <div><span>Válida hasta</span><strong>{{ fechaHonduras(creada.fechaExpiracion) }}</strong></div>
           </div>
           <label class="campo">
             <span>Clave privada de consulta</span>
