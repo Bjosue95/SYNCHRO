@@ -108,11 +108,13 @@ El portal usa los **logos originales de SYNCHRO** del repositorio
 en `public/branding/` (nombre azul/blanco, isotipo claro/oscuro y marca completa).
 Las cinco piezas conservan su contenido gráfico original.
 
-El catálogo `public/iconos/claro/` y `public/iconos/oscuro/` incluye
-**20 iconos SVG por tema** (40 recursos), con los trazos y colores del sistema
-de iconos de la tablet: 19 están tomados de sus archivos SVG originales;
-`menu.svg` utiliza el mismo grosor de línea y paleta. La aplicación usa
-`src/components/ui/AppIcon.vue` para elegir el recurso correcto según el tema.
+La web usa ahora una **familia propia de 64 iconos SVG** en cada tema,
+distribuidos en dos sprites (`public/iconos/claro/web-iconos.svg` y
+`public/iconos/oscuro/web-iconos.svg`). `src/components/ui/AppIcon.vue`
+reutiliza estos símbolos para servicios, seguridad facial, PIN, alarmas,
+sensores, braille, energía solar, baterías, redes, correo, teléfono,
+mapas y navegación. Se mantienen los SVG históricos individuales para
+compatibilidad, pero los componentes nuevos usan la familia propia.
 
 El modo oscuro y claro se controla mediante `useTheme.js` y tokens CSS
 semánticos en `src/styles/tokens.css`. La preferencia visual se guarda
@@ -143,8 +145,10 @@ destinatario. Reutiliza `AppIcon.vue` y las mismas variables de diseño.
 
 - Cambio automático cada 6 segundos, desvanecido y barra de avance interactiva.
 - Barras que permiten elegir directamente cualquiera de los mensajes.
-- Control visible para pausar o reanudar, pausa temporal al situar el cursor
-  sobre el carrusel, recibir foco o cambiar de pestaña.
+- Sin botón visible de pausa: el carrusel se reproduce automáticamente.
+  La selección manual detiene el avance para leer el mensaje, y al volver
+  a pulsar la barra seleccionada se reanuda. También respeta foco, cursor
+  y cambio de pestaña.
 - Preferencia de movimiento reducido: inicia pausado y no aplica animaciones.
 - La rotación solo modifica textos e iconos; no consulta al backend, no modifica
   la cuenta ni envía WhatsApp.
@@ -203,3 +207,21 @@ Después de actualizar GitHub, ejecutar:
     npm.cmd --prefix frontend/usuarios-app run build
 
 tests/landingComercial.test.mjs verifica datos oficiales, Plaza Ciudad Nueva en Comayagua, mapa, cotizaciones, historia institucional y footer.
+
+## Soluciones integrales y representación de la estación
+
+`src/components/landing/SmartSolutions.vue` presenta la arquitectura de
+seguridad integral (facial, PIN, accesos, alertas, sensores, integridad,
+protección de datos, trazabilidad, identificación braille, monitoreo térmico),
+continuidad operativa y soluciones energéticas (captación solar, respaldo,
+eficiencia y gestión del consumo). Las capacidades en desarrollo se describen
+como parte de la solución diseñada, no como funciones instaladas verificadas.
+
+`src/components/ui/LockerJourney.vue` mantiene una representación editorial
+de la estación con diez compartimentos principales, dos inferiores especiales,
+distinción visual de M04 frío y M09 calor, braille bajo el código de
+casillero, pantalla y carga inalámbrica/cableada. La animación abre un
+casillero general M03 y no interviene en reservas ni operaciones reales.
+
+`tests/iconografiaPropia.test.mjs` verifica los 64 iconos de cada modo y
+los principales puntos de contacto que los utilizan.
