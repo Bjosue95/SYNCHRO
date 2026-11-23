@@ -41,7 +41,7 @@ test("la navegación privada necesita sesión del servidor", () => {
     const inicio = codigo.indexOf(`path: "${ruta}"`);
     assert.notEqual(inicio, -1, `No existe la ruta ${ruta}`);
     const definicion = codigo.slice(inicio, inicio + 160);
-    assert.match(definicion, /meta:\\s*\\{\\s*privada:\\s*true(?:\\s*,|\\s*\\})/,
+    assert.match(definicion, /meta:\s*\{\s*privada:\s*true(?:\s*,|\s*\})/,
       `La ruta ${ruta} debe requerir una sesión`);
   }
   assert.match(codigo, /await comprobarSesion\(\)/);
