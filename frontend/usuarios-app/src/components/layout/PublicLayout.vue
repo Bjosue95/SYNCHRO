@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from "vue-router";
 import { estadoSesion } from "../../services/sesion.js";
 import BrandLogo from "../ui/BrandLogo.vue";
 import ThemeToggle from "../ui/ThemeToggle.vue";
+import SiteFooter from "../landing/SiteFooter.vue";
 
 const route = useRoute();
 const esAcceso = computed(() => route.path === "/acceso");
@@ -33,12 +34,6 @@ const etiqueta = computed(() => esAcceso.value ? "Volver al sitio" :
       <slot />
     </main>
 
-    <footer v-if="!esAcceso" class="footer-publico">
-      <div class="contenedor footer-interior">
-        <RouterLink to="/" class="enlace-marca"><BrandLogo compacto /></RouterLink>
-        <span>© {{ new Date().getFullYear() }} SYNCHRO</span>
-        <RouterLink to="/acceso">Acceso de clientes</RouterLink>
-      </div>
-    </footer>
+    <SiteFooter v-if="!esAcceso" />
   </div>
 </template>
