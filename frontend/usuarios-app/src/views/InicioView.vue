@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppIcon from "../components/ui/AppIcon.vue";
 import modeloMultiple from "../assets/multiple.webp";
@@ -38,6 +38,16 @@ const servicios = [
     estado: "Servicio presencial"
   }
 ];
+const modulos = [
+  { id: "guardar", nombre: "Compartimentos", icono: "casillero", x: "27%", y: "43%",
+    detalle: "Elige el tamaño según lo que quieras guardar, desde una mochila hasta una encomienda.", servicio: "#pertenencias" },
+  { id: "termico", nombre: "Frío y calor", icono: "temperatura", x: "47%", y: "47%",
+    detalle: "Las zonas térmicas están separadas para resguardar productos compatibles con frío o calor.", servicio: "#temperatura" },
+  { id: "recargar", nombre: "Módulo de carga", icono: "carga", x: "71%", y: "70%",
+    detalle: "Conecta tu celular o laptop durante una pausa desde el módulo de carga presencial.", servicio: "#carga" }
+];
+const moduloActivo = ref(modulos[0].id);
+const modulo = computed(() => modulos.find(item => item.id === moduloActivo.value));
 const preguntas = [
   {
     pregunta: "¿Qué puedo gestionar desde la web?",
@@ -131,18 +141,34 @@ onUnmounted(() => observador?.disconnect());
     </section>
 
     <section id="modelo-synchro" class="contenedor modelo-synchro" aria-labelledby="titulo-modelo">
-      <div class="modelo-descripcion">
+      <header class="modelo-descripcion">
         <h2 id="titulo-modelo">Conoce el casillero SYNCHRO</h2>
-        <dl class="modelo-partes">
-          <div><dt>Compartimentos de varios tamaños</dt><dd>Para pertenencias y encomiendas de distinto volumen.</dd></div>
-          <div><dt>Zonas de frío y calor</dt><dd>Separadas según lo que necesita cada producto compatible.</dd></div>
-          <div><dt>Módulo de carga</dt><dd>Para celulares y laptops durante una pausa.</dd></div>
-        </dl>
+        <p>Selecciona un punto del casillero para ver qué hace cada módulo.</p>
+      </header>
+      <div class="modelo-interactivo">
+        <figure class="modelo-imagen">
+          <img :src="modeloMultiple" width="1400" height="788" loading="lazy" decoding="async"
+            alt="Casillero SYNCHRO con compartimentos a la izquierda y módulo de carga a la derecha">
+          <div class="modelo-puntos" role="group" aria-label="Módulos del casillero">
+            <button v-for="item in modulos" :key="item.id" type="button" class="modelo-punto"
+              :style="{ '--punto-x': item.x, '--punto-y': item.y }"
+              :aria-label="item.nombre" :aria-pressed="moduloActivo === item.id"
+              aria-controls="detalle-modulo" @click="moduloActivo = item.id">
+              <AppIcon :nombre="item.icono" :tamano="20"/>
+            </button>
+          </div>
+        </figure>
+        <div id="detalle-modulo" class="modelo-detalle" aria-live="polite">
+          <Transition name="modulo" mode="out-in">
+            <div :key="modulo.id" class="modelo-ficha">
+              <AppIcon :nombre="modulo.icono" :tamano="28"/>
+              <h3>{{ modulo.nombre }}</h3>
+              <p>{{ modulo.detalle }}</p>
+              <a :href="modulo.servicio" class="enlace-texto">Ver el servicio <AppIcon nombre="flecha"/></a>
+            </div>
+          </Transition>
+        </div>
       </div>
-      <figure class="modelo-imagen">
-        <img :src="modeloMultiple" width="1400" height="788" loading="lazy" decoding="async"
-          alt="Casillero SYNCHRO completo con compartimentos de varios tamaños, zonas térmicas y módulo de carga">
-      </figure>
     </section>
 
     <section class="banda-encomiendas" aria-labelledby="titulo-guia">

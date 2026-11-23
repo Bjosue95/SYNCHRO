@@ -58,7 +58,7 @@ fieldset { min-width: 0; }
 /* Páginas públicas */
 .sitio { min-height: 100dvh; display: flex; flex-direction: column; }
 .contenido-publico { flex: 1; }
-.cabecera-publica, .footer-publico { background: var(--surface); }
+.cabecera-publica { background: var(--surface); }
 .cabecera-publica { border-bottom: 1px solid var(--border); }
 .header-publico {
   display: flex;
@@ -71,7 +71,7 @@ fieldset { min-width: 0; }
 .header-acciones { display: flex; align-items: center; gap: 16px; }
 .acceso-enlace { color: var(--text-strong); font-size: 14px; font-weight: 600; text-decoration: none; }
 .acceso-enlace:hover, .footer-publico a:not(.enlace-marca):hover { text-decoration: underline; text-underline-offset: 4px; }
-.footer-publico { border-top: 1px solid var(--border); }
+.footer-publico { border-top: 1px solid var(--border-strong); background: var(--surface-soft); }
 .footer-interior {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) repeat(2, minmax(0, 1fr));
@@ -80,7 +80,7 @@ fieldset { min-width: 0; }
 }
 .footer-marca p { margin: 12px 0 0; color: var(--text-muted); font-size: 14px; }
 .footer-enlaces { display: grid; justify-items: start; align-content: start; gap: 8px; }
-.footer-enlaces h2 { margin: 0 0 4px; color: var(--text-strong); font-size: 15px; }
+.footer-enlaces h2 { margin: 0 0 8px; color: var(--text-strong); font-size: 15px; }
 .footer-enlaces a, .footer-cierre a { color: var(--text-muted); text-decoration: none; font-size: 14px; }
 .footer-cierre {
   display: flex;
