@@ -44,7 +44,7 @@ export const ubicaciones = Object.freeze([
     nombre: "Plaza Ciudad Nueva",
     ciudad: "Comayagua",
     zona: "centro",
-    direccion: "Plaza Ciudad Nueva, Comayagua, Honduras",
+    direccion: "Plaza Comercial Ciudad Nueva, frente a UNAH, Comayagua, Honduras",
     coordenadas: null
   },
   {
