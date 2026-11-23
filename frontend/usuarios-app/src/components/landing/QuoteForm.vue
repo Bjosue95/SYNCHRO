@@ -146,10 +146,10 @@ async function copiarSolicitud() {
             class="syn-quote-notice" :class="{ error }">{{ mensajeEstado }}</p>
           <div class="syn-quote-actions">
             <button type="submit" class="boton boton-primario">
-              Preparar correo <AppIcon nombre="flecha" :tamano="19" />
+              Preparar correo <AppIcon nombre="enviar" :tamano="19" />
             </button>
             <button type="button" class="syn-quote-copy" @click="copiarSolicitud">
-              Copiar solicitud
+              <AppIcon nombre="copiar" :tamano="19"/> Copiar solicitud
             </button>
           </div>
           <p class="syn-quote-disclaimer">
@@ -186,7 +186,7 @@ async function copiarSolicitud() {
 .syn-quote-form textarea { resize:vertical; min-height:106px; }
 .syn-quote-form input:focus-visible,.syn-quote-form textarea:focus-visible,.syn-quote-form select:focus-visible { outline:3px solid var(--ring); outline-offset:2px; }
 .syn-quote-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-.syn-quote-copy { border:1px solid var(--border-strong); background:var(--surface); color:var(--text-strong); padding:12px 17px; border-radius:11px; font-size:13px; font-weight:700; min-height:46px; }
+.syn-quote-copy { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-strong); padding:12px 17px; border-radius:11px; font-size:13px; font-weight:700; min-height:46px; }
 .syn-quote-copy:hover { background:var(--surface-hover); }
 .syn-quote-notice { margin:0; padding:12px 14px; background:var(--success-bg); color:var(--success-text); border-radius:9px; font-size:13px; line-height:1.55; }
 .syn-quote-notice.error { background:var(--danger-bg); color:var(--danger-text); }
