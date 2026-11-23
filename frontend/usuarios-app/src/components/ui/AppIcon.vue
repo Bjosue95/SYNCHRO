@@ -10,7 +10,7 @@ const { tema } = useTheme();
 const conocidos = new Set([
   "inicio","encomienda","reservas","casillero","temperatura","carga",
   "usuario","seguridad","buscar","whatsapp","sol","luna","salir","menu",
-  "flecha","calendario","reloj","ubicacion","check","volver"
+  "flecha","calendario","reloj","ubicacion","check","volver","telefono","correo"
 ]);
 const icono = computed(() => conocidos.has(props.nombre) ? props.nombre : "casillero");
 const ruta = computed(() => `/iconos/${tema.value}/${icono.value}.svg`);
