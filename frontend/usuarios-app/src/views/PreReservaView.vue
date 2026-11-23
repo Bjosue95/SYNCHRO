@@ -92,8 +92,9 @@ const enlaceWhatsAppValido = valor =>
             <fieldset class="grupo-tamanos">
               <legend>Tamaño solicitado</legend>
               <label v-for="opcion in TAMANOS_ENCOMIENDA" :key="opcion.valor"
-                class="opcion-tamano" :class="{ elegido: tamano === opcion.valor }">
+                class="opcion-tamano" :data-tamano="opcion.valor" :class="{ elegido: tamano === opcion.valor }">
                 <input v-model="tamano" type="radio" name="tamano" :value="opcion.valor" />
+                <span class="puerta-tamano" aria-hidden="true"></span>
                 <span class="letra-tamano">{{ opcion.nombre }}</span>
                 <small>{{ opcion.detalle }}</small>
               </label>
@@ -163,11 +164,11 @@ const enlaceWhatsAppValido = valor =>
       </div>
 
       <aside class="panel-pasos">
-        <h2>Antes de utilizar un casillero</h2>
+        <h2>El recorrido de tu encomienda</h2>
         <ol class="pasos-lista">
-          <li><b>1</b><div><strong>Crear la solicitud</strong><span>Se registra una pre-reserva de encomienda a tu cuenta.</span></div></li>
-          <li><b>2</b><div><strong>Consentimiento</strong><span>El destinatario autoriza las comunicaciones por WhatsApp.</span></div></li>
-          <li><b>3</b><div><strong>Verificación</strong><span>El depósito requiere las comprobaciones de identidad correspondientes.</span></div></li>
+          <li><b aria-hidden="true">01</b><div><strong>Crear la solicitud</strong><span>Se registra una pre-reserva de encomienda a tu cuenta.</span></div></li>
+          <li><b aria-hidden="true">02</b><div><strong>Consentimiento</strong><span>El destinatario autoriza las comunicaciones por WhatsApp.</span></div></li>
+          <li><b aria-hidden="true">03</b><div><strong>Verificación</strong><span>El depósito requiere las comprobaciones de identidad correspondientes.</span></div></li>
         </ol>
         <div class="nota-seguridad"><strong>Importante</strong><p>La pre-reserva vence a las 24 horas. No constituye un depósito ni asigna un casillero.</p></div>
       </aside>

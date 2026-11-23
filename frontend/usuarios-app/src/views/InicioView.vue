@@ -1,132 +1,207 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { estadoSesion } from "../services/sesion.js";
 import AppIcon from "../components/ui/AppIcon.vue";
 import modeloMultiple from "../assets/multiple.webp";
 import modeloPertenencias from "../assets/pertenencias.webp";
-import modeloTemperatura from "../assets/temperatura.webp";
 import escenaEntrega from "../assets/entrega.webp";
+import escenaEstacion from "../assets/estacion.webp";
+import escenaTermica from "../assets/termico.webp";
+import escenaCarga from "../assets/carga.webp";
 
 const servicios = [
   {
     id: "encomiendas", nombre: "Encomiendas", icono: "encomienda",
-    titulo: "Prepara el envío de tu paquete",
-    descripcion: "Crea una pre-reserva, indica el tamaño del paquete y coordina el siguiente paso con el destinatario. Puedes consultar el estado desde tu cuenta.",
-    imagen: escenaEntrega, alt: "Una persona coloca un paquete de cartón en un compartimento abierto",
-    nota: "Escena ilustrativa del servicio"
+    titulo: "Tu paquete, camino a otra persona",
+    descripcion: "Indica el tamaño del paquete y el teléfono de quien lo recibirá. Desde tu cuenta podrás consultar el estado y preparar el consentimiento por WhatsApp.",
+    imagen: escenaEntrega, alt: "Una persona deposita un paquete de cartón en un compartimento"
   },
   {
     id: "pertenencias", nombre: "Almacenamiento personal", icono: "casillero",
-    titulo: "Un espacio para lo que llevas",
-    descripcion: "Guarda mochilas, bolsos y objetos de uso diario en compartimentos de distintos tamaños.",
-    imagen: modeloPertenencias, alt: "Casillero SYNCHRO con una mochila en un compartimento abierto",
+    titulo: "Deja la mochila y sigue tu día",
+    descripcion: "Un compartimento para tu bolso, mochila o compras cuando necesitas tener las manos libres.",
+    imagen: modeloPertenencias, alt: "Una mochila dentro de un compartimento abierto del modelo SYNCHRO",
     estado: "Reserva web próximamente", nota: "Modelo de exhibición"
   },
   {
     id: "temperatura", nombre: "Temperatura controlada", icono: "temperatura",
-    titulo: "Frío o calor según el producto",
-    descripcion: "Compartimentos de temperatura controlada para productos compatibles que necesitan frío o calor.",
-    imagen: modeloTemperatura, alt: "Casillero SYNCHRO con zonas diferenciadas de frío y calor",
-    estado: "Reserva web próximamente", nota: "Modelo de exhibición"
+    titulo: "Frío y calor, cada uno en su lugar",
+    descripcion: "Compartimentos separados para resguardar productos compatibles que necesitan frío o calor.",
+    imagen: escenaTermica, alt: "Compartimentos abiertos con un recipiente en la zona fría y una bolsa en la zona cálida",
+    estado: "Reserva web próximamente"
   },
   {
     id: "carga", nombre: "Carga de dispositivos", icono: "carga",
-    titulo: "Carga tu celular o laptop",
-    descripcion: "Usa una estación de carga en el sitio y paga al finalizar.",
-    imagen: modeloMultiple, alt: "Estaciones de carga integradas al modelo modular SYNCHRO",
-    estado: "Servicio presencial", nota: "Detalle del modelo de exhibición"
+    titulo: "Una pausa para cargar",
+    descripcion: "Conecta tu celular o laptop en una estación de carga en el sitio y paga al finalizar.",
+    imagen: escenaCarga, alt: "Dispositivos conectados dentro de una estación de carga",
+    estado: "Servicio presencial"
   }
 ];
-const servicioElegido = ref("encomiendas");
-const servicio = computed(() => servicios.find(item => item.id === servicioElegido.value));
-const explorador = ref(null);
-const exploradorVisible = ref(false);
+const recorrido = ref(null);
+const etapaActual = ref(servicios[0].id);
 let observador;
+let escenas = [];
+let cuadroPendiente = 0;
+
+function actualizarEtapa() {
+  cuadroPendiente = 0;
+  const puntoLectura = window.innerHeight * .48;
+  let distancia = Infinity;
+  for (const escena of escenas) {
+    const posicion = escena.getBoundingClientRect();
+    const diferencia = Math.abs(posicion.top + posicion.height / 2 - puntoLectura);
+    if (diferencia >= distancia) continue;
+    distancia = diferencia;
+    etapaActual.value = escena.id;
+  }
+}
+
+function registrarDesplazamiento() {
+  if (!cuadroPendiente) cuadroPendiente = requestAnimationFrame(actualizarEtapa);
+}
 
 onMounted(() => {
+  escenas = recorrido.value.querySelectorAll(".escena-servicio");
+  window.addEventListener("scroll", registrarDesplazamiento, { passive: true });
+  window.addEventListener("resize", registrarDesplazamiento);
+  registrarDesplazamiento();
   if (!("IntersectionObserver" in window)) return;
-  observador = new IntersectionObserver(([entrada], observer) => {
-    if (!entrada.isIntersecting) return;
-    exploradorVisible.value = true;
-    observer.disconnect();
-  }, { threshold: 0.15 });
-  observador.observe(explorador.value);
+  observador = new IntersectionObserver((entradas, observer) => {
+    for (const entrada of entradas) {
+      if (!entrada.isIntersecting) continue;
+      entrada.target.classList.add("escena-visible");
+      observer.unobserve(entrada.target);
+    }
+  }, { threshold: 0.14 });
+  escenas.forEach(escena => observador.observe(escena));
 });
 
-onUnmounted(() => observador?.disconnect());
+onUnmounted(() => {
+  observador?.disconnect();
+  cancelAnimationFrame(cuadroPendiente);
+  window.removeEventListener("scroll", registrarDesplazamiento);
+  window.removeEventListener("resize", registrarDesplazamiento);
+});
 </script>
 
 <template>
   <div class="inicio-servicios">
-    <section class="portada" aria-labelledby="titulo-portada">
-      <div class="contenedor portada-grid">
-        <div class="portada-texto">
-          <p class="portada-contexto">Casilleros modulares SYNCHRO</p>
-          <h1 id="titulo-portada">Un lugar para guardar.<br><span>Un punto para enviar.</span></h1>
-          <p class="portada-intro">
-            Prepara una encomienda desde tu cuenta o explora los servicios de almacenamiento, temperatura y carga.
-          </p>
-          <div class="botones-portada">
-            <RouterLink to="/reservar/encomienda" class="boton boton-portada">
-              Solicitar pre-reserva <AppIcon nombre="flecha"/>
-            </RouterLink>
-            <a href="#servicios" class="enlace-portada">Explorar servicios</a>
-          </div>
+    <section id="inicio" class="portada" aria-labelledby="titulo-portada">
+      <figure class="portada-modelo">
+        <img :src="escenaEstacion" width="1600" height="900" fetchpriority="high"
+          alt="Concepto de una estación SYNCHRO con casilleros modulares en un espacio de tránsito">
+        <figcaption>Visualización del concepto SYNCHRO</figcaption>
+      </figure>
+      <div class="contenedor portada-texto">
+        <p class="portada-contexto">Casilleros modulares · Comayagua</p>
+        <h1 id="titulo-portada">De tu mochila<br>a tu próximo envío</h1>
+        <p class="portada-intro">
+          Guarda tus pertenencias, carga tus dispositivos o prepara una encomienda desde el portal SYNCHRO.
+        </p>
+        <div class="botones-portada">
+          <a href="#servicios" class="boton boton-portada">Recorrer la estación <span aria-hidden="true">↓</span></a>
+          <RouterLink to="/reservar/encomienda" class="boton boton-portada-secundario">
+            Solicitar pre-reserva <AppIcon nombre="flecha"/>
+          </RouterLink>
         </div>
-        <figure class="portada-modelo">
-          <img :src="modeloMultiple" width="1400" height="788" fetchpriority="high"
-            alt="Casillero modular SYNCHRO con compartimentos, pantalla central y estaciones de carga">
-          <figcaption>Modelo múltiple de exhibición</figcaption>
-        </figure>
       </div>
     </section>
 
-    <section ref="explorador" id="servicios" class="contenedor bloque-servicios" aria-labelledby="titulo-servicios">
-      <header class="cabecera-servicios" :class="{ 'en-vista': exploradorVisible }">
-        <h2 id="titulo-servicios">Encuentra el servicio que necesitas</h2>
-        <p>Elige un servicio para ver cómo funciona y qué puedes hacer desde el portal.</p>
+    <section id="servicios" class="contenedor bloque-servicios" aria-labelledby="titulo-servicios">
+      <header class="cabecera-servicios">
+        <p class="rotulo-seccion">Nuestros servicios</p>
+        <h2 id="titulo-servicios">Una estación para lo que lleves</h2>
+        <p>Cuatro formas de usar un casillero durante el día.</p>
       </header>
 
-      <div class="selector-servicios" role="group" aria-label="Elegir servicio">
-        <button v-for="item in servicios" :key="item.id" type="button" class="selector-servicio"
-          :aria-pressed="servicioElegido === item.id" aria-controls="detalle-servicio"
-          @click="servicioElegido = item.id">
-          <AppIcon :nombre="item.icono"/> {{ item.nombre }}
-        </button>
-      </div>
-      <div id="detalle-servicio" class="detalle-servicio" aria-live="polite">
-        <Transition name="cambio-servicio" @before-leave="elemento => elemento.inert = true">
-          <article :key="servicio.id" class="escena-servicio">
-            <figure class="foto-servicio" :class="'foto-' + servicio.id">
-              <img :src="servicio.imagen" width="1600" height="900" decoding="async" :alt="servicio.alt">
-              <figcaption>{{ servicio.nota }}</figcaption>
+      <div ref="recorrido" class="recorrido-servicios">
+        <nav class="indice-servicios" aria-label="Servicios de la estación">
+          <a v-for="item in servicios" :key="item.id" :href="'#' + item.id"
+            :aria-current="etapaActual === item.id ? 'location' : undefined">
+            <AppIcon :nombre="item.icono"/> {{ item.nombre }}
+          </a>
+        </nav>
+        <div class="escenas-servicio">
+          <article v-for="item in servicios" :id="item.id" :key="item.id" class="escena-servicio"
+            :aria-labelledby="item.id + '-titulo'">
+            <figure class="foto-servicio" :class="'foto-' + item.id">
+              <img :src="item.imagen" width="1600" height="900" loading="lazy" decoding="async" :alt="item.alt">
+              <figcaption>{{ item.nota || 'Escena ilustrativa' }}</figcaption>
             </figure>
             <div class="ficha-servicio">
-              <AppIcon :nombre="servicio.icono" :tamano="24"/>
-              <div>
-                <h3>{{ servicio.titulo }}</h3>
-                <p>{{ servicio.descripcion }}</p>
-              </div>
-              <RouterLink v-if="servicio.id === 'encomiendas'" to="/reservar/encomienda" class="enlace-texto">
+              <p class="nombre-servicio"><AppIcon :nombre="item.icono"/> {{ item.nombre }}</p>
+              <h3 :id="item.id + '-titulo'">{{ item.titulo }}</h3>
+              <p>{{ item.descripcion }}</p>
+              <RouterLink v-if="item.id === 'encomiendas'" to="/reservar/encomienda" class="boton boton-primario">
                 Nueva pre-reserva <AppIcon nombre="flecha"/>
               </RouterLink>
-              <p v-else class="servicio-estado">{{ servicio.estado }}</p>
+              <p v-else class="servicio-estado">{{ item.estado }}</p>
             </div>
           </article>
-        </Transition>
+        </div>
       </div>
     </section>
 
-    <section class="contenedor panel-aclaracion">
-      <AppIcon nombre="seguridad"/>
+    <section class="banda-encomiendas" aria-labelledby="titulo-guia">
+      <div class="contenedor guia-encomiendas">
+        <div>
+          <p class="rotulo-seccion">Gestión desde tu cuenta</p>
+          <h2 id="titulo-guia">Prepara tu encomienda</h2>
+          <p>La pre-reserva registra tu solicitud. El casillero se asigna tras las verificaciones correspondientes.</p>
+          <div class="acciones-guia">
+            <RouterLink to="/reservar/encomienda" class="boton boton-primario">Crear pre-reserva <AppIcon nombre="flecha"/></RouterLink>
+            <RouterLink to="/consultar" class="boton boton-secundario">Consultar solicitud</RouterLink>
+          </div>
+        </div>
+        <ol class="pasos-guia">
+          <li><strong>Indica el tamaño y el destinatario</strong><span>Elige el compartimento según el paquete y escribe el teléfono de quien lo recibe.</span></li>
+          <li><strong>Guarda la referencia y la clave privada</strong><span>Con ambas podrás consultar el estado desde tu cuenta.</span></li>
+          <li><strong>Prepara el consentimiento por WhatsApp</strong><span>El destinatario debe confirmar el consentimiento para continuar.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="historia" class="contenedor historia-synchro" aria-labelledby="titulo-historia">
+      <div class="historia-texto">
+        <p class="rotulo-seccion">Nuestra historia</p>
+        <h2 id="titulo-historia">Nacimos en Comayagua</h2>
+        <p class="historia-intro">
+          Seis estudiantes de Administración y Generación de Empresas de la UNAH, Campus Comayagua,
+          iniciamos SYNCHRO en 2026 en la asignatura Generación de Negocios.
+        </p>
+        <p>
+          La idea partió de situaciones cotidianas: cargar con la mochila y las compras todo el día,
+          buscar un lugar para recargar el celular o coordinar una entrega cuando los horarios no coinciden.
+          Diseñamos una estación que reúne esos servicios en un mismo lugar.
+        </p>
+      </div>
+      <figure class="historia-modelo">
+        <img :src="modeloMultiple" width="1400" height="788" loading="lazy" decoding="async"
+          alt="Diseño del modelo SYNCHRO con varios tamaños, zonas térmicas y módulo de carga">
+        <figcaption>Modelo de exhibición · SYNCHRO</figcaption>
+      </figure>
+      <div class="historia-proposito">
+        <div>
+          <h3>Misión</h3>
+          <p>Facilitar la vida cotidiana en Comayagua con almacenamiento, carga de dispositivos y gestión de encomiendas.</p>
+        </div>
+        <div>
+          <h3>Visión</h3>
+          <p>Llevar las estaciones inteligentes SYNCHRO a distintas ciudades de Honduras.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="contenedor acceso-final">
       <div>
-        <h2>Cuándo se asigna un casillero</h2>
-        <p>La pre-reserva registra tu solicitud. La asignación requiere verificaciones posteriores.</p>
+        <h2>Tu cuenta SYNCHRO</h2>
+        <p>Crea y consulta solicitudes de encomienda en el mismo portal.</p>
       </div>
       <RouterLink :to="estadoSesion.cliente ? '/mi-cuenta' : { name: 'acceso', query: { registro: '1' } }"
-        class="enlace-texto">{{ estadoSesion.cliente ? "Mi espacio" : "Crear cuenta" }}</RouterLink>
-    </section>
+        class="boton boton-primario">{{ estadoSesion.cliente ? "Mi espacio" : "Crear cuenta" }} <AppIcon nombre="flecha"/></RouterLink>
+    </div>
   </div>
 </template>
 

@@ -280,16 +280,30 @@ fieldset { min-width: 0; }
 
 /* Pre-reserva, comprobante y consulta */
 .reserva-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr); gap: 24px; align-items: start; }
-.panel-pasos { padding: 20px 24px; border-inline-start: 1px solid var(--border); }
+.panel-pasos {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--brand-accent);
+  border-radius: var(--radius-panel);
+  background: var(--surface-soft);
+}
 .panel-pasos h2 { color: var(--text-strong); font-size: 20px; margin: 0 0 16px; }
 .panel-pasos p { color: var(--text-muted); font-size: 14px; }
 .pasos-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.pasos-lista li { position: relative; }
+.pasos-lista li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  inset: 32px auto -12px 15px;
+  width: 1px;
+  background: var(--border-strong);
+}
 .pasos-lista li { display: flex; align-items: flex-start; gap: 12px; }
 .pasos-lista li > b {
   display: grid;
   place-items: center;
-  flex: 0 0 28px;
-  height: 28px;
+  flex: 0 0 32px;
+  height: 32px;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--accent-text);
@@ -304,8 +318,8 @@ fieldset { min-width: 0; }
 .grupo-tamanos legend { margin-bottom: 8px; }
 .opcion-tamano {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 4px 12px;
+  grid-template-columns: 16px 44px minmax(0, 1fr);
+  gap: 4px 8px;
   padding: 12px;
   cursor: pointer;
   border: 1px solid var(--border);
@@ -316,15 +330,49 @@ fieldset { min-width: 0; }
 .opcion-tamano.elegido { border-color: var(--ring); background: var(--surface-accent); }
 .opcion-tamano input { grid-row: span 2; width: 16px; height: 16px; margin: 0; align-self: center; accent-color: var(--ring); }
 .letra-tamano { font-size: 14px; color: var(--text-strong); font-weight: 600; }
-.opcion-tamano small { color: var(--text-muted); font-size: 13px; }
+.opcion-tamano small { color: var(--text-muted); font-size: 13px; grid-column: 3; }
+.puerta-tamano {
+  position: relative;
+  grid-row: span 2;
+  align-self: center;
+  justify-self: center;
+  width: 24px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: var(--text-muted);
+  transition: color 160ms var(--ease-ui), background-color 160ms var(--ease-ui);
+}
+.puerta-tamano::after {
+  position: absolute;
+  inset: 50% 4px auto auto;
+  width: 2px;
+  height: 6px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: translateY(-50%);
+  content: "";
+}
+[data-tamano="Mediano"] .puerta-tamano { width: 32px; height: 28px; }
+[data-tamano="Grande"] .puerta-tamano { width: 40px; height: 36px; }
+.elegido .puerta-tamano { color: var(--accent-text); background: var(--surface); }
 .titulo-confirmacion { display: flex; align-items: center; gap: 8px; }
 .resumen-reserva { margin-block: 16px; border-block: 1px solid var(--border); }
 .resumen-reserva > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px; }
 .resumen-reserva > div + div { border-top: 1px solid var(--border); }
 .resumen-reserva span { color: var(--text-muted); font-size: 14px; }
 .resumen-reserva strong { color: var(--text-strong); font-size: 14px; text-align: right; overflow-wrap: anywhere; }
-.resumen-reserva .fila-referencia { background: var(--surface-soft); border-inline-start: 2px solid var(--brand-accent); }
-.resumen-reserva .referencia-reserva { font: 500 24px/1.2 var(--font-ref); color: var(--accent-text); }
+.resumen-reserva .fila-referencia {
+  align-items: center;
+  padding-block: 20px;
+  background: #0a1d31;
+  border-inline-start: 3px solid var(--brand-accent);
+}
+.fila-referencia span { color: #e5eef5; }
+.resumen-reserva .referencia-reserva {
+  font: 500 clamp(22px, 4vw, 38px)/1.1 var(--font-ref);
+  color: var(--brand-sky);
+}
 .detalle-reserva > .boton, .detalle-reserva > .campo, .detalle-reserva > .mensaje-exito, .detalle-reserva > .alerta { margin-top: 12px; }
 .detalle-reserva > small { display: block; margin-top: 12px; }
 .resultado-consulta, .separador-suave { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; }
@@ -363,7 +411,7 @@ fieldset { min-width: 0; }
   .reserva-grid, .cabecera-cuenta { grid-template-columns: minmax(0, 1fr); }
   .cabecera-cuenta > img { max-height: 240px; aspect-ratio: 2; }
   .tarjetas-acciones { grid-template-columns: 1fr; }
-  .panel-pasos { border: 0; border-top: 1px solid var(--border); padding: 16px 0; }
+  .panel-pasos { padding: 16px; }
 }
 @media (max-width: 620px) {
   .contenedor { width: calc(100% - 32px); }

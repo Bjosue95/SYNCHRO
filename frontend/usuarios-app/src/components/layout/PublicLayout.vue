@@ -7,6 +7,7 @@ import ThemeToggle from "../ui/ThemeToggle.vue";
 
 const route = useRoute();
 const esAcceso = computed(() => route.path === "/acceso");
+const esInicio = computed(() => route.name === "inicio");
 const destino = computed(() => esAcceso.value ? "/" :
   estadoSesion.cliente ? "/mi-cuenta" : "/acceso");
 const etiqueta = computed(() => esAcceso.value ? "Volver al sitio" :
@@ -15,11 +16,16 @@ const etiqueta = computed(() => esAcceso.value ? "Volver al sitio" :
 
 <template>
   <div class="sitio publico" :class="{ 'es-acceso': esAcceso }">
-    <header class="cabecera-publica">
+    <header class="cabecera-publica" :class="{ 'cabecera-landing': esInicio }">
       <div class="contenedor header-publico">
         <RouterLink to="/" class="enlace-marca" aria-label="SYNCHRO, ir al inicio">
           <BrandLogo />
         </RouterLink>
+        <nav v-if="esInicio" class="sitio-secciones" aria-label="Navegación de SYNCHRO">
+          <a href="#inicio">Inicio</a>
+          <a href="#historia">Nuestra historia</a>
+          <a href="#servicios">Nuestros servicios</a>
+        </nav>
         <div class="header-acciones">
           <ThemeToggle />
           <RouterLink v-if="!esAcceso" :to="destino" class="acceso-enlace">

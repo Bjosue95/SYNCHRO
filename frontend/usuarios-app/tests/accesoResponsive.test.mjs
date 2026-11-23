@@ -7,11 +7,18 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const leer = ruta => readFileSync(join(root, ruta), "utf8");
 
-test("cabecera pública sin pestañas de Inicio y Servicios", () => {
+test("la portada recupera las tres secciones sin ampliar la cabecera del acceso", () => {
   const layout = leer("src/components/layout/PublicLayout.vue");
-  assert.doesNotMatch(layout, /class="nav-publica"/);
-  assert.doesNotMatch(layout, />Inicio<\/RouterLink>/);
-  assert.doesNotMatch(layout, />Servicios<\/RouterLink>/);
+  const inicio = leer("src/views/InicioView.vue");
+  assert.match(layout, /<nav v-if="esInicio"/);
+  for (const [ancla, etiqueta] of [
+    ["inicio", "Inicio"],
+    ["historia", "Nuestra historia"],
+    ["servicios", "Nuestros servicios"]
+  ]) {
+    assert.ok(layout.includes(`href="#${ancla}">${etiqueta}</a>`));
+    assert.ok(inicio.includes(`id="${ancla}"`));
+  }
   assert.match(layout, /v-if="!esAcceso"/);
   assert.match(layout, /BrandLogo/);
   assert.match(layout, /ThemeToggle/);
