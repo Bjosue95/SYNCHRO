@@ -15,7 +15,7 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
           <h2>El punto donde todo se conecta.</h2>
         </div>
         <a :href="whatsapp" target="_blank" rel="noopener noreferrer"
-          class="syn-footer-cta">Contactar por WhatsApp <span aria-hidden="true">↗</span></a>
+          class="syn-footer-cta"><AppIcon nombre="whatsapp" :tamano="22"/> Contactar por WhatsApp <AppIcon nombre="enlace-externo" :tamano="17"/></a>
       </div>
 
       <div class="syn-footer-grid">
@@ -30,20 +30,11 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
           <div class="syn-footer-social">
             <a :href="empresa.instagram" target="_blank" rel="noopener noreferrer"
               aria-label="Instagram oficial de SYNCHRO" title="Instagram">
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="5"/>
-                <circle cx="12" cy="12" r="4"/>
-                <circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/>
-              </svg>
+              <AppIcon nombre="instagram" :tamano="23"/>
             </a>
             <a :href="empresa.tiktok" target="_blank" rel="noopener noreferrer"
               aria-label="TikTok oficial de SYNCHRO" title="TikTok">
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13.5 3v12.2a4.2 4.2 0 1 1-4.2-4.2"/>
-                <path d="M13.5 3c.7 3.5 2.7 5.1 6.2 5.2"/>
-              </svg>
+              <AppIcon nombre="tiktok" :tamano="23"/>
             </a>
             <a :href="whatsapp" target="_blank" rel="noopener noreferrer"
               aria-label="WhatsApp de SYNCHRO" title="WhatsApp">
@@ -65,24 +56,24 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
           <RouterLink to="/acceso">Mi cuenta</RouterLink>
           <RouterLink to="/reservar/encomienda">Pre-reservas</RouterLink>
           <a href="/#nosotros">Quiénes somos</a>
-          <a href="/#ubicaciones">Ubicaciones contempladas</a>
+          <a href="/#ubicaciones">Ubicaciones</a>
           <a href="/#cotizacion">Solicitar cotización</a>
           <a href="/#contacto">Contacto</a>
         </div>
 
         <div class="syn-footer-column syn-footer-contact">
           <h3>Contacto</h3>
-          <a :href="'mailto:' + empresa.correo">{{ empresa.correo }}</a>
-          <a :href="'tel:' + empresa.whatsapp">{{ empresa.whatsapp }}</a>
-          <p>{{ empresa.horario }}</p>
+          <a :href="'mailto:' + empresa.correo"><AppIcon nombre="correo" :tamano="17"/>{{ empresa.correo }}</a>
+          <a :href="'tel:' + empresa.whatsapp"><AppIcon nombre="telefono" :tamano="17"/>{{ empresa.whatsapp }}</a>
+          <p class="syn-footer-line"><AppIcon nombre="reloj" :tamano="17"/>{{ empresa.horario }}</p>
           <h3 class="syn-footer-address-title">Dirección de referencia</h3>
-          <p>{{ empresa.direccion }}</p>
+          <p class="syn-footer-line"><AppIcon nombre="ubicacion" :tamano="19"/>{{ empresa.direccion }}</p>
         </div>
       </div>
 
       <div class="syn-footer-bottom">
         <span>© {{ new Date().getFullYear() }} SYNCHRO. Todos los derechos reservados.</span>
-        <span>Las ubicaciones propuestas no representan estaciones instaladas.</span>
+        <span>Innovación, seguridad y accesibilidad para conectar Honduras.</span>
       </div>
     </div>
   </footer>
@@ -101,12 +92,15 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
 .syn-footer-social { display:flex; align-items:center; gap:10px; }
 .syn-footer-social a { display:grid; place-items:center; width:42px; height:42px; background:var(--surface-soft); border:1px solid var(--border); border-radius:12px; color:var(--text-strong); }
 .syn-footer-social a:hover { background:var(--surface-accent); border-color:var(--brand-accent); }
-.syn-footer-social svg { width:22px; height:22px; }
+.syn-footer-social .icono-ui { width:23px; height:23px; }
 .syn-footer-column { min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:14px; }
 .syn-footer-column h3 { font-size:14px; font-weight:750; color:var(--text-strong); margin:0 0 9px; }
 .syn-footer-column > a { color:var(--text-muted); text-decoration:none; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
 .syn-footer-column > a:hover { color:var(--accent-text); text-decoration:underline; }
 .syn-footer-contact p { font-size:12px; color:var(--text-muted); line-height:1.65; margin:0; }
+.syn-footer-contact a, .syn-footer-line { display:flex; align-items:flex-start; gap:9px; }
+.syn-footer-contact a :deep(svg), .syn-footer-line :deep(svg) { flex:0 0 auto; margin-top:1px; }
+.syn-footer-cta :deep(svg) { flex:0 0 auto; }
 .syn-footer-address-title { margin:9px 0 0 !important; }
 .syn-footer-bottom { display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px; padding:23px 0; border-top:1px solid var(--border); color:var(--text-subtle); font-size:11px; }
 @media(max-width:960px) { .syn-footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:37px; } }
