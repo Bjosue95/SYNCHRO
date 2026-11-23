@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
+import AppIcon from "../components/ui/AppIcon.vue";
 import { apiClientes } from "../services/clientesApi.js";
 import {
   TAMANOS_ENCOMIENDA, normalizarTelefono, tamanoValido
@@ -76,7 +77,7 @@ const enlaceWhatsAppValido = valor =>
 <template>
   <section class="contenedor pagina-interna">
     <div class="encabezado-pagina">
-      <RouterLink to="/mi-cuenta" class="enlace-volver">← Mi cuenta</RouterLink>
+      <RouterLink to="/mi-cuenta" class="enlace-volver"><AppIcon nombre="volver" :tamano="20"/> Mi cuenta</RouterLink>
       <span class="eyebrow">Encomiendas · Solicitud web</span>
       <h1>Nueva pre-reserva</h1>
       <p>Registra una solicitud de encomienda. El casillero se asignará solamente mediante un proceso posterior autorizado.</p>
@@ -107,13 +108,13 @@ const enlaceWhatsAppValido = valor =>
             <button class="boton boton-primario boton-ancho" type="submit"
               :disabled="preparando" :aria-busy="preparando">
               {{ preparando ? "Creando solicitud..." : "Crear pre-reserva" }}
-              <span aria-hidden="true">→</span>
+              <AppIcon nombre="flecha" :tamano="20"/>
             </button>
           </form>
         </template>
 
         <template v-else>
-          <div class="confirmacion-icono" aria-hidden="true">✓</div>
+          <div class="confirmacion-icono" aria-hidden="true"><AppIcon nombre="check" :tamano="39"/></div>
           <span class="eyebrow">Solicitud registrada</span>
           <h2>Pre-reserva creada</h2>
           <p class="texto-suave">Tu solicitud quedó registrada, pero aún no tienes un casillero asignado.</p>
