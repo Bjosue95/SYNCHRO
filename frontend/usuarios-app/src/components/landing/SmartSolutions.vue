@@ -136,6 +136,13 @@ const beneficios = Object.freeze([
           </div>
           <span class="syn-energy-emblem"><AppIcon nombre="solar" :tamano="62"/></span>
         </div>
+        <div class="syn-energy-flow" aria-label="Esquema de alimentación energética">
+          <span><AppIcon nombre="solar" :tamano="27"/> Captación solar</span>
+          <i aria-hidden="true"></i>
+          <span><AppIcon nombre="bateria-respaldo" :tamano="27"/> Respaldo</span>
+          <i aria-hidden="true"></i>
+          <span><AppIcon nombre="casillero" :tamano="27"/> Estación SYNCHRO</span>
+        </div>
         <div class="syn-energy-grid">
           <article v-for="item in energia" :key="item.icono" class="syn-energy-card">
             <AppIcon :nombre="item.icono" :tamano="31"/>
@@ -169,6 +176,14 @@ const beneficios = Object.freeze([
 </template>
 
 <style scoped>
+.syn-energy-flow { display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:20px 0 0; }
+.syn-energy-flow span { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:700; color:#DDF4FA; }
+.syn-energy-flow span :deep(svg) { filter:brightness(0) invert(1); }
+.syn-energy-flow i { display:block; width:45px; height:3px; border-radius:3px; background:linear-gradient(90deg,#224D6D 0%,#5EC6E8 50%,#224D6D 100%); background-size:200% 100%; animation:syn-energy-signal 3s linear infinite; }
+@keyframes syn-energy-signal { to { background-position:-200% 0; } }
+@media(max-width:560px) { .syn-energy-flow { gap:9px; } .syn-energy-flow i { width:20px; } .syn-energy-flow span { font-size:10px; } }
+@media(prefers-reduced-motion:reduce) { .syn-energy-flow i { animation:none; background:#5EC6E8; } }
+
 .syn-energy { margin-top:clamp(45px,6vw,76px); padding:clamp(25px,4vw,46px); border-radius:20px; background:#01305C; color:#ECFAFF; }
 .syn-energy-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
 .syn-energy-heading .syn-solutions-kicker { color:#8CE5EC; }
