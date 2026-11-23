@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { crearCuenta, iniciarSesion } from "../services/sesion.js";
+import AppIcon from "../components/ui/AppIcon.vue";
 import {
   usuarioValido, contrasenaValida, normalizarTelefono
 } from "../services/validaciones.js";
@@ -72,61 +73,85 @@ async function enviar() {
   <section class="acceso-pagina">
     <div class="contenedor acceso-diseno">
       <div class="acceso-presentacion">
-        <span class="eyebrow portada-etiqueta">Portal privado SYNCHRO</span>
-        <h1>Todo comienza<br />con tu cuenta.</h1>
-        <p>Solicita y consulta pre-reservas desde un espacio seguro para nuestros clientes.</p>
+        <span class="eyebrow">TU CUENTA SYNCHRO</span>
+        <h1>Un acceso.<br>Todo conectado.</h1>
+        <p>
+          Gestiona tus solicitudes de forma sencilla y mantén
+          tu información protegida en un solo lugar.
+        </p>
         <div class="beneficios">
-          <span><b>✓</b> Acceso protegido por contraseña</span>
-          <span><b>✓</b> Consultas privadas de solicitudes</span>
-          <span><b>✓</b> Consentimiento WhatsApp del destinatario</span>
+          <span>
+            <span class="beneficio-icono"><AppIcon nombre="seguridad" :tamano="25"/></span>
+            Acceso protegido
+          </span>
+          <span>
+            <span class="beneficio-icono"><AppIcon nombre="reservas" :tamano="25"/></span>
+            Solicitudes desde tu cuenta
+          </span>
+          <span>
+            <span class="beneficio-icono"><AppIcon nombre="whatsapp" :tamano="25"/></span>
+            Comunicación con tu destinatario
+          </span>
         </div>
       </div>
 
       <div class="formulario-tarjeta acceso-formulario">
         <div class="pestanas" role="group" aria-label="Tipo de acceso">
-          <button type="button" :class="{ activo: !esRegistro }" :aria-pressed="!esRegistro"
-            @click="cambiarModo('ingreso')">Ingresar</button>
-          <button type="button" :class="{ activo: esRegistro }" :aria-pressed="esRegistro"
-            @click="cambiarModo('registro')">Crear cuenta</button>
+          <button type="button" :class="{ activo: !esRegistro }"
+            :aria-pressed="!esRegistro" @click="cambiarModo('ingreso')">
+            Ingresar
+          </button>
+          <button type="button" :class="{ activo: esRegistro }"
+            :aria-pressed="esRegistro" @click="cambiarModo('registro')">
+            Crear cuenta
+          </button>
         </div>
 
-        <h2>{{ esRegistro ? "Crea tu cuenta" : "Bienvenido de nuevo" }}</h2>
+        <h2>{{ esRegistro ? "Crea tu cuenta" : "Bienvenido a SYNCHRO" }}</h2>
         <p class="texto-suave">
-          {{ esRegistro ? "Regístrate para acceder a las solicitudes de SYNCHRO."
-            : "Ingresa con el usuario y contraseña que registraste." }}
-        </p>
-        <p v-if="route.query.error === 'servidor'" class="alerta" role="status">
-          No se pudo comprobar la sesión. Verifica que el backend esté iniciado.
+          {{ esRegistro ? "Registra tus datos para gestionar tus solicitudes."
+            : "Accede con las credenciales de tu cuenta." }}
         </p>
 
-        <form @submit.prevent="enviar" class="formulario">
+        <p v-if="route.query.error === 'servidor'" class="alerta" role="status">
+          No se pudo comprobar tu sesión. Inténtalo nuevamente.
+        </p>
+
+        <form class="formulario" @submit.prevent="enviar">
           <label class="campo">
             <span>Nombre de usuario</span>
-            <input v-model="formulario.nombreUsuario" type="text" required maxlength="80"
-              autocomplete="username" placeholder="Tu nombre de usuario" />
+            <input v-model="formulario.nombreUsuario" type="text" required
+              maxlength="80" autocomplete="username"
+              placeholder="Tu nombre de usuario"/>
           </label>
+
           <label v-if="esRegistro" class="campo">
-            <span>WhatsApp / teléfono</span>
-            <input v-model="formulario.telefono" type="tel" required maxlength="16"
-              autocomplete="tel" inputmode="tel" placeholder="+504XXXXXXXX" />
-            <small>Incluye el código de país. Se utilizará para identificar tu cuenta.</small>
+            <span>Número de WhatsApp</span>
+            <input v-model="formulario.telefono" type="tel"
+              required maxlength="16" autocomplete="tel"
+              inputmode="tel" placeholder="+504XXXXXXXX"/>
+            <small>Incluye el código de país.</small>
           </label>
+
           <label class="campo">
             <span>Contraseña</span>
             <input v-model="formulario.contrasena" type="password" required
-              :minlength="esRegistro ? 12 : undefined" maxlength="128"
+              :minlength="esRegistro ? 12 : undefined"
+              maxlength="128"
               :autocomplete="esRegistro ? 'new-password' : 'current-password'"
-              :placeholder="esRegistro ? 'Mínimo 12 caracteres' : 'Tu contraseña'" />
+              :placeholder="esRegistro ? 'Mínimo 12 caracteres' : 'Tu contraseña'"/>
           </label>
 
           <p v-if="error" class="alerta" role="alert">{{ error }}</p>
+
           <button type="submit" class="boton boton-primario boton-ancho"
             :disabled="enviando" :aria-busy="enviando">
-            {{ enviando ? "Comprobando..." : esRegistro ? "Crear cuenta" : "Iniciar sesión" }}
-            <span aria-hidden="true">→</span>
+            {{ enviando ? "Comprobando..." : esRegistro ? "Crear mi cuenta" : "Ingresar a mi cuenta" }}
+            <AppIcon nombre="flecha" :tamano="20"/>
           </button>
         </form>
-        <p class="nota-pie">Tu sesión se protege mediante una cookie segura del servidor.</p>
+
+        <p class="nota-pie">Tu acceso es personal y protegido.</p>
       </div>
     </div>
   </section>
