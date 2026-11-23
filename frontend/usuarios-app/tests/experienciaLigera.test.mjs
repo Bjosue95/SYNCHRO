@@ -39,9 +39,10 @@ test("la interacción editorial no inventa operaciones de la base de datos", () 
   const escena = leer("src/components/ui/LockerJourney.vue");
   const inicio = leer("src/views/InicioView.vue");
   assert.doesNotMatch(escena, /fetch\(|apiClientes|localStorage|sessionStorage/);
-  assert.match(inicio, /pre-reserva no asigna un casillero/);
-  assert.match(inicio, /Reserva web aún no habilitada/);
+  assert.match(inicio, /<SmartSolutions\s*\/>/);
+  assert.match(inicio, /<LockerJourney\s*\/>/);
   assert.match(inicio, /Uso presencial/);
+  assert.doesNotMatch(inicio, /estaciones instaladas y operativas/);
 });
 
 test("las animaciones ligeras usan tecnologías nativas y no loops innecesarios", () => {
