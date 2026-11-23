@@ -100,3 +100,35 @@ Para futuras reservas personales, primero se necesita diseñar su contrato HTTP
 seguro y su integración con disponibilidad, pagos y autorizaciones en el backend.
 No conectar el portal directamente a SQL ni reutilizar credenciales del
 administrador o de la tablet.
+
+## Identidad visual e interfaz
+
+El portal usa los **logos originales de SYNCHRO** del repositorio
+`frontend/tablet-app/public/assets/`, adaptados a recursos locales
+en `public/branding/` (nombre azul/blanco, isotipo claro/oscuro y marca completa).
+Las cinco piezas conservan su contenido gráfico original.
+
+El catálogo `public/iconos/claro/` y `public/iconos/oscuro/` incluye
+**20 iconos SVG por tema** (40 recursos), con los trazos y colores del sistema
+de iconos de la tablet: 19 están tomados de sus archivos SVG originales;
+`menu.svg` utiliza el mismo grosor de línea y paleta. La aplicación usa
+`src/components/ui/AppIcon.vue` para elegir el recurso correcto según el tema.
+
+El modo oscuro y claro se controla mediante `useTheme.js` y tokens CSS
+semánticos en `src/styles/tokens.css`. La preferencia visual se guarda
+localmente como `synchro-usuarios-tema`; **no se guardan en el navegador
+contraseñas, PIN, tokens de reserva ni sesiones**.
+
+Hay dos disposiciones separadas:
+
+- `PublicLayout.vue`: inicio y acceso de clientes.
+- `AppShell.vue`: menú lateral y barra superior para cuentas autenticadas,
+  con apertura adaptable para móviles, cierre con Esc y selector de tema.
+
+La interfaz evita indicadores falsos de reservas o actividad: sólo ofrece
+pre-reservas web y la consulta del estado protegido por credenciales. El
+servicio de carga se mantiene presencial y las reservas web personales no se
+presentan como operativas.
+
+Las pruebas de iconografía, layouts y modo oscuro están en
+`tests/diseno.test.mjs`, junto a las pruebas de validaciones y contratos.
