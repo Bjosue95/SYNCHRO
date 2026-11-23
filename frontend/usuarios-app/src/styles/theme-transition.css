@@ -1,0 +1,21 @@
+/* SYNCHRO-FUNDIDO-TEMA-V2
+   Paridad con la tablet: un solo fundido de 220 ms para toda la pantalla.
+   Evita transiciones separadas de fondos, tarjetas, logotipo e iconos. */
+html.synchro-tema-instantaneo *,
+html.synchro-tema-instantaneo *::before,
+html.synchro-tema-instantaneo *::after {
+  transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.01ms !important;
+  }
+}
