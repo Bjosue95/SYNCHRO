@@ -73,3 +73,13 @@ test("inicio y pie contienen contacto, cotización, ubicaciones y redes", () => 
   assert.match(footer, /empresa\.correo/);
   assert.match(contacto, /empresa\.horario/);
 });
+
+test("origen, misión y visión proceden del material de SYNCHRO", () => {
+  const inicio = leer("src/views/InicioView.vue");
+  const nosotros = leer("src/components/landing/AboutSynchro.vue");
+  assert.match(inicio, /<AboutSynchro\s*\/>/);
+  assert.match(nosotros, /SYNCHRO nació en 2026/);
+  assert.match(nosotros, /Nuestra misión/);
+  assert.match(nosotros, /Hacia dónde vamos/);
+  assert.match(nosotros, /temperatura controlada/);
+});
