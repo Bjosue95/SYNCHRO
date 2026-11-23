@@ -3,6 +3,7 @@ import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { crearCuenta, iniciarSesion } from "../services/sesion.js";
 import AppIcon from "../components/ui/AppIcon.vue";
+import AccessHighlights from "../components/ui/AccessHighlights.vue";
 import {
   usuarioValido, contrasenaValida, normalizarTelefono
 } from "../services/validaciones.js";
@@ -72,16 +73,7 @@ async function enviar() {
 <template>
   <section class="acceso-pagina" aria-labelledby="titulo-acceso">
     <div class="contenedor acceso-diseno">
-      <aside class="acceso-presentacion" aria-hidden="true">
-        <span class="acceso-sello">
-          <AppIcon nombre="seguridad" :tamano="35"/>
-        </span>
-        <h2>Todo conectado.<br><span>A tu alcance.</span></h2>
-        <p>Gestiona tus encomiendas y solicitudes desde tu espacio personal.</p>
-        <div class="acceso-lineas" aria-hidden="true">
-          <span></span><span></span><span></span>
-        </div>
-      </aside>
+      <AccessHighlights />
 
       <div class="formulario-tarjeta acceso-formulario">
         <header class="acceso-form-header">
