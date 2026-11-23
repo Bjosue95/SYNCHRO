@@ -7,6 +7,7 @@ import LocationsMap from "../components/landing/LocationsMap.vue";
 import QuoteForm from "../components/landing/QuoteForm.vue";
 import ContactSection from "../components/landing/ContactSection.vue";
 import AboutSynchro from "../components/landing/AboutSynchro.vue";
+import SmartSolutions from "../components/landing/SmartSolutions.vue";
 
 const pagina = ref(null);
 let observador = null;
@@ -53,7 +54,7 @@ onBeforeUnmount(() => observador?.disconnect());
             </a>
           </div>
           <p class="syn-hero-foot">
-            La pre-reserva no asigna un casillero. Cada depósito requiere autorización.
+            Tecnología, accesibilidad y seguridad conectadas en una sola experiencia.
           </p>
         </div>
         <LockerJourney />
@@ -97,7 +98,7 @@ onBeforeUnmount(() => observador?.disconnect());
           <div class="syn-locker-pattern" aria-hidden="true">
             <span v-for="numero in 8" :key="numero" :class="{ 'syn-locker-highlight': numero === 3 }"></span>
           </div>
-          <span class="syn-feature-foot">Reserva web aún no habilitada</span>
+          <span class="syn-feature-foot">Un espacio para cuidar de tus pertenencias</span>
         </article>
 
         <article class="syn-feature syn-feature-thermal" data-reveal>
@@ -128,6 +129,7 @@ onBeforeUnmount(() => observador?.disconnect());
       </div>
     </section>
 
+    <SmartSolutions />
     <AboutSynchro />
     <LocationsMap />
     <QuoteForm />
