@@ -186,3 +186,15 @@ SYNCHRO («El punto donde todo se conecta») combina almacenamiento temporal de 
 - Las vistas sueltas del catalogo se conservan para inspeccion; los estados fugaces se mantienen abiertos al acceder por separado.
 - Se creo `tests/previewAnimaciones.test.mjs` y se actualizo el README del preview.
 - Se verificaron estaticamente 18 invariantes de rutas, guardias y animaciones mediante lectura de archivos del repositorio: 18/18. Pendiente ejecutar `npm.cmd --prefix frontend/tablet-app test` y `npm.cmd --prefix frontend/tablet-app run build` en la maquina del usuario. No se tiene acceso a `localhost` para abrir la pantalla directamente desde aqui.
+
+
+## 21. Frontend separado para clientes y pre-reservas web
+- Usuario solicito comenzar sistema de reservas web en carpeta propia, independiente de tablet y administrador, conectado al backend existente.
+- Se creo `frontend/usuarios-app/` con Vue 3, Vue Router, Vite, certificado HTTPS compartido y **puerto 5175**. El backend sigue 7278; tablet 5173; admin 5174. Sin cambios operativos a tablet, admin ni SQL.
+- Archivos: `src/main.js`, `src/App.vue`, `src/router/index.js`, `src/styles/base.css`, `src/services/clientesApi.js`, `src/services/sesion.js`, `src/services/validaciones.js`, `src/views/{Inicio,Acceso,Panel,PreReserva,ConsultarReserva}View.vue`, pruebas `tests/{validaciones,contratos}.test.mjs`, `vite.config.js`, `package.json`, `index.html` y `README.md`.
+- Autenticacion: endpoints reales `/api/web/clientes/acceso/{csrf-token,registro,login}` y `/api/web/clientes/{mi-sesion,logout}`; cookies HttpOnly del backend y token `X-CSRF-TOKEN` antes de cada POST.
+- Reservas: único contrato actual completo del frontend es la **pre-reserva web de encomiendas**, con `telefonoDestinatario`, tamaños exactos SQL `Pequeno/Mediano/Grande`, retorno referencia/token de 64 hex, consulta privada por encabezado `X-SYNCHRO-RESERVA`, y preparación opcional del consentimiento WhatsApp a través de endpoint existente. El mensaje/enlace solo se comparte con destinatario, NO equivale a consentimiento ni depósito.
+- Limitaciones reales: pre-reserva expira a las 24h, no asigna casillero, no habilita deposito; backend no ofrece todavía reservas personales web por fecha, ubicacion, tamaño/tiempo, ni listado web/recuperacion de claves. Carga sigue presencial. No inventar flujos para esas capacidades.
+- El backend de clientes y pre-reservas está condicionado por `Program.cs` a Development y cadena SQL `SynchroDB_Pruebas`. WhatsApp consentimiento exige `WhatsApp:ConsentimientoHmacKey`.
+- Comprobado por lectura de código y contratatos backend: seis verificaciones de rutas y protecciones pasan, todas las carpetas/archivos nuevos existen. NO se pudieron ejecutar `npm test` ni `npm run build` de la app en el equipo local; pendiente al hacer `git pull`.
+- Inicio local: `npm.cmd --prefix frontend/usuarios-app install`, `npm.cmd --prefix frontend/usuarios-app test`, `npm.cmd --prefix frontend/usuarios-app run build`, `npm.cmd --prefix frontend/usuarios-app run dev`; abrir `https://localhost:5175`.
