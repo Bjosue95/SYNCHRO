@@ -40,7 +40,8 @@ async function iniciarMapa() {
   if (preparando || mapa || desmontado) return;
   preparando = true;
   try {
-    L = await import("leaflet");
+    const modulo = await import("leaflet");
+    L = modulo.default || modulo;
     if (desmontado || !contenedorMapa.value) return;
     mapa = L.map(contenedorMapa.value, {
       zoomControl: true, scrollWheelZoom: false,
