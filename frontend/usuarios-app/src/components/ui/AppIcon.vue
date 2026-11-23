@@ -10,7 +10,7 @@ const props = defineProps({
   etiqueta: { type: String, default: "" }
 });
 const { tema } = useTheme();
-const conocidos = new Set(["inicio","encomienda","reservas","casillero","temperatura","carga","usuario","seguridad","buscar","whatsapp","sol","luna","salir","menu","flecha","calendario","reloj","ubicacion","check","volver","telefono","correo","facial","pin","alarma","sensores","braille","accesibilidad","control-acceso","trazabilidad","sensor-temperatura","frio","calor","laptop","carga-rapida","cotizacion","instagram","tiktok","enlace-externo","enviar","copiar","emergencia","comunidad","historial","guardar","retirar","autonomia","instituciones","instalaciones","registro","notificacion","privacidad","tecnologia","mapa","ayuda","alerta","cobro"]);
+const conocidos = new Set(["inicio","encomienda","reservas","casillero","temperatura","carga","usuario","seguridad","buscar","whatsapp","sol","luna","salir","menu","flecha","calendario","reloj","ubicacion","check","volver","telefono","correo","facial","pin","alarma","sensores","braille","accesibilidad","control-acceso","trazabilidad","sensor-temperatura","frio","calor","laptop","carga-rapida","cotizacion","instagram","tiktok","enlace-externo","enviar","copiar","emergencia","comunidad","historial","guardar","retirar","autonomia","instituciones","instalaciones","registro","notificacion","privacidad","tecnologia","mapa","ayuda","alerta","cobro","solar","bateria-respaldo","eficiencia","energia","cifrado","integridad","resiliencia"]);
 const icono = computed(() => conocidos.has(props.nombre) ? props.nombre : "ayuda");
 const ruta = computed(() => `/iconos/${tema.value}/web-iconos.svg#${icono.value}`);
 </script>
