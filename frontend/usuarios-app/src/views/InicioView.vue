@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from "vue-router";
 import { estadoSesion } from "../services/sesion.js";
+import AppIcon from "../components/ui/AppIcon.vue";
 </script>
 
 <template>
@@ -8,84 +9,92 @@ import { estadoSesion } from "../services/sesion.js";
     <section class="portada">
       <div class="contenedor portada-grid">
         <div class="portada-texto">
-          <span class="eyebrow portada-etiqueta"><span class="punto-vivo"></span> Portal de usuarios SYNCHRO</span>
-          <h1>Tu espacio,<br /><em>cuando lo necesitas.</em></h1>
+          <span class="eyebrow portada-etiqueta">SYNCHRO · SERVICIOS INTELIGENTES</span>
+          <h1>Tu tiempo vale.<br><em>Tu espacio también.</em></h1>
           <p>
-            Gestiona tu cuenta y solicitudes web para servicios inteligentes de
-            almacenamiento y encomiendas. Un solo lugar para conectar tus necesidades.
+            Almacenamiento y encomiendas conectados a una experiencia sencilla.
+            Crea tu cuenta para gestionar tus solicitudes desde donde estés.
           </p>
           <div class="botones-portada">
-            <RouterLink :to="estadoSesion.cliente ? '/mi-cuenta' : '/acceso'" class="boton boton-luz">
-              {{ estadoSesion.cliente ? "Ir a mi cuenta" : "Comenzar ahora" }}
+            <RouterLink :to="estadoSesion.cliente ? '/mi-cuenta' : '/acceso'"
+              class="boton boton-luz">
+              {{ estadoSesion.cliente ? "Ir a mi espacio" : "Crear mi cuenta" }}
               <span aria-hidden="true">↗</span>
             </RouterLink>
             <RouterLink to="/reservar/encomienda" class="boton boton-fantasma">
-              Pre-reservar encomienda <span aria-hidden="true">→</span>
+              Solicitar una encomienda
+              <span aria-hidden="true">→</span>
             </RouterLink>
           </div>
         </div>
+
         <div class="hero-visual" aria-hidden="true">
           <div class="circulo-uno"></div>
           <div class="circulo-dos"></div>
           <div class="terminal-ilustrada">
             <div class="terminal-cabecera">
-              <span class="terminal-marca">SYNCHRO</span>
+              <img class="terminal-marca" src="/branding/nombre-azul.svg" alt="">
               <span class="luces"><i></i><i></i><i></i></span>
             </div>
             <div class="terminal-cuadricula">
-              <div v-for="n in 6" :key="n" class="terminal-puerta"><span>{{ 'M0' + n }}</span><b></b></div>
+              <div v-for="n in 6" :key="n" class="terminal-puerta">
+                <span>{{ "M0" + n }}</span><b></b>
+              </div>
             </div>
-            <div class="terminal-pie">Conecta · Guarda · Retira</div>
+            <div class="terminal-pie">GUARDA · CONECTA · RETIRA</div>
           </div>
-          <div class="etiqueta-flotante"><span>✓</span> Solicitudes desde tu cuenta</div>
+          <div class="etiqueta-flotante">
+            <img src="/iconos/claro/check.svg" alt="">
+            Gestión desde tu cuenta
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="contenedor bloque-servicios">
+    <section id="servicios" class="contenedor bloque-servicios">
       <div class="titulo-seccion">
-        <span class="eyebrow">Servicios SYNCHRO</span>
-        <h2>Todo conectado en un mismo lugar</h2>
-        <p>Integramos distintos servicios según las necesidades de cada ubicación.</p>
+        <span class="eyebrow">SOLUCIONES SYNCHRO</span>
+        <h2>Un servicio para cada momento</h2>
+        <p>Desde guardar tus pertenencias hasta gestionar la entrega de un paquete.</p>
       </div>
 
       <div class="rejilla-servicios">
         <article class="tarjeta-servicio">
-          <span class="servicio-icono">▣</span>
+          <span class="servicio-icono"><AppIcon nombre="casillero" :tamano="43"/></span>
           <h3>Almacenamiento personal</h3>
-          <p>Espacios para resguardar temporalmente tus pertenencias.</p>
-          <span class="servicio-estado">Próximamente en la web</span>
+          <p>Espacios seguros para guardar tus pertenencias durante el tiempo que necesites.</p>
+          <span class="servicio-estado">Reserva web próximamente</span>
         </article>
         <article class="tarjeta-servicio destacada">
-          <span class="servicio-icono">▤</span>
+          <span class="servicio-icono"><AppIcon nombre="encomienda" :tamano="43"/></span>
           <h3>Encomiendas</h3>
-          <p>Solicita una pre-reserva para coordinar el servicio con tu destinatario.</p>
+          <p>Inicia una solicitud desde tu cuenta y coordina el siguiente paso con el destinatario.</p>
           <RouterLink to="/reservar/encomienda" class="enlace-texto">
-            Iniciar pre-reserva <span aria-hidden="true">→</span>
+            Nueva pre-reserva <AppIcon nombre="flecha" :tamano="19"/>
           </RouterLink>
         </article>
         <article class="tarjeta-servicio">
-          <span class="servicio-icono">❄</span>
+          <span class="servicio-icono"><AppIcon nombre="temperatura" :tamano="43"/></span>
           <h3>Temperatura controlada</h3>
-          <p>Opciones de frío y calor para artículos compatibles.</p>
-          <span class="servicio-estado">Próximamente en la web</span>
+          <p>Espacios especializados para productos compatibles que necesitan frío o calor.</p>
+          <span class="servicio-estado">Reserva web próximamente</span>
         </article>
         <article class="tarjeta-servicio">
-          <span class="servicio-icono">ϟ</span>
+          <span class="servicio-icono"><AppIcon nombre="carga" :tamano="43"/></span>
           <h3>Carga de dispositivos</h3>
-          <p>Carga presencial de celulares y laptops, con pago al finalizar.</p>
-          <span class="servicio-estado">Disponible únicamente en terminal</span>
+          <p>Recarga celulares o laptops en estaciones de uso presencial y paga al finalizar.</p>
+          <span class="servicio-estado">Servicio presencial</span>
         </article>
       </div>
     </section>
 
     <section class="contenedor panel-aclaracion">
-      <span class="aclaracion-icono" aria-hidden="true">i</span>
+      <span class="aclaracion-icono"><AppIcon nombre="seguridad" :tamano="29"/></span>
       <div>
-        <strong>Información sobre las pre-reservas</strong>
+        <strong>Solicitudes gestionadas de forma segura</strong>
         <p>
-          La pre-reserva de encomiendas no significa que un casillero esté asignado.
-          Para el depósito se requieren autorizaciones y verificaciones adicionales.
+          Una pre-reserva de encomienda no asigna todavía un casillero.
+          La utilización del servicio requiere las verificaciones correspondientes.
         </p>
       </div>
     </section>
