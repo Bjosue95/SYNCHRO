@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
+import AppIcon from "../components/ui/AppIcon.vue";
 import { apiClientes } from "../services/clientesApi.js";
 import { tokenReservaValido, referenciaReservaValida } from "../services/validaciones.js";
 
@@ -43,7 +44,7 @@ async function consultar() {
 <template>
   <section class="contenedor pagina-interna">
     <div class="encabezado-pagina">
-      <RouterLink to="/mi-cuenta" class="enlace-volver">← Mi cuenta</RouterLink>
+      <RouterLink to="/mi-cuenta" class="enlace-volver"><AppIcon nombre="volver" :tamano="20"/> Mi cuenta</RouterLink>
       <span class="eyebrow">Seguimiento privado</span>
       <h1>Consulta tu pre-reserva</h1>
       <p>Utiliza la referencia y clave de consulta que recibiste al crear la solicitud.</p>
@@ -70,7 +71,7 @@ async function consultar() {
           <button type="submit" class="boton boton-primario boton-ancho"
             :disabled="consultando" :aria-busy="consultando">
             {{ consultando ? "Consultando..." : "Consultar estado" }}
-            <span aria-hidden="true">→</span>
+            <AppIcon nombre="flecha" :tamano="20"/>
           </button>
         </form>
 
@@ -93,7 +94,7 @@ async function consultar() {
         <p>La referencia sola no permite consultar una pre-reserva. También se requiere su clave privada y una sesión iniciada con la cuenta que la creó.</p>
         <div class="nota-seguridad">
           <strong>¿No guardaste la clave?</strong>
-          <p>El backend no devuelve la clave original cuando consultas una solicitud. Tendrás que crear una nueva pre-reserva si no la conservaste.</p>
+          <p>SYNCHRO no puede recuperar la clave original cuando consultas una solicitud. Tendrás que crear una nueva pre-reserva si no la conservaste.</p>
         </div>
         <RouterLink to="/reservar/encomienda" class="boton boton-secundario boton-ancho">
           Nueva pre-reserva <span aria-hidden="true">→</span>
