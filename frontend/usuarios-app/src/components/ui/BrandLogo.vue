@@ -4,9 +4,9 @@ import { useTheme } from "../../composables/useTheme.js";
 defineProps({ compacto: { type: Boolean, default: false } });
 const { tema } = useTheme();
 const isotipo = computed(() => tema.value === "oscuro"
-  ? "/branding/isotipo-oscuro.svg" : "/branding/isotipo-claro.svg");
+  ? "/branding/isotipo-oscuro.png" : "/branding/isotipo-claro.png");
 const nombre = computed(() => tema.value === "oscuro"
-  ? "/branding/nombre-blanco.svg" : "/branding/nombre-azul.svg");
+  ? "/branding/nombre-blanco.png" : "/branding/nombre-azul.png");
 </script>
 <template>
   <span class="marca-real" :class="{ compacta: compacto }" aria-label="SYNCHRO">
