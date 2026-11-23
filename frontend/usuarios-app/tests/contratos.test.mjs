@@ -36,7 +36,14 @@ test("no se colocan claves privadas en la ruta de consulta", () => {
 
 test("la navegación privada necesita sesión del servidor", () => {
   const codigo = leer("../src/router/index.js");
-  assert.match(codigo, /meta: \{ privada: true \}/);
+  // Aceptar otros metadatos (como el título) sin permitir rutas públicas.
+  for (const ruta of ["/mi-cuenta", "/reservar/encomienda", "/consultar"]) {
+    const inicio = codigo.indexOf(`path: "${ruta}"`);
+    assert.notEqual(inicio, -1, `No existe la ruta ${ruta}`);
+    const definicion = codigo.slice(inicio, inicio + 160);
+    assert.match(definicion, /meta:\\s*\\{\\s*privada:\\s*true(?:\\s*,|\\s*\\})/,
+      `La ruta ${ruta} debe requerir una sesión`);
+  }
   assert.match(codigo, /await comprobarSesion\(\)/);
   assert.match(codigo, /name: "acceso"/);
 });
