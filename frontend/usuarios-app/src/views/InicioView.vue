@@ -6,6 +6,7 @@ import LockerJourney from "../components/ui/LockerJourney.vue";
 import LocationsMap from "../components/landing/LocationsMap.vue";
 import QuoteForm from "../components/landing/QuoteForm.vue";
 import ContactSection from "../components/landing/ContactSection.vue";
+import AboutSynchro from "../components/landing/AboutSynchro.vue";
 
 const pagina = ref(null);
 let observador = null;
@@ -127,6 +128,7 @@ onBeforeUnmount(() => observador?.disconnect());
       </div>
     </section>
 
+    <AboutSynchro />
     <LocationsMap />
     <QuoteForm />
     <ContactSection />
