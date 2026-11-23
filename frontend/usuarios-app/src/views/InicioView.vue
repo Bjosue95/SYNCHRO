@@ -40,33 +40,16 @@ const servicios = [
   }
 ];
 const recorrido = ref(null);
-const etapaActual = ref(servicios[0].id);
+const servicioMarcado = ref("");
 let observador;
-let escenas = [];
-let cuadroPendiente = 0;
 
-function actualizarEtapa() {
-  cuadroPendiente = 0;
-  const puntoLectura = window.innerHeight * .48;
-  let distancia = Infinity;
-  for (const escena of escenas) {
-    const posicion = escena.getBoundingClientRect();
-    const diferencia = Math.abs(posicion.top + posicion.height / 2 - puntoLectura);
-    if (diferencia >= distancia) continue;
-    distancia = diferencia;
-    etapaActual.value = escena.id;
-  }
-}
-
-function registrarDesplazamiento() {
-  if (!cuadroPendiente) cuadroPendiente = requestAnimationFrame(actualizarEtapa);
+function leerAncla() {
+  servicioMarcado.value = window.location.hash.slice(1);
 }
 
 onMounted(() => {
-  escenas = recorrido.value.querySelectorAll(".escena-servicio");
-  window.addEventListener("scroll", registrarDesplazamiento, { passive: true });
-  window.addEventListener("resize", registrarDesplazamiento);
-  registrarDesplazamiento();
+  leerAncla();
+  window.addEventListener("hashchange", leerAncla);
   if (!("IntersectionObserver" in window)) return;
   observador = new IntersectionObserver((entradas, observer) => {
     for (const entrada of entradas) {
@@ -74,37 +57,44 @@ onMounted(() => {
       entrada.target.classList.add("escena-visible");
       observer.unobserve(entrada.target);
     }
-  }, { threshold: 0.14 });
-  escenas.forEach(escena => observador.observe(escena));
+  }, { threshold: 0.12 });
+  recorrido.value.querySelectorAll(".escena-servicio").forEach(escena => observador.observe(escena));
 });
 
 onUnmounted(() => {
   observador?.disconnect();
-  cancelAnimationFrame(cuadroPendiente);
-  window.removeEventListener("scroll", registrarDesplazamiento);
-  window.removeEventListener("resize", registrarDesplazamiento);
+  window.removeEventListener("hashchange", leerAncla);
 });
 </script>
 
 <template>
   <div class="inicio-servicios">
     <section id="inicio" class="portada" aria-labelledby="titulo-portada">
-      <figure class="portada-modelo">
-        <img :src="escenaEstacion" width="1600" height="900" fetchpriority="high"
-          alt="Concepto de una estación SYNCHRO con casilleros modulares en un espacio de tránsito">
-        <figcaption>Visualización del concepto SYNCHRO</figcaption>
-      </figure>
-      <div class="contenedor portada-texto">
-        <p class="portada-contexto">Casilleros modulares · Comayagua</p>
-        <h1 id="titulo-portada">De tu mochila<br>a tu próximo envío</h1>
-        <p class="portada-intro">
-          Guarda tus pertenencias, carga tus dispositivos o prepara una encomienda desde el portal SYNCHRO.
-        </p>
-        <div class="botones-portada">
-          <a href="#servicios" class="boton boton-portada">Recorrer la estación <span aria-hidden="true">↓</span></a>
-          <RouterLink to="/reservar/encomienda" class="boton boton-portada-secundario">
-            Solicitar pre-reserva <AppIcon nombre="flecha"/>
-          </RouterLink>
+      <div class="contenedor montaje-portada">
+        <div class="portada-texto">
+          <p class="portada-contexto">Estaciones de casilleros · Comayagua</p>
+          <h1 id="titulo-portada">De tu mochila <span>a tu próximo envío</span></h1>
+          <p class="portada-intro">
+            Guarda tus pertenencias, carga tus dispositivos y prepara encomiendas en tu cuenta SYNCHRO.
+          </p>
+          <div class="botones-portada">
+            <a href="#servicios" class="boton boton-portada">Recorrer la estación <span aria-hidden="true">↓</span></a>
+            <RouterLink to="/reservar/encomienda" class="boton boton-portada-secundario">
+              Solicitar pre-reserva <AppIcon nombre="flecha"/>
+            </RouterLink>
+          </div>
+        </div>
+        <div class="portada-escena">
+          <figure class="portada-modelo">
+            <img :src="escenaEstacion" width="1680" height="946" fetchpriority="high"
+              alt="Concepto de una estación SYNCHRO con casilleros modulares en un espacio de tránsito">
+            <figcaption>Visualización del concepto SYNCHRO</figcaption>
+          </figure>
+          <a href="#modelo-synchro" class="acceso-modelo">
+            <img :src="modeloMultiple" width="1400" height="788" alt="">
+            <span>Ver el modelo modular</span>
+            <AppIcon nombre="flecha"/>
+          </a>
         </div>
       </div>
     </section>
@@ -113,13 +103,13 @@ onUnmounted(() => {
       <header class="cabecera-servicios">
         <p class="rotulo-seccion">Nuestros servicios</p>
         <h2 id="titulo-servicios">Una estación para lo que lleves</h2>
-        <p>Cuatro formas de usar un casillero durante el día.</p>
+        <p>Deja tu mochila, prepara un envío o recarga antes de seguir.</p>
       </header>
 
       <div ref="recorrido" class="recorrido-servicios">
         <nav class="indice-servicios" aria-label="Servicios de la estación">
           <a v-for="item in servicios" :key="item.id" :href="'#' + item.id"
-            :aria-current="etapaActual === item.id ? 'location' : undefined">
+            :aria-current="servicioMarcado === item.id ? 'location' : undefined">
             <AppIcon :nombre="item.icono"/> {{ item.nombre }}
           </a>
         </nav>
@@ -177,7 +167,7 @@ onUnmounted(() => {
           Diseñamos una estación que reúne esos servicios en un mismo lugar.
         </p>
       </div>
-      <figure class="historia-modelo">
+      <figure id="modelo-synchro" class="historia-modelo">
         <img :src="modeloMultiple" width="1400" height="788" loading="lazy" decoding="async"
           alt="Diseño del modelo SYNCHRO con varios tamaños, zonas térmicas y módulo de carga">
         <figcaption>Modelo de exhibición · SYNCHRO</figcaption>
