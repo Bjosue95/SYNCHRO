@@ -107,11 +107,11 @@ const beneficios = Object.freeze([
   <section id="seguridad" class="syn-solutions">
     <div class="contenedor">
       <div class="syn-solutions-heading">
-        <span class="syn-solutions-kicker">MÁS QUE ALMACENAMIENTO</span>
-        <h2>La tecnología tiene sentido cuando resuelve problemas.</h2>
+        <span class="syn-solutions-kicker">PROTECCIÓN, CONTROL Y ACCESIBILIDAD</span>
+        <h2>Seguridad en cada operación. Confianza en cada entrega.</h2>
         <p>
-          Una experiencia segura también debe ser accesible, clara y fácil de utilizar.
-          Así combinamos protección, tecnología y atención a distintas necesidades.
+          Verificación de identidad, autorizaciones, sensores y alarmas forman
+          parte de una arquitectura pensada para proteger a las personas y sus pertenencias.
         </p>
       </div>
 
