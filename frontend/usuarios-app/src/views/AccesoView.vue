@@ -70,51 +70,33 @@ async function enviar() {
 </script>
 
 <template>
-  <section class="acceso-pagina">
+  <section class="acceso-pagina" aria-labelledby="titulo-acceso">
     <div class="contenedor acceso-diseno">
-      <div class="acceso-presentacion">
-        <span class="eyebrow">TU CUENTA SYNCHRO</span>
-        <h1>Un acceso.<br>Todo conectado.</h1>
-        <p>
-          Gestiona tus solicitudes de forma sencilla y mantén
-          tu información protegida en un solo lugar.
-        </p>
-        <div class="beneficios">
-          <span>
-            <span class="beneficio-icono"><AppIcon nombre="seguridad" :tamano="25"/></span>
-            Acceso protegido
-          </span>
-          <span>
-            <span class="beneficio-icono"><AppIcon nombre="reservas" :tamano="25"/></span>
-            Solicitudes desde tu cuenta
-          </span>
-          <span>
-            <span class="beneficio-icono"><AppIcon nombre="whatsapp" :tamano="25"/></span>
-            Comunicación con tu destinatario
-          </span>
+      <aside class="acceso-presentacion" aria-hidden="true">
+        <span class="acceso-sello">
+          <AppIcon nombre="seguridad" :tamano="35"/>
+        </span>
+        <h2>Todo conectado.<br><span>A tu alcance.</span></h2>
+        <p>Gestiona tus encomiendas y solicitudes desde tu espacio personal.</p>
+        <div class="acceso-lineas" aria-hidden="true">
+          <span></span><span></span><span></span>
         </div>
-      </div>
+      </aside>
 
       <div class="formulario-tarjeta acceso-formulario">
-        <div class="pestanas" role="group" aria-label="Tipo de acceso">
-          <button type="button" :class="{ activo: !esRegistro }"
-            :aria-pressed="!esRegistro" @click="cambiarModo('ingreso')">
-            Ingresar
-          </button>
-          <button type="button" :class="{ activo: esRegistro }"
-            :aria-pressed="esRegistro" @click="cambiarModo('registro')">
-            Crear cuenta
-          </button>
-        </div>
-
-        <h2>{{ esRegistro ? "Crea tu cuenta" : "Bienvenido a SYNCHRO" }}</h2>
-        <p class="texto-suave">
-          {{ esRegistro ? "Registra tus datos para gestionar tus solicitudes."
-            : "Accede con las credenciales de tu cuenta." }}
-        </p>
+        <header class="acceso-form-header">
+          <h1 id="titulo-acceso">
+            {{ esRegistro ? "Crea tu cuenta" : "Inicia sesión" }}
+          </h1>
+          <p>
+            {{ esRegistro
+              ? "Completa tus datos para comenzar."
+              : "Ingresa a tu cuenta SYNCHRO." }}
+          </p>
+        </header>
 
         <p v-if="route.query.error === 'servidor'" class="alerta" role="status">
-          No se pudo comprobar tu sesión. Inténtalo nuevamente.
+          No pudimos verificar el acceso. Inténtalo de nuevo.
         </p>
 
         <form class="formulario" @submit.prevent="enviar">
@@ -122,36 +104,38 @@ async function enviar() {
             <span>Nombre de usuario</span>
             <input v-model="formulario.nombreUsuario" type="text" required
               maxlength="80" autocomplete="username"
-              placeholder="Tu nombre de usuario"/>
+              placeholder="Tu usuario" />
           </label>
 
           <label v-if="esRegistro" class="campo">
             <span>Número de WhatsApp</span>
-            <input v-model="formulario.telefono" type="tel"
-              required maxlength="16" autocomplete="tel"
-              inputmode="tel" placeholder="+504XXXXXXXX"/>
-            <small>Incluye el código de país.</small>
+            <input v-model="formulario.telefono" type="tel" required maxlength="16"
+              autocomplete="tel" inputmode="tel" placeholder="+504XXXXXXXX" />
           </label>
 
           <label class="campo">
             <span>Contraseña</span>
             <input v-model="formulario.contrasena" type="password" required
-              :minlength="esRegistro ? 12 : undefined"
-              maxlength="128"
+              :minlength="esRegistro ? 12 : undefined" maxlength="128"
               :autocomplete="esRegistro ? 'new-password' : 'current-password'"
-              :placeholder="esRegistro ? 'Mínimo 12 caracteres' : 'Tu contraseña'"/>
+              :placeholder="esRegistro ? '12 caracteres como mínimo' : 'Tu contraseña'" />
           </label>
 
           <p v-if="error" class="alerta" role="alert">{{ error }}</p>
 
           <button type="submit" class="boton boton-primario boton-ancho"
             :disabled="enviando" :aria-busy="enviando">
-            {{ enviando ? "Comprobando..." : esRegistro ? "Crear mi cuenta" : "Ingresar a mi cuenta" }}
-            <AppIcon nombre="flecha" :tamano="20"/>
+            {{ enviando ? "Comprobando..." : esRegistro ? "Crear cuenta" : "Ingresar" }}
+            <AppIcon nombre="flecha" :tamano="19" />
           </button>
         </form>
 
-        <p class="nota-pie">Tu acceso es personal y protegido.</p>
+        <div class="acceso-cambiar">
+          <span>{{ esRegistro ? "¿Ya tienes una cuenta?" : "¿Aún no tienes cuenta?" }}</span>
+          <button type="button" @click="cambiarModo(esRegistro ? 'ingreso' : 'registro')">
+            {{ esRegistro ? "Iniciar sesión" : "Crear cuenta" }}
+          </button>
+        </div>
       </div>
     </div>
   </section>
