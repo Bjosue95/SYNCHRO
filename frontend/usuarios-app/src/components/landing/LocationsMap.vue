@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { ubicaciones, linkMaps } from "../../data/empresa.js";
+import AppIcon from "../ui/AppIcon.vue";
 import "leaflet/dist/leaflet.css";
 
 const contenedorMapa = ref(null);
@@ -30,7 +31,7 @@ function popupSeguro(lugar) {
   const titulo = document.createElement("strong");
   titulo.textContent = lugar.nombre;
   const detalle = document.createElement("p");
-  detalle.textContent = lugar.ciudad + " · Ubicación contemplada, no operativa";
+  detalle.textContent = lugar.ciudad + " · Lugar de referencia";
   detalle.style.cssText = "margin:7px 0 2px;line-height:1.45";
   elemento.append(titulo, detalle);
   return elemento;
@@ -128,11 +129,11 @@ onBeforeUnmount(() => {
     <div class="contenedor">
       <header class="syn-map-heading">
         <div>
-          <span class="syn-map-kicker">PRESENCIA QUE QUEREMOS CONSTRUIR</span>
+          <span class="syn-map-kicker">ESPACIOS QUE NOS CONECTAN</span>
           <h2>SYNCHRO, más cerca de ti.</h2>
-          <p>Explora los espacios contemplados para futuras estaciones.</p>
+          <p>Explora universidades, aeropuertos y espacios públicos de nuestra red de interés.</p>
         </div>
-        <span class="syn-map-note">Ubicaciones propuestas · Sin estaciones operativas confirmadas</span>
+        <span class="syn-map-note">Universidades, aeropuertos y espacios de ciudad</span>
       </header>
 
       <div class="syn-map-filters" role="group" aria-label="Filtrar por zona">
@@ -146,7 +147,7 @@ onBeforeUnmount(() => {
       <div class="syn-map-grid">
         <div class="syn-map-surface">
           <div ref="contenedorMapa" class="syn-map-canvas" role="region"
-            aria-label="Mapa interactivo de ubicaciones contempladas"></div>
+            aria-label="Mapa interactivo de lugares de referencia"></div>
           <div v-if="estadoMapa === 'cargando'" class="syn-map-loading" aria-live="polite">
             Cargando mapa…
           </div>
@@ -155,7 +156,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div class="syn-map-list" aria-label="Lugares contemplados">
+        <div class="syn-map-list" aria-label="Lugares de referencia">
           <div class="syn-map-list-header">
             <strong>{{ visibles.length }} lugares</strong>
             <span>Selecciona uno para acercar el mapa</span>
@@ -165,7 +166,7 @@ onBeforeUnmount(() => {
             <button class="syn-map-select" type="button"
               :aria-pressed="seleccionado === lugar.id"
               @click="elegirLugar(lugar)">
-              <span class="syn-map-location-dot" aria-hidden="true"></span>
+              <AppIcon nombre="ubicacion" :tamano="20"/>
               <span class="syn-map-location-label">
                 <strong>{{ lugar.nombre }}</strong>
                 <small>{{ lugar.ciudad }}</small>
@@ -173,17 +174,16 @@ onBeforeUnmount(() => {
             </button>
             <a :href="linkMaps(lugar)" target="_blank" rel="noopener noreferrer"
               class="syn-map-link" :aria-label="'Buscar ' + lugar.nombre + ' en Google Maps'">
-              Ver ubicación ↗
+              Ver ubicación <AppIcon nombre="enlace-externo" :tamano="14"/>
             </a>
             <p v-if="!lugar.coordenadas" class="syn-map-unpinned">
-              Plaza Ciudad Nueva, Comayagua. Punto exacto pendiente de confirmación.
+              Plaza Ciudad Nueva, Comayagua.
             </p>
           </div>
         </div>
       </div>
       <p class="syn-map-footnote">
-        Los marcadores representan los lugares indicados, no casilleros instalados.
-        Las posiciones pueden señalar la zona general del recinto. © OpenStreetMap contributors.
+        Los puntos indican lugares geográficos de referencia. © OpenStreetMap contributors.
       </p>
     </div>
   </section>
@@ -215,7 +215,7 @@ onBeforeUnmount(() => {
 .syn-map-location-label { display:grid; gap:3px; }
 .syn-map-location-label strong { color:var(--text-strong); font-size:12px; font-weight:720; line-height:1.45; }
 .syn-map-location-label small { color:var(--text-muted); font-size:11px; }
-.syn-map-link { margin:9px 0 0 19px; display:inline-block; font-size:11px; font-weight:700; color:var(--accent-text); text-decoration:none; }
+.syn-map-link { display:inline-flex; align-items:center; gap:6px; margin:9px 0 0 19px; display:inline-block; font-size:11px; font-weight:700; color:var(--accent-text); text-decoration:none; }
 .syn-map-link:hover { text-decoration:underline; }
 .syn-map-unpinned { margin:7px 0 0 19px; line-height:1.5; font-size:11px; color:var(--text-muted); }
 .syn-map-footnote { margin:12px 0 0; font-size:11px; line-height:1.55; color:var(--text-subtle); }
