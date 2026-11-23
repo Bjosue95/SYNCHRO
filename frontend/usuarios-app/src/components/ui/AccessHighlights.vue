@@ -160,7 +160,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.acceso-slide-area { min-height: 220px; }
+.acceso-slide-area { min-height: 192px; }
 .acceso-slide > p {
   max-width: 36ch;
   margin: 16px 0 0;

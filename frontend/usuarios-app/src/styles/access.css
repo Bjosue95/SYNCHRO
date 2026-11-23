@@ -14,27 +14,36 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
   align-items: center;
   gap: clamp(24px, 5vw, 64px);
-  width: min(1000px, calc(100% - 64px));
+  width: min(1120px, calc(100% - 64px));
   padding-block: 32px;
 }
 .es-acceso .acceso-presentacion {
   min-width: 0;
   padding: clamp(24px, 4vw, 48px);
+  padding-top: clamp(156px, 17vw, 240px);
   overflow: hidden;
   border: 1px solid var(--border);
   border-inline-start: 3px solid var(--brand-accent);
   border-radius: var(--radius-panel);
-  background: var(--surface-soft);
+  --text-strong: #edf6fc;
+  --text-muted: #c0d2df;
+  --text-subtle: #8fa8bc;
+  --border-strong: #65869f;
+  --accent-text: var(--brand-sky);
+  --ring: var(--brand-sky);
+  background: linear-gradient(0deg, #0a1d31 43%, #0a1d3100 77%),
+    #0a1d31 url("../assets/entrega.webp") center top / 100% auto no-repeat;
 }
 .acceso-sello {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
 }
+.acceso-sello .icono-ui { filter: brightness(0) invert(1); }
 .es-acceso .acceso-presentacion h2 {
   margin: 0;
   color: var(--text-strong);
@@ -45,12 +54,12 @@
 }
 .es-acceso .acceso-presentacion h2 span { color: var(--accent-text); }
 
-.es-acceso .acceso-formulario { width: 100%; padding: 32px; }
+.es-acceso .acceso-formulario { width: 100%; padding: clamp(28px, 4vw, 48px); }
 .acceso-form-header { margin-bottom: 20px; }
 .acceso-form-header h1 {
   margin: 0;
   color: var(--text-strong);
-  font-size: clamp(28px, 3vw, 36px);
+  font-size: clamp(32px, 4vw, 48px);
   font-weight: 500;
   line-height: 1.15;
 }

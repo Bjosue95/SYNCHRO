@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { estadoSesion } from "../services/sesion.js";
 import AppIcon from "../components/ui/AppIcon.vue";
+import escenaEntrega from "../assets/entrega.webp";
 
 const usuario = computed(() => estadoSesion.cliente?.nombreUsuario || "Cliente");
 const inicial = computed(() => usuario.value.charAt(0).toLocaleUpperCase("es-HN"));
@@ -10,24 +11,28 @@ const inicial = computed(() => usuario.value.charAt(0).toLocaleUpperCase("es-HN"
 
 <template>
   <section class="pagina-interna">
-    <div class="encabezado-pagina">
-      <h1>Mi espacio</h1>
-      <p>Crea y consulta tus solicitudes de encomienda.</p>
-    </div>
-
-    <div class="panel-bienvenida">
-      <span class="avatar-usuario">{{ inicial }}</span>
-      <div class="panel-datos">
-        <strong>{{ usuario }}</strong>
-        <span>{{ estadoSesion.cliente?.telefono || "Cuenta SYNCHRO" }}</span>
+    <div class="cabecera-cuenta">
+      <div class="cabecera-cuenta-contenido">
+        <div class="encabezado-pagina">
+          <h1>Mi espacio</h1>
+          <p>Crea y consulta tus solicitudes de encomienda.</p>
+        </div>
+        <div class="panel-bienvenida">
+          <span class="avatar-usuario">{{ inicial }}</span>
+          <div class="panel-datos">
+            <strong>{{ usuario }}</strong>
+            <span>{{ estadoSesion.cliente?.telefono || "Cuenta SYNCHRO" }}</span>
+          </div>
+          <span class="estado-activo"><span class="punto-vivo"></span> Cuenta activa</span>
+        </div>
       </div>
-      <span class="estado-activo"><span class="punto-vivo"></span> Cuenta activa</span>
+      <img :src="escenaEntrega" alt="" width="1600" height="900" decoding="async">
     </div>
 
     <h2 class="panel-subtitulo">Pre-reservas de encomienda</h2>
     <div class="tarjetas-acciones">
-      <RouterLink class="accion-principal" to="/reservar/encomienda">
-        <AppIcon nombre="reservas"/>
+      <RouterLink class="accion-principal accion-nueva" to="/reservar/encomienda">
+        <AppIcon nombre="reservas" :tamano="24"/>
         <div>
           <strong>Crear pre-reserva</strong>
           <p>Elige el tamaño del paquete e indica el teléfono del destinatario.</p>
@@ -36,7 +41,7 @@ const inicial = computed(() => usuario.value.charAt(0).toLocaleUpperCase("es-HN"
       </RouterLink>
 
       <RouterLink class="accion-principal" to="/consultar">
-        <AppIcon nombre="buscar"/>
+        <AppIcon nombre="buscar" :tamano="24"/>
         <div>
           <strong>Consultar pre-reserva</strong>
           <p>Revisa el estado con la referencia y la clave privada.</p>
