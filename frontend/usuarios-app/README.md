@@ -132,3 +132,28 @@ presentan como operativas.
 
 Las pruebas de iconografía, layouts y modo oscuro están en
 `tests/diseno.test.mjs`, junto a las pruebas de validaciones y contratos.
+
+
+## Panel informativo animado de acceso
+
+`src/components/ui/AccessHighlights.vue` presenta tres mensajes de SYNCHRO
+en la columna lateral de inicio de sesión: acceso protegido y solicitudes,
+pre-reservas consultables desde la cuenta y consentimiento por WhatsApp del
+destinatario. Reutiliza `AppIcon.vue` y las mismas variables de diseño.
+
+- Cambio automático cada 6 segundos, desvanecido y barra de avance interactiva.
+- Barras que permiten elegir directamente cualquiera de los mensajes.
+- Control visible para pausar o reanudar, pausa temporal al situar el cursor
+  sobre el carrusel, recibir foco o cambiar de pestaña.
+- Preferencia de movimiento reducido: inicia pausado y no aplica animaciones.
+- La rotación solo modifica textos e iconos; no consulta al backend, no modifica
+  la cuenta ni envía WhatsApp.
+- En móvil y tablet estrecha se oculta la columna informativa para que el
+  formulario conserve el espacio y la altura disponibles.
+
+La cápsula de tema se fijó a **132 x 44 px en pantallas grandes** para evitar
+saltos entre "Claro" y "Oscuro"; por debajo de 540 px se mantiene compacta
+a 44 x 44 px en ambos modos.
+
+Referencia de accesibilidad: W3C/WAI, Carousels Tutorial y ARIA Carousel
+Pattern. La nueva comprobación está en `tests/carruselAcceso.test.mjs`.
