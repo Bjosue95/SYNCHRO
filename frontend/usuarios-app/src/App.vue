@@ -63,7 +63,7 @@ async function salir() {
     <footer class="pie-sitio">
       <div class="contenedor pie-contenido">
         <span><strong>SYNCHRO</strong> · Soluciones inteligentes de autoservicio</span>
-        <span>Portal de usuarios · Prototipo en desarrollo</span>
+        <span>Portal de usuarios · SYNCHRO</span>
       </div>
     </footer>
   </div>
