@@ -123,30 +123,6 @@
 .cabecera-servicios h2, .guia-encomiendas h2, .historia-synchro h2 { font-size: clamp(45px, 6vw, 84px); }
 .cabecera-servicios > p:last-child, .guia-encomiendas p, .historia-synchro p { color: var(--text-muted); }
 .cabecera-servicios > p:last-child { margin: 12px 0 0; }
-.indice-servicios {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.indice-servicios a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  color: var(--text-strong);
-  background: var(--surface);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  transition: background-color 200ms var(--ease-ui), border-color 200ms var(--ease-ui);
-}
-.indice-servicios a:hover, .indice-servicios a[aria-current="location"] {
-  background: var(--surface-accent);
-  border-color: var(--ring);
-}
 .escenas-servicio {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -258,18 +234,6 @@
 .historia-modelo { margin: 0; align-self: center; background: var(--surface); border: 1px solid var(--border); box-shadow: 12px 12px 0 var(--surface-accent); }
 .historia-modelo img { display: block; width: 100%; height: auto; }
 .historia-modelo figcaption { padding: 8px 12px; color: var(--text-muted); font-size: 12px; }
-.historia-proposito {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-column: 1 / -1;
-  gap: 1px;
-  margin-top: 8px;
-  background: var(--border);
-  border: 1px solid var(--border);
-}
-.historia-proposito > div { padding: 20px; background: var(--surface); }
-.historia-proposito h3 { margin: 0; color: var(--text-strong); font: 700 28px/1 var(--tipografia-cartel); }
-.historia-proposito p { margin: 8px 0 0; }
 .acceso-final { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 56px; padding: 24px; border-inline-start: 3px solid var(--brand-accent); background: var(--surface-soft); }
 .acceso-final h2 { margin: 0; color: var(--text-strong); font-size: 24px; }
 .acceso-final p { margin: 4px 0 0; color: var(--text-muted); }
@@ -298,7 +262,6 @@
   .portada-intro { margin-top: 16px; }
   .portada-modelo { min-height: 0; aspect-ratio: 1.35; }
   .acceso-modelo { position: relative; inset: auto; margin: -12px 8px 0 auto; }
-  .indice-servicios { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .escenas-servicio { grid-template-columns: minmax(0, 1fr); }
   .escena-servicio, .escena-servicio:first-child, .escena-servicio:last-child {
     grid-column: 1;
@@ -312,13 +275,11 @@
     background: linear-gradient(0deg, #071827 0%, #071827d4 32%, #07182708 80%);
   }
   .historia-synchro { padding-block-start: 48px; }
-  .historia-proposito { grid-template-columns: 1fr; }
 }
 @media (max-width: 380px) {
   .portada h1 { font-size: 49px; }
   .portada-intro { font-size: 15px; }
   .sitio-secciones a { font-size: 12px; }
-  .indice-servicios a { padding-inline: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .portada-texto, .portada-modelo, .portada-modelo > img, .acceso-modelo,

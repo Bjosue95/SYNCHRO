@@ -34,22 +34,15 @@ const servicios = [
   {
     id: "carga", nombre: "Carga de dispositivos", icono: "carga",
     titulo: "Una pausa para cargar",
-    descripcion: "Conecta tu celular o laptop en una estación de carga en el sitio y paga al finalizar.",
-    imagen: escenaCarga, alt: "Dispositivos conectados dentro de una estación de carga",
+    descripcion: "Conecta tu celular o laptop en el módulo de carga del casillero y paga al finalizar.",
+    imagen: escenaCarga, alt: "Dispositivos conectados en el módulo de carga del casillero",
     estado: "Servicio presencial"
   }
 ];
 const recorrido = ref(null);
-const servicioMarcado = ref("");
 let observador;
 
-function leerAncla() {
-  servicioMarcado.value = window.location.hash.slice(1);
-}
-
 onMounted(() => {
-  leerAncla();
-  window.addEventListener("hashchange", leerAncla);
   if (!("IntersectionObserver" in window)) return;
   observador = new IntersectionObserver((entradas, observer) => {
     for (const entrada of entradas) {
@@ -61,10 +54,7 @@ onMounted(() => {
   recorrido.value.querySelectorAll(".escena-servicio").forEach(escena => observador.observe(escena));
 });
 
-onUnmounted(() => {
-  observador?.disconnect();
-  window.removeEventListener("hashchange", leerAncla);
-});
+onUnmounted(() => observador?.disconnect());
 </script>
 
 <template>
@@ -72,13 +62,13 @@ onUnmounted(() => {
     <section id="inicio" class="portada" aria-labelledby="titulo-portada">
       <div class="contenedor montaje-portada">
         <div class="portada-texto">
-          <p class="portada-contexto">Estaciones de casilleros · Comayagua</p>
+          <p class="portada-contexto">Casilleros inteligentes · Comayagua</p>
           <h1 id="titulo-portada">De tu mochila <span>a tu próximo envío</span></h1>
           <p class="portada-intro">
             Guarda tus pertenencias, carga tus dispositivos y prepara encomiendas en tu cuenta SYNCHRO.
           </p>
           <div class="botones-portada">
-            <a href="#servicios" class="boton boton-portada">Recorrer la estación <span aria-hidden="true">↓</span></a>
+            <a href="#servicios" class="boton boton-portada">Explorar servicios <span aria-hidden="true">↓</span></a>
             <RouterLink to="/reservar/encomienda" class="boton boton-portada-secundario">
               Solicitar pre-reserva <AppIcon nombre="flecha"/>
             </RouterLink>
@@ -87,7 +77,7 @@ onUnmounted(() => {
         <div class="portada-escena">
           <figure class="portada-modelo">
             <img :src="escenaEstacion" width="1680" height="946" fetchpriority="high"
-              alt="Concepto de una estación SYNCHRO con casilleros modulares en un espacio de tránsito">
+              alt="Casillero inteligente SYNCHRO en un espacio de tránsito">
             <figcaption>Visualización del concepto SYNCHRO</figcaption>
           </figure>
           <a href="#modelo-synchro" class="acceso-modelo">
@@ -102,35 +92,27 @@ onUnmounted(() => {
     <section id="servicios" class="contenedor bloque-servicios" aria-labelledby="titulo-servicios">
       <header class="cabecera-servicios">
         <p class="rotulo-seccion">Nuestros servicios</p>
-        <h2 id="titulo-servicios">Una estación para lo que lleves</h2>
+        <h2 id="titulo-servicios">Casilleros inteligentes para tu día</h2>
         <p>Deja tu mochila, prepara un envío o recarga antes de seguir.</p>
       </header>
 
-      <div ref="recorrido" class="recorrido-servicios">
-        <nav class="indice-servicios" aria-label="Servicios de la estación">
-          <a v-for="item in servicios" :key="item.id" :href="'#' + item.id"
-            :aria-current="servicioMarcado === item.id ? 'location' : undefined">
-            <AppIcon :nombre="item.icono"/> {{ item.nombre }}
-          </a>
-        </nav>
-        <div class="escenas-servicio">
-          <article v-for="item in servicios" :id="item.id" :key="item.id" class="escena-servicio"
-            :aria-labelledby="item.id + '-titulo'">
-            <figure class="foto-servicio" :class="'foto-' + item.id">
-              <img :src="item.imagen" width="1600" height="900" loading="lazy" decoding="async" :alt="item.alt">
-              <figcaption>{{ item.nota || 'Escena ilustrativa' }}</figcaption>
-            </figure>
-            <div class="ficha-servicio">
-              <p class="nombre-servicio"><AppIcon :nombre="item.icono"/> {{ item.nombre }}</p>
-              <h3 :id="item.id + '-titulo'">{{ item.titulo }}</h3>
-              <p>{{ item.descripcion }}</p>
-              <RouterLink v-if="item.id === 'encomiendas'" to="/reservar/encomienda" class="boton boton-primario">
-                Nueva pre-reserva <AppIcon nombre="flecha"/>
-              </RouterLink>
-              <p v-else class="servicio-estado">{{ item.estado }}</p>
-            </div>
-          </article>
-        </div>
+      <div ref="recorrido" class="escenas-servicio">
+        <article v-for="item in servicios" :id="item.id" :key="item.id" class="escena-servicio"
+          :aria-labelledby="item.id + '-titulo'">
+          <figure class="foto-servicio" :class="'foto-' + item.id">
+            <img :src="item.imagen" width="1600" height="900" loading="lazy" decoding="async" :alt="item.alt">
+            <figcaption>{{ item.nota || 'Escena ilustrativa' }}</figcaption>
+          </figure>
+          <div class="ficha-servicio">
+            <p class="nombre-servicio"><AppIcon :nombre="item.icono"/> {{ item.nombre }}</p>
+            <h3 :id="item.id + '-titulo'">{{ item.titulo }}</h3>
+            <p>{{ item.descripcion }}</p>
+            <RouterLink v-if="item.id === 'encomiendas'" to="/reservar/encomienda" class="boton boton-primario">
+              Nueva pre-reserva <AppIcon nombre="flecha"/>
+            </RouterLink>
+            <p v-else class="servicio-estado">{{ item.estado }}</p>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -164,7 +146,7 @@ onUnmounted(() => {
         <p>
           La idea partió de situaciones cotidianas: cargar con la mochila y las compras todo el día,
           buscar un lugar para recargar el celular o coordinar una entrega cuando los horarios no coinciden.
-          Diseñamos una estación que reúne esos servicios en un mismo lugar.
+          Diseñamos casilleros inteligentes que reúnen esos servicios en un mismo lugar.
         </p>
       </div>
       <figure id="modelo-synchro" class="historia-modelo">
@@ -172,16 +154,6 @@ onUnmounted(() => {
           alt="Diseño del modelo SYNCHRO con varios tamaños, zonas térmicas y módulo de carga">
         <figcaption>Modelo de exhibición · SYNCHRO</figcaption>
       </figure>
-      <div class="historia-proposito">
-        <div>
-          <h3>Misión</h3>
-          <p>Facilitar la vida cotidiana en Comayagua con almacenamiento, carga de dispositivos y gestión de encomiendas.</p>
-        </div>
-        <div>
-          <h3>Visión</h3>
-          <p>Llevar las estaciones inteligentes SYNCHRO a distintas ciudades de Honduras.</p>
-        </div>
-      </div>
     </section>
 
     <div class="contenedor acceso-final">
