@@ -29,7 +29,8 @@ const mensajes = Object.freeze([
 
 const indice = ref(0);
 const progreso = ref(0);
-const pausaManual = ref(false);
+const detenidoPorUsuario = ref(false);
+const movimientoReducido = ref(false);
 const sobreCarrusel = ref(false);
 const focoCarrusel = ref(false);
 const pestanaOculta = ref(false);
@@ -37,8 +38,8 @@ const cambioManual = ref(false);
 
 const actual = computed(() => mensajes[indice.value]);
 const pausado = computed(() =>
-  pausaManual.value || sobreCarrusel.value ||
-  focoCarrusel.value || pestanaOculta.value
+  detenidoPorUsuario.value || movimientoReducido.value ||
+  sobreCarrusel.value || focoCarrusel.value || pestanaOculta.value
 );
 
 let temporizador = null;
@@ -51,7 +52,7 @@ function marcarTiempo() {
 
 function avanzarTiempo() {
   const ahora = performance.now();
-  const diferencia = Math.min(Math.max(ahora - instanteAnterior, 0), 250);
+  const diferencia = Math.min(Math.max(ahora - instanteAnterior, 0), 400);
   instanteAnterior = ahora;
 
   if (pausado.value) return;
@@ -67,16 +68,14 @@ function avanzarTiempo() {
 
 function mostrar(numero) {
   if (numero < 0 || numero >= mensajes.length) return;
-  indice.value = numero;
+  if (numero === indice.value && detenidoPorUsuario.value) {
+    detenidoPorUsuario.value = false;
+  } else {
+    indice.value = numero;
+    detenidoPorUsuario.value = true;
+  }
   progreso.value = 0;
   cambioManual.value = true;
-  pausaManual.value = true;
-  marcarTiempo();
-}
-
-function alternarReproduccion() {
-  pausaManual.value = !pausaManual.value;
-  cambioManual.value = false;
   marcarTiempo();
 }
 
@@ -86,7 +85,7 @@ function actualizarVisibilidad() {
 }
 
 function actualizarPreferenciaMovimiento(evento) {
-  if (evento.matches) pausaManual.value = true;
+  movimientoReducido.value = evento.matches;
 }
 
 function cambiarFoco(evento) {
@@ -96,11 +95,11 @@ function cambiarFoco(evento) {
 
 onMounted(() => {
   mediaReducida = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-  if (mediaReducida?.matches) pausaManual.value = true;
+  movimientoReducido.value = Boolean(mediaReducida?.matches);
   mediaReducida?.addEventListener?.("change", actualizarPreferenciaMovimiento);
   actualizarVisibilidad();
   marcarTiempo();
-  temporizador = window.setInterval(avanzarTiempo, 70);
+  temporizador = window.setInterval(avanzarTiempo, 100);
   document.addEventListener("visibilitychange", actualizarVisibilidad);
 });
 
@@ -137,11 +136,11 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="acceso-controles">
-      <div class="acceso-paginacion" role="group" aria-label="Elegir mensaje">
+      <div class="acceso-paginacion" role="group" aria-label="Elegir mensaje. Seleccionar un mensaje detiene la reproducción automática.">
         <button v-for="(mensaje, numero) in mensajes" :key="numero" type="button"
           class="acceso-paso"
           :class="{ activo: indice === numero }"
-          :aria-label="`Mostrar: ${mensaje.control}`"
+          :aria-label="indice === numero && detenidoPorUsuario ? 'Reanudar recorrido automático' : `Mostrar: ${mensaje.control}`"
           :aria-current="indice === numero ? 'true' : undefined"
           @click="mostrar(numero)">
           <span class="acceso-progreso" aria-hidden="true"
@@ -149,12 +148,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <button class="acceso-pausa" type="button"
-        :aria-label="pausaManual ? 'Reanudar los mensajes' : 'Pausar los mensajes'"
-        @click="alternarReproduccion">
-        <span class="pausa-simbolo" :class="{ reproducir: pausaManual }" aria-hidden="true"></span>
-        {{ pausaManual ? "Reanudar" : "Pausar" }}
-      </button>
+
     </div>
   </aside>
 </template>
@@ -232,36 +226,9 @@ onBeforeUnmount(() => {
   border-radius: 99px;
   background: var(--brand-accent);
   z-index: 1;
-  transition: width 70ms linear;
+  transition: width 100ms linear;
 }
 .acceso-paso:hover::before { background: var(--text-subtle); }
-.acceso-pausa {
-  border: none;
-  padding: 6px 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-.acceso-pausa:hover { color: var(--text-strong); }
-.pausa-simbolo {
-  display: block;
-  width: 11px;
-  height: 12px;
-  border-left: 3px solid currentColor;
-  border-right: 3px solid currentColor;
-}
-.pausa-simbolo.reproducir {
-  width: 0;
-  height: 0;
-  border-left: 10px solid currentColor;
-  border-right: 0;
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-}
 @media (max-height: 740px) {
   .acceso-slide-area { min-height: 250px; }
 }
