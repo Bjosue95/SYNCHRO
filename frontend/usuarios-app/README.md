@@ -157,3 +157,21 @@ a 44 x 44 px en ambos modos.
 
 Referencia de accesibilidad: W3C/WAI, Carousels Tutorial y ARIA Carousel
 Pattern. La nueva comprobación está en `tests/carruselAcceso.test.mjs`.
+
+
+## CSRF para operaciones con y sin sesión
+
+El backend publica dos rutas diferentes de emisión del token antifalsificación:
+
+- **Acceso público**: `GET /api/web/clientes/acceso/csrf-token`, únicamente
+  antes de `registro` y `login`.
+- **Cuenta autenticada**: `GET /api/web/clientes/csrf-token`, antes de
+  `logout`, crear pre-reservas e iniciar consentimiento WhatsApp.
+
+El token se envía por `X-CSRF-TOKEN` con la cookie de sesión HTTPS. **No se
+desactiva la validación CSRF** y no se reutiliza un token anónimo al cerrar
+una sesión ya autenticada. Se solicita uno nuevo por cada operación mutable.
+
+Las pruebas `tests/csrfAutenticado.test.mjs` verifican que cada operación
+utiliza la ruta correspondiente, y que un CSRF privado no disponible no
+provoca un intento de cerrar sesión sin protección.
