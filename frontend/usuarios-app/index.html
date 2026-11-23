@@ -3,9 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#01305c">
-  <meta name="description" content="SYNCHRO, tu cuenta y solicitudes web de casilleros inteligentes.">
-  <title>SYNCHRO | Portal de usuarios</title>
+  <meta name="theme-color" content="#01305C">
+  <meta name="description" content="SYNCHRO: gestiona tus solicitudes de encomiendas y tus servicios desde una cuenta segura.">
+  <title>SYNCHRO · Portal de usuarios</title>
+  <script>
+    (() => {
+      try {
+        const preferencia = localStorage.getItem("synchro-usuarios-tema");
+        const oscuro = preferencia === "oscuro" || (!preferencia && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = oscuro ? "oscuro" : "claro";
+        document.documentElement.style.colorScheme = oscuro ? "dark" : "light";
+      } catch { document.documentElement.dataset.theme = "claro"; }
+    })();
+  </script>
 </head>
 <body>
   <div id="app"></div>
