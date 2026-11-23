@@ -18,6 +18,10 @@ export const soluciones = Object.freeze([
   { id: "temperatura", nombre: "Casilleros con temperatura controlada" },
   { id: "carga", nombre: "Estaciones de carga" },
   { id: "modulos", nombre: "Instalación de módulos SYNCHRO" },
+  { id: "seguridad", nombre: "Seguridad y control de acceso" },
+  { id: "sensores", nombre: "Sensores, alarmas y monitoreo" },
+  { id: "energia", nombre: "Energía solar y respaldo eléctrico" },
+  { id: "accesibilidad", nombre: "Accesibilidad e inclusión" },
   { id: "alianza", nombre: "Alianzas y colaboración" },
   { id: "otra", nombre: "Otra consulta" }
 ]);
