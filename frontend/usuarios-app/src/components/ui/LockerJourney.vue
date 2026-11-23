@@ -50,7 +50,7 @@ function controlarTeclado(evento) {
 
       <div class="syn-station" aria-hidden="true">
         <div class="syn-station-top">
-          <img src="/branding/nombre-azul.svg" alt="" draggable="false" />
+          <img src="/branding/nombre-azul.png" alt="" draggable="false" />
           <span class="syn-station-signal"></span>
         </div>
         <div class="syn-station-body">
@@ -76,7 +76,7 @@ function controlarTeclado(evento) {
           </div>
           <div class="syn-station-console">
             <div class="syn-console-screen">
-              <img src="/branding/isotipo-claro.svg" alt="" />
+              <img src="/branding/isotipo-claro.png" alt="" />
               <span class="syn-screen-status" :class="{ 'is-ready': activa > 0 }"></span>
               <span class="syn-screen-line"></span>
               <span class="syn-screen-line short"></span>
