@@ -1,5 +1,11 @@
 /** Formatos de presentación. No alteran estados ni fechas del servidor. */
 const estados = Object.freeze({
+  Preparacion: "En preparación",
+  ListaParaDeposito: "Lista para depósito",
+  Depositada: "Depositada",
+  Retirada: "Entregada",
+  ConfirmadoManual: "Confirmado manualmente",
+  Pequeno: "Pequeño",
   PendienteConsentimiento: "Pendiente de consentimiento",
   Pendiente: "Pendiente",
   Confirmado: "Confirmado",

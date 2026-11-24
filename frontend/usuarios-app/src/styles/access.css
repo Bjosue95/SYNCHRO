@@ -1,4 +1,4 @@
-/* Cabecera reducida: navegación pública sin pestañas innecesarias. */
+/* Cabecera compartida por las vistas públicas y el acceso. */
 .header-publico {
   min-height: 74px;
   gap: 20px;
@@ -30,12 +30,13 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .es-acceso .acceso-pagina {
   width: 100%;
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: 100%;
   display: flex;
   align-items: stretch;
   background: var(--bg);
@@ -47,9 +48,9 @@
   align-items: center;
   justify-content: center;
   width: min(1060px, calc(100% - 48px));
-  height: 100%;
-  min-height: 0;
-  padding: clamp(14px, 3vh, 35px) 0;
+  height: auto;
+  min-height: 100%;
+  padding: clamp(28px, 4vh, 48px) 0;
   margin: 0 auto;
 }
 .es-acceso .acceso-presentacion {
@@ -106,15 +107,15 @@
 
 .es-acceso .acceso-formulario {
   justify-self: end;
-  width: min(100%, 452px);
-  max-width: 452px;
-  padding: clamp(21px, 2.7vw, 34px);
-  border-radius: 19px;
+  width: min(100%, 480px);
+  max-width: 480px;
+  padding: clamp(28px, 3vw, 38px);
+  border-radius: var(--radius-lg);
 }
-.acceso-form-header { margin-bottom: 18px; }
+.acceso-form-header { margin-bottom: 26px; }
 .acceso-form-header h1 {
   margin: 0;
-  font-size: clamp(26px, 3vw, 33px);
+  font-size: clamp(28px, 3vw, 36px);
   color: var(--text-strong);
   letter-spacing: -.04em;
   line-height: 1.18;
@@ -123,26 +124,45 @@
 .acceso-form-header p {
   margin: 9px 0 0;
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.65;
 }
 .es-acceso .formulario {
   margin: 0;
-  gap: 16px;
+  gap: 20px;
 }
-.es-acceso .campo { gap: 6px; }
-.es-acceso .campo > span {
+.es-acceso .campo { gap: 8px; }
+.es-acceso .campo > label {
+  color: var(--text-strong);
   font-size: 13px;
+  font-weight: 750;
 }
 .es-acceso .campo input {
-  height: 47px;
-  min-height: 47px;
-  padding: 10px 13px;
+  height: 52px;
+  min-height: 52px;
+  padding: 12px 14px;
+  font-size: 16px;
 }
-.es-acceso .formulario > .boton {
-  min-height: 47px;
+.es-acceso .formulario .acceso-enviar {
+  width: 100%;
+  min-height: 52px;
   margin-top: 3px;
 }
+.acceso-clave { position: relative; }
+.es-acceso .acceso-clave input { padding-right: 58px; }
+.acceso-ver-clave {
+  position: absolute; right: 5px; top: 4px; width: 44px; height: 44px;
+  display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-strong);
+}
+.acceso-ver-clave:hover { background: var(--surface-hover); }
+.es-acceso .campo input[aria-invalid="true"] { border-color: var(--danger-text); }
+.es-acceso .campo input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.campo-error { display: flex; align-items: flex-start; gap: 7px; margin: 0;
+  color: var(--danger-text); font-size: 12px; line-height: 1.55; }
+.campo-error .icono-ui { margin-top: 1px; }
+.acceso-validacion { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.acceso-error:focus { outline: 2px solid var(--ring); outline-offset: 3px; }
 .es-acceso .acceso-cambiar {
   margin-top: 20px;
   padding-top: 17px;
@@ -161,6 +181,7 @@
   background: transparent;
   border: 0;
   padding: 4px;
+  min-height: 44px;
   font-size: inherit;
   font-weight: 820;
   text-decoration: underline;
@@ -173,7 +194,7 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
     width: min(440px, calc(100% - 32px));
-    padding: 14px 0;
+    padding: 28px 0;
     justify-items: center;
     align-content: center;
   }
@@ -182,7 +203,7 @@
     justify-self: center;
     width: 100%;
     max-width: 440px;
-    padding: clamp(19px, 4.5vw, 30px);
+    padding: clamp(24px, 4.5vw, 34px);
   }
 }
 
@@ -212,11 +233,11 @@
   .es-acceso .acceso-formulario { padding: 20px; border-radius: 16px; }
   .es-acceso .acceso-form-header h1 { font-size: 27px; }
   .es-acceso .acceso-form-header p { font-size: 12px; margin-top: 6px; }
-  .es-acceso .campo input { min-height: 45px; height: 45px; }
+  .es-acceso .campo input { min-height: 52px; height: 52px; }
 }
 @media (max-width: 370px) {
   .es-acceso .acceso-formulario { padding: 16px 15px; }
-  .es-acceso .formulario { gap: 11px; }
+  .es-acceso .formulario { gap: 18px; }
   .es-acceso .acceso-cambiar { margin-top: 12px; padding-top: 10px; }
 }
 /* Priorizar acceso y controles cuando se reduce la altura (teclado/zoom).

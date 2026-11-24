@@ -198,7 +198,7 @@ onBeforeUnmount(() => {
 .syn-map-note { font-size:12px; line-height:1.5; max-width:200px; color:var(--text-muted); }
 .syn-map-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
 .syn-map-filters button { border:1px solid var(--border-strong); border-radius:99px; background:var(--surface); color:var(--text-muted); padding:9px 15px; min-height:42px; font-size:12px; font-weight:720; }
-.syn-map-filters button.activo { color:#fff; background:#01305c; border-color:#01305c; }
+.syn-map-filters button.activo { color:var(--on-action); background:var(--action-bg); border-color:var(--action-bg); }
 .syn-map-grid { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(275px,.75fr); border:1px solid var(--border); border-radius:18px; overflow:hidden; background:var(--surface); min-height:500px; }
 .syn-map-surface { min-height:500px; position:relative; }
 .syn-map-canvas { height:100%; width:100%; min-height:500px; background:#dfeaed; z-index:0; }

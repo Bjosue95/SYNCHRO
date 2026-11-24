@@ -1,181 +1,177 @@
-<script setup>
-import { ref } from "vue";
-import { RouterLink } from "vue-router";
-import AppIcon from "../components/ui/AppIcon.vue";
-import { fechaHonduras, nombreEstadoReserva } from "../services/formatos.js";
-import { apiClientes } from "../services/clientesApi.js";
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { RouterLink, useRouter } from "vue-router";
+import { encomiendasApi } from "../services/encomiendasApi.js";
 import {
-  TAMANOS_ENCOMIENDA, normalizarTelefono, tamanoValido
+  TAMANOS_ENCOMIENDA,
+  normalizarTelefono,
 } from "../services/validaciones.js";
-
-const destinatario = ref("");
-const tamano = ref("Mediano");
-const preparando = ref(false);
-const error = ref("");
-const creada = ref(null);
-const consentimiento = ref(null);
-const solicitandoConsentimiento = ref(false);
-const avisoCopia = ref("");
-
-
-async function crear() {
-  if (preparando.value) return;
+import ReferenciaFacialEncomienda from "../components/ui/ReferenciaFacialEncomienda.vue";
+import SynButton from "../components/ui/SynButton.vue";
+const router = useRouter(),
+  paso = ref(0),
+  config = ref<any>(null),
+  facial = ref<any>(null),
+  telefono = ref(""),
+  tamano = ref("Mediano"),
+  enviando = ref(false),
+  error = ref("");
+const pasos = ["Tu identidad", "Destinatario", "Revisar y crear"];
+onMounted(async () => {
+  try {
+    [config.value, facial.value] = await Promise.all([
+      encomiendasApi.configuracion(),
+      encomiendasApi.referencia(),
+    ]);
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+});
+function siguiente() {
   error.value = "";
-  const telefonoDestinatario = normalizarTelefono(destinatario.value);
-  if (!telefonoDestinatario || !tamanoValido(tamano.value)) {
-    error.value = "Verifica el teléfono del destinatario y el tamaño elegido.";
+  if (paso.value === 0 && !facial.value?.vigente) {
+    error.value = "Registra una referencia facial vigente antes de continuar.";
     return;
   }
-  preparando.value = true;
-  try {
-    creada.value = await apiClientes.crearPreReserva({
-      telefonoDestinatario, tamanoSolicitado: tamano.value
-    });
-    consentimiento.value = null;
-    avisoCopia.value = "";
-  } catch (e) {
-    error.value = e?.message || "No se pudo preparar la pre-reserva.";
-  } finally {
-    preparando.value = false;
+  if (paso.value === 1 && !normalizarTelefono(telefono.value)) {
+    error.value =
+      "Escribe el WhatsApp del destinatario con código de país, por ejemplo +504XXXXXXXX.";
+    return;
   }
+  paso.value++;
 }
-
-async function copiar(valor) {
-  try {
-    await navigator.clipboard.writeText(String(valor));
-    avisoCopia.value = "Copiado. Guarda la referencia y la clave en un lugar privado.";
-  } catch {
-    avisoCopia.value = "Selecciona la clave y cópiala manualmente.";
-  }
-}
-
-async function iniciarConsentimiento() {
-  if (!creada.value || solicitandoConsentimiento.value) return;
-  solicitandoConsentimiento.value = true;
+async function crear() {
+  if (enviando.value) return;
+  enviando.value = true;
   error.value = "";
   try {
-    consentimiento.value = await apiClientes.iniciarConsentimiento(
-      creada.value.id, creada.value.tokenGestion
-    );
+    const d = await encomiendasApi.crear({
+      telefonoDestinatario: normalizarTelefono(telefono.value),
+      tamanoSolicitado: tamano.value,
+    });
+    await router.replace("/encomiendas/" + d.id);
   } catch (e) {
-    error.value = e?.message || "No se pudo iniciar el consentimiento.";
+    error.value = (e as Error).message;
   } finally {
-    solicitandoConsentimiento.value = false;
+    enviando.value = false;
   }
 }
-
-const enlaceWhatsAppValido = valor =>
-  typeof valor === "string" &&
-  /^https:\/\/wa\.me\/[1-9][0-9]{7,14}(\?text=.+)?$/.test(valor);
 </script>
-
 <template>
-  <section class="contenedor pagina-interna">
-    <div class="encabezado-pagina">
-      <RouterLink to="/mi-cuenta" class="enlace-volver"><AppIcon nombre="volver" :tamano="20"/> Mi cuenta</RouterLink>
-      <span class="eyebrow">Encomiendas · Solicitud web</span>
-      <h1>Nueva pre-reserva</h1>
-      <p>Registra una solicitud de encomienda. El casillero se asignará solamente mediante un proceso posterior autorizado.</p>
-    </div>
-
-    <div class="reserva-grid">
-      <div class="formulario-tarjeta">
-        <template v-if="!creada">
-          <h2>Datos de la encomienda</h2>
-          <p class="texto-suave">Indica el teléfono del destinatario y el tamaño aproximado del paquete.</p>
-          <form class="formulario" @submit.prevent="crear">
-            <label class="campo">
-              <span>Teléfono del destinatario (WhatsApp)</span>
-              <input v-model="destinatario" type="tel" required maxlength="16"
-                placeholder="+504XXXXXXXX" autocomplete="off" inputmode="tel" />
-              <small>El destinatario deberá autorizar las comunicaciones por WhatsApp.</small>
-            </label>
-            <fieldset class="grupo-tamanos">
-              <legend>Tamaño solicitado</legend>
-              <label v-for="opcion in TAMANOS_ENCOMIENDA" :key="opcion.valor"
-                class="opcion-tamano" :class="{ elegido: tamano === opcion.valor }">
-                <input v-model="tamano" type="radio" name="tamano" :value="opcion.valor" />
-                <span class="letra-tamano">{{ opcion.nombre }}</span>
-                <small>{{ opcion.detalle }}</small>
-              </label>
-            </fieldset>
-            <p v-if="error" class="alerta" role="alert">{{ error }}</p>
-            <button class="boton boton-primario boton-ancho" type="submit"
-              :disabled="preparando" :aria-busy="preparando">
-              {{ preparando ? "Creando solicitud..." : "Crear pre-reserva" }}
-              <AppIcon nombre="flecha" :tamano="20"/>
-            </button>
-          </form>
-        </template>
-
-        <template v-else>
-          <div class="confirmacion-icono" aria-hidden="true"><AppIcon nombre="check" :tamano="39"/></div>
-          <span class="eyebrow">Solicitud registrada</span>
-          <h2>Pre-reserva creada</h2>
-          <p class="texto-suave">Tu solicitud quedó registrada, pero aún no tienes un casillero asignado.</p>
-          <div class="resumen-reserva">
-            <div><span>Referencia</span><strong>#{{ creada.id }}</strong></div>
-            <div><span>Estado</span><strong>{{ nombreEstadoReserva(creada.estado) }}</strong></div>
-            <div><span>Válida hasta</span><strong>{{ fechaHonduras(creada.fechaExpiracion) }}</strong></div>
-          </div>
-          <label class="campo">
-            <span>Clave privada de consulta</span>
-            <textarea class="clave-privada" :value="creada.tokenGestion" readonly
-              rows="2" aria-label="Clave privada de consulta"></textarea>
-            <small>Se entrega una sola vez. No la compartas públicamente ni la pierdas.</small>
-          </label>
-          <button type="button" class="boton boton-secundario boton-ancho"
-            @click="copiar(creada.tokenGestion)">Copiar clave privada</button>
-          <p v-if="avisoCopia" class="mensaje-exito" role="status">{{ avisoCopia }}</p>
-
-          <div class="separador-suave"></div>
-          <h3>Consentimiento del destinatario</h3>
-          <p class="texto-suave">La solicitud de consentimiento es un paso aparte. No se envía automáticamente ningún WhatsApp desde esta pantalla.</p>
-          <p v-if="error" class="alerta" role="alert">{{ error }}</p>
-          <button type="button" class="boton boton-primario boton-ancho"
-            :disabled="solicitandoConsentimiento || !!consentimiento"
-            @click="iniciarConsentimiento">
-            {{ solicitandoConsentimiento ? "Preparando..." : consentimiento
-              ? "Solicitud de consentimiento preparada" : "Preparar consentimiento WhatsApp" }}
-          </button>
-          <template v-if="consentimiento">
-            <p class="mensaje-exito" role="status">
-              Solicitud preparada para el teléfono terminado en
-              {{ consentimiento.destinatarioUltimos4 }}.
-              Aún debe confirmarla el destinatario.
-            </p>
-            <label class="campo">
-              <span>Mensaje para compartir con el destinatario</span>
-              <textarea :value="consentimiento.mensajeParaCompartirConDestinatario"
-                rows="4" readonly></textarea>
-            </label>
-            <button type="button" class="boton boton-secundario boton-ancho"
-              @click="copiar(consentimiento.mensajeParaCompartirConDestinatario)">
-              Copiar mensaje
-            </button>
-            <button v-if="enlaceWhatsAppValido(consentimiento.enlaceParaDestinatario)"
-              type="button" class="boton boton-secundario boton-ancho"
-              @click="copiar(consentimiento.enlaceParaDestinatario)">
-              Copiar enlace para el destinatario
-            </button>
-            <small class="texto-suave">El mensaje debe ser enviado por el destinatario desde su propio número al WhatsApp de SYNCHRO.</small>
-          </template>
-          <RouterLink to="/consultar" class="enlace-texto enlace-destacado">
-            Consultar una solicitud →
-          </RouterLink>
-        </template>
+  <section class="env-page">
+    <RouterLink to="/mi-cuenta" class="enlace-volver"
+      >Volver a mis encomiendas</RouterLink
+    >
+    <header class="env-heading">
+      <div>
+        <p class="env-kicker">PREPARACIÓN DEL ENVÍO</p>
+        <h1>Nueva encomienda</h1>
+        <p>
+          Identifica a los participantes y prepara las autorizaciones para tu
+          depósito.
+        </p>
       </div>
-
-      <aside class="panel-pasos">
-        <span class="eyebrow">Cómo funciona</span>
-        <h2>Antes de utilizar un casillero</h2>
-        <ol class="pasos-lista">
-          <li><b>1</b><div><strong>Crear la solicitud</strong><span>Se registra una pre-reserva de encomienda a tu cuenta.</span></div></li>
-          <li><b>2</b><div><strong>Consentimiento</strong><span>El destinatario autoriza las comunicaciones por WhatsApp.</span></div></li>
-          <li><b>3</b><div><strong>Verificación</strong><span>El depósito requiere las comprobaciones de identidad correspondientes.</span></div></li>
-        </ol>
-        <div class="nota-seguridad"><strong>Importante</strong><p>La pre-reserva vence a las 24 horas. No constituye un depósito ni asigna un casillero.</p></div>
-      </aside>
+    </header>
+    <ol class="env-steps" aria-label="Pasos de creación">
+      <li
+        v-for="(p, i) in pasos"
+        :key="p"
+        :aria-current="i === paso ? 'step' : undefined"
+      >
+        <span>{{ i + 1 }}</span
+        >{{ p }}
+      </li>
+    </ol>
+    <p v-if="error" class="alerta" role="alert">{{ error }}</p>
+    <ReferenciaFacialEncomienda
+      v-if="paso === 0 && config"
+      :config="config"
+      @actualizada="facial = $event"
+    />
+    <form
+      v-if="paso === 1"
+      class="env-card formulario"
+      @submit.prevent="siguiente"
+    >
+      <h2>¿Quién recibe la encomienda?</h2>
+      <label class="campo"
+        ><span>WhatsApp del destinatario</span
+        ><input
+          v-model="telefono"
+          type="tel"
+          inputmode="tel"
+          maxlength="16"
+          autocomplete="off"
+          placeholder="+504XXXXXXXX"
+          required
+        /><small
+          >Debe ser distinto al del remitente. Su aceptación se comprobará por
+          separado.</small
+        ></label
+      >
+      <fieldset class="grupo-tamanos">
+        <legend>Tamaño de la encomienda</legend>
+        <label
+          v-for="t in TAMANOS_ENCOMIENDA"
+          :key="t.valor"
+          class="opcion-tamano"
+          :class="{ elegido: tamano === t.valor }"
+          ><input
+            v-model="tamano"
+            type="radio"
+            :value="t.valor"
+            name="tamano"
+          /><strong>{{ t.nombre }}</strong
+          ><small>{{ t.detalle }}</small></label
+        >
+      </fieldset>
+      <button type="submit" class="boton boton-primario">
+        Revisar encomienda
+      </button>
+    </form>
+    <section v-if="paso === 2" class="env-card">
+      <h2>Revisa los datos</h2>
+      <dl class="env-facts">
+        <div>
+          <dt>Destinatario</dt>
+          <dd>{{ normalizarTelefono(telefono) }}</dd>
+        </div>
+        <div>
+          <dt>Tamaño</dt>
+          <dd>{{ tamano }}</dd>
+        </div>
+        <div>
+          <dt>Pago</dt>
+          <dd>Lo realiza el remitente. Aún no está confirmado.</dd>
+        </div>
+      </dl>
+      <p class="env-help">
+        Al crear la encomienda se preparan dos solicitudes de consentimiento. El
+        administrador comprobará los mensajes y el pago antes de emitir el PIN
+        de depósito. No se enviarán mensajes automáticamente.
+      </p>
+      <SynButton tipo="button" :cargando="enviando" @click="crear"
+        >Crear encomienda</SynButton
+      >
+    </section>
+    <div class="env-actions">
+      <button
+        v-if="paso > 0"
+        type="button"
+        class="boton boton-secundario"
+        :disabled="enviando"
+        @click="paso--"
+      >
+        Anterior</button
+      ><button
+        v-if="paso === 0"
+        type="button"
+        class="boton boton-primario"
+        :disabled="!facial?.vigente"
+        @click="siguiente"
+      >
+        Continuar con el destinatario
+      </button>
     </div>
   </section>
 </template>

@@ -95,3 +95,23 @@ test("si caduca la sesion, no se envia logout con token anonimo", async () => {
     globalThis.fetch = anterior;
   }
 });
+
+test("una respuesta sin token CSRF impide enviar las credenciales y se distingue de una desconexión", async () => {
+  const anterior = globalThis.fetch;
+  const llamadas = [];
+  globalThis.fetch = async ruta => { llamadas.push(ruta); return respuesta({}); };
+  try {
+    await assert.rejects(apiClientes.ingresar({ nombreUsuario: "prueba", contrasena: "dato-de-prueba" }),
+      error => error instanceof ErrorApi && error.estado === 0 && error.codigo === "csrf");
+    assert.deepEqual(llamadas, ["/api/web/clientes/acceso/csrf-token"]);
+  } finally { globalThis.fetch = anterior; }
+});
+
+test("un fallo de red conserva su clasificación y no se confunde con credenciales incorrectas", async () => {
+  const anterior = globalThis.fetch;
+  globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  try {
+    await assert.rejects(apiClientes.ingresar({ nombreUsuario: "prueba", contrasena: "dato-de-prueba" }),
+      error => error instanceof ErrorApi && error.estado === 0 && error.codigo === "conexion");
+  } finally { globalThis.fetch = anterior; }
+});

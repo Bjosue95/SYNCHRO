@@ -7,11 +7,14 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const leer = ruta => readFileSync(join(root, ruta), "utf8");
 
-test("cabecera pública sin pestañas de Inicio y Servicios", () => {
+test("cabecera pública con navegación a las secciones del inicio y controles conservados", () => {
   const layout = leer("src/components/layout/PublicLayout.vue");
-  assert.doesNotMatch(layout, /class="nav-publica"/);
-  assert.doesNotMatch(layout, />Inicio<\/RouterLink>/);
-  assert.doesNotMatch(layout, />Servicios<\/RouterLink>/);
+  assert.match(layout, /class="nav-publica"/);
+  const hashes = [...layout.matchAll(/hash: "(#[a-z]+)", texto:/g)].map(coincidencia => coincidencia[1]);
+  assert.deepEqual(hashes, ["#inicio", "#servicios", "#nosotros", "#contacto"]);
+  assert.match(layout, /path: '\/', hash: enlace.hash/);
+  assert.match(layout, /position:sticky; top:0/);
+  assert.match(layout, /:aria-expanded="menuAbierto"/);
   assert.match(layout, /v-if="!esAcceso"/);
   assert.match(layout, /BrandLogo/);
   assert.match(layout, /ThemeToggle/);

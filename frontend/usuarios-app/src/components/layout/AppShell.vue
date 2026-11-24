@@ -14,9 +14,9 @@ const error = ref("");
 const nombre = computed(() => estadoSesion.cliente?.nombreUsuario || "Cliente");
 const inicial = computed(() => nombre.value.charAt(0).toLocaleUpperCase("es-HN"));
 const secciones = [
-  { ruta: "/mi-cuenta", nombre: "Mi espacio", icono: "inicio" },
-  { ruta: "/reservar/encomienda", nombre: "Nueva pre-reserva", icono: "reservas" },
-  { ruta: "/consultar", nombre: "Consultar solicitud", icono: "buscar" }
+  { ruta: "/mi-cuenta", nombre: "Mis encomiendas", icono: "inicio" },
+  { ruta: "/reservar/encomienda", nombre: "Nueva encomienda", icono: "reservas" },
+  { ruta: "/consultar", nombre: "Consulta histórica", icono: "buscar" }
 ];
 
 watch(() => route.fullPath, () => { abierto.value = false; });

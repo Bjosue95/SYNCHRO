@@ -38,6 +38,11 @@ onMounted(actualizar);
       <div><p class="eyebrow">VISIÓN GENERAL</p><h1>Resumen operativo</h1><p>Supervisa lo que necesita atención y el estado de tus casilleros.</p></div>
       <button type="button" class="button-secondary" :disabled="cargando" @click="actualizar"><AdminIcon name="refresh" :size="17" />{{ cargando ? "Actualizando..." : "Actualizar" }}</button>
     </div>
+    <nav class="syn-admin-shortcuts" aria-label="Accesos operativos">
+      <RouterLink to="/admin/whatsapp"><AdminIcon name="message" :size="23" /><span><strong>WhatsApp y PIN</strong><small>Autorizaciones</small></span></RouterLink>
+      <RouterLink to="/admin/cobros"><AdminIcon name="check" :size="23" /><span><strong>Cobros</strong><small>Gestionar pagos</small></span></RouterLink>
+      <RouterLink to="/admin/casilleros"><AdminIcon name="lockers" :size="23" /><span><strong>Casilleros</strong><small>Disponibilidad</small></span></RouterLink>
+    </nav>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
     <div class="section-heading"><h2>Estado actual</h2><span v-if="ultimaActualizacion" class="updated-at">Consultado a las {{ ultimaActualizacion }}</span></div>
     <section class="kpi-grid" aria-label="Indicadores de operación">

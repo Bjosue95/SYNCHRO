@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from "vue";
 import AppIcon from "../ui/AppIcon.vue";
+import SynButton from "../ui/SynButton.vue";
 import { empresa, soluciones } from "../../data/empresa.js";
 
 const datos = reactive({
@@ -145,9 +146,9 @@ async function copiarSolicitud() {
           <p v-if="mensajeEstado" role="status"
             class="syn-quote-notice" :class="{ error }">{{ mensajeEstado }}</p>
           <div class="syn-quote-actions">
-            <button type="submit" class="boton boton-primario">
+            <SynButton tipo="submit">
               Preparar correo <AppIcon nombre="enviar" :tamano="19" />
-            </button>
+            </SynButton>
             <button type="button" class="syn-quote-copy" @click="copiarSolicitud">
               <AppIcon nombre="copiar" :tamano="19"/> Copiar solicitud
             </button>

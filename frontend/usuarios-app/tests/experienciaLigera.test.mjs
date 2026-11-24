@@ -29,7 +29,8 @@ test("la portada integra una escena de producto con pasos interactivos", () => {
     assert.ok(escena.includes(paso), paso);
   }
   assert.match(escena, /puertaAbierta/);
-  assert.match(escena, /rotateY\(-73deg\)/);
+  assert.match(escena, /translateX\(var\(--door-shift\)\)/);
+  assert.doesNotMatch(escena, /rotateY|perspective\(/);
   assert.match(escena, /@click="elegir\(i\)"/);
   assert.match(escena, /controlarTeclado/);
   assert.match(escena, /prefers-reduced-motion: reduce/);

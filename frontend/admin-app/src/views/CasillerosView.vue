@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { apiAdmin } from "../services/adminApi";
 import AdminIcon from "../components/AdminIcon.vue";
+import SynButton from "../components/ui/SynButton.vue";
 
 const casilleros = ref([]);
 const cargando = ref(true);
@@ -57,7 +58,7 @@ onMounted(actualizarTodo);
   <div>
     <div class="page-heading spread-heading">
       <div><p class="eyebrow">INFRAESTRUCTURA</p><h1>Casilleros</h1><p>Consulta el estado actual de cada módulo. Información de solo lectura.</p></div>
-      <button type="button" class="button-secondary"  :disabled="cargando || cargandoCarga" @click="actualizarTodo"><AdminIcon name="refresh" :size="17" />{{ cargando || cargandoCarga ? 'Actualizando...' : 'Actualizar' }}</button>
+      <SynButton variante="secundario" :cargando="cargando || cargandoCarga" @click="actualizarTodo"><AdminIcon name="refresh" :size="17" />{{ cargando || cargandoCarga ? 'Actualizando...' : 'Actualizar' }}</SynButton>
     </div>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
     <section class="panel lockers-panel">

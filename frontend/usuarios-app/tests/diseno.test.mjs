@@ -62,8 +62,13 @@ test("las paginas publicas y privadas usan layouts distintos", () => {
 
 test("no se inventan metricas ni historial de reservas en el panel", () => {
   const panel = leer("src/views/PanelView.vue");
-  assert.match(panel, /crear y consultar|gestionar tus solicitudes|crear y consultar/i);
+  assert.match(panel, /encomiendasApi\.listar\(\)/);
+  assert.match(panel, /items\.value\s*=\s*datos\.encomiendas/);
+  assert.match(panel, /items\.value\.filter/);
   assert.doesNotMatch(panel, /reservas activas\s*\d|pr[oó]ximos vencimientos\s*\d/i);
-  assert.match(panel, /AppIcon nombre="encomienda"/);
-  assert.match(panel, /AppIcon nombre="buscar"/);
+  assert.match(panel, /v-for="e in visibles"/);
+  assert.match(panel, /fechaHonduras\(e\.entregaUtc\s*\|\|\s*e\.depositoUtc\s*\|\|\s*e\.creadaUtc\)/);
+  assert.match(panel, /!cargando\s*&&\s*!error/);
+  assert.match(panel, /Nueva encomienda/);
+  assert.match(panel, /Consultar una pre-reserva\s+histórica/);
 });

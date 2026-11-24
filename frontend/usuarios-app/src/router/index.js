@@ -16,8 +16,13 @@ const rutas = [
     component: () => import("../views/PanelView.vue")
   },
   {
+    path: "/encomiendas/:id(\\d+)", name: "detalle-encomienda",
+    meta: { privada: true, titulo: "Detalle de encomienda" },
+    component: () => import("../views/EncomiendaDetalleView.vue")
+  },
+  {
     path: "/reservar/encomienda", name: "encomienda",
-    meta: { privada: true, titulo: "Nueva pre-reserva" },
+    meta: { privada: true, titulo: "Nueva encomienda" },
     component: () => import("../views/PreReservaView.vue")
   },
   {
@@ -31,8 +36,30 @@ const rutas = [
 export const router = createRouter({
   history: createWebHistory(),
   routes: rutas,
-  scrollBehavior(to) {
-    if (to.hash) return { el: to.hash, behavior: "smooth" };
+  async scrollBehavior(to) {
+    if (to.hash) {
+      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+      if (to.hash === "#inicio") return { top: 0, behavior };
+      const id = decodeURIComponent(to.hash.slice(1));
+      // La transición out-in puede mantener la sección destino fuera del DOM al cambiar de ruta.
+      const el = document.getElementById(id) || await new Promise(resolve => {
+        const observador = new MutationObserver(() => {
+          const destino = document.getElementById(id);
+          if (!destino) return;
+          clearTimeout(limite);
+          observador.disconnect();
+          resolve(destino);
+        });
+        const limite = setTimeout(() => { observador.disconnect(); resolve(null); }, 1500);
+        observador.observe(document.body, { childList: true, subtree: true });
+      });
+      // Medir al terminar la entrada evita descontar el translateY de la vista.
+      const vista = el?.closest(".vista-pagina-enter-active");
+      if (vista) await Promise.allSettled(vista.getAnimations().map(animacion => animacion.finished));
+      if (!el || router.currentRoute.value.fullPath !== to.fullPath) return false;
+      const altoCabecera = document.querySelector(".cabecera-publica")?.getBoundingClientRect().height || 0;
+      return { el, top: altoCabecera + 16, behavior };
+    }
     return { top: 0 };
   }
 });

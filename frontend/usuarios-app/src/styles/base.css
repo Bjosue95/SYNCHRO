@@ -37,17 +37,24 @@ fieldset { min-width: 0; }
   text-decoration: none; transition: background .2s, border-color .2s, transform .2s;
 }
 .boton:hover:not(:disabled) { transform: translateY(-1px); }
-.boton-primario { background: #01305C; color: white; }
-.boton-primario:hover:not(:disabled) { background: #064878; }
+.boton-primario { background: var(--action-bg); color: var(--on-action); }
+.boton-primario:hover:not(:disabled) { background: var(--action-hover); }
 .boton-secundario {
   background: var(--surface); color: var(--text-strong); border-color: var(--border-strong);
 }
 .boton-secundario:hover:not(:disabled) { background: var(--surface-hover); }
 .boton-ancho { width: 100%; }
-.boton-primario .icono-ui { filter: brightness(0) invert(1); }
-:root[data-theme="oscuro"] .boton-primario .icono-ui { filter: brightness(0); }
-:root[data-theme="oscuro"] .boton-primario { background: #5EC6E8; color: #061D31; }
-:root[data-theme="oscuro"] .boton-primario:hover:not(:disabled) { background: #89DDF1; }
+.boton-primario .icono-ui { filter: var(--action-icon-filter); }
+
+/* Patrón de identidad compartido; se aplica solo en secciones seleccionadas. */
+.syn-grid-surface { position: relative; isolation: isolate; }
+.syn-grid-surface::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  mask-image: linear-gradient(to bottom, transparent, #000 64px, #000 calc(100% - 64px), transparent);
+}
 
 /* Público */
 .sitio { min-height: 100dvh; display: flex; flex-direction: column; }

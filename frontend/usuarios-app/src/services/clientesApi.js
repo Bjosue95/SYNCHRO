@@ -1,10 +1,11 @@
 import { tokenReservaValido, referenciaReservaValida } from "./validaciones.js";
 
 export class ErrorApi extends Error {
-  constructor(mensaje, estado) {
+  constructor(mensaje, estado, codigo = "respuesta") {
     super(mensaje);
     this.name = "ErrorApi";
     this.estado = estado;
+    this.codigo = codigo;
   }
 }
 
@@ -50,7 +51,7 @@ async function solicitar(ruta, { metodo = "GET", datos, cabeceras = {} } = {}) {
       ...(datos !== undefined ? { body: JSON.stringify(datos) } : {})
     });
   } catch {
-    throw new ErrorApi("No hay conexión con el backend de SYNCHRO.", 0);
+    throw new ErrorApi("No hay conexión con el backend de SYNCHRO.", 0, "conexion");
   }
   return interpretar(respuesta);
 }
@@ -70,10 +71,10 @@ export async function obtenerCsrf({ autenticado = false } = {}) {
       headers: { Accept: "application/json" }
     });
   } catch {
-    throw new ErrorApi("No hay conexión segura con el backend.", 0);
+    throw new ErrorApi("No hay conexión segura con el backend.", 0, "conexion");
   }
   const datos = await interpretar(respuesta);
-  if (!datos?.csrfToken) throw new ErrorApi("No fue posible verificar la operación.", 0);
+  if (!datos?.csrfToken) throw new ErrorApi("No fue posible verificar la operación.", 0, "csrf");
   return datos.csrfToken;
 }
 
@@ -117,3 +118,6 @@ export const apiClientes = Object.freeze({
     );
   }
 });
+
+// Compartir transporte, cookies y CSRF autenticado con la gestión operativa.
+export { solicitar as solicitarCliente };

@@ -1,42 +1,56 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import AppIcon from "./AppIcon.vue";
+import ObjetoEstacion from "./ObjetoEstacion.vue";
 
-// Recorrido editorial de una encomienda. No invoca servicios ni atribuye
-// disponibilidad a una estación real.
+// Ilustración interactiva local: no ejecuta depósitos ni consulta estaciones.
 const etapas = Object.freeze([
-  {
-    nombre: "Solicitud",
-    titulo: "Prepara tu envío",
-    detalle: "Indica el tamaño de la encomienda y el contacto del destinatario.",
-    icono: "reservas"
-  },
-  {
-    nombre: "Consentimiento",
-    titulo: "El destinatario autoriza",
-    detalle: "La comunicación por WhatsApp requiere su consentimiento.",
-    icono: "whatsapp"
-  },
-  {
-    nombre: "Entrega y retiro",
-    titulo: "La entrega se verifica",
-    detalle: "La estación comprueba la identidad antes de entregar el contenido.",
-    icono: "seguridad"
-  }
+  { nombre: "Solicitud", titulo: "Prepara tu envío", detalle: "Selecciona un servicio y consulta sus pasos.", icono: "reservas" },
+  { nombre: "Consentimiento", titulo: "El destinatario autoriza", detalle: "El consentimiento por WhatsApp forma parte de las encomiendas.", icono: "whatsapp" },
+  { nombre: "Entrega y retiro", titulo: "La entrega se verifica", detalle: "La apertura ilustra la entrega después de verificar el acceso.", icono: "seguridad" }
 ]);
-
 const activa = ref(0);
+const seleccionado = ref("");
+const aperturaManual = ref(false);
 const etapa = computed(() => etapas[activa.value]);
-const puertaAbierta = computed(() => activa.value === 2);
-// Diez compartimentos principales y dos inferiores especiales.
-const numeros = Object.freeze([
-  "M01","M02","M03","M04","M05","M06","M07","M08","M09","M10",
-  "especial-frio","especial-calor"
-]);
 const fase = computed(() => ["01", "02", "03"][activa.value]);
+const puertaAbierta = computed(() => activa.value === 2);
+const idEstacion = useId();
+const recorte = codigo => `${idEstacion}-puerta-${codigo}`;
+const ladoObjeto = celda => Math.min(celda.h - 10, celda.w * .56, 64);
 
+// Tres columnas juntas, seguidas por la tablet y el módulo de carga.
+const casilleros = Object.freeze([
+  { codigo: "M01", x: 43, y: 113, w: 121, h: 72, tipo: "normal", objeto: "mochila" },
+  { codigo: "M02", x: 43, y: 191, w: 121, h: 72, tipo: "frio", objeto: "frio" },
+  { codigo: "L01", x: 43, y: 269, w: 121, h: 101, tipo: "maleta", objeto: "maleta" },
+  { codigo: "S01", x: 170, y: 113, w: 98, h: 44, tipo: "normal", objeto: "caja" },
+  { codigo: "S02", x: 170, y: 163, w: 98, h: 44, tipo: "normal", objeto: "caja" },
+  { codigo: "M04", x: 170, y: 213, w: 98, h: 75, tipo: "normal", objeto: "caja" },
+  { codigo: "M05", x: 170, y: 294, w: 98, h: 76, tipo: "normal", objeto: "mochila" },
+  { codigo: "M03", x: 278, y: 113, w: 121, h: 72, tipo: "normal", objeto: "caja" },
+  { codigo: "M06", x: 278, y: 191, w: 121, h: 72, tipo: "calor", objeto: "caliente" },
+  { codigo: "L02", x: 278, y: 269, w: 121, h: 101, tipo: "maleta", objeto: "maleta" }
+]);
+// Zona derecha: pantalla superior y 2 columnas x 4 filas de carga.
+const cargas = Object.freeze(Array.from({ length: 8 }, (_, i) => ({
+  codigo: `C${String(i + 1).padStart(2, "0")}`,
+  x: 533 + (i % 2) * 80,
+  y: 204 + Math.floor(i / 2) * 43,
+  w: 73, h: 37,
+  tipo: i < 2 ? "laptop" : "celular",
+  objeto: i < 2 ? "laptop" : "celular"
+})));
+function estaAbierto(codigo) {
+  return seleccionado.value === codigo || (puertaAbierta.value && !aperturaManual.value && codigo === "M03");
+}
+function cambiarPuerta(codigo) {
+  const abierta = estaAbierto(codigo);
+  aperturaManual.value = true;
+  seleccionado.value = abierta ? "" : codigo;
+}
 function elegir(indice) {
-  if (indice >= 0 && indice < etapas.length) activa.value = indice;
+  if (indice >= 0 && indice < etapas.length) { activa.value = indice; seleccionado.value = ""; aperturaManual.value = false; }
 }
 function controlarTeclado(evento) {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(evento.key)) return;
@@ -48,67 +62,84 @@ function controlarTeclado(evento) {
 </script>
 
 <template>
-  <div class="syn-journey" aria-label="Así se gestiona una encomienda en SYNCHRO">
-    <div class="syn-journey-stage" :data-step="activa">
-      <div class="syn-journey-background" aria-hidden="true"></div>
+  <div class="syn-journey syn-v4" aria-label="Ilustración interactiva de la estación multifuncional SYNCHRO">
+    <div class="syn-v4-stage" :data-step="activa">
+      <div class="syn-v4-scene" role="region" tabindex="0" aria-label="Estación multifuncional. En pantallas pequeñas puedes desplazarla horizontalmente.">
+        <svg class="syn-v4-station" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 732 410"
+          role="group" aria-label="Estación con compartimentos normales, refrigerados, calientes, maletas, tablet y carga de dispositivos">
+          <defs>
+            <clipPath v-for="c in [...casilleros, ...cargas]" :id="recorte(c.codigo)" :key="c.codigo" clipPathUnits="userSpaceOnUse">
+              <rect :x="c.x" :y="c.y" :width="c.w" :height="c.h" rx="4" />
+            </clipPath>
+          </defs>
+          <rect x="19" y="29" width="695" height="370" rx="15" class="syn-v4-housing" />
+          <image href="/branding/marca-completa.png" x="46" y="44" width="245" height="53" preserveAspectRatio="xMinYMid meet" />
+          <circle cx="688" cy="71" r="7" fill="#00b9c7" stroke="#cdeff0" stroke-width="5" />
 
-      <div class="syn-station" aria-hidden="true">
-        <div class="syn-station-top">
-          <img src="/branding/nombre-azul.png" alt="" draggable="false" />
-          <span class="syn-station-signal"></span>
-        </div>
-        <div class="syn-station-body">
-          <div class="syn-station-lockers">
-            <div
-              v-for="(codigo, i) in numeros"
-              :key="codigo"
-              class="syn-station-cell"
-              :class="{
-                'is-active': codigo === 'M03' && activa === 2,
-                'is-cold': codigo === 'M04' || codigo === 'especial-frio',
-                'is-warm': codigo === 'M09' || codigo === 'especial-calor'
-              }"
-            >
-              <span class="syn-station-cavity"></span>
-              <span v-if="codigo === 'M03'" class="syn-station-package">
-                <AppIcon nombre="encomienda" :tamano="25"/>
-              </span>
-              <div
-                class="syn-station-door"
-                :class="{ 'is-open': codigo === 'M03' && puertaAbierta }"
-              >
-                <span class="syn-station-label">
-                  <span class="syn-station-code">{{ codigo.startsWith("especial") ? "" : codigo }}</span>
-                  <span v-if="!codigo.startsWith('especial')" class="syn-station-braille"></span>
-                </span>
-                <span class="syn-station-handle"></span>
-              </div>
-            </div>
-          </div>
-          <div class="syn-station-console">
-            <div class="syn-console-screen">
-              <img src="/branding/isotipo-claro.png" alt="" />
-              <span class="syn-screen-status" :class="{ 'is-ready': activa > 0 }"></span>
-              <span class="syn-screen-line"></span>
-              <span class="syn-screen-line short"></span>
-            </div>
-            <div class="syn-wireless-pads" aria-hidden="true">
-              <span></span><span></span>
-            </div>
-            <div class="syn-console-connector" aria-hidden="true">
-              <span></span><span></span>
-            </div>
-            <div class="syn-console-mark">SYNCHRO</div>
-          </div>
-        </div>
-        <div class="syn-station-base"></div>
+          <g v-for="c in casilleros" :key="c.codigo" class="syn-v4-cell" role="button" tabindex="0"
+            :aria-label="`${c.codigo}, ${c.tipo}, ${estaAbierto(c.codigo) ? 'cerrar' : 'abrir'} demostración`"
+            :aria-pressed="estaAbierto(c.codigo)" @click="cambiarPuerta(c.codigo)"
+            @keydown.enter.prevent="cambiarPuerta(c.codigo)" @keydown.space.prevent="cambiarPuerta(c.codigo)">
+            <rect :x="c.x" :y="c.y" :width="c.w" :height="c.h" rx="4" class="syn-v4-cavity" />
+            <g :clip-path="`url(#${recorte(c.codigo)})`">
+            <ObjetoEstacion :tipo="c.objeto" :x="c.x + (c.w - ladoObjeto(c)) / 2" :y="c.y + (c.h - ladoObjeto(c)) / 2"
+              :width="ladoObjeto(c)" :height="ladoObjeto(c)" class="syn-v4-object" :class="{ visible: estaAbierto(c.codigo) }" />
+            <g class="syn-v4-door" :class="[c.tipo, { 'is-open': estaAbierto(c.codigo) }]" :style="{ '--door-shift': `${-c.w * .82}px` }">
+              <rect :x="c.x" :y="c.y" :width="c.w" :height="c.h" rx="4" class="syn-v4-front" />
+              <text :x="c.x + 9" :y="c.y + 17" class="syn-v4-code">{{ c.codigo }}</text>
+              <g v-for="p in 4" :key="p">
+                <circle :cx="c.x + 10 + ((p - 1) % 2) * 5" :cy="c.y + 24 + Math.floor((p - 1) / 2) * 5" r="1.15" fill="#698997" />
+              </g>
+              <rect :x="c.x + c.w - 11" :y="c.y + c.h * .36" width="3.5" :height="c.h * .28" rx="1.8" fill="#7ba2b0" />
+            </g>
+            </g>
+          </g>
+
+          <g class="syn-v4-tablet" transform="translate(131 0)">
+          <rect x="278" y="110" width="107" height="262" rx="7" fill="#d8e7ed" stroke="#83a7b5" stroke-width="1.5" />
+          <rect x="289" y="126" width="85" height="127" rx="6" fill="#01305c" stroke="#345a75" stroke-width="2" />
+          <image href="/branding/isotipo-oscuro.png" x="311" y="151" width="42" height="48" preserveAspectRatio="xMidYMid meet" />
+          <path d="M308 218h45M317 225h28" stroke="#4c8194" stroke-width="3" stroke-linecap="round" />
+          <circle cx="311" cy="285" r="9" class="syn-v4-ring" /><circle cx="353" cy="285" r="9" class="syn-v4-ring" />
+          <rect x="307" y="316" width="11" height="11" rx="2" class="syn-v4-mini" />
+          <rect x="344" y="316" width="11" height="11" rx="2" class="syn-v4-mini" />
+          <text x="331" y="358" text-anchor="middle" class="syn-v4-mark">SYNCHRO</text>
+          </g>
+
+          <rect class="syn-v4-charge-housing" x="525" y="110" width="169" height="262" rx="7" fill="#dfeaf0" stroke="#83a7b5" stroke-width="1.5" />
+          <rect class="syn-v4-charge-screen" x="532" y="117" width="155" height="80" rx="5" fill="#e2edf1" stroke="#91b0bd" />
+          <rect x="540" y="124" width="139" height="66" rx="5" fill="#01305c" />
+          <g class="syn-v4-screen-brand" aria-label="SYNCHRO">
+            <image href="/branding/isotipo-oscuro.png" x="550" y="141" width="27" height="32" preserveAspectRatio="xMidYMid meet" />
+            <image href="/branding/nombre-blanco.png" x="584" y="148" width="85" height="18" preserveAspectRatio="xMidYMid meet" />
+          </g>
+          <path d="M584 178h77" stroke="#517e95" stroke-width="3" stroke-linecap="round" />
+
+          <g v-for="c in cargas" :key="c.codigo" class="syn-v4-cell" role="button" tabindex="0"
+            :aria-label="`${c.codigo}, carga de ${c.tipo}, ${estaAbierto(c.codigo) ? 'cerrar' : 'abrir'} demostración`"
+            :aria-pressed="estaAbierto(c.codigo)" @click="cambiarPuerta(c.codigo)"
+            @keydown.enter.prevent="cambiarPuerta(c.codigo)" @keydown.space.prevent="cambiarPuerta(c.codigo)">
+            <rect :x="c.x" :y="c.y" :width="c.w" :height="c.h" rx="4" class="syn-v4-cavity" />
+            <g :clip-path="`url(#${recorte(c.codigo)})`">
+            <ObjetoEstacion :tipo="c.objeto" :x="c.x + (c.w - ladoObjeto(c)) / 2" :y="c.y + (c.h - ladoObjeto(c)) / 2"
+              :width="ladoObjeto(c)" :height="ladoObjeto(c)" class="syn-v4-object" :class="{ visible: estaAbierto(c.codigo) }" />
+            <g class="syn-v4-door" :class="{ 'is-open': estaAbierto(c.codigo) }" :style="{ '--door-shift': `${-c.w * .82}px` }">
+              <rect :x="c.x" :y="c.y" :width="c.w" :height="c.h" rx="4" class="syn-v4-front" />
+              <text :x="c.x + 10" :y="c.y + 23" class="syn-v4-code">{{ c.codigo }}</text>
+              <rect :x="c.x + c.w - 12" :y="c.y + 12" width="3" height="13" rx="1.5" fill="#7ba2b0" />
+            </g>
+            </g>
+          </g>
+          <rect x="38" y="381" width="656" height="5" rx="2.5" fill="#698d9c" />
+        </svg>
+        <span class="syn-v4-hint">Pulsa un casillero para abrirlo o cerrarlo.<span class="syn-v4-hint-movil"> Desliza para ver toda la estación.</span></span>
       </div>
-
-      <div class="syn-journey-note" :key="'status-' + activa">
-        <div class="syn-journey-note-icon"><AppIcon :nombre="etapa.icono" :tamano="23"/></div>
-        <span class="syn-journey-note-label">Paso {{ fase }} / 03</span>
+      <aside class="syn-v4-note" aria-live="polite">
+        <span class="syn-v4-note-icon"><AppIcon :nombre="etapa.icono" :tamano="27" tema-forzado="claro" /></span>
+        <span class="syn-v4-label">Paso {{ fase }} / 03</span>
         <strong>{{ etapa.nombre }}</strong>
-      </div>
+        <p>{{ seleccionado ? `Casillero ${seleccionado} seleccionado en la demostración.` : etapa.titulo }}</p>
+      </aside>
     </div>
 
     <div class="syn-journey-controls">
@@ -121,18 +152,11 @@ function controlarTeclado(evento) {
           </div>
         </Transition>
       </div>
-
       <div class="syn-journey-steps" role="group" aria-label="Etapas del servicio" @keydown="controlarTeclado">
-        <button
-          v-for="(item, i) in etapas"
-          :key="item.nombre"
-          type="button"
-          class="syn-journey-step"
-          :class="{ selected: activa === i }"
-          :aria-label="`Ver paso ${i + 1}: ${item.nombre}`"
-          :aria-pressed="activa === i"
-          @click="elegir(i)"
-        >
+        <button v-for="(item, i) in etapas" :key="item.nombre" type="button"
+          class="syn-journey-step" :class="{ selected: activa === i }"
+          :aria-label="`Ver paso ${i + 1}: ${item.nombre}`" :aria-pressed="activa === i"
+          @click="elegir(i)">
           <span class="syn-journey-number">0{{ i + 1 }}</span>
           <span class="syn-journey-step-label">{{ item.nombre }}</span>
         </button>
@@ -142,106 +166,54 @@ function controlarTeclado(evento) {
 </template>
 
 <style scoped>
-.syn-journey {
-  width: 100%; min-width: 0; border: 1px solid var(--border);
-  border-radius: 20px; background: var(--surface);
-  box-shadow: 0 20px 55px rgba(5,27,40,.08); overflow: hidden;
+.syn-v4 { width:100%; min-width:0; border:1px solid var(--border); border-radius:20px; background:var(--surface); overflow:hidden; box-shadow:0 15px 40px rgba(1,48,92,.08); }
+.syn-v4-stage { display:grid; grid-template-columns:minmax(0,1fr) 195px; align-items:center; gap:12px; min-width:0; padding:22px; background-color:#e6eff3; background-image:linear-gradient(rgba(25,75,103,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(25,75,103,.065) 1px,transparent 1px); background-size:42px 42px; }
+.syn-v4-scene { min-width:0; width:100%; display:flex; flex-direction:column; align-items:center; }
+/* Estrechar el lienzo conserva la escala y altura visibles de las puertas existentes. */
+.syn-v4-station { width:calc(100% * 732 / 900); max-width:calc(940px * 732 / 900); height:auto; display:block; overflow:visible; }
+.syn-v4-housing { fill:#eef5f7; stroke:#557d90; stroke-width:2; filter:drop-shadow(7px 7px 3px rgba(28,65,80,.13)); }
+.syn-v4-cavity { fill:#D8E5EC; stroke:#93B1C0; stroke-width:1.2; }
+.syn-v4-door { transition:transform .28s ease-in-out; }
+.syn-v4-door.is-open { transform:translateX(var(--door-shift)); }
+.syn-v4-object { opacity:0; pointer-events:none; transition:opacity .2s ease; }
+.syn-v4-object.visible { opacity:1; }
+.syn-v4-front { fill:#f9fcfd; stroke:#96b6c4; stroke-width:1.2; }
+.syn-v4-door.frio .syn-v4-front { fill:#ddf1fa; stroke:#78b9d2; }
+.syn-v4-door.calor .syn-v4-front { fill:#fae9da; stroke:#d7a77b; }
+.syn-v4-code { fill:#2e536c; font-size:12px; font-weight:700; font-family:ui-monospace,Consolas,monospace; }
+.syn-v4-mark { fill:#466b80; font-weight:700; font-size:11px; }
+.syn-v4-ring { fill:#eef5f7; stroke:#00b9c7; stroke-width:3; }
+.syn-v4-mini { fill:#eef5f7; stroke:#577d92; stroke-width:2; }
+.syn-v4-cell { outline:none; cursor:pointer; }
+.syn-v4-cell:hover .syn-v4-front { stroke:#00b9c7; stroke-width:2.2; }
+.syn-v4-cell:focus-visible { outline:none; }
+.syn-v4-cell:focus-visible > .syn-v4-cavity,
+.syn-v4-cell:focus-visible .syn-v4-front { stroke:#01305c; stroke-width:2.2; }
+.syn-v4-hint { color:#46677a; font-size:11px; text-align:center; margin-top:-3px; }
+.syn-v4-hint-movil { display:none; }
+.syn-v4-note { box-sizing:border-box; width:100%; min-width:0; padding:20px 16px; background:rgba(255,255,255,.98); border:1px solid #cfdee5; border-radius:15px; box-shadow:0 9px 24px rgba(1,48,92,.09); display:flex; flex-direction:column; gap:8px; color:#01305c; }
+.syn-v4-note-icon { color:#00a8bd; margin-bottom:7px; }
+.syn-v4-label { color:#587485; font-size:12px; }
+.syn-v4-note strong { font-size:20px; line-height:1.25; }
+.syn-v4-note p { color:#496579; font-size:12px; line-height:1.5; margin:0; overflow-wrap:anywhere; }
+.syn-journey-controls { padding:21px 24px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); align-items:center; gap:24px; }
+.syn-journey-overline { color:var(--text-muted); font-size:11px; }
+.syn-journey-copy h3 { margin:6px 0; color:var(--text-strong); font-size:18px; }
+.syn-journey-copy p { margin:0; color:var(--text-muted); font-size:12px; line-height:1.5; }
+.syn-journey-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.syn-journey-step { display:flex; align-items:center; justify-content:center; gap:7px; min-width:0; min-height:46px; border:1px solid var(--border); background:var(--surface-soft); border-radius:9px; color:var(--text-muted); font-size:12px; cursor:pointer; }
+.syn-journey-step.selected { border-color:var(--brand-accent); background:var(--surface-accent); color:var(--text-strong); }
+.syn-journey-number { color:var(--accent-text); font-size:11px; font-weight:700; }
+.syn-story-enter-active,.syn-story-leave-active { transition:opacity .18s, transform .18s; }
+.syn-story-enter-from { opacity:0; transform:translateY(5px); }
+.syn-story-leave-to { opacity:0; transform:translateY(-5px); }
+@media(max-width:790px) { .syn-v4-stage { grid-template-columns:1fr; padding:14px; } .syn-v4-note { max-width:100%; display:grid; grid-template-columns:30px auto 1fr; align-items:center; gap:6px 12px; } .syn-v4-note-icon { grid-row:span 2; margin:0; } .syn-v4-note p { grid-column:2/-1; } }
+@media(max-width:580px) { .syn-journey-controls { grid-template-columns:1fr; padding:16px; gap:14px; } .syn-journey-step { flex-direction:column; gap:3px; font-size:10px; padding:5px 2px; } .syn-v4-hint { font-size:10px; } .syn-v4-stage { padding:8px; } }
+@media(max-width:650px) {
+  .syn-v4-scene { display:block; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; }
+  .syn-v4-station { min-width:calc(640px * 732 / 900); }
+  .syn-v4-hint { display:block; margin:7px 0; }
+  .syn-v4-hint-movil { display:inline; }
 }
-.syn-journey-stage {
-  position: relative; height: 335px; overflow: hidden;
-  display: flex; justify-content: center; align-items: flex-end;
-  padding: 22px 24px 0; isolation: isolate;
-  background: #e5eef1;
-}
-:global(:root[data-theme="oscuro"]) .syn-journey-stage { background: #233b46; }
-.syn-journey-background {
-  position: absolute; z-index: -1; inset: 0;
-  background:
-    linear-gradient(0deg, rgba(23,63,82,.08) 0 1px, transparent 1px 42px),
-    linear-gradient(90deg, rgba(23,63,82,.08) 0 1px, transparent 1px 42px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(to bottom, transparent, #000 27%, #000 85%);
-}
-.syn-station {
-  position: relative; width: 251px; height: 300px; padding: 13px 12px 11px;
-  background: #edf5f7; border: 2px solid #547a8b;
-  border-radius: 11px 11px 2px 2px;
-  box-shadow: 10px 12px 0 #9ab1ba, 12px 17px 24px rgba(21,48,60,.19);
-  transform-origin: center bottom; animation: syn-appear 650ms cubic-bezier(.2,.7,.2,1) both;
-}
-.syn-station-top { display: flex; align-items: center; justify-content: space-between; height: 24px; margin-bottom: 11px; }
-.syn-station-top img { width: 115px; max-height: 22px; object-fit: contain; object-position: left center; }
-.syn-station-signal { width: 8px; height: 8px; border-radius: 50%; background: #00b9c7; box-shadow: 0 0 0 3px #d9f2f2; }
-.syn-station-body { display: grid; grid-template-columns: 1fr 68px; height: 229px; gap: 9px; }
-.syn-station-lockers { display: grid; grid-template-columns: repeat(2,1fr); grid-template-rows: repeat(6,1fr); gap: 4px; perspective: 560px; }
-.syn-station-cell { position: relative; border-radius: 2px; background: #adc6d0; overflow: visible; }
-.syn-station-cavity { position: absolute; inset: 2px; border-radius: 2px; background: #648190; box-shadow: inset 4px 4px 8px rgba(0,0,0,.25); }
-.syn-station-door {
-  position: absolute; inset: 0; z-index: 2;
-  border: 1px solid #a7c1cb; border-radius: 2px; background: #f7fbfc;
-  display: flex; justify-content: space-between; padding: 6px 5px;
-  box-shadow: inset 0 -3px 0 rgba(20,75,98,.05);
-  transform-origin: left center;
-  transition: transform 700ms cubic-bezier(.18,.8,.25,1), box-shadow 400ms ease, border-color 400ms ease;
-  backface-visibility: hidden;
-}
-.syn-station-label { display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
-.syn-station-code { font: 600 7px/1.2 ui-monospace,monospace; color: #426173; }
-.syn-station-braille { display:block; width:9px; height:10px; opacity:.7; background-image:radial-gradient(circle,#587787 1px,transparent 1.2px); background-size:4px 4px; background-position:0 0; }
-.syn-station-cell.is-cold .syn-station-door { background:#E1F4FA; border-color:#7BBAD1; }
-.syn-station-cell.is-warm .syn-station-door { background:#F7EEE4; border-color:#D2AD8B; }
-.syn-station-handle { align-self: center; width: 3px; height: 13px; border-radius: 2px; background: #7aa4b1; }
-.syn-station-cell.is-active .syn-station-door { border-color: #00b9c7; }
-.syn-station-door.is-open { transform: rotateY(-73deg); box-shadow: 7px 2px 8px rgba(0,0,0,.13); }
-.syn-station-package { position: absolute; z-index: 1; top: 6px; left: 10px; }
-.syn-station-package :deep(svg) { filter: brightness(0) invert(1); }
-.syn-station-console { background: #cedfe6; border: 1px solid #aac5d0; border-radius: 5px; padding: 10px 7px 5px; display: flex; flex-direction: column; align-items: center; }
-.syn-console-screen { width: 100%; aspect-ratio: 1; background: #01305c; border: 3px solid #375c74; border-radius: 5px; display: flex; flex-direction: column; align-items: center; padding: 6px 4px; }
-.syn-console-screen img { width: 17px; height: 19px; object-fit: contain; margin: auto; }
-.syn-screen-status { width: 17px; height: 2px; background: #5e8194; border-radius: 3px; transition: background 350ms; }
-.syn-screen-status.is-ready { background: #00b9c7; }
-.syn-screen-line { margin-top: 4px; width: 77%; height: 2px; border-radius: 3px; background: #62879d; opacity: .65; }
-.syn-screen-line.short { width: 45%; margin-top: 3px; }
-.syn-wireless-pads { display:flex; justify-content:center; gap:8px; margin-top:13px; }
-.syn-wireless-pads span { width:15px; height:15px; border:2px solid #3A8FA4; border-radius:50%; background:radial-gradient(circle,#00B9C7 2px,transparent 2.3px); }
-.syn-console-connector { display: flex; gap: 9px; margin-top: 12px; }
-.syn-console-connector span { width: 8px; height: 8px; border-radius: 2px; border: 2px solid #44728c; }
-.syn-console-mark { margin-top: auto; color: #466879; letter-spacing: .04em; font-size: 6px; font-weight: 700; }
-.syn-station-base { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 4px; background: #6f929f; border-radius: 3px; }
-.syn-journey-note {
-  position: absolute; top: 38px; right: 22px; width: 145px; padding: 14px;
-  display: flex; flex-direction: column; gap: 4px;
-  background: #fff; border: 1px solid #cbdde2; border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(22,46,60,.09); animation: syn-note 330ms ease-out both;
-}
-.syn-journey-note-icon { width: 30px; height: 30px; display: flex; align-items: center; }
-.syn-journey-note-label { color: #67808d; font-size: 10px; }
-.syn-journey-note strong { color: #153b50; font-weight: 600; font-size: 12px; line-height: 1.4; }
-.syn-journey-controls { padding: 22px 24px 21px; }
-.syn-journey-overline { color: var(--text-muted); font-size: 11px; letter-spacing: .01em; }
-.syn-journey-copy { min-height: 80px; }
-.syn-journey-copy h3 { margin: 8px 0 5px; color: var(--text-strong); font-size: 19px; font-weight: 600; letter-spacing: -.015em; }
-.syn-journey-copy p { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.55; max-width: 360px; }
-.syn-journey-steps { display: grid; grid-template-columns: 1fr 1.25fr 1.25fr; gap: 7px; margin-top: 18px; }
-.syn-journey-step { min-width: 0; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 6px; border: 1px solid var(--border); background: var(--surface-soft); border-radius: 9px; color: var(--text-muted); font-size: 11px; cursor: pointer; }
-.syn-journey-step.selected { background: var(--surface-accent); border-color: var(--brand-accent); color: var(--text-strong); }
-.syn-journey-number { font: 600 10px/1 ui-monospace,monospace; color: var(--accent-text); }
-.syn-story-enter-active, .syn-story-leave-active { transition: opacity 180ms ease, transform 180ms ease; }
-.syn-story-enter-from { opacity: 0; transform: translateY(5px); }
-.syn-story-leave-to { opacity: 0; transform: translateY(-5px); }
-@keyframes syn-appear { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes syn-note { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
-@media (max-width: 430px) {
-  .syn-journey-stage { height: 310px; }
-  .syn-station { transform: scale(.92); transform-origin: center bottom; }
-  .syn-journey-note { right: 9px; top: 19px; width: 116px; padding: 9px; }
-  .syn-journey-steps { grid-template-columns: repeat(3,1fr); }
-  .syn-journey-step { flex-direction: column; gap: 4px; min-height: 43px; text-align: center; }
-  .syn-journey-step-label { font-size: 9px; }
-  .syn-journey-controls { padding: 18px 16px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .syn-station, .syn-journey-note { animation: none !important; }
-  .syn-station-door, .syn-story-enter-active, .syn-story-leave-active { transition: none !important; }
-}
+@media (prefers-reduced-motion: reduce) { .syn-v4-door,.syn-v4-object,.syn-story-enter-active,.syn-story-leave-active { transition:none; } }
 </style>

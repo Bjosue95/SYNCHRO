@@ -203,7 +203,8 @@ onBeforeUnmount(() => {
   position: relative;
   display: block;
   width: 39px;
-  height: 12px;
+  height: 44px;
+  min-width: 44px;
   padding: 0;
   background: transparent;
   border: 0;
@@ -212,7 +213,7 @@ onBeforeUnmount(() => {
 .acceso-paso::before {
   content: "";
   position: absolute;
-  inset: 4px 0;
+  inset: 20px 0;
   border-radius: 99px;
   background: var(--border-strong);
 }
@@ -221,7 +222,7 @@ onBeforeUnmount(() => {
 .acceso-progreso {
   position: absolute;
   left: 0;
-  top: 4px;
+  top: 20px;
   height: 4px;
   border-radius: 99px;
   background: var(--brand-accent);

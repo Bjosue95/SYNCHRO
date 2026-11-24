@@ -1,0 +1,185 @@
+/* SYNCHRO | Portada editorial V1. No afecta los flujos privados. */
+.syn-home.syn-home .syn-home-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  min-height: min(760px, 82svh);
+  padding: clamp(70px, 8vw, 118px) 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse at 78% 38%, color-mix(in srgb, var(--brand-accent) 14%, transparent), transparent 50%),
+    radial-gradient(ellipse at 8% 86%, color-mix(in srgb, var(--brand-sky) 11%, transparent), transparent 50%),
+    linear-gradient(145deg, var(--surface), var(--bg));
+}
+.syn-home.syn-home .syn-home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .22;
+  background-image: radial-gradient(var(--border-strong) .8px, transparent .8px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, transparent, #000 25%, transparent 95%);
+}
+.syn-home.syn-home .syn-hero-grid {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: minmax(0, .91fr) minmax(0, 1.09fr);
+  gap: clamp(36px, 5vw, 78px);
+}
+.syn-home.syn-home .syn-hero-content { max-width: 560px; }
+.syn-home.syn-home .syn-overline {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 9px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-accent);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.syn-home.syn-home .syn-hero-content h1 {
+  max-width: 580px;
+  margin: 25px 0 29px;
+  font-size: clamp(57px, 6.1vw, 92px);
+  font-weight: 780;
+  line-height: 1.02;
+  letter-spacing: -.069em;
+  color: var(--text-strong);
+}
+.syn-home.syn-home .syn-hero-content h1 span {
+  color: var(--accent-text);
+  background: linear-gradient(105deg, var(--accent-text), var(--brand));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.syn-home.syn-home .syn-hero-content > p:not(.syn-hero-foot) {
+  max-width: 480px;
+  font-size: clamp(16px, 1.3vw, 18px);
+  line-height: 1.8;
+}
+.syn-home.syn-home .syn-hero-actions { gap: 13px; margin-top: 34px; }
+.syn-home.syn-home .syn-hero-actions .boton {
+  min-height: 54px;
+  padding: 13px 22px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.syn-home.syn-home .syn-hero-secondary {
+  min-height: 54px;
+  padding: 13px 19px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font-weight: 750;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+.syn-home.syn-home .syn-hero-secondary:hover {
+  border-color: var(--brand-accent);
+  background: var(--surface-hover);
+}
+.syn-home.syn-home .syn-hero-foot {
+  max-width: 430px;
+  margin-top: 32px;
+  padding-left: 15px;
+  border-left: 3px solid var(--brand-accent);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.syn-home.syn-home .syn-service-section {
+  padding-top: clamp(74px, 8vw, 112px);
+  padding-bottom: clamp(65px, 7vw, 100px);
+}
+.syn-home.syn-home .syn-service-intro { max-width: 760px; margin-bottom: 39px; }
+.syn-home.syn-home .syn-service-intro h2 {
+  margin: 12px 0 15px;
+  font-size: clamp(36px, 3.8vw, 54px);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -.046em;
+}
+.syn-home.syn-home .syn-service-grid { gap: 21px; }
+.syn-home.syn-home .syn-feature {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: clamp(25px, 3vw, 36px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+.syn-home.syn-home .syn-feature::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-accent));
+  opacity: .76;
+  pointer-events: none;
+}
+.syn-home.syn-home .syn-feature-main {
+  background: linear-gradient(155deg, var(--surface-accent), var(--surface) 67%);
+}
+.syn-home.syn-home .syn-feature h3 {
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+.syn-home.syn-home .syn-feature-symbol,
+.syn-home.syn-home .syn-small-icon {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-accent);
+}
+.syn-home.syn-home .syn-feature-symbol { width: 64px; height: 64px; }
+.syn-home.syn-home .syn-small-icon { width: 54px; height: 54px; }
+.syn-home.syn-home .syn-feature-action {
+  padding: 10px 0;
+  border-bottom: 2px solid var(--brand-accent);
+  font-weight: 780;
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .syn-home.syn-home .syn-feature:hover {
+    transform: translateY(-5px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+}
+@media (max-width: 1000px) {
+  .syn-home.syn-home .syn-home-hero { min-height: 0; padding: 62px 0 74px; }
+  .syn-home.syn-home .syn-hero-grid { grid-template-columns: 1fr; gap: 32px; }
+  .syn-home.syn-home .syn-hero-content { max-width: 680px; }
+}
+@media (max-width: 690px) {
+  .syn-home.syn-home .syn-home-hero { padding: 42px 0 54px; }
+  .syn-home.syn-home .syn-hero-content h1 {
+    font-size: clamp(46px, 12vw, 67px);
+    letter-spacing: -.055em;
+  }
+  .syn-home.syn-home .syn-hero-actions { align-items: stretch; }
+  .syn-home.syn-home .syn-hero-actions .boton,
+  .syn-home.syn-home .syn-hero-secondary { justify-content: center; }
+  .syn-home.syn-home .syn-service-section { padding-block: 59px; }
+  .syn-home.syn-home .syn-feature { padding: 24px; }
+  .syn-home.syn-home .syn-feature-main,
+  .syn-home.syn-home .syn-feature-storage { min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .syn-home.syn-home .syn-feature,
+  .syn-home.syn-home .syn-hero-secondary { transition: none; }
+  .syn-home.syn-home .syn-feature:hover { transform: none; }
+}

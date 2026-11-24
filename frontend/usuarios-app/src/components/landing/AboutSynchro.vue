@@ -3,7 +3,7 @@ import AppIcon from "../ui/AppIcon.vue";
 </script>
 
 <template>
-  <section id="nosotros" class="syn-about">
+  <section id="nosotros" class="syn-about syn-grid-surface">
     <div class="contenedor">
       <div class="syn-about-top">
         <div class="syn-about-story">

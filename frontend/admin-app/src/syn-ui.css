@@ -1,0 +1,17 @@
+﻿:root {
+  --syn-ui-primary: #01305c;
+  --syn-ui-on-primary: #ffffff;
+  --syn-ui-surface: #ffffff;
+  --syn-ui-text: #01305c;
+  --syn-ui-border: #c3d6e0;
+  --syn-ui-focus: #008a9a;
+}
+
+:root[data-theme="oscuro"] {
+  --syn-ui-primary: #5ec6e8;
+  --syn-ui-on-primary: #082638;
+  --syn-ui-surface: #132638;
+  --syn-ui-text: #f6fcff;
+  --syn-ui-border: #405c70;
+  --syn-ui-focus: #5ec6e8;
+}

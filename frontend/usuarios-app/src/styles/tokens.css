@@ -2,22 +2,27 @@
    Contraste y capas semánticas para evitar colores sueltos por pantalla. */
 :root {
   color-scheme: light;
-  --brand: #01305C;
+  --brand-blue: #01305C;
+  --brand-turquoise: #00B9C7;
+  --brand-light-blue: #5EC6E8;
+  --brand-gray: #5B6770;
+  --brand-white: #FFFFFF;
+  --brand: var(--brand-blue);
   --brand-strong: #012744;
-  --brand-accent: #00B9C7;
-  --brand-sky: #5EC6E8;
+  --brand-accent: var(--brand-turquoise);
+  --brand-sky: var(--brand-light-blue);
   --accent-text: #006F7E;
   --bg: #F4F7FA;
-  --surface: #FFFFFF;
+  --surface: var(--brand-white);
   --surface-soft: #F8FAFC;
   --surface-hover: #EDF5F8;
   --surface-accent: #E6F7F8;
   --sidebar-bg: #FFFFFF;
   --topbar-bg: rgba(255,255,255,.96);
   --text: #132E42;
-  --text-strong: #01305C;
+  --text-strong: var(--brand-blue);
   --text-muted: #566E80;
-  --text-subtle: #6A8190;
+  --text-subtle: #586F80;
   --border: #DFE8EF;
   --border-strong: #C3D6E0;
   --ring: #008A9A;
@@ -42,14 +47,33 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  /* Acciones compartidas por botones, formularios y controles de selección. */
+  --action-bg: var(--brand-blue);
+  --action-hover: #064878;
+  --on-action: var(--brand-white);
+  --action-icon-filter: brightness(0) invert(1);
+  --accent-hover: var(--brand-light-blue);
+  --on-accent: var(--brand-blue);
+  /* Las ilustraciones y el hero conservan su paleta aprobada. */
+  --service-background: linear-gradient(135deg,#053252,#07516c 76%,#076f7e);
+  --service-base: var(--brand-blue);
+  --service-text: #D4EBF2;
+  --service-accent: #8CE5EC;
+  --service-border: #16718B;
+  --service-surface: #123D60;
+  --service-emblem: #174967;
+  --service-divider: #476A81;
+  --service-icon-bg: rgba(255,255,255,.13);
+  --service-icon-border: rgba(255,255,255,.24);
+  /* Mismo paso geométrico que el hero, con contraste adaptado al fondo. */
+  --grid-size: 56px;
+  --grid-line: rgba(1,48,92,.055);
 }
 
 :root[data-theme="oscuro"] {
   color-scheme: dark;
-  --brand: #5EC6E8;
+  --brand: var(--brand-light-blue);
   --brand-strong: #EFFAFF;
-  --brand-accent: #00B9C7;
-  --brand-sky: #5EC6E8;
   --accent-text: #5EC6E8;
   --bg: #0A1725;
   --surface: #132638;
@@ -74,4 +98,9 @@
   --shadow-sm: 0 3px 12px rgba(0,0,0,.12);
   --shadow-md: 0 16px 35px rgba(0,0,0,.22);
   --shadow-lg: 0 28px 75px rgba(0,0,0,.36);
+  --action-bg: var(--brand-light-blue);
+  --action-hover: #89DDF1;
+  --on-action: #061D31;
+  --action-icon-filter: brightness(0);
+  --grid-line: rgba(94,198,232,.045);
 }

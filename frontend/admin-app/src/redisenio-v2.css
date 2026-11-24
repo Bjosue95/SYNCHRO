@@ -1,0 +1,44 @@
+/* SYNCHRO ADMIN V2: panel operativo con accesos y contrastes. */
+.admin-workspace { background:radial-gradient(circle at 87% 5%,rgba(0,185,199,.11),transparent 30%),#edf4f7; }
+.admin-sidebar { background:linear-gradient(170deg,#031c33,#063955 68%,#09263b); }
+.admin-sidebar .sidebar-link.activo { background:#125678; border-color:#3a93a1; box-shadow:inset 4px 0 #61e2e5; }
+.admin-page .page-heading {
+  background:radial-gradient(circle at 88% 24%,rgba(0,185,199,.31),transparent 33%),
+    linear-gradient(115deg,#04284a,#064f69 75%,#087b84);
+  border-radius:23px; padding:clamp(29px,3.5vw,47px); box-shadow:0 19px 43px rgba(1,48,92,.18);
+}
+.admin-page .page-heading h1 { font-size:clamp(33px,3.8vw,50px); font-weight:800; }
+.admin-page .syn-admin-shortcuts {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin:0 0 29px;
+}
+.admin-page .syn-admin-shortcuts a {
+  min-width:0; display:flex; align-items:center; gap:12px; min-height:91px;
+  padding:17px; color:#06405c; text-decoration:none; background:#fff;
+  border:1px solid #cddfe8; border-radius:16px; box-shadow:0 8px 23px rgba(1,48,92,.07);
+}
+.admin-page .syn-admin-shortcuts a:hover { border-color:#008a9a; box-shadow:0 12px 29px rgba(1,48,92,.12); }
+.admin-page .syn-admin-shortcuts a:focus-visible { outline:3px solid #008a9a; outline-offset:3px; }
+.admin-page .syn-admin-shortcuts a > svg:first-child {
+  box-sizing:content-box; flex-shrink:0; padding:11px; border-radius:12px;
+  background:#e7f7f8; color:#007c8d;
+}
+.admin-page .syn-admin-shortcuts a strong,
+.admin-page .syn-admin-shortcuts a small { display:block; }
+.admin-page .syn-admin-shortcuts a strong { font-size:13px; font-weight:800; }
+.admin-page .syn-admin-shortcuts a small { margin-top:4px; color:#526f7f; font-size:11px; }
+.admin-page .kpi-card { border-radius:19px; min-height:185px; }
+.admin-page .kpi-card:first-child {
+  border-color:#07546b; background:linear-gradient(135deg,#01305c,#07546c);
+  box-shadow:0 16px 33px rgba(1,48,92,.2);
+}
+.admin-page .kpi-card:first-child .kpi-top > span:first-child,
+.admin-page .kpi-card:first-child strong,
+.admin-page .kpi-card:first-child small { color:#f5fdff; }
+.admin-page .kpi-card:first-child .kpi-icon { background:rgba(255,255,255,.14); color:#abf1ed; }
+.admin-page .kpi-card:nth-child(2) { background:linear-gradient(145deg,#fff,#eaf7f9); }
+.admin-page .kpi-card:nth-child(4) { background:linear-gradient(145deg,#fff,#fff9ed); }
+.admin-page .panel { border-radius:20px; }
+.admin-page .lockers-panel { padding:0; }
+@media(max-width:1110px) { .admin-page .syn-admin-shortcuts { grid-template-columns:1fr; } }
+@media(max-width:760px) { .admin-page .syn-admin-shortcuts { gap:9px; } .admin-page .syn-admin-shortcuts a { min-height:70px; } }
+@media(max-width:480px) { .admin-page .page-heading { border-radius:16px; padding:22px; } .admin-page .kpi-card { min-height:0; } }

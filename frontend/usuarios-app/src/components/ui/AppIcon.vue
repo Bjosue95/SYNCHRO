@@ -7,12 +7,13 @@ import { useTheme } from "../../composables/useTheme.js";
 const props = defineProps({
   nombre: { type: String, required: true },
   tamano: { type: Number, default: 22 },
-  etiqueta: { type: String, default: "" }
+  etiqueta: { type: String, default: "" },
+  temaForzado: { type: String, default: "", validator: valor => ["", "claro", "oscuro"].includes(valor) }
 });
 const { tema } = useTheme();
-const conocidos = new Set(["inicio","encomienda","reservas","casillero","temperatura","carga","usuario","seguridad","buscar","whatsapp","sol","luna","salir","menu","flecha","calendario","reloj","ubicacion","check","volver","telefono","correo","facial","pin","alarma","sensores","braille","accesibilidad","control-acceso","trazabilidad","sensor-temperatura","frio","calor","laptop","carga-rapida","cotizacion","instagram","tiktok","enlace-externo","enviar","copiar","emergencia","comunidad","historial","guardar","retirar","autonomia","instituciones","instalaciones","registro","notificacion","privacidad","tecnologia","mapa","ayuda","alerta","cobro","solar","bateria-respaldo","eficiencia","energia","cifrado","integridad","resiliencia"]);
+const conocidos = new Set(["inicio","encomienda","reservas","casillero","temperatura","carga","usuario","seguridad","buscar","whatsapp","sol","luna","salir","menu","flecha","calendario","reloj","ubicacion","check","volver","telefono","correo","facial","pin","alarma","sensores","braille","accesibilidad","control-acceso","trazabilidad","sensor-temperatura","frio","calor","laptop","carga-rapida","cotizacion","instagram","tiktok","enlace-externo","enviar","copiar","emergencia","comunidad","historial","guardar","retirar","autonomia","instituciones","instalaciones","registro","notificacion","privacidad","tecnologia","mapa","ayuda","alerta","cobro","solar","bateria-respaldo","eficiencia","energia","cifrado","integridad","resiliencia","ojo","ojo-oculto"]);
 const icono = computed(() => conocidos.has(props.nombre) ? props.nombre : "ayuda");
-const ruta = computed(() => `/iconos/${tema.value}/web-iconos.svg#${icono.value}`);
+const ruta = computed(() => `/iconos/${props.temaForzado || tema.value}/web-iconos.svg#${icono.value}`);
 </script>
 
 <template>

@@ -1,0 +1,8 @@
+﻿:root {
+  --syn-ui-primary: var(--action-bg);
+  --syn-ui-on-primary: var(--on-action);
+  --syn-ui-surface: var(--surface);
+  --syn-ui-text: var(--text-strong);
+  --syn-ui-border: var(--border-strong);
+  --syn-ui-focus: var(--ring);
+}

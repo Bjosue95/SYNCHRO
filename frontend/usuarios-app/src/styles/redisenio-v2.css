@@ -1,0 +1,75 @@
+/* SYNCHRO | Imagen de marca V2: no altera operaciones. */
+.syn-home.syn-home .syn-home-hero {
+  min-height: 740px; padding-block: clamp(70px,8vw,120px);
+  background: radial-gradient(circle at 90% 26%,rgba(0,185,199,.25),transparent 36%),
+    linear-gradient(117deg,#041c34 0%,#06385b 57%,#086878 100%);
+  border-bottom: 5px solid #00b9c7;
+}
+.syn-home.syn-home .syn-home-hero::before {
+  opacity:.2; background-image:linear-gradient(rgba(255,255,255,.2) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.2) 1px,transparent 1px);
+  background-size:56px 56px;
+}
+.syn-home.syn-home .syn-home-hero .syn-overline { color:#a3f5f3; background:rgba(0,185,199,.14); border-color:rgba(163,245,243,.4); }
+.syn-home.syn-home .syn-hero-content h1 {
+  font-size:clamp(58px,6.4vw,100px); color:#fff; font-weight:800; line-height:1; letter-spacing:-.065em;
+}
+.syn-home.syn-home .syn-hero-content h1 span {
+  background:linear-gradient(100deg,#a3f5f3,#00b9c7); background-clip:text;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.syn-home.syn-home .syn-hero-content > p:not(.syn-hero-foot) { color:#daeef5; font-size:17px; }
+.syn-home.syn-home .syn-hero-foot { color:#bcd9e6; border-left-color:#00b9c7; }
+.syn-home.syn-home .syn-hero-actions .boton {
+  background:#00b9c7; color:#052a3d; border-color:#00b9c7; box-shadow:0 17px 30px rgba(0,0,0,.16);
+}
+.syn-home.syn-home .syn-hero-actions .boton:hover { background:#8af0ed; }
+.syn-home.syn-home .syn-hero-actions .boton .icono-ui { filter:brightness(0); }
+.syn-home.syn-home .syn-hero-secondary {
+  color:#fff; background:rgba(255,255,255,.075); border-color:rgba(225,246,250,.5);
+}
+.syn-home.syn-home .syn-hero-secondary:hover { color:#fff; background:rgba(255,255,255,.18); }
+.syn-home .syn-journey { border-color:#9bdce6; border-radius:24px; box-shadow:0 32px 65px rgba(0,0,0,.34); }
+.syn-home.syn-home .syn-hero-highlights {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-top:31px;
+}
+.syn-home.syn-home .syn-hero-highlights span {
+  min-height:91px; min-width:0; display:flex; flex-direction:column; align-items:flex-start;
+  justify-content:center; gap:10px; padding:13px; border:1px solid rgba(180,237,241,.31);
+  border-radius:14px; background:rgba(255,255,255,.075); color:#edfaff; font-size:12px; font-weight:650;
+}
+.syn-home.syn-home .syn-hero-highlights .icono-ui { filter:brightness(0) invert(1); }
+.syn-home.syn-home .syn-service-section { padding-block:clamp(80px,9vw,124px); }
+.syn-home.syn-home .syn-service-intro { padding-left:25px; border-left:5px solid #00b9c7; }
+.syn-home.syn-home .syn-service-intro h2 { font-size:clamp(37px,4.1vw,60px); font-weight:800; }
+.syn-home.syn-home .syn-feature { border-radius:23px; box-shadow:0 12px 32px rgba(1,48,92,.07); }
+.syn-home.syn-home .syn-feature {
+  border-color:var(--service-border); background:var(--service-background);
+  box-shadow:0 20px 42px rgba(1,48,92,.19);
+}
+.syn-home.syn-home .syn-feature::before { background:var(--brand-accent); opacity:1; height:5px; }
+.syn-home.syn-home .syn-feature h3,
+.syn-home.syn-home .syn-feature .syn-feature-type,
+.syn-home.syn-home .syn-feature .syn-parcel-path span,
+.syn-home.syn-home .syn-feature .syn-feature-action { color:var(--brand-white); }
+.syn-home.syn-home .syn-feature p,
+.syn-home.syn-home .syn-feature .syn-feature-foot,
+.syn-home.syn-home .syn-feature .syn-thermal-options,
+.syn-home.syn-home .syn-feature .syn-charge-visual { color:var(--service-text); }
+.syn-home.syn-home .syn-feature .syn-feature-symbol,
+.syn-home.syn-home .syn-feature .syn-small-icon { background:var(--service-icon-bg); border-color:var(--service-icon-border); color:var(--brand-white); }
+.syn-home.syn-home .syn-feature .icono-ui { filter:brightness(0) invert(1); }
+.syn-home.syn-home .syn-feature-main .syn-parcel-path i { background:#8be6e9; }
+.syn-home.syn-home .syn-feature-main .syn-feature-action { border-bottom-color:var(--brand-accent); }
+@media(max-width:1000px) { .syn-home.syn-home .syn-home-hero { min-height:0; padding:56px 0 74px; } }
+@media(max-width:690px) {
+  .syn-home.syn-home .syn-hero-content h1 { font-size:clamp(50px,12vw,72px); }
+  .syn-home.syn-home .syn-hero-actions .boton,
+  .syn-home.syn-home .syn-hero-secondary { width:100%; justify-content:center; }
+  .syn-home.syn-home .syn-hero-highlights { gap:6px; }
+  .syn-home.syn-home .syn-hero-highlights span { padding:10px; font-size:11px; min-height:90px; }
+}
+@media(max-width:410px) {
+  .syn-home.syn-home .syn-hero-highlights { grid-template-columns:1fr; }
+  .syn-home.syn-home .syn-hero-highlights span { flex-direction:row; align-items:center; min-height:52px; }
+}

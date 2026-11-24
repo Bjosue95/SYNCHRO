@@ -35,3 +35,13 @@ export async function cerrarSesion() {
     body: JSON.stringify({}),
   });
 }
+
+export async function operarEncomienda(ruta, datos) {
+  const seguridad = await apiAdmin("/api/admin/csrf-token");
+  if (!seguridad?.csrfToken) throw new Error("No se obtuvo el token de seguridad.");
+  return apiAdmin(`/api/admin/encomiendas/operativas${ruta}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": seguridad.csrfToken },
+    body: JSON.stringify(datos),
+  });
+}

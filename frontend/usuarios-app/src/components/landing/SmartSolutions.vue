@@ -184,15 +184,15 @@ const beneficios = Object.freeze([
 @media(max-width:560px) { .syn-energy-flow { gap:9px; } .syn-energy-flow i { width:20px; } .syn-energy-flow span { font-size:10px; } }
 @media(prefers-reduced-motion:reduce) { .syn-energy-flow i { animation:none; background:#5EC6E8; } }
 
-.syn-energy { margin-top:clamp(45px,6vw,76px); padding:clamp(25px,4vw,46px); border-radius:20px; background:#01305C; color:#ECFAFF; }
+.syn-energy { margin-top:clamp(45px,6vw,76px); padding:clamp(25px,4vw,46px); border-radius:20px; background:var(--service-base); color:var(--brand-white); }
 .syn-energy-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-.syn-energy-heading .syn-solutions-kicker { color:#8CE5EC; }
+.syn-energy-heading .syn-solutions-kicker { color:var(--service-accent); }
 .syn-energy-heading h2 { font-size:clamp(29px,3.4vw,42px); font-weight:650; line-height:1.16; letter-spacing:-.035em; margin:12px 0; color:#fff; max-width:580px; }
 .syn-energy-heading p { color:#D0E7F0; font-size:14px; line-height:1.75; max-width:570px; margin:0; }
-.syn-energy-emblem { display:grid; place-items:center; width:92px; height:92px; flex:0 0 92px; border-radius:20px; background:#174967; border:1px solid #4C8FA5; }
+.syn-energy-emblem { display:grid; place-items:center; width:92px; height:92px; flex:0 0 92px; border-radius:20px; background:var(--service-emblem); border:1px solid #4C8FA5; }
 .syn-energy-emblem :deep(svg) { filter:brightness(0) invert(1); }
-.syn-energy-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:#476A81; border:1px solid #476A81; border-radius:12px; overflow:hidden; margin-top:31px; }
-.syn-energy-card { min-width:0; padding:21px 18px; background:#123D60; }
+.syn-energy-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--service-divider); border:1px solid var(--service-divider); border-radius:12px; overflow:hidden; margin-top:31px; }
+.syn-energy-card { min-width:0; padding:21px 18px; background:var(--service-surface); }
 .syn-energy-card :deep(svg) { filter:brightness(0) invert(1); }
 .syn-energy-card h3 { font-size:14px; color:#fff; font-weight:700; margin:14px 0 7px; }
 .syn-energy-card p { color:#D0E7F0; font-size:12px; line-height:1.65; margin:0; }

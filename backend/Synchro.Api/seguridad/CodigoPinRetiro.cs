@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Synchro.Api.Services.Encomiendas;
 
 internal static class CodigoPinRetiro
 {
@@ -25,6 +26,23 @@ internal static class CodigoPinRetiro
         int destinatarioId,
         byte[] salt,
         IConfiguration configuracion)
+        => CalcularHashProtegido(pin, usoId, destinatarioId, salt, configuracion, "SYNCHRO|pin-retiro|v1");
+
+    // La finalidad queda dentro del HMAC: un PIN de depósito nunca valida como retiro.
+    // El método anterior conserva exactamente el formato de todos los hashes históricos.
+    public static byte[] CalcularHashEncomienda(
+        string pin, int reservaId, int participanteId, byte[] salt,
+        IConfiguration configuracion, FinalidadPinEncomienda finalidad)
+        => CalcularHashProtegido(pin, reservaId, participanteId, salt, configuracion, finalidad switch
+        {
+            FinalidadPinEncomienda.Deposito => "SYNCHRO|pin-encomienda|deposito|v2",
+            FinalidadPinEncomienda.Retiro => "SYNCHRO|pin-encomienda|retiro|v2",
+            _ => throw new ArgumentOutOfRangeException(nameof(finalidad))
+        });
+
+    private static byte[] CalcularHashProtegido(
+        string pin, int usoId, int destinatarioId, byte[] salt,
+        IConfiguration configuracion, string dominio)
     {
         if (pin is null ||
             pin.Length != 6 ||
@@ -66,7 +84,7 @@ internal static class CodigoPinRetiro
             }
 
             string contenido =
-                $"SYNCHRO|pin-retiro|v1|{usoId}|" +
+                $"{dominio}|{usoId}|" +
                 $"{destinatarioId}|{Convert.ToHexString(salt)}|{pin}";
 
             byte[] mensaje = Encoding.UTF8.GetBytes(contenido);

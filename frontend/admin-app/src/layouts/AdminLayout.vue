@@ -15,6 +15,7 @@ const grupos = [
   { titulo: "OPERACIONES", enlaces: [
     { ruta: "/admin", titulo: "Resumen", icono: "dashboard" },
     { ruta: "/admin/whatsapp", titulo: "WhatsApp y PIN", icono: "message" },
+    { ruta: "/admin/encomiendas", titulo: "Encomiendas", icono: "lockers" },
     { ruta: "/admin/cobros", titulo: "Cobros", icono: "check" },
     { ruta: "/admin/casilleros", titulo: "Casilleros", icono: "lockers" },
   ] },

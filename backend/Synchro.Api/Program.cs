@@ -14,8 +14,19 @@ using Synchro.Api.Services.Administracion;
 using Synchro.Api.Services.Clientes;
 using Synchro.Api.Services.RostroSimulado;
 using Microsoft.AspNetCore.DataProtection;
+using Synchro.Api.Services.Encomiendas;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Configuration.GetValue<bool>("EncomiendasOperacion:Habilitado"))
+{
+    var destinoEncomiendas = new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString("SynchroDB"));
+    if (!builder.Environment.IsDevelopment() || !destinoEncomiendas.IntegratedSecurity ||
+        destinoEncomiendas.InitialCatalog != "SynchroDB_Pruebas" ||
+        !string.Equals(destinoEncomiendas.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) ||
+        !string.IsNullOrEmpty(destinoEncomiendas.AttachDBFilename))
+        throw new InvalidOperationException("Encomiendas operativas requiere Development y SYNCHRO_Aislado/SynchroDB_Pruebas.");
+}
 
 builder.Services.AddScoped<Synchro.Api.Services.Temporales.IRepositorioServicioTemporal, Synchro.Api.Services.Temporales.RepositorioServicioTemporalSql>();
 builder.Services.AddScoped<Synchro.Api.Services.Temporales.ServicioTemporal>();
@@ -29,11 +40,15 @@ builder.Services.AddScoped<CuentasClientesWeb>();
 builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>, PasswordHasher<CuentaClienteWeb>>();
 builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
+builder.Services.AddScoped<EncomiendasOperativasSql>();
+if(builder.Configuration.GetValue<bool>("EncomiendasOperacion:Habilitado")&&builder.Configuration.GetValue("EncomiendasOperacion:LimpiarBiometria",true))
+    builder.Services.AddHostedService<LimpiezaBiometriaEncomiendasWorker>();
 // Al habilitar el flujo automatico, exigir claves persistentes cifradas por DPAPI.
 // El directorio debe ser privado de la cuenta Windows que ejecuta el servicio.
 if (builder.Configuration.GetValue<bool>("WhatsApp:SolicitudesInicioWorker:Habilitado") ||
     builder.Configuration.GetValue<bool>("WhatsApp:VerificacionOutbox:Habilitado") ||
-    builder.Configuration.GetValue<bool>("CargaDispositivos:RegistroHabilitado"))
+    builder.Configuration.GetValue<bool>("CargaDispositivos:RegistroHabilitado") ||
+    builder.Configuration.GetValue<bool>("EncomiendasOperacion:Habilitado"))
 {
     if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("El flujo requiere proteccion DPAPI de Windows.");
     var directorioClaves = builder.Configuration["ProteccionDatos:DirectorioClaves"];
@@ -289,6 +304,16 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
 
+    // Separar consultas periódicas de las operaciones protegidas y del acceso.
+    options.AddPolicy("EncomiendasOperativas", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"{contexto.Connection.RemoteIpAddress}|{(contexto.Request.Path.StartsWithSegments("/api/admin") ? "admin" : "web")}|{(HttpMethods.IsGet(contexto.Request.Method) ? "lectura" : "escritura")}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = HttpMethods.IsGet(contexto.Request.Method) ? 120 : 20,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
+            }));
+
     options.AddPolicy("OperacionesTerminal", contexto =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
@@ -502,13 +527,13 @@ if (builder.Configuration.GetValue<bool>("Reservas:ProcesarVencimientos") &&
 
 
 var app = builder.Build();
-foreach (string indicador in new[] { "WhatsApp:SolicitudesInicioHabilitadas", "WhatsApp:SolicitudesInicioWorker:Habilitado", "WhatsApp:VerificacionOutbox:Habilitado" })
+foreach (string indicador in new[] { "WhatsApp:SolicitudesInicioHabilitadas", "WhatsApp:SolicitudesInicioWorker:Habilitado", "WhatsApp:VerificacionOutbox:Habilitado", "EncomiendasOperacion:Habilitado" })
 {
     if (!app.Configuration.GetValue<bool>(indicador)) continue;
     var sql = new SqlConnectionStringBuilder(app.Configuration.GetConnectionString("SynchroDB"));
     if (!app.Environment.IsDevelopment() ||
         !Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(sql))
-        throw new InvalidOperationException("El inicio WhatsApp requiere Development y la instancia SYNCHRO_Aislado.");
+        throw new InvalidOperationException("El flujo operativo requiere Development y la instancia SYNCHRO_Aislado.");
     Synchro.Api.Services.ConexionSqlAislada.Exigir(sql.ConnectionString, "SynchroDB_Pruebas");
 }
 // Validar tambien la configuracion final del host: incluye los proveedores
@@ -580,6 +605,7 @@ if (app.Environment.IsDevelopment() &&
     // Emision y consulta preliminar exclusivas de la terminal (sin deposito).
     app.MapEncomiendasTerminalEndpoints();
     app.MapFlujoEncomiendasTerminalEndpoints();
+    app.MapEncomiendasOperativasEndpoints();
     app.MapServiciosTemporalesEndpoints();
     app.MapCargaSesionSeguraEndpoints();
     app.MapRetiroCargaIdentidadEndpoints();

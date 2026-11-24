@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppIcon from "../components/ui/AppIcon.vue";
 import LockerJourney from "../components/ui/LockerJourney.vue";
+import MiniLockerDemo from "../components/ui/MiniLockerDemo.vue";
 import LocationsMap from "../components/landing/LocationsMap.vue";
 import QuoteForm from "../components/landing/QuoteForm.vue";
 import ContactSection from "../components/landing/ContactSection.vue";
@@ -34,9 +35,9 @@ onBeforeUnmount(() => observador?.disconnect());
 </script>
 
 <template>
-  <div ref="pagina" class="syn-home">
+  <div id="inicio" ref="pagina" class="syn-home">
     <section class="syn-home-hero">
-      <div class="contenedor syn-hero-grid">
+      <div class="contenedor syn-hero-grid syn-v4-hero-grid">
         <div class="syn-hero-content">
           <span class="syn-overline">Guardar · Entregar · Conectar</span>
           <h1>Tu espacio.<br><span>Tu tiempo.</span></h1>
@@ -52,6 +53,11 @@ onBeforeUnmount(() => observador?.disconnect());
             <a href="#servicios" class="syn-hero-secondary">
               Explorar servicios <span aria-hidden="true">↗</span>
             </a>
+          </div>
+          <div class="syn-hero-highlights" aria-label="Soluciones principales">
+            <span><AppIcon nombre="casillero" :tamano="22" /> Resguardo personal</span>
+            <span><AppIcon nombre="temperatura" :tamano="22" /> Frío y calor</span>
+            <span><AppIcon nombre="carga" :tamano="22" /> Carga de dispositivos</span>
           </div>
           <p class="syn-hero-foot">
             Tecnología, accesibilidad y seguridad conectadas en una sola experiencia.
@@ -83,6 +89,7 @@ onBeforeUnmount(() => observador?.disconnect());
             <i aria-hidden="true"></i>
             <span><AppIcon nombre="seguridad" :tamano="23"/> Verificación</span>
           </div>
+          <MiniLockerDemo tipo="encomiendas" />
           <RouterLink to="/reservar/encomienda" class="syn-feature-action">
             Preparar encomienda <AppIcon nombre="flecha" :tamano="20"/>
           </RouterLink>
@@ -95,9 +102,7 @@ onBeforeUnmount(() => observador?.disconnect());
           </div>
           <h3>Almacenamiento personal</h3>
           <p>Guarda tus pertenencias de manera temporal y retíralas mediante el proceso de verificación.</p>
-          <div class="syn-locker-pattern" aria-hidden="true">
-            <span v-for="numero in 8" :key="numero" :class="{ 'syn-locker-highlight': numero === 3 }"></span>
-          </div>
+          <MiniLockerDemo tipo="personales" />
           <span class="syn-feature-foot">Un espacio para cuidar de tus pertenencias</span>
         </article>
 
@@ -110,6 +115,7 @@ onBeforeUnmount(() => observador?.disconnect());
               <span><i class="syn-cold-dot"></i>Frío</span>
               <span><i class="syn-warm-dot"></i>Calor</span>
             </div>
+            <MiniLockerDemo tipo="temperatura" />
           </div>
         </article>
 
@@ -124,7 +130,24 @@ onBeforeUnmount(() => observador?.disconnect());
               </div>
               <span>Uso presencial</span>
             </div>
+            <MiniLockerDemo tipo="carga" />
           </div>
+        </article>
+        <article class="syn-feature syn-feature-maletas" data-reveal>
+          <div class="syn-maletas-copy">
+            <div class="syn-feature-top">
+              <span class="syn-small-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="7" width="14" height="15" rx="2" />
+                  <path d="M9 7V4a3 3 0 0 1 6 0v3M9 11v7M15 11v7M8 22v1M16 22v1" />
+                </svg>
+              </span>
+              <span class="syn-feature-type">Configuración especializada</span>
+            </div>
+            <h3>Casilleros para maletas</h3>
+            <p>Espacios amplios para equipaje y bolsos de viaje; cinco columnas y dos filas.</p>
+          </div>
+          <MiniLockerDemo tipo="maletas" />
         </article>
       </div>
     </section>
@@ -220,5 +243,18 @@ onBeforeUnmount(() => observador?.disconnect());
 @media (prefers-reduced-motion: reduce) {
   .syn-charge-battery span { animation: none; opacity: .9; }
   .syn-pendiente { opacity:1; transform:none; }
+}
+
+/* V4: la ilustracion ocupa el ancho de la portada. Las tarjetas existentes no se reemplazan. */
+.syn-home .syn-hero-grid.syn-v4-hero-grid { grid-template-columns:minmax(0,1fr) !important; gap:27px; }
+.syn-home .syn-v4-hero-grid > .syn-hero-content { max-width:820px; }
+.syn-home .syn-feature .syn-mini-demo { min-width:0; }
+.syn-home .syn-feature :deep(.syn-mini-instruccion) { color:#d8eff2; }
+.syn-home .syn-feature-maletas { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,360px); gap:28px; align-items:center; }
+.syn-home .syn-feature-maletas .syn-feature-top { margin-bottom:14px; }
+.syn-home .syn-feature-maletas .syn-mini-demo { margin:0; max-width:360px; }
+@media (max-width:690px) {
+  .syn-home .syn-feature-maletas { grid-column:auto; grid-template-columns:1fr; gap:18px; }
+  .syn-home .syn-feature-maletas .syn-mini-demo { max-width:100%; }
 }
 </style>
