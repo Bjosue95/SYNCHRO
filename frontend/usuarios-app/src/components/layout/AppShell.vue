@@ -14,9 +14,9 @@ const error = ref("");
 const nombre = computed(() => estadoSesion.cliente?.nombreUsuario || "Cliente");
 const inicial = computed(() => nombre.value.charAt(0).toLocaleUpperCase("es-HN"));
 const secciones = [
-  { ruta: "/mi-cuenta", nombre: "Mis encomiendas", icono: "inicio" },
-  { ruta: "/reservar/encomienda", nombre: "Nueva encomienda", icono: "reservas" },
-  { ruta: "/consultar", nombre: "Consulta histórica", icono: "buscar" }
+  { ruta: "/reservar", nombre: "Reservar casillero", icono: "casillero" },
+  { ruta: "/mis-reservas", nombre: "Mis reservas", icono: "reservas" },
+  { ruta: "/mi-perfil", nombre: "Mi perfil", icono: "usuario" }
 ];
 
 watch(() => route.fullPath, () => { abierto.value = false; });

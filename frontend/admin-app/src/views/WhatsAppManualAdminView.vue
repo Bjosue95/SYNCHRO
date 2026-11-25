@@ -1,8 +1,9 @@
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { onBeforeRouteLeave } from 'vue-router';
 import { mensajePin } from '../services/mensajePin';
-const props = defineProps({ integrado: Boolean });
+const props = defineProps({ integrado: Boolean, intentoId:String });
+const emit=defineEmits(['actualizado']);
 
 // Vista de operador: requiere cookie de administrador y CSRF del backend.
 // Nunca registra el PIN en logs ni lo conserva en el navegador.
@@ -16,7 +17,18 @@ const aviso = ref("");
 const trabajando = ref("");
 const telefonos = ref({});
 const comprobados = ref({});
+const codigos=ref({}),textos=ref({}),referencias=ref({}),entregaTelefonos=ref({}),enviosComprobados=ref({}),referenciasEnvio=ref({});
 const pinActual = ref(null);
+let ocultacion=null;
+function ocultarValorPin(){if(pinActual.value){pinActual.value.pin='';pinActual.value.mensaje='';}}
+function establecerPin(item,datos){
+  clearTimeout(ocultacion);
+  pinActual.value={intentoId:item.intentoId,pin:datos.pinRetiro,mensaje:mensajePin(datos),casillero:datos.codigoCasillero,telefono:datos.telefonoCliente};
+  entregaTelefonos.value[item.intentoId]=datos.telefonoCliente;enviosComprobados.value[item.intentoId]=false;
+  ocultacion=setTimeout(ocultarValorPin,60000);
+}
+function chat(item){const numero=pinActual.value?.telefono;return pinActual.value?.intentoId===item.intentoId&&pinActual.value?.pin&&/^504[0-9]{8}$/.test(numero)&&numero===item.telefonoCliente?`https://wa.me/${numero}`:'';}
+function alOcultar(){if(document.hidden)ocultarValorPin();}
 let reloj = null;
 let montado = true;
 
@@ -79,7 +91,7 @@ async function comprobarSesion() {
 async function actualizar() {
   if (!autenticado.value || !montado) return;
   try {
-    const datos=await request("/api/admin/whatsapp-manual/pendientes");
+    const datos=await request("/api/admin/whatsapp-manual/pendientes"+(props.intentoId?'?intentoId='+encodeURIComponent(props.intentoId):''));
     if (montado) operaciones.value=datos?.operaciones || [];
   } catch(e) {
     if (montado && e.status===401) autenticado.value=false;
@@ -88,17 +100,20 @@ async function actualizar() {
 }
 
 async function confirmar(item) {
+  if(!comprobados.value[item.intentoId])return;
   error.value=""; aviso.value=""; trabajando.value=String(item.intentoId);
   try {
     const datos=await ejecutar("/api/admin/whatsapp-manual/confirmar",{
       intentoId:item.intentoId,
-      codigoAutorizacion:item.codigoAutorizacion,
+      codigoAutorizacion:codigos.value[item.intentoId]||'',
       telefonoCliente:(telefonos.value[item.intentoId]||"").trim(),
-      mensajeComprobado:true,
+      mensajeComprobado:comprobados.value[item.intentoId]===true,
+      textoMensaje:textos.value[item.intentoId]||'',mensajeReferencia:referencias.value[item.intentoId]||'',
     });
-    pinActual.value={ intentoId:item.intentoId, pin:datos.pinRetiro, mensaje:mensajePin(datos), casillero:datos.codigoCasillero, telefono:datos.telefonoCliente };
+    establecerPin(item,datos);
     aviso.value=`Autorización confirmada y PIN generado. Copia el mensaje completo y envíalo manualmente.`;
     await actualizar();
+    emit('actualizado');
   } catch(e) { error.value=e.message; }
   finally { trabajando.value=""; }
 }
@@ -107,13 +122,10 @@ async function emitir(item) {
   error.value=""; aviso.value=""; trabajando.value=String(item.intentoId);
   try {
     const datos=await ejecutar("/api/admin/whatsapp-manual/emitir-pin",{intentoId:item.intentoId, reemplazar:false});
-    pinActual.value={
-      intentoId:item.intentoId, pin:datos.pinRetiro,
-      mensaje:mensajePin(datos),
-      casillero:datos.codigoCasillero, telefono:datos.telefonoCliente,
-    };
+    establecerPin(item,datos);
     aviso.value="Se generó el PIN verdadero. Cópialo y envíalo por WhatsApp Business antes de salir de esta pantalla.";
     await actualizar();
+    emit('actualizado');
   } catch(e) { error.value=e.message; }
   finally { trabajando.value=""; }
 }
@@ -124,19 +136,16 @@ async function reemplazarPin(item) {
   error.value=""; aviso.value=""; trabajando.value=String(item.intentoId);
   try {
     const datos=await ejecutar("/api/admin/whatsapp-manual/emitir-pin",{intentoId:item.intentoId, reemplazar:true});
-    pinActual.value={
-      intentoId:item.intentoId, pin:datos.pinRetiro,
-      mensaje:mensajePin(datos),
-      casillero:datos.codigoCasillero, telefono:datos.telefonoCliente,
-    };
+    establecerPin(item,datos);
     aviso.value="PIN anterior invalidado. Copia y envía únicamente el nuevo código.";
     await actualizar();
+    emit('actualizado');
   } catch(e) { error.value=e.message; }
   finally { trabajando.value=""; }
 }
 
 async function copiarPin() {
-  if (!pinActual.value) return;
+  if (!pinActual.value?.mensaje) return;
   try {
     await navigator.clipboard.writeText(pinActual.value.mensaje);
     aviso.value="Mensaje completo copiado. Envíalo manualmente a la conversación verificada.";
@@ -144,6 +153,7 @@ async function copiarPin() {
 }
 
 async function enviado(item) {
+  if(!enviosComprobados.value[item.intentoId])return;
   if (!pinActual.value || pinActual.value.intentoId!==item.intentoId) {
     error.value="El PIN se muestra una sola vez. No marques enviado si no conservaste el código.";
     return;
@@ -151,11 +161,13 @@ async function enviado(item) {
   error.value=""; aviso.value=""; trabajando.value=String(item.intentoId);
   try {
     await ejecutar("/api/admin/whatsapp-manual/marcar-enviado",{
-      intentoId:item.intentoId, envioComprobado:true,
+      intentoId:item.intentoId, envioComprobado:enviosComprobados.value[item.intentoId]===true,
+      telefonoCliente:entregaTelefonos.value[item.intentoId],mensajeReferencia:referenciasEnvio.value[item.intentoId],
     });
     pinActual.value=null;
     aviso.value="Envío manual declarado por el operador. La tablet podrá continuar.";
     await actualizar();
+    emit('actualizado');
   } catch(e) { error.value=e.message; }
   finally { trabajando.value=""; }
 }
@@ -179,11 +191,14 @@ onMounted(()=>{
   comprobarSesion();
   reloj=setInterval(actualizar,5000);
   window.addEventListener('beforeunload',protegerSalida);
+  document.addEventListener('visibilitychange',alOcultar);
 });
+watch(()=>props.intentoId,()=>{pinActual.value=null;clearTimeout(ocultacion);void actualizar();});
 onBeforeUnmount(()=>{
   montado=false;
   clearInterval(reloj);
   window.removeEventListener('beforeunload',protegerSalida);
+  document.removeEventListener('visibilitychange',alOcultar);clearTimeout(ocultacion);
   pinActual.value=null;
 });
 </script>
@@ -237,6 +252,8 @@ onBeforeUnmount(()=>{
           <h2>Casillero {{ item.codigoCasillero }}</h2>
           <span class="estado" :class="'estado-' + item.estado.toLowerCase()">{{ item.estado }}</span>
         </div>
+        <p><strong>Resguardo personal · tablet</strong> · Titular · PIN exclusivo de retiro personal.</p>
+        <p>Intento {{ item.intentoId }} · Operación {{ item.usoId || 'Pendiente' }} · Teléfono autorizado: {{ item.telefonoCliente || 'Pendiente de comprobar en WhatsApp' }}.</p>
         
         <div class="datos"><span>Solicitud</span><span>{{ new Date(item.creadoUtc).toLocaleString() }}</span></div>
         <div class="datos"><span>Expira</span><span>{{ new Date(item.venceUtc).toLocaleString() }}</span></div>
@@ -245,8 +262,13 @@ onBeforeUnmount(()=>{
           <label>Teléfono del cliente (504 + 8 dígitos)
             <input v-model="telefonos[item.intentoId]" inputmode="tel" placeholder="504XXXXXXXX" required />
           </label>
+          <p>Texto esperado: SYNCHRO ACEPTO {{ item.codigoAutorizacion }} RECIBIR PIN DE RETIRO POR WHATSAPP</p>
+          <label>Código del mensaje de resguardo recibido<input v-model="codigos[item.intentoId]" required maxlength="16" autocomplete="off" /></label>
+          <label>Texto recibido de resguardo personal<input v-model="textos[item.intentoId]" required maxlength="120" autocomplete="off" /></label>
+          <label>Referencia del mensaje de aceptación<input v-model="referencias[item.intentoId]" required maxlength="120" /></label>
+          <label class="check"><input v-model="comprobados[item.intentoId]" type="checkbox" />He cotejado en WhatsApp el número de origen, el texto y el código de esta solicitud de resguardo personal.</label>
           
-          <button type="submit" :disabled="!!trabajando || !!pinActual">Confirmar mensaje y generar PIN</button>
+          <button type="submit" :disabled="!!trabajando || !!pinActual || !comprobados[item.intentoId]">Confirmar mensaje y generar PIN</button>
         </form>
 
         <div v-else-if="item.estado==='Reservado'" class="confirmacion">
@@ -256,22 +278,29 @@ onBeforeUnmount(()=>{
 
         <div v-else-if="item.estado==='PinEmitido'" class="confirmacion">
           <p>PIN generado. Envíalo desde WhatsApp Business al número {{ item.telefonoCliente }}.</p>
-          <div v-if="pinActual?.intentoId===item.intentoId" class="pin">
+          <div v-if="pinActual?.intentoId===item.intentoId && pinActual.mensaje" class="pin">
             <label>Mensaje listo para WhatsApp Business<textarea :value="pinActual.mensaje" readonly rows="7" aria-label="Mensaje completo con PIN real"></textarea></label>
             <button type="button" class="secundario" @click="copiarPin">Copiar mensaje completo</button>
+            <a v-if="chat(item)" :href="chat(item)" class="secundario" target="_blank" rel="noopener noreferrer">Abrir chat de resguardo personal</a>
+            <p>El valor se oculta a los 60 segundos o al salir de la pantalla. Abrir el chat y copiar no confirman el envío.</p>
           </div>
           <div v-else>
             <p class="precaucion">El PIN ya se emitió y no puede consultarse otra vez. Si aún no lo enviaste, puedes invalidarlo y emitir otro; nunca habrá dos PIN válidos simultáneamente.</p>
             <button type="button" class="secundario" :disabled="trabajando===String(item.intentoId)" @click="reemplazarPin(item)">Invalidar PIN anterior y emitir uno nuevo</button>
           </div>
-          <button :disabled="!pinActual || pinActual.intentoId!==item.intentoId || trabajando===String(item.intentoId)" @click="enviado(item)">Ya envié el PIN por WhatsApp</button>
+          <template v-if="pinActual?.intentoId===item.intentoId">
+            <label>Teléfono al que envié el PIN personal<input v-model="entregaTelefonos[item.intentoId]" type="tel" required /></label>
+            <label>Referencia del envío del PIN personal<input v-model="referenciasEnvio[item.intentoId]" maxlength="120" required /></label>
+            <label class="check"><input v-model="enviosComprobados[item.intentoId]" type="checkbox" />Comprobé que envié el PIN de retiro personal al número autorizado.</label>
+          </template>
+          <button :disabled="!pinActual || pinActual.intentoId!==item.intentoId || trabajando===String(item.intentoId) || !enviosComprobados[item.intentoId] || entregaTelefonos[item.intentoId]!==item.telefonoCliente || !referenciasEnvio[item.intentoId]" @click="enviado(item)">Ya envié el PIN por WhatsApp</button>
         </div>
 
         <div v-else-if="item.estado==='Enviado'" class="confirmacion">
           <p>Envío manual declarado. Esperando que el cliente termine el depósito en la tablet.</p>
         </div>
         <p v-else-if="item.estado==='Vencido'" class="precaucion">La reserva venció. Puedes cancelarla para liberar el casillero si no hay objetos dentro.</p>
-        <button type="button" class="secundario" style="margin-top:16px" :disabled="!!trabajando" @click="cancelar(item)">Cancelar reserva sin depósito</button>
+        <button v-if="!['Confirmado','Cancelado'].includes(item.estado)" type="button" class="secundario" style="margin-top:16px" :disabled="!!trabajando" @click="cancelar(item)">Cancelar reserva sin depósito</button>
       </section>
     </template>
   </main>
@@ -711,4 +740,9 @@ button.secundario { color:#01305c; background:#e4edf2; }
     transition: none;
   }
 }
+.manual-admin{background:var(--canvas);color:var(--ink)}
+.manual-admin .tarjeta,.manual-admin .indicador,.manual-admin input:not([type="checkbox"]),.manual-admin .pin textarea{background:var(--white);color:var(--ink);border-color:var(--border)}
+.manual-admin h2,.manual-admin .datos,.manual-admin .indicador strong,.manual-admin .indicador span,.manual-admin .ayuda{color:var(--ink)}
+.manual-admin .indicador small{color:var(--muted)}
+.manual-admin button.secundario,.manual-admin a.secundario{background:var(--canvas);color:var(--ink);border:1px solid var(--border);padding:12px;border-radius:9px}
 </style>

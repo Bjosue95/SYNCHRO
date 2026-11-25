@@ -3,6 +3,103 @@
 Estado: backend operativo, web y ficha administrativa conectados localmente. Tablet pendiente por decisión expresa del usuario.
 No representa una integración terminada ni acredita aperturas físicas o entregas de WhatsApp.
 
+## Cierre de trabajo y continuación: 25 de noviembre de 2026
+
+El cierre guarda los avances de backend, web de usuarios, administrador y pruebas en un único commit local autorizado sobre `rebuild/tablet-desde-cero`. No se crean ramas ni se hace push. Las referencias posteriores a etapas sin commits describen su estado histórico antes de este cierre.
+
+Estado confirmado en el código: la web tiene tres secciones principales, **Reservar casillero**, **Mis reservas** y **Mi perfil**. Permite reservar casilleros **normales, refrigerados y calientes**, tanto para **pertenencias personales como para encomiendas**, según inventario, configuración compatible, tamaño y duración disponibles. El recorrido web no exige registro ni verificación facial. El backend está preparado para que la tablet tome una captura demostrativa de depósito y otra de retiro independientes, sin comparar rostros ni exigir que sean de la misma persona; su conexión a la aplicación tablet queda para otra sesión.
+
+Se conservan WhatsApp manual con comprobación humana, consentimiento reutilizable por cuenta/teléfono y aceptación específica de destinatario, PIN de depósito y retiro distintos con validación real, caducidad y uso único, entrega al teléfono autorizado, cancelación antes del depósito e historial completo con paginación y propiedad. El resguardo personal iniciado en tablet y la carga conservan sus procedimientos existentes.
+
+Comprobación de cierre aprobada: compilación de backend y proyecto de pruebas con `--no-restore`, en una salida separada, sin errores ni advertencias; `typecheck` y `build` de usuarios y administrador correctos. Esta comprobación no ejecuta pruebas SQL, migraciones, limpieza ni consultas o modificaciones de datos. Las cifras de pruebas documentadas más abajo corresponden a la validación del desarrollo anterior al cierre.
+
+El commit incluye código, pruebas y documentación revisados. Se excluyen credenciales reales, claves privadas, certificados, configuraciones privadas, respaldos SQL, registros, archivos temporales y copias locales de seguridad. Las herramientas auxiliares locales, habilidades instaladas y la demostración facial independiente permanecen en disco fuera de este guardado del producto. No se modifica ningún archivo de `frontend/tablet-app` ni se borra información.
+
+Para continuar mañana:
+
+1. Configurar el nombre de la ubicación del prototipo, inventario habilitado y duraciones/tarifas; revisar configuración y temperatura apta de los compartimentos térmicos. El esquema actual no relaciona varias estaciones geográficas con sus casilleros.
+2. Cargar el backend actualizado en la ejecución habitual, que no se reinicia en este cierre.
+3. Integrar la tablet en una tarea separada: PIN de depósito, captura demostrativa y confirmación de depósito; después identificación por PIN de retiro, segunda captura independiente y confirmación de entrega.
+4. Validar con el operador mensajes realmente recibidos en el WhatsApp oficial y entrega manual de cada PIN al teléfono correcto. Abrir un chat o copiar texto no acredita una recepción, consentimiento ni envío.
+5. Validar el recorrido físico completo y sus estados en web/administrador; las pruebas automatizadas no acreditan apertura de hardware ni mensajes reales. Cualquier futura migración requiere revisión y autorización previa.
+
+## Reservas del prototipo: simplificación del 25 de noviembre de 2026
+
+Diagnóstico: ya existían sesión de cliente, selección visual de tablet, inventario normal/térmico, configuración de temperaturas y tarifas, consentimiento manual por cuenta y encomienda, pago comprobado, PIN separados, cancelación e historial. La web todavía se centraba en encomiendas y exigía referencia y comparación facial para preparar el depósito. Se reutilizaron esos contratos y componentes; no se reconstruyeron las aplicaciones.
+
+La navegación privada queda en **Reservar casillero**, **Mis reservas** y **Mi perfil**. La reserva permite pertenencias personales o encomienda, tipo normal/refrigerado/caliente, tamaño, ubicación y duración. Solo se muestran opciones compatibles que devuelve SQL. Las reservas e historial usan tarjetas y los mismos colores e iconos existentes, con botones grandes y temas claro/oscuro. Las rutas anteriores siguen como alias; no se añade otro administrador.
+
+No hace falta migración SQL. `ReservaPrototipoCreada` conserva servicio, tipo, casillero, ubicación, duración y tarifa como JSON tipado en la auditoría existente. Las operaciones, participantes, consentimientos, pagos, PIN y fotografías utilizan sus tablas actuales. No se cambia el esquema ni se borra información. Las pruebas añaden fixtures propios en la base aislada.
+
+- `GET /api/web/reservas/disponibilidad`: catálogo autenticado del inventario real. Excluye ocupados, reservados, usos activos, operaciones temporales y compartimentos deshabilitados o térmicamente incompatibles. La selección se repite dentro de una transacción con bloqueo de inventario al crear; no se confía en una disponibilidad enviada desde el navegador.
+- `POST /api/web/reservas`: `{ servicio: "Personal" | "Encomienda", tipoCasillero: "Normal" | "Refrigerado" | "Caliente", tamanoSolicitado, ubicacionId: "prototipo", minutos, telefonoDestinatario? }`. Exige cuenta, CSRF y datos disponibles. La reserva personal utiliza al titular existente y su consentimiento general; no crea un destinatario ficticio ni requiere una segunda aceptación. Las encomiendas conservan su invitación y aceptación independiente del destinatario. El inventario queda reservado por la operación; cancelar o vencer el plazo de depósito lo libera. La liberación al vencer se realiza al consultar disponibilidad o crear otra reserva y conserva todo el historial.
+- `GET /api/web/reservas`, `GET /{id}` y `POST /{id}/cancelar`: mismos controles, paginación, propiedad y concurrencia anteriores. El listado añade metadatos del servicio. El retiro solo aparece confirmado con estado y fecha reales de backend. Las operaciones anteriores conservan su consulta y procedimiento.
+- No hay cámara, referencia, contraseña adicional ni comparación facial en el recorrido de reservas de la web. La emisión y entrega del PIN de depósito dependen de pago y consentimiento comprobados; el PIN de retiro solo se emite después del depósito. Para pertenencias, ambos se entregan al teléfono autorizado del titular; para encomiendas, depósito al remitente y retiro al destinatario. Los valores son distintos, con HMAC, caducidad, límite de intentos, entrega manual explícita, visualización temporal y uso único.
+- `GET /api/terminales/reservas/csrf-token` y `POST /{id}/depositar`: contrato preparado para tablet autenticada con HTTPS, CSRF, consentimiento informado de captura, PIN de depósito real, `depositoComprobado` y PNG demostrativo sin descriptor. Versión `SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11`. Conserva la foto cifrada como evidencia; no registra referencia facial ni compara rostros. Para mantener la restricción SQL existente, el tipo interno de evidencia de depósito conserva el nombre anterior, pero se distingue por versión y `demostrativa=true`; no se afirma coincidencia biométrica.
+- `POST /api/terminales/reservas/retiros/identificar`: recibe únicamente el PIN de retiro en el cuerpo y obtiene la operación interna. `POST /{id}/captura-retiro` conserva la segunda foto demostrativa, que puede ser de otra persona. `POST /{id}/retirar` valida PIN y evidencia, confirma el retiro y consume el código en la misma transacción. Sin comparación entre fotos ni cobro adicional. Se reutiliza el motor transaccional anterior; no se modificó `frontend/tablet-app` y su conexión sigue pendiente.
+- **WhatsApp y PIN** conserva una sola bandeja y sus formularios existentes. Las solicitudes se muestran como tarjetas con reserva, servicio, tipo, titular/remitente/destinatario, teléfono y finalidad. Distingue las reservas personales web del resguardo personal iniciado en tablet, que conserva sus endpoints, códigos y reconocimiento anteriores. Carga conserva su procedimiento. Abrir el contacto y copiar el mensaje no registran consentimiento ni envío.
+
+Dependencias de configuración: no existe relación geográfica entre casilleros y estaciones en el esquema actual. `ReservasPrototipo:Ubicacion` permite nombrar la única estación del prototipo; sin valor se muestra «Estación del prototipo · ubicación por configurar». No se presentan las ubicaciones comerciales propuestas como inventario disponible. `ReservasPrototipo:Casilleros` puede acotar el inventario habilitado para este recorrido. Un sistema con inventario distribuido por varias estaciones necesitaría una relación persistida y revisión independiente; no se implementó aquí.
+
+Las duraciones y precios configurados de `CompartimentosServiciosTemporales` se reutilizan cuando existen. Los casilleros normales sin configuración admiten las duraciones de `ReservasPrototipo:DuracionesMinutos` (30/60/120 minutos por defecto para el prototipo) y conservan la tarifa manual anterior por tamaño; no se inventa un importe en la web. Los térmicos requieren configuración habilitada, precio positivo y temperatura simulada apta. La duración queda vinculada a la reserva; no se añade un cierre físico automático ni cobro extra por tiempo. El número oficial procede exclusivamente de la configuración existente de WhatsApp.
+
+Validación: 58 pruebas seleccionadas de backend SQL/HTTP/políticas/PIN, 37 pruebas en memoria de pagos y servicios existentes y 59 pruebas web, además de compilación y tipos de ambas aplicaciones. Las pruebas SQL/HTTP cubren las seis combinaciones de servicio/tipo, sin referencia facial, con fotos distintas, PIN arbitrario e intercambiado rechazados, entrega al teléfono incorrecto bloqueada, PIN consumido irreutilizable, reserva concurrente y liberación al cancelar/vencer. Se comprueba además que el motor temporal anterior no pueda tomar un casillero ya reservado por este recorrido. Se mantienen las pruebas anteriores de consentimiento, cancelación e historial. El recorrido HTTP real de depósito/retiro exige rol de terminal, CSRF y consentimiento de captura. Chrome prueba las seis selecciones, los tres apartados, ausencia de cámara web, consentimiento y entrega manual con contratos controlados, escritorio/móvil y claro/oscuro. Estas pruebas no acreditan mensajes ni aperturas reales.
+
+Se corrigió también el tiempo de espera observado al buscar solicitudes: se consulta solamente el servicio seleccionado, se aprovecha el ámbito de auditoría de cuenta y se planifican los filtros reales de búsqueda. No requiere índices nuevos ni otra migración.
+
+Pendiente de validación manual: configurar la ubicación/inventario y compartimentos térmicos reales, cargar el backend actualizado, revisar los mensajes reales y su entrega en WhatsApp y conectar la tablet a estos contratos en la integración separada. No se reinició la API habitual, no se ejecutaron migraciones ni borrados, ni se crearon ramas, commits o push.
+
+## Cancelación, historial y centro de WhatsApp y PIN
+
+Diagnóstico: se conservaron los consentimientos, la invitación, la verificación manual y los PIN de la integración anterior. Faltaban cancelación por el propietario, historial paginado completo y una bandeja que reuniera encomiendas y resguardo personal. El listado anterior terminaba en 200 encomiendas y presentaba auditoría técnica como seguimiento.
+
+No se necesita migración. `Cancelada` ya está permitido en el esquema, las solicitudes ya admiten cancelación y la auditoría existente conserva motivo, fecha, responsable y revisión del pago. No se añade ni modifica ninguna tabla o procedimiento SQL. No se borra información ni se simula un reembolso.
+
+- Cancelación: `POST /api/web/encomiendas/{id}/cancelar`, con sesión propia, CSRF, motivo, confirmación y versión observada. La transacción bloquea primero la operación y después la pre-reserva, como el depósito. Si el depósito gana, se rechaza cancelar; si gana cancelar, se rechaza depositar. Repetir una cancelación válida devuelve el mismo resultado sin duplicar el evento. También admite pre-reservas anteriores del propietario que todavía no tengan depósito.
+- Invalidación: revoca los PIN de la encomienda, cancela solicitudes ligadas, caduca evidencias pendientes y revoca el consentimiento específico del destinatario. Rechaza nuevas confirmaciones operativas y deja de ofrecer la invitación. Un enlace `wa.me` enviado anteriormente no se puede borrar del teléfono ajeno; su referencia ya no permite registrar aceptación ni operar. El consentimiento general del remitente permanece intacto.
+- Pago: se conserva el comprobante confirmado. La auditoría registra `PagoPendienteRevision` y las proyecciones muestran `pagoRequiereRevision`; el centro administrativo lo identifica como pendiente de revisión. No hay reembolso automático ni un cambio ficticio del pago original.
+- Historial: `GET /api/web/encomiendas?pagina=1&tamanoPagina=20&estado=Cancelada&desde=2026-01-01&hasta=2026-12-31&numero=81`. Página positiva, tamaño 1–100, orden por creación e identificador descendentes. Fechas de calendario de Honduras y extremo final inclusivo. Total, páginas y resumen se calculan en el servidor dentro del ámbito del propietario. Incluye pre-reservas anteriores y permite abrir su detalle sin exponer claves de gestión. Se conservan fecha/destinatario/tamaño/estado, depósito, retiro confirmado y cancelación.
+- Seguimiento: `seguimiento` proyecta eventos de negocio en orden cronológico: creación, aceptación comprobada, pago, envío declarado de PIN, depósito, retiro y cancelación. No presenta intentos fallidos, descriptores, identificadores de evidencias ni auditoría técnica al cliente. Las aceptaciones comprobadas antes de cancelar siguen figurando como hechos históricos.
+- Centro administrativo: `GET /api/admin/whatsapp-pin/solicitudes`, con paginación y filtros `servicio` (`Encomiendas`/`ResguardoPersonal`), `telefono` y `referencia`. Cada fila identifica servicio, operación, participante, teléfono esperado/autorizado, fechas, consentimiento, finalidad, emisión, entrega y estado operativo. Los contadores de la portada usan esta misma proyección completa.
+- Una sola gestión: `EncomiendasView` conserva ficha, pago, evidencia y auditoría, y enlaza al centro. El centro reutiliza esa misma implementación para consentimientos y PIN; los formularios de comunicaciones no se duplican en la ficha. Permite volver a la operación. Resguardo personal reutiliza `WhatsAppManualAdminView`, su intento/uso y sus endpoints anteriores, sin recurrir a PIN ni endpoints de encomiendas. Los PIN personales se ocultan a los 60 segundos o al abandonar la pantalla.
+- Verificación personal: el administrador debe introducir el código y texto recibidos, número de origen, referencia y comprobación explícita. `confirmar` agrega `textoMensaje` y `mensajeReferencia` al contrato administrativo; `marcar-enviado` exige `telefonoCliente` y `mensajeReferencia`, además de `envioComprobado`. Comprueba el teléfono persistido y que el uso sea de resguardo personal. La fecha y responsable se conservan en la auditoría común existente. Las aceptaciones anteriores sin fecha auditada se muestran como tales, sin inventar una comprobación automática.
+- Los enlaces administrativos abren solo el contacto autorizado; el mensaje con PIN se copia aparte. Copiar y abrir no confirman envío. Carga, reconocimiento facial y controles de retiro conservan sus procedimientos anteriores. No se modificó ningún archivo de tablet-app.
+
+Validación: 49 pruebas seleccionadas de backend, 37 pruebas existentes en memoria de pagos/servicios temporales y 57 pruebas web; compilación y tipos de ambas aplicaciones. Los casos nuevos prueban cancelación/idempotencia/versión/propiedad, competencia real entre cancelación y depósito, invalidación, pago por revisar, historial de 206 filas con filtros/páginas y registros anteriores, servicios separados, mensajes independientes y teléfono de entrega personal. La prueba de Chrome usa contratos controlados y comprueba las pantallas reales, navegación entre ficha y centro, confirmación, tres finalidades de PIN, anchos 1440/390 y temas claro/oscuro, incluidos los colores efectivos después de la transición. No acredita un mensaje real recibido/enviado, hardware ni uso físico de tablet.
+
+Comando de backend compatible con la restricción de no borrar SQL (excluye las dos pruebas antiguas que ejecutan limpieza de biometría):
+
+```powershell
+dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --no-restore -p:OutputPath=bin/Consentimientos/ -p:UseAppHost=false --filter "(FullyQualifiedName~EncomiendasOperativasSqlTests&FullyQualifiedName!~FlujoSqlRealManual&FullyQualifiedName!~RechazoVencimientoYLimite)|FullyQualifiedName~WhatsAppEncomiendaTests|FullyQualifiedName~PinEncomiendaOperativaTests|FullyQualifiedName~PoliticaEncomiendaOperativaTests"
+```
+
+Las pruebas dejan sus fixtures identificados en la base aislada. No se ejecutó la suite antigua de WhatsApp manual que instala procedimientos y borra fixtures; se adaptaron sus peticiones al contrato administrativo ampliado, y la confirmación/entrega personales se comprobaron mediante un fixture nuevo sin migración ni borrado. Queda validar con el operador el mensaje real, envío manual a los teléfonos autorizados y el regreso al procedimiento físico de tablet. La API habitual no se reinició: debe cargar el backend actualizado antes de probar estas funciones con las aplicaciones en ejecución. No se crearon ramas, commits ni push.
+
+## Invitación y consentimiento por cuenta: ajuste del 24 de noviembre de 2026
+
+Diagnóstico previo a este ajuste: ya existían las fichas separadas, verificación administrativa manual, pago, PIN independientes, caducidad, uso único, ocultación temporal, captura de evidencia y auditoría. Faltaban el consentimiento reutilizable del remitente, la invitación completa dirigida al destinatario y la identificación interna del retiro solo mediante PIN. La entrega manual también incluía el PIN en la URL; ahora se copia por separado.
+
+- Se reutiliza `AuditoriaEncomiendaOperativa` para registrar confirmación/revocación de cuenta con `PersonaId`, `ReservaId=NULL`, teléfono, referencia, actor y fecha. El último evento gobierna la autorización; no hay tablas nuevas ni migraciones. La autorización no caduca con la encomienda usada para abrir la ficha administrativa. Una revocación o un teléfono diferente impiden usarla. Un mensaje anterior a la revocación no puede reutilizarse como nueva autorización.
+- `GET /api/web/encomiendas/consentimiento-cuenta` consulta la autorización propia; `DELETE` la revoca con sesión y CSRF. No existe confirmación desde la web del cliente ni por abrir/copiar/compartir. La aceptación real sigue siendo un mensaje a WhatsApp oficial comprobado por el operador.
+- El detalle privado devuelve `compartir.mensaje` y `compartir.enlaceWhatsApp`, construidos con el identificador real y el teléfono esperado. El enlace exterior abre al destinatario; el interior abre el número oficial de `WhatsAppManual:NumeroE164` con `SYNCHRO ACEPTO {id}`. Sin número oficial válido no se generan enlaces ni se inventa uno.
+- El administrador introduce el teléfono de origen, el texto exacto recibido y una referencia comprobable; confirma expresamente su revisión. El remitente se asocia a su cuenta por el teléfono actual y `SYNCHRO ACEPTO`. El destinatario se asocia exclusivamente a su encomienda y teléfono con `SYNCHRO ACEPTO {id}`, sin cuenta ni sesión web. Se muestran alcance, teléfono de última comprobación, referencia, fecha y responsable.
+- Los mensajes del formato anterior se pueden revisar desde la misma ficha. Sus aceptaciones conservan el alcance por encomienda y nunca se convierten automáticamente en permisos permanentes. Las rutas históricas y el módulo manual de resguardo/carga se conservan.
+- El chat administrativo de entrega usa únicamente `https://wa.me/{telefonoAutorizado}`. El mensaje con PIN se muestra/copia aparte, se oculta con el valor temporal y exige confirmación del envío real. El servidor deriva la finalidad desde el PIN y comprueba nuevamente el teléfono. Abrir el chat no registra una entrega.
+- `POST /api/terminales/encomiendas/operativas/retiros/identificar` recibe solo el PIN en el cuerpo. Exige terminal autenticada, HTTPS, CSRF y límite de intentos por minuto; resuelve la referencia interna sin exigirla al destinatario. Un PIN ambiguo se rechaza. Los contratos posteriores conservan captura consentida como evidencia, PIN vigente de retiro, uso único y ausencia de cobro adicional. No se modificó ni conectó la aplicación tablet.
+
+Validación de este ajuste: 44 pruebas de backend aprobadas (incluidas integración SQL/HTTP real en la instancia aislada, cuenta/teléfono, revocación, mensajes anteriores, enlaces y separación de PIN), 56 pruebas web aprobadas, `typecheck` y `build` de ambas aplicaciones. Chrome comprobó los controles reales de las pantallas con respuestas controladas: copia/compartición sin consentimiento, formularios independientes, teléfono incorrecto bloqueado, retiro anterior al depósito bloqueado, ocultación temporal y anchos 1440/390. Esta prueba de interfaz no acredita recepción/envío real de WhatsApp.
+
+Comandos reproducibles después de compilar las dos aplicaciones:
+
+```powershell
+dotnet test tests/Synchro.Api.Tests/Synchro.Api.Tests.csproj --no-restore -p:OutputPath=bin/Consentimientos/ -p:UseAppHost=false --filter "FullyQualifiedName~EncomiendasOperativasSqlTests|FullyQualifiedName~WhatsAppEncomiendaTests|FullyQualifiedName~PinEncomiendaOperativaTests|FullyQualifiedName~PoliticaEncomiendaOperativaTests"
+# Desde frontend/usuarios-app:
+npm.cmd test
+node tests/visual/whatsapp-consentimientos.visual.mjs
+```
+
+Las pruebas SQL usan registros propios en `(localdb)\SYNCHRO_Aislado` / `SynchroDB_Pruebas`; no ejecutan migraciones. La compilación usa una salida separada porque la API habitual estaba en ejecución. No se reinició ni desplegó esa API, no se enviaron mensajes reales y no se crearon ramas, commits ni push.
+
 ## Base del diagnóstico inicial (histórico)
 
 - Primera base de reglas: `Services/Encomiendas/PoliticaEncomiendaOperativa.cs`.
@@ -74,7 +171,8 @@ Los estados anteriores de encomiendas no autorizan por sí solos el nuevo flujo.
 
 - La cuenta y teléfono del remitente proceden de la sesión y la base; no del cuerpo de una petición.
 - El destinatario tiene un registro separado, aunque todavía no tenga cuenta web.
-- Cada participante recibe un texto/código de consentimiento distinto, ligado a encomienda, rol, teléfono y vencimiento.
+- El remitente registrado envía `SYNCHRO ACEPTO`, sin referencia de encomienda. La comprobación manual autoriza su cuenta y teléfono para futuras encomiendas hasta revocación; cambiar de teléfono requiere una nueva comprobación.
+- El destinatario envía `SYNCHRO ACEPTO {id}` desde el teléfono esperado, por cada encomienda. La referencia es pública y no acredita identidad, retiro ni acceso al detalle privado.
 - Abrir un enlace `wa.me` no confirma aceptación, comunicación ni entrega de PIN.
 - La confirmación manual exige acción administrativa explícita, teléfono coincidente y referencia del mensaje comprobado; registra actor y fecha.
 - El destinatario acepta la encomienda y las comunicaciones; la captura de retiro tiene un consentimiento biométrico independiente.
@@ -93,6 +191,7 @@ Los estados anteriores de encomiendas no autorizan por sí solos el nuevo flujo.
 - Dos PIN, separados por finalidad y participante. Almacenamiento mediante hash protegido/salt; comparación constante, vencimiento, intentos limitados y uso único.
 - El administrador recibe el PIN temporalmente al emitirlo; no existe consulta permanente del valor. Reemitir invalida el anterior.
 - La entrega manual requiere número autorizado y confirmación explícita de envío; nunca un webhook ficticio.
+- El enlace de entrega manual abre únicamente el contacto autorizado. El PIN se copia por separado en un mensaje temporal; nunca se incluye en URLs.
 - Un pago simulado, pendiente, desconocido o rechazado no habilita depósito.
 - La web no abre casilleros: solicita una autorización breve vinculada a una petición creada por una terminal autenticada.
 - La terminal comprueba en la transacción estado, autorización, identidad, PIN, pago y disponibilidad antes del depósito.
@@ -104,7 +203,7 @@ Los estados anteriores de encomiendas no autorizan por sí solos el nuevo flujo.
 | Parte | Implementación actual | Límite comprobado |
 | --- | --- | --- |
 | Backend | SQL transaccional, participantes independientes, consentimiento manual, pago, dos PIN, facial V3, auditoría y conservación | Solo Development y `(localdb)\SYNCHRO_Aislado` / `SynchroDB_Pruebas` |
-| Web | Panel con datos propios, asistente, referencia facial consentida, detalle, enlaces de autorización y seguimiento | Resumen/listado de últimas 200 encomiendas; últimas 300 acciones por ficha |
+| Web | Panel con datos propios, historial completo paginado, cancelación, referencia facial consentida, detalle, invitación y seguimiento | Solo registros del propietario; auditoría técnica separada del seguimiento |
 | Administrador | Ficha de remitente/destinatario, comprobación manual de mensajes, pago e importe, emisión/entrega de PIN, historial y evidencia restringida | Abrir WhatsApp NO confirma consentimiento ni entrega; ninguna API de envío conectada |
 | Facial del remitente | Human.js 3.3.6, modelo `SYNCHRO-HUMANJS-EMBEDDING-1024-v3`, normalización/comparación coseno en servidor, cifrado Data Protection/DPAPI | Descriptor e imagen sintéticos en QA. Falta comprobación con persona/cámara real; sin prueba de vida certificada |
 | Fotografía del destinatario | Captura consentida cifrada, vínculo con encomienda, terminal, uso/casillero, PIN validado y entrega | Evidencia, SIN coincidencia biométrica ni cuenta creada para reconocerlo |
@@ -223,7 +322,7 @@ Todas las escrituras exigen HTTPS, sesión, CSRF y límites de frecuencia. La id
 | Método y ruta | Contrato |
 | --- | --- |
 | `GET /api/web/encomiendas/configuracion` | Tarifas nullable, modelo/versiones de consentimiento, conservación, modo manual, hardware simulado/tablet no integrada |
-| `GET /api/web/encomiendas` | Hasta 200 operaciones propias, fechas, pago y casillero reales |
+| `GET /api/web/encomiendas` | Historial completo propio paginado, filtros, fechas, destinatario, pago, cancelación y retiro confirmado |
 | `POST /api/web/encomiendas` | `{telefonoDestinatario,tamanoSolicitado}`: `Pequeno`, `Mediano` o `Grande`; remitente desde sesión/cuenta activa |
 | `GET /api/web/encomiendas/{id}` | Propietario únicamente: dos participantes, enlaces/textos para WhatsApp oficial, pago, referencia, metadatos PIN y auditoría |
 | `GET /api/web/encomiendas/referencia-facial` | Estado y fechas; nunca devuelve el descriptor |

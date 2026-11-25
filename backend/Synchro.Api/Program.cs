@@ -314,6 +314,14 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
             }));
 
+    options.AddPolicy("IdentificarRetiroEncomienda", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"{contexto.Connection.RemoteIpAddress}|{contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
+            }));
+
     options.AddPolicy("OperacionesTerminal", contexto =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",

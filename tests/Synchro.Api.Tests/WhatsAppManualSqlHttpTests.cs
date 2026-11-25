@@ -181,7 +181,9 @@ public sealed class WhatsAppManualSqlHttpTests
                 intentoId = intento,
                 codigoAutorizacion = autorizacion,
                 telefonoCliente = "50400000001",
-                mensajeComprobado = true
+                mensajeComprobado = true,
+                textoMensaje = $"SYNCHRO ACEPTO {autorizacion} RECIBIR PIN DE RETIRO POR WHATSAPP",
+                mensajeReferencia = "WA-PRUEBA-"+Guid.NewGuid().ToString("N")
             };
 
             using var confirmada = await admin.PostAsJsonAsync(
@@ -205,7 +207,8 @@ public sealed class WhatsAppManualSqlHttpTests
                 new
                 {
                     intentoId = intento,
-                    envioComprobado = true
+                    envioComprobado = true,
+                    telefonoCliente = "50400000001",mensajeReferencia="WA-ENVIO-PRUEBA-"+Guid.NewGuid().ToString("N")
                 });
 
             Assert.True(enviado.IsSuccessStatusCode,
@@ -398,7 +401,9 @@ public sealed class WhatsAppManualSqlHttpTests
                 intentoId = intento,
                 codigoAutorizacion = autorizacion,
                 telefonoCliente = "50400000001",
-                mensajeComprobado = true
+                mensajeComprobado = true,
+                textoMensaje = $"SYNCHRO ACEPTO {autorizacion} RECIBIR PIN DE RETIRO POR WHATSAPP",
+                mensajeReferencia = "WA-PRUEBA-"+Guid.NewGuid().ToString("N")
             };
 
             using var confirmada = await admin.PostAsJsonAsync(
@@ -422,7 +427,8 @@ public sealed class WhatsAppManualSqlHttpTests
                 new
                 {
                     intentoId = intento,
-                    envioComprobado = true
+                    envioComprobado = true,
+                    telefonoCliente = "50400000001",mensajeReferencia="WA-ENVIO-PRUEBA-"+Guid.NewGuid().ToString("N")
                 });
 
             Assert.True(enviado.IsSuccessStatusCode,
@@ -618,7 +624,9 @@ public sealed class WhatsAppManualSqlHttpTests
                     intentoId = intento,
                     codigoAutorizacion = autorizacion,
                     telefonoCliente = "50400000001",
-                    mensajeComprobado = true
+                    mensajeComprobado = true,
+                    textoMensaje = $"SYNCHRO ACEPTO {autorizacion} RECIBIR PIN DE RETIRO POR WHATSAPP",
+                    mensajeReferencia = "WA-PRUEBA-"+Guid.NewGuid().ToString("N")
                 });
 
             Assert.True(confirmada.IsSuccessStatusCode,
@@ -635,7 +643,8 @@ public sealed class WhatsAppManualSqlHttpTests
                 new
                 {
                     intentoId = intento,
-                    envioComprobado = true
+                    envioComprobado = true,
+                    telefonoCliente = "50400000001",mensajeReferencia="WA-ENVIO-PRUEBA-"+Guid.NewGuid().ToString("N")
                 });
 
             Assert.True(enviado.IsSuccessStatusCode);
@@ -1086,7 +1095,7 @@ public sealed class WhatsAppManualSqlHttpTests
             string autorizacion=(string)(await EscalarAsync(db,"SELECT CodigoAutorizacion FROM dbo.AutorizacionesWhatsAppManuales WHERE CodigoCasillero=@codigo",codigo))!;
             using var admin=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});admin.DefaultRequestHeaders.Add("X-Test-Admin","si");
             await PreReservasWebTabletTests.CsrfAsync(admin,"/api/admin/csrf-token");
-            var payload=new{intentoId=intento,codigoAutorizacion=autorizacion,telefonoCliente="50400000001",mensajeComprobado=true};
+            var payload=new{intentoId=intento,codigoAutorizacion=autorizacion,telefonoCliente="50400000001",mensajeComprobado=true,textoMensaje=$"SYNCHRO ACEPTO {autorizacion} RECIBIR PIN DE RETIRO POR WHATSAPP",mensajeReferencia="WA-PRUEBA-"+Guid.NewGuid().ToString("N")};
             using(var noCsrf=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")})) {
                 noCsrf.DefaultRequestHeaders.Add("X-Test-Admin","si");using var rechazo=await noCsrf.PostAsJsonAsync("/api/admin/whatsapp-manual/confirmar",payload);Assert.Equal(HttpStatusCode.Forbidden,rechazo.StatusCode);
             }

@@ -6,12 +6,19 @@ import {
   onMounted,
   reactive,
   ref,
+  watch,
 } from "vue";
+import { RouterLink, useRoute } from "vue-router";
 import {
   apiAdmin,
   consultarSesion,
   operarEncomienda,
 } from "../services/adminApi";
+import { chatPinEncomienda, mensajePinEncomienda } from "../services/pinEncomiendaManual.js";
+const props=defineProps<{centroWhatsApp?:boolean;encomiendaId?:number}>();
+const emit=defineEmits<{actualizado:[]}>();
+const route=useRoute();
+const pagina=ref(1),totalPaginas=ref(0),total=ref(0);
 
 const lista = ref<any[]>([]),
   detalle = ref<any>(null),
@@ -89,7 +96,7 @@ function ocultarValorPin() {
 }
 function prepararEntrega(p: any) {
   ocultarPin();
-  const participante = detalle.value[p.finalidad === "Deposito" ? "remitente" : "destinatario"];
+  const participante = detalle.value[p.finalidad === "Deposito" || detalle.value.reserva?.servicio==='Personal' ? "remitente" : "destinatario"];
   pinTemporal.value = { ...p, pin: "", telefono: participante.telefono };
   entrega.telefono = participante.telefono;
 }
@@ -101,10 +108,12 @@ function ocultarFoto() {
 async function cargar() {
   cargando.value = true;
   try {
-    const d = await apiAdmin("/api/admin/encomiendas/operativas");
+    const consulta=new URLSearchParams({pagina:String(pagina.value),tamanoPagina:'20',estado:filtro.value});
+    const d = await apiAdmin("/api/admin/encomiendas/operativas?"+consulta);
     if (!Array.isArray(d?.encomiendas))
       throw new Error("Respuesta de encomiendas inválida.");
     lista.value = d.encomiendas;
+    total.value=d.total;totalPaginas.value=d.totalPaginas;
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -125,6 +134,8 @@ async function seleccionar(id: number, reiniciar = true) {
       consentimientos[rol] = {
         telefono: "",
         codigo: "",
+        textoMensaje: "",
+        usarFormatoAnterior: false,
         mensajeReferencia: "",
         mensajeComprobado: false,
         aceptaEncomienda: false,
@@ -172,7 +183,8 @@ async function ejecutar(accion: () => Promise<unknown>, mensaje: string) {
     await accion();
     aviso.value = mensaje;
     await seleccionar(detalle.value.id, false);
-    await cargar();
+    if(!props.centroWhatsApp)await cargar();
+    emit('actualizado');
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -218,12 +230,15 @@ function confirmarEntrega() {
     ocultarPin();
   }, "Entrega manual del PIN registrada y auditada.");
 }
-const enlacePin = computed(() => {
-  const p = pinTemporal.value;
-  if (!p?.pin || !/^\+[1-9][0-9]{7,14}$/.test(p.telefono)) return "";
-  const texto = `SYNCHRO · Encomienda #${detalle.value.id}. PIN exclusivo de ${p.finalidad.toLowerCase()}: ${p.pin}. Vence: ${fecha(p.venceUtc)}. No lo compartas.`;
-  return `https://wa.me/${p.telefono.slice(1)}?text=${encodeURIComponent(texto)}`;
-});
+const enlacePin = computed(() => pinTemporal.value?.pin ? chatPinEncomienda(pinTemporal.value, detalle.value) : "");
+const mensajePin = computed(() => pinTemporal.value?.pin ? mensajePinEncomienda(pinTemporal.value, detalle.value, fecha(pinTemporal.value.venceUtc)) : "");
+async function copiarPin() {
+  try {
+    if (!mensajePin.value) return;
+    await navigator.clipboard.writeText(mensajePin.value);
+    aviso.value = "Mensaje copiado. Envíalo al contacto autorizado y después confirma el envío real.";
+  } catch { error.value = "No se pudo copiar. Selecciona el mensaje y cópialo manualmente."; }
+}
 async function consultarFoto(id: string) {
   await ejecutar(async () => {
     ocultarFoto();
@@ -264,11 +279,16 @@ onMounted(async () => {
   try {
     const s = await consultarSesion();
     administrador.value = s.roles.includes("Administrador");
-    await cargar();
+    if(!props.centroWhatsApp)await cargar();
+    const id=props.encomiendaId||Number(route.query.encomienda);
+    if(id>0)await abrir(id);
   } catch (e) {
     error.value = (e as Error).message;
   }
 });
+watch(()=>props.encomiendaId,id=>{if(id)void abrir(id);});
+watch(filtro,()=>{pagina.value=1;void cargar();});
+async function cambiarPagina(cambio:number){pagina.value+=cambio;await cargar();}
 onBeforeUnmount(() => {
   document.removeEventListener("visibilitychange", alOcultar);
   ocultarPin();
@@ -278,7 +298,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="enc-page">
-    <div class="page-heading">
+    <div v-if="!props.centroWhatsApp" class="page-heading">
       <div>
         <h1>Encomiendas</h1>
         <p>
@@ -297,7 +317,7 @@ onBeforeUnmount(() => {
     </div>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="enc-notice" role="status">{{ aviso }}</p>
-    <section class="enc-card" aria-label="Listado de encomiendas">
+    <section v-if="!props.centroWhatsApp" class="enc-card" aria-label="Listado de encomiendas">
       <label class="enc-field enc-filter"
         >Estado<select v-model="filtro">
           <option value="">Todos los estados</option>
@@ -308,6 +328,7 @@ onBeforeUnmount(() => {
               'Retirada',
               'Vencida',
               'Rechazada',
+              'Cancelada',
             ]"
             :key="e"
             :value="e"
@@ -320,7 +341,7 @@ onBeforeUnmount(() => {
       <div class="enc-table-wrap">
         <table class="enc-table">
           <caption>
-            Últimas 200 encomiendas operativas
+            {{ total }} encomiendas operativas · Página {{ pagina }} de {{ totalPaginas || 1 }}
           </caption>
           <thead>
             <tr>
@@ -367,6 +388,7 @@ onBeforeUnmount(() => {
       <p v-if="!cargando && !error && !visibles.length">
         No hay encomiendas en este estado.
       </p>
+      <nav class="enc-actions" aria-label="Paginación de encomiendas"><button class="enc-button" :disabled="pagina<=1||cargando" @click="cambiarPagina(-1)">Anterior</button><button class="enc-button" :disabled="pagina>=totalPaginas||cargando" @click="cambiarPagina(1)">Siguiente</button></nav>
     </section>
     <article
       v-if="detalle"
@@ -378,18 +400,23 @@ onBeforeUnmount(() => {
     >
       <header class="enc-detail-heading">
         <div>
-          <h2>Encomienda #{{ detalle.id }}</h2>
+          <h2>Reserva #{{ detalle.id }}</h2>
           <p>{{ estado(detalle.tamano) }} · {{ estado(detalle.estado) }}</p>
         </div>
         <span>Vigencia de preparación: {{ fecha(detalle.venceUtc) }}</span>
       </header>
+      <p v-if="detalle.reserva" class="enc-notice">{{ detalle.reserva.servicio==='Personal'?'Pertenencias personales':'Encomienda' }} · {{ detalle.reserva.tipoCasillero }} · {{ detalle.reserva.minutos }} minutos · {{ detalle.reserva.ubicacion }}</p>
+      <p v-if="detalle.cancelacion" class="enc-notice">Cancelada el {{ fecha(detalle.cancelacion.fechaUtc) }} · {{ detalle.cancelacion.motivo }}<template v-if="detalle.cancelacion.detalle">: {{ detalle.cancelacion.detalle }}</template>. Responsable: cuenta #{{ detalle.cancelacion.responsableId }}.</p>
+      <p v-if="detalle.pagoRequiereRevision" class="enc-notice">Pago confirmado pendiente de revisión administrativa por cancelación. No se ha realizado un reembolso.</p>
+      <RouterLink v-if="props.centroWhatsApp" class="enc-button" :to="{path:'/admin/encomiendas',query:{encomienda:detalle.id}}">Abrir operación de encomienda #{{ detalle.id }}</RouterLink>
+      <RouterLink v-else class="enc-button" :to="{path:'/admin/whatsapp',query:{encomienda:detalle.id}}">Gestionar WhatsApp y PIN de esta encomienda</RouterLink>
       <div class="enc-participants">
         <section
-          v-for="rol in ['remitente', 'destinatario']"
+          v-for="rol in (detalle.reserva?.servicio==='Personal'?['remitente']:['remitente','destinatario'])"
           :key="rol"
           class="enc-card"
         >
-          <h3>{{ rol === "remitente" ? "Remitente" : "Destinatario" }}</h3>
+          <h3>{{ detalle.reserva?.servicio==='Personal'?'Titular':rol === "remitente" ? "Remitente" : "Destinatario" }}</h3>
           <dl class="enc-facts">
             <div>
               <dt>
@@ -409,16 +436,15 @@ onBeforeUnmount(() => {
               <dt>Comunicaciones</dt>
               <dd>{{ estado(detalle[rol].consentimiento) }}</dd>
             </div>
+            <div><dt>Alcance</dt><dd>{{ detalle[rol].alcance === 'CuentaTelefono' ? 'Cuenta y teléfono · reutilizable hasta revocación' : 'Solo esta encomienda' }}</dd></div>
+            <div v-if="detalle[rol].telefonoVerificado"><dt>Teléfono de última comprobación</dt><dd>{{ detalle[rol].telefonoVerificado }}</dd></div>
+            <div v-if="detalle[rol].referencia"><dt>Referencia de verificación</dt><dd>{{ detalle[rol].referencia }}</dd></div>
+            <div><dt>PIN correspondiente</dt><dd>{{ detalle.reserva?.servicio==='Personal'?'Depósito y retiro · diferentes, para este titular':rol === 'remitente' ? 'Depósito' : 'Retiro · después del depósito' }}</dd></div>
+            <div v-if="rol==='remitente'"><dt>Pago</dt><dd>{{ detalle.pagoRequiereRevision ? 'Pendiente de revisión administrativa' : estado(detalle.pago.estado) }}</dd></div>
             <div v-if="rol === 'destinatario'">
               <dt>Aceptación de encomienda</dt>
               <dd>
                 {{ detalle[rol].aceptaEncomienda ? "Comprobada" : "Pendiente" }}
-              </dd>
-            </div>
-            <div v-else>
-              <dt>Referencia facial V3</dt>
-              <dd>
-                {{ detalle.facial.vigente ? "Vigente" : "Pendiente o vencida" }}
               </dd>
             </div>
             <div v-if="detalle[rol].verificadoUtc">
@@ -430,16 +456,18 @@ onBeforeUnmount(() => {
             </div>
           </dl>
           <form
-            v-if="enPreparacion && detalle[rol].consentimiento === 'Pendiente'"
+            v-if="props.centroWhatsApp && detalle.estado!=='Cancelada' && (enPreparacion || rol === 'remitente') && (['Pendiente', 'Revocado'].includes(detalle[rol].consentimiento) || (rol === 'remitente' && detalle[rol].alcance === 'EncomiendaAnterior'))"
             class="enc-form"
             @submit.prevent="consentimiento(rol)"
           >
             <p class="enc-help">
-              Compara el mensaje recibido en el WhatsApp oficial con este
-              código:
-              <strong class="enc-code">{{ detalle[rol].codigo }}</strong>. El
-              enlace no confirma la autorización.
+              Comprueba en el WhatsApp oficial el número de origen y el texto exacto:
+              <strong class="enc-code">{{ detalle[rol].texto }}</strong>.
+              {{ rol === 'remitente' ? 'La aceptación se vincula a la cuenta por su teléfono; no lleva número de encomienda.' : 'La referencia identifica esta encomienda y no autoriza el retiro.' }}
+              El enlace no confirma la autorización ni existe recepción automática.
             </p>
+            <label class="enc-check"><input v-model="consentimientos[rol].usarFormatoAnterior" type="checkbox" :disabled="procesando" />Comprobar un mensaje del formato anterior, válido solo para esta encomienda.</label>
+            <p v-if="consentimientos[rol].usarFormatoAnterior" class="enc-help">Texto anterior esperado: {{ detalle[rol].textoAnterior }}</p>
             <label class="enc-field"
               >Número desde el que se recibió<input
                 v-model="consentimientos[rol].telefono"
@@ -449,14 +477,15 @@ onBeforeUnmount(() => {
                 :disabled="procesando"
                 placeholder="+504…"
             /></label>
-            <label class="enc-field"
-              >Código del mensaje recibido<input
+            <label v-if="rol === 'destinatario' || consentimientos[rol].usarFormatoAnterior" class="enc-field"
+              >{{ consentimientos[rol].usarFormatoAnterior ? 'Código del mensaje anterior' : 'Número de encomienda del mensaje recibido' }}<input
                 v-model="consentimientos[rol].codigo"
                 autocomplete="off"
                 required
                 maxlength="32"
                 :disabled="procesando"
             /></label>
+            <label class="enc-field">Texto recibido en WhatsApp<input v-model="consentimientos[rol].textoMensaje" required maxlength="300" autocomplete="off" :disabled="procesando" /></label>
             <label class="enc-field"
               >Referencia comprobable del mensaje<input
                 v-model="consentimientos[rol].mensajeReferencia"
@@ -499,7 +528,7 @@ onBeforeUnmount(() => {
                   procesando ||
                   !consentimientos[rol].mensajeComprobado ||
                   !consentimientos[rol].telefono ||
-                  !consentimientos[rol].codigo ||
+                  (rol === 'destinatario' && !consentimientos[rol].codigo) ||
                   !consentimientos[rol].mensajeReferencia
                 "
                 @click="consentimiento(rol, true)"
@@ -510,7 +539,7 @@ onBeforeUnmount(() => {
           </form>
         </section>
       </div>
-      <section class="enc-card">
+      <section v-if="!props.centroWhatsApp" class="enc-card">
         <h3>Pago del remitente</h3>
         <dl class="enc-facts">
           <div>
@@ -606,11 +635,11 @@ onBeforeUnmount(() => {
           </p>
         </form>
       </section>
-      <section class="enc-card">
+      <section v-if="props.centroWhatsApp" class="enc-card">
         <h3>PIN independientes</h3>
         <p class="enc-help">
           Un PIN de depósito para el remitente y otro de retiro para el
-          destinatario. Cada uno es temporal y de un solo uso. Emitirlo no
+          destinatario; para pertenencias personales, ambos corresponden al titular. Cada uno es temporal y de un solo uso. Emitirlo no
           confirma su envío por WhatsApp.
         </p>
         <ul>
@@ -627,8 +656,7 @@ onBeforeUnmount(() => {
               procesando ||
               !enPreparacion ||
               !pagado ||
-              !autorizado ||
-              !detalle.facial.vigente
+              !autorizado
             "
             @click="emitir('deposito')"
           >
@@ -673,9 +701,13 @@ onBeforeUnmount(() => {
             rel="noopener noreferrer"
             >Abrir WhatsApp para entrega manual</a
           >
+          <template v-if="mensajePin">
+            <label class="enc-field">Mensaje para entrega manual<textarea :value="mensajePin" readonly rows="4" /></label>
+            <button type="button" class="enc-button" @click="copiarPin">Copiar mensaje del PIN</button>
+          </template>
           <p class="enc-help">
             Comprueba el destinatario y envía el mensaje manualmente. El valor
-            se oculta a los 60 segundos o al salir de esta ficha.
+            se oculta a los 60 segundos o al salir de esta ficha. El enlace solo abre el contacto; copia el mensaje aparte y comprueba el envío real.
           </p>
           <label class="enc-field"
             >Número al que se entregó<input
@@ -694,7 +726,7 @@ onBeforeUnmount(() => {
           <div class="enc-actions">
             <button
               class="enc-button enc-primary"
-              :disabled="procesando || !entrega.envioComprobado"
+              :disabled="procesando || !entrega.envioComprobado || entrega.telefono !== pinTemporal.telefono"
             >
               Registrar entrega del PIN</button
             ><button type="button" class="enc-button" @click="ocultarValorPin">
@@ -703,7 +735,7 @@ onBeforeUnmount(() => {
           </div>
         </form>
       </section>
-      <section class="enc-card">
+      <section v-if="!props.centroWhatsApp" class="enc-card">
         <h3>Depósito, retiro y evidencia</h3>
         <p>
           Estado: {{ estado(detalle.estado) }}. Uso vinculado:
@@ -718,13 +750,13 @@ onBeforeUnmount(() => {
         <div v-for="e in detalle.evidencias" :key="e.id" class="enc-evidence">
           <strong>{{
             e.tipo === "CapturaDestinatario"
-              ? "Captura del destinatario"
-              : "Verificación del remitente"
+              ? "Captura de retiro"
+              : "Captura de depósito"
           }}</strong>
           <p>
             {{ fecha(e.capturadaUtc) }} ·
             {{
-              e.coincidenciaBiometrica === true
+              e.demostrativa ? "Evidencia demostrativa sin comparación de rostros" : e.coincidenciaBiometrica === true
                 ? "Referencia facial del remitente comprobada"
                 : "Sin afirmación de coincidencia biométrica del destinatario"
             }}
@@ -784,7 +816,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </section>
-      <section class="enc-card">
+      <section v-if="!props.centroWhatsApp" class="enc-card">
         <h3>Historial auditado</h3>
         <ol class="enc-history">
           <li v-for="h in detalle.historial" :key="h.id">

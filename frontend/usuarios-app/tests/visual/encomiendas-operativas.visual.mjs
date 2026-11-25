@@ -207,6 +207,7 @@ try {
       .isDisabled(),
     true,
   );
+  await panel.getByRole('link',{name:'Gestionar WhatsApp y PIN de esta encomienda',exact:true}).click();
   assert.equal(
     await panel
       .getByRole("button", { name: "Emitir PIN de depósito", exact: true })
@@ -224,9 +225,10 @@ try {
     await seccion
       .getByLabel("Número desde el que se recibió")
       .fill(detalle[rol].telefono);
-    await seccion
-      .getByLabel("Código del mensaje recibido")
+    if (rol === "destinatario") await seccion
+      .getByLabel("Número de encomienda del mensaje recibido")
       .fill(detalle[rol].codigo);
+    await seccion.getByLabel("Texto recibido en WhatsApp").fill(detalle[rol].texto);
     await seccion
       .getByLabel("Referencia comprobable del mensaje")
       .fill("WA-FIXTURE-" + randomUUID());
@@ -243,6 +245,7 @@ try {
       i,
     );
   }
+  await panel.getByRole('link',{name:'Abrir operación de encomienda #'+id,exact:true}).click();
   await panel.getByLabel("Método").selectOption("Transferencia");
   await panel
     .getByLabel("Importe comprobado (HNL)", { exact: true })
@@ -260,6 +263,7 @@ try {
     .getByRole("button", { name: "Confirmar pago recibido", exact: true })
     .click();
   await panel.getByText("Confirmado por", { exact: true }).waitFor();
+  await panel.getByRole('link',{name:'Gestionar WhatsApp y PIN de esta encomienda',exact:true}).click();
   await panel
     .getByRole("button", { name: "Emitir PIN de depósito", exact: true })
     .click();
@@ -268,7 +272,7 @@ try {
   const enlace = await panel
     .getByRole("link", { name: "Abrir WhatsApp para entrega manual" })
     .getAttribute("href");
-  assert.ok(enlace.startsWith("https://wa.me/999123456711?text="));
+  assert.equal(enlace, "https://wa.me/999123456711");
     // Volver de WhatsApp debe permitir registrar el envío sin volver a exponer el PIN.
     await panel.evaluate(() => {
       Object.defineProperty(document, "hidden", { configurable: true, get: () => true });

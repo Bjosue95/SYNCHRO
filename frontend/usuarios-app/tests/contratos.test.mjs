@@ -37,7 +37,7 @@ test("no se colocan claves privadas en la ruta de consulta", () => {
 test("la navegación privada necesita sesión del servidor", () => {
   const codigo = leer("../src/router/index.js");
   // Aceptar otros metadatos (como el título) sin permitir rutas públicas.
-  for (const ruta of ["/mi-cuenta", "/reservar/encomienda", "/consultar"]) {
+  for (const ruta of ["/mis-reservas", "/reservar", "/mi-perfil", "/consultar"]) {
     const inicio = codigo.indexOf(`path: "${ruta}"`);
     assert.notEqual(inicio, -1, `No existe la ruta ${ruta}`);
     const definicion = codigo.slice(inicio, inicio + 160);
@@ -48,7 +48,7 @@ test("la navegación privada necesita sesión del servidor", () => {
   assert.match(codigo, /name: "acceso"/);
 });
 
-test("no se ofrecen reservas personales ni de carga sin endpoints", () => {
+test("los servicios usan una reserva común y carga conserva su procedimiento", () => {
   const codigo = leer("../src/views/InicioView.vue");
   assert.ok(codigo.includes("Almacenamiento personal"));
   assert.ok(codigo.includes("Carga de dispositivos"));
@@ -56,4 +56,5 @@ test("no se ofrecen reservas personales ni de carga sin endpoints", () => {
   assert.ok(codigo.includes("Temperatura controlada"));
   const rutas = leer("../src/router/index.js");
   assert.doesNotMatch(rutas, /reservar\/personal|reservar\/carga/);
+  assert.match(rutas,/path: "\/reservar"/);
 });

@@ -117,7 +117,7 @@ public static class PreReservasEncomiendaWebEndpoints
                 return Results.Ok(new {
                     id,
                     tamanoSolicitado = lector.GetString(0),
-                    estado = vence <= DateTime.UtcNow ? "Vencida" : estado,
+                    estado = vence <= DateTime.UtcNow && estado is "PendienteConsentimiento" or "Pendiente" ? "Vencida" : estado,
                     fechaExpiracion = vence,
                     depositoHabilitado = false,
                     mensaje = "El deposito requiere consentimiento WhatsApp e identidad del remitente comprobada mediante captura simulada."

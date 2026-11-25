@@ -12,18 +12,30 @@ internal sealed record CrearEncomiendaOperativaSolicitud(string TelefonoDestinat
 internal sealed record EmitirPinOperativoSolicitud(bool Reemplazar);
 internal sealed record CrearSolicitudDepositoOperativa(string CodigoCasillero);
 internal sealed record ConfirmarDepositoOperativa(bool DepositoComprobado);
+internal sealed record IdentificarRetiroOperativa(string Pin)
+{ public override string ToString()=>"Identificación de retiro protegida"; }
 internal sealed record ExtenderEvidenciaOperativa(string Incidencia,string Motivo,DateTimeOffset HastaUtc);
 
 public static class EncomiendasOperativasEndpoints
 {
     public static void MapEncomiendasOperativasEndpoints(this WebApplication app)
     {
+        var reservas=app.MapGroup("/api/web/reservas").RequireAuthorization("SoloClientes")
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
+        reservas.MapGet("/disponibilidad",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.CatalogoReservas(h.RequestAborted),h));
+        reservas.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),filtro,h.RequestAborted),h));
+        reservas.MapPost("",(CrearReservaPrototipoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Crear(Identidad(h),d.TelefonoDestinatario??"",d.TamanoSolicitado,h.RequestAborted,d),h));
+        reservas.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,Identidad(h),h.RequestAborted),h));
+        reservas.MapPost("/{id:int}/cancelar",(int id,CancelarEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Cancelar(id,Identidad(h),d,h.RequestAborted),h));
         var web=app.MapGroup("/api/web/encomiendas").RequireAuthorization("SoloClientes")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
         web.MapGet("/configuracion",(EncomiendasOperativasSql s)=>Results.Ok(s.Configuracion()));
-        web.MapGet("",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),h.RequestAborted),h));
+        web.MapGet("/consentimiento-cuenta",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConsultarConsentimientoCuenta(Identidad(h),h.RequestAborted),h));
+        web.MapDelete("/consentimiento-cuenta",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.RevocarConsentimientoCuenta(Identidad(h),h.RequestAborted),h));
+        web.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),filtro,h.RequestAborted),h));
         web.MapPost("",(CrearEncomiendaOperativaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Crear(Identidad(h),d.TelefonoDestinatario,d.TamanoSolicitado,h.RequestAborted),h));
         web.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,Identidad(h),h.RequestAborted),h));
+        web.MapPost("/{id:int}/cancelar",(int id,CancelarEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Cancelar(id,Identidad(h),d,h.RequestAborted),h));
         web.MapGet("/referencia-facial",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConsultarReferencia(Identidad(h),h.RequestAborted),h));
         web.MapPost("/referencia-facial",(CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s,CuentasClientesWeb cuentas)=>Ejecutar(async()=>{
             Consentimiento(h);int persona=Identidad(h);var cuenta=await cuentas.ObtenerAsync(persona,h.RequestAborted);
@@ -38,7 +50,9 @@ public static class EncomiendasOperativasEndpoints
 
         var admin=app.MapGroup("/api/admin/encomiendas/operativas").RequireAuthorization("OperarServicios")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
-        admin.MapGet("",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(null,h.RequestAborted),h));
+        admin.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(null,filtro,h.RequestAborted),h));
+        app.MapGet("/api/admin/whatsapp-pin/solicitudes",([AsParameters] ConsultaBandejaWhatsApp filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.BandejaWhatsApp(filtro,h.RequestAborted),h))
+            .RequireAuthorization("OperarServicios").AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
         admin.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,null,h.RequestAborted),h));
         admin.MapPost("/{id:int}/consentimientos/{rol}/confirmar",(int id,string rol,ConsentimientoOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarConsentimiento(id,rol,d,Identidad(h),false,h.RequestAborted),h));
         admin.MapPost("/{id:int}/consentimientos/{rol}/rechazar",(int id,string rol,ConsentimientoOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarConsentimiento(id,rol,d,Identidad(h),true,h.RequestAborted),h));
@@ -59,6 +73,7 @@ public static class EncomiendasOperativasEndpoints
         var terminal=app.MapGroup("/api/terminales/encomiendas/operativas").RequireAuthorization("SoloTerminal")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
         terminal.MapGet("/csrf-token",(HttpContext h,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(h).RequestToken}));
+        terminal.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
         terminal.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.ConsultarParaRetiro(id,Identidad(h),h.RequestAborted)));
         terminal.MapPost("/depositos/solicitudes",(CrearSolicitudDepositoOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.CrearSolicitudDeposito(Identidad(h),d.CodigoCasillero,h.RequestAborted)));
         terminal.MapGet("/depositos/solicitudes/{id:guid}",(Guid id,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.ConsultarSolicitudDeposito(id,Identidad(h),h.RequestAborted)));
@@ -67,10 +82,17 @@ public static class EncomiendasOperativasEndpoints
             Consentimiento(h);return s.CapturarDestinatario(id,Identidad(h),d,h.RequestAborted);
         }));
         terminal.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.Retirar(id,Identidad(h),d,h.RequestAborted)));
+        var prototipo=app.MapGroup("/api/terminales/reservas").RequireAuthorization("SoloTerminal")
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
+        prototipo.MapGet("/csrf-token",(HttpContext h,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(h).RequestToken}));
+        prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.DepositarDemostrativo(id,Identidad(h),d,h.RequestAborted);}));
+        prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.CapturarDestinatario(id,Identidad(h),d,h.RequestAborted);}));
+        prototipo.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.Retirar(id,Identidad(h),d,h.RequestAborted)));
     }
     private static int Identidad(HttpContext h)=>int.TryParse(h.User.FindFirstValue(ClaimTypes.NameIdentifier),out int id)&&id>0?id:throw new OperacionEncomiendaException("SesionRequerida","Sesión requerida.",401);
     private static void Consentimiento(HttpContext h)
-    {if(h.Request.Headers["X-SYNCHRO-CONSENTIMIENTO"]!="ACEPTO")throw new OperacionEncomiendaException("ConsentimientoRequerido","Debes declarar el consentimiento biométrico informado.",400);}
+    {if(h.Request.Headers["X-SYNCHRO-CONSENTIMIENTO"]!="ACEPTO")throw new OperacionEncomiendaException("ConsentimientoRequerido","Debes declarar el consentimiento informado de captura.",400);}
     private static IResult Rechazo(OperacionEncomiendaException e)=>Results.Json(new{codigo=e.Codigo,mensaje=e.Message},statusCode:e.Estado);
     private static IResult NoDisponible()=>Results.Problem(statusCode:503,title:"No se pudo confirmar el resultado. Actualiza el estado de la encomienda antes de reintentar.");
     private static Task<IResult> Terminal(HttpContext h,EncomiendasOperativasSql s,Func<Task<object>> accion)=>Ejecutar(async()=>{

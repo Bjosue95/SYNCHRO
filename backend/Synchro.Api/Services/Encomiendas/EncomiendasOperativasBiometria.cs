@@ -16,7 +16,7 @@ internal sealed partial class EncomiendasOperativasSql
     private static byte[] LeerPng(CapturaEncomiendaSolicitud datos,bool referencia)
     {
         ArgumentNullException.ThrowIfNull(datos);
-        Exigir(datos.VersionConsentimiento==(referencia?VersionConsentimiento:VersionConsentimientoRetiro),"ConsentimientoBiometrico","Falta el consentimiento biométrico informado vigente.",400);
+        Exigir(datos.VersionConsentimiento==(referencia?VersionConsentimiento:VersionConsentimientoRetiro)||!referencia&&datos.VersionConsentimiento==VersionCapturaDemostrativa,"ConsentimientoCaptura","Falta el consentimiento de captura vigente.",400);
         Exigir(!string.IsNullOrEmpty(datos.ImagenPng)&&datos.ImagenPng.Length<=1400000,"CapturaInvalida","La captura PNG no es válida o excede el límite.",400);
         Exigir(referencia?datos.Modelo==DescriptorFacialV3.Modelo:datos.Descriptor is null,"ModeloInvalido","Modelo facial no compatible con la finalidad.",400);
         byte[] imagen;
@@ -76,6 +76,7 @@ internal sealed partial class EncomiendasOperativasSql
         try {
             muestra=DescriptorFacialV3.Normalizar(datos.Captura.Descriptor);Exigir(muestra is not null,"DescriptorInvalido","Descriptor V3 no válido.",400);
             await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,persona,ct);Preparacion(o,Ahora);
+            Exigir(await LeerReserva(c,tx,id,ct) is null,"DepositoEnTablet","Esta reserva se deposita en la tablet con PIN y captura demostrativa; no requiere verificar el rostro en la web.");
             Exigir(o.Pago=="ConfirmadoManual"&&await Consentimientos(c,tx,id,ct),"CondicionesPendientes","Faltan pago o consentimientos comprobados.");
             int terminal;string casillero;DateTimeOffset solicitudVence;
             await using(var q=Comando(c,tx,"""
@@ -120,13 +121,13 @@ internal sealed partial class EncomiendasOperativasSql
         byte[] png=LeerPng(datos,false);byte[]? cifrado=null;
         try {
             await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
-            Exigir(o.Estado=="Depositada"&&o.TerminalId==terminal,"RetiroNoDisponible","La encomienda no está depositada en esta terminal.");
+            Exigir(o.Estado=="Depositada"&&o.TerminalId==terminal,"RetiroNoDisponible","La reserva no está depositada en esta terminal.");
             var idEv=Guid.NewGuid();var vence=Ahora.AddMinutes(2);cifrado=ProtectorFoto(idEv).Protect(png);
             await using(var q=Comando(c,tx,"""
                 INSERT dbo.EvidenciasEncomiendaOperativa(Id,ReservaId,TerminalId,PersonaId,Tipo,VersionConsentimiento,EmitidaUtc,VenceUtc,ComparacionRemitenteAprobada)
                 VALUES(@ev,@id,@terminal,@persona,N'CapturaDestinatario',@version,@ahora,@vence,0);
                 INSERT dbo.FotografiasEncomiendaOperativa(EvidenciaId,FotografiaProtegida,EliminarUtc) VALUES(@ev,@foto,@vence);
-                """,("@ev",idEv),("@id",id),("@terminal",terminal),("@persona",o.DestinatarioId),("@version",VersionConsentimientoRetiro),("@ahora",Ahora.UtcDateTime),("@vence",vence.UtcDateTime),("@foto",cifrado)))await q.ExecuteNonQueryAsync(ct);
+                """,("@ev",idEv),("@id",id),("@terminal",terminal),("@persona",o.DestinatarioId),("@version",datos.VersionConsentimiento),("@ahora",Ahora.UtcDateTime),("@vence",vence.UtcDateTime),("@foto",cifrado)))await q.ExecuteNonQueryAsync(ct);
             await Auditar(c,tx,id,o.DestinatarioId,"Terminal",terminal,"EvidenciaRetiroCapturada",o.Estado,"Captura consentida como evidencia; no se comprobó coincidencia biométrica.",ct,evidencia:idEv);
             await tx.CommitAsync(ct);return new{evidenciaId=idEv,venceUtc=vence,coincidenciaBiometrica=(bool?)null,evidenciaDeRetiro=true};
         }finally{CryptographicOperations.ZeroMemory(png);if(cifrado is not null)CryptographicOperations.ZeroMemory(cifrado);}

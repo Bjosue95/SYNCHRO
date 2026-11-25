@@ -6,3 +6,4 @@ import "./styles.css";
 createApp(App).use(router).mount("#app");import "./syn-ui.css";
 import "./redisenio-admin.css";
 import "./redisenio-v2.css";
+import "./whatsapp-temas.css";

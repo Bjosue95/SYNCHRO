@@ -1,163 +1,53 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { RouterLink } from "vue-router";
-import { encomiendasApi } from "../services/encomiendasApi.js";
-import { fechaHonduras, nombreEstadoReserva } from "../services/formatos.js";
-import ReferenciaFacialEncomienda from "../components/ui/ReferenciaFacialEncomienda.vue";
-const items = ref<any[]>([]),
-  config = ref<any>(null),
-  cargando = ref(true),
-  error = ref(""),
-  filtro = ref("Todas");
-const visibles = computed(() =>
-  items.value.filter(
-    (e) => filtro.value === "Todas" || e.estado === filtro.value,
-  ),
-);
-const resumen = computed(() => ({
-  preparacion: items.value.filter((e) =>
-    ["Preparacion", "ListaParaDeposito"].includes(e.estado),
-  ).length,
-  depositadas: items.value.filter((e) => e.estado === "Depositada").length,
-  entregadas: items.value.filter((e) => e.estado === "Retirada").length,
-}));
-async function cargar() {
-  cargando.value = true;
-  error.value = "";
-  try {
-    const [datos, cfg] = await Promise.all([
-      encomiendasApi.listar(),
-      encomiendasApi.configuracion(),
-    ]);
-    items.value = datos.encomiendas;
-    config.value = cfg;
-  } catch (e) {
-    error.value = (e as Error).message;
-  } finally {
-    cargando.value = false;
-  }
+import { onMounted,reactive,ref } from 'vue';
+import { RouterLink } from 'vue-router';
+import { encomiendasApi } from '../services/encomiendasApi.js';
+import { fechaHonduras,nombreEstadoReserva } from '../services/formatos.js';
+import AppIcon from '../components/ui/AppIcon.vue';
+const items=ref<any[]>([]),cargando=ref(true),error=ref(''),pagina=ref(1),total=ref(0),totalPaginas=ref(0);
+const filtros=reactive({estado:'',desde:'',hasta:'',numero:''});
+async function cargar(reiniciar=false){
+  if(reiniciar)pagina.value=1;cargando.value=true;error.value='';
+  try{const datos=await encomiendasApi.listar({...filtros,pagina:pagina.value,tamanoPagina:12});items.value=datos.encomiendas;total.value=datos.total;totalPaginas.value=datos.totalPaginas;}
+  catch(e){error.value=(e as Error).message;}finally{cargando.value=false;}
 }
-onMounted(cargar);
+async function cambiarPagina(cambio:number){pagina.value+=cambio;await cargar();}
+function cancelable(e:any){return !e.depositoUtc&&['Preparacion','ListaParaDeposito','Vencida','PendienteConsentimiento','Pendiente'].includes(e.estado);}
+function servicio(e:any){return e.reserva?.servicio==='Personal'?'Pertenencias personales':'Encomienda';}
+function icono(e:any){return e.reserva?.tipoCasillero==='Refrigerado'?'frio':e.reserva?.tipoCasillero==='Caliente'?'calor':'casillero';}
+onMounted(()=>cargar());
 </script>
 <template>
   <section class="env-page">
-    <header class="env-heading">
-      <div>
-        <p class="env-kicker">TU ESPACIO SYNCHRO</p>
-        <h1>Mis encomiendas</h1>
-        <p>
-          Desde la preparación hasta la entrega, con el estado de cada
-          operación.
-        </p>
-      </div>
-      <RouterLink to="/reservar/encomienda" class="boton boton-primario"
-        >Nueva encomienda</RouterLink
-      >
-    </header>
-    <p v-if="error" class="alerta" role="alert">
-      {{ error }}
-      <button type="button" class="boton boton-secundario" @click="cargar">
-        Reintentar
-      </button>
-    </p>
-    <p v-if="cargando" role="status">Consultando tus encomiendas…</p>
+    <header class="env-heading"><div><h1>Mis reservas</h1><p>Consulta su estado y el retiro confirmado por el servidor.</p></div><RouterLink to="/reservar" class="boton boton-primario">Reservar casillero</RouterLink></header>
+    <p v-if="error" class="alerta" role="alert">{{ error }} <button class="boton boton-secundario" @click="cargar()">Reintentar</button></p>
+    <form class="env-card filtros-reservas" @submit.prevent="cargar(true)">
+      <label class="campo"><span>Estado</span><select v-model="filtros.estado" aria-label="Estado"><option value="">Todos</option><option value="Preparacion">En preparación</option><option value="ListaParaDeposito">Lista para depósito</option><option value="Depositada">Depositada</option><option value="Retirada">Retirada</option><option value="Cancelada">Cancelada</option><option value="Vencida">Vencida</option><option value="Rechazada">Rechazada</option></select></label>
+      <label class="campo"><span>Número de reserva</span><input v-model="filtros.numero" type="number" min="1" /></label>
+      <details><summary>Filtrar por fechas</summary><label class="campo"><span>Desde</span><input v-model="filtros.desde" type="date" /></label><label class="campo"><span>Hasta</span><input v-model="filtros.hasta" type="date" /></label></details>
+      <button class="boton boton-secundario" :disabled="cargando">Buscar reservas</button>
+    </form>
+    <p v-if="cargando" role="status">Consultando tus reservas…</p>
     <template v-if="!cargando && !error">
-      <dl class="env-stats">
-        <div>
-          <dt>En preparación</dt>
-          <dd>{{ resumen.preparacion }}</dd>
-        </div>
-        <div>
-          <dt>Depositadas</dt>
-          <dd>{{ resumen.depositadas }}</dd>
-        </div>
-        <div>
-          <dt>Entregadas</dt>
-          <dd>{{ resumen.entregadas }}</dd>
-        </div>
-      </dl>
-      <section class="env-card">
-        <div class="env-card-heading">
-          <h2>Seguimiento</h2>
-          <label class="env-filter"
-            >Estado
-            <select v-model="filtro">
-              <option>Todas</option>
-              <option value="Preparacion">En preparación</option>
-              <option value="Depositada">Depositadas</option>
-              <option value="Retirada">Entregadas</option>
-              <option value="Vencida">Vencidas</option>
-              <option value="Rechazada">Rechazadas</option>
-            </select></label
-          ><button type="button" class="boton boton-secundario" @click="cargar">
-            Actualizar
-          </button>
-        </div>
-        <div v-if="visibles.length" class="env-table-wrap" tabindex="0" role="region" aria-label="Tabla de encomiendas, desplazable horizontalmente">
-          <table class="env-table">
-            <caption class="env-sr-only">
-              Encomiendas de tu cuenta
-            </caption>
-            <thead>
-              <tr>
-                <th>Encomienda</th>
-                <th>Estado</th>
-                <th>Pago del remitente</th>
-                <th>Última operación</th>
-                <th><span class="env-sr-only">Acciones</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="e in visibles" :key="e.id">
-                <td>
-                  <strong>#{{ e.id }}</strong
-                  ><small
-                    >{{ e.tamano
-                    }}<template v-if="e.casillero">
-                      · {{ e.casillero }}</template
-                    ></small
-                  >
-                </td>
-                <td>
-                  <span class="env-status">{{
-                    nombreEstadoReserva(e.estado)
-                  }}</span>
-                </td>
-                <td>
-                  {{ nombreEstadoReserva(e.pagoEstado)
-                  }}<small v-if="e.importeHnl != null"
-                    >L {{ Number(e.importeHnl).toFixed(2) }}</small
-                  >
-                </td>
-                <td>
-                  {{
-                    fechaHonduras(e.entregaUtc || e.depositoUtc || e.creadaUtc)
-                  }}
-                </td>
-                <td>
-                  <RouterLink :to="'/encomiendas/' + e.id" class="enlace-texto"
-                    >Ver detalle</RouterLink
-                  >
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p v-else class="env-empty">
-          {{
-            items.length
-              ? "No hay encomiendas en este estado."
-              : "Todavía no tienes encomiendas operativas. Crea una para comenzar."
-          }}
-        </p>
-        <p class="env-help">
-          Se muestran las últimas 200 encomiendas operativas de tu cuenta.
-          <RouterLink to="/consultar"
-            >Consultar una pre-reserva histórica</RouterLink
-          >.
-        </p>
-      </section>
-      <ReferenciaFacialEncomienda v-if="config" :config="config" />
+      <div class="reservas-tarjetas">
+        <article v-for="e in items" :key="e.id" class="env-card reserva-tarjeta">
+          <div class="env-card-heading"><AppIcon :nombre="icono(e)" :tamano="46" /><span class="env-status">{{ e.retiradaConfirmada?'Retirada confirmada':e.estado==='Retirada'?'Retiro pendiente de confirmar':nombreEstadoReserva(e.estado) }}</span></div>
+          <h2>{{ servicio(e) }} #{{ e.id }}</h2>
+          <p>{{ e.reserva?.tipoCasillero||'Normal' }} · {{ nombreEstadoReserva(e.tamano) }}<template v-if="e.reserva?.minutos"> · {{ e.reserva.minutos }} minutos</template></p>
+          <p>{{ fechaHonduras(e.creadaUtc) }}</p><p v-if="e.reserva?.ubicacion" class="env-help">{{ e.reserva.ubicacion }}</p>
+          <p v-if="e.reserva?.servicio!=='Personal'">Destinatario: {{ e.telefonoDestinatario }}</p>
+          <p v-if="e.depositoUtc">Depósito confirmado: {{ fechaHonduras(e.depositoUtc) }}</p>
+          <p v-if="e.retiradaConfirmada">Retiro confirmado: {{ fechaHonduras(e.entregaUtc) }}</p><p v-else-if="e.estado==='Depositada'">Pendiente de retiro.</p>
+          <p v-if="e.cancelacion">Cancelada el {{ fechaHonduras(e.cancelacion.fechaUtc) }} · {{ e.cancelacion.motivo }}</p>
+          <p v-if="e.pagoRequiereRevision" class="env-help">Pago pendiente de revisión administrativa.</p>
+          <div class="env-actions"><RouterLink :to="'/reservas/'+e.id" class="boton boton-primario">Ver reserva</RouterLink><RouterLink v-if="cancelable(e)" :to="{path:'/reservas/'+e.id,query:{cancelar:'1'}}" class="boton boton-secundario">Cancelar reserva</RouterLink></div>
+        </article>
+      </div>
+      <p v-if="!items.length" class="env-empty">No hay reservas con estos filtros.</p>
+      <nav class="env-card-heading" aria-label="Paginación de mis reservas"><button class="boton boton-secundario" :disabled="pagina<=1" @click="cambiarPagina(-1)">Anterior</button><span>Página {{ pagina }} de {{ totalPaginas||1 }} · {{ total }} reservas</span><button class="boton boton-secundario" :disabled="pagina>=totalPaginas" @click="cambiarPagina(1)">Siguiente</button></nav>
     </template>
   </section>
 </template>
+<style scoped>
+.reservas-tarjetas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.filtros-reservas{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}.filtros-reservas details{align-self:start}.reserva-tarjeta .env-actions .boton{flex:1 1 140px}@media(max-width:650px){.reservas-tarjetas,.filtros-reservas{grid-template-columns:1fr}}
+</style>

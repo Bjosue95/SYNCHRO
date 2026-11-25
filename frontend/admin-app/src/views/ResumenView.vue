@@ -11,8 +11,8 @@ const solicitudes = ref(null);
 const ultimaActualizacion = ref("");
 const disponibles = computed(() => casilleros.value?.filter(x => x.estado === "Disponible").length ?? null);
 const ocupados = computed(() => casilleros.value?.filter(x => x.estado === "Ocupado").length ?? null);
-const pendientes = computed(() => solicitudes.value?.filter(x => x.estado === "Pendiente").length ?? null);
-const pinPorEnviar = computed(() => solicitudes.value?.filter(x => ["Reservado", "PinEmitido"].includes(x.estado)).length ?? null);
+const pendientes = computed(() => solicitudes.value?.porVerificar ?? null);
+const pinPorEnviar = computed(() => solicitudes.value?.pinPorEnviar ?? null);
 const totalCasilleros = computed(() => casilleros.value?.length ?? null);
 
 async function actualizar() {
@@ -21,10 +21,10 @@ async function actualizar() {
   error.value = "";
   const [c, s] = await Promise.allSettled([
     apiAdmin("/api/terminales/casilleros-prototipo"),
-    apiAdmin("/api/admin/whatsapp-manual/pendientes"),
+    apiAdmin("/api/admin/whatsapp-pin/solicitudes?tamanoPagina=1"),
   ]);
   casilleros.value = c.status === "fulfilled" && Array.isArray(c.value) ? c.value : null;
-  solicitudes.value = s.status === "fulfilled" && Array.isArray(s.value?.operaciones) ? s.value.operaciones : null;
+  solicitudes.value = s.status === "fulfilled" && typeof s.value?.porVerificar === 'number' ? s.value : null;
   if (!casilleros.value || !solicitudes.value) error.value = "Algunos datos no están disponibles. Comprueba la conexión con SYNCHRO e inténtalo otra vez.";
   ultimaActualizacion.value = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
   cargando.value = false;

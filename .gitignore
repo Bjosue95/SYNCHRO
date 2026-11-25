@@ -17,3 +17,19 @@
 *.respaldo*
 *.bak-*
 /Respaldo-SYNCHRO-*/
+
+# Material privado y artefactos locales (conservar en disco, fuera de los commits)
+.synchro-backups/
+*.log
+*.bak
+*.bak_*
+*.tmp
+*.temp
+**/[Rr]espaldo*.sql
+**/secrets.json
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer

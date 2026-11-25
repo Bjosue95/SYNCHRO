@@ -73,8 +73,8 @@ function mensajeError(causa: unknown) {
 function destinoSeguro() {
   const destino = route.query.volver;
   return typeof destino === "string" &&
-    /^\/(mi-cuenta|reservar\/encomienda|consultar|encomiendas\/\d+)(\?|$)/.test(destino)
-    ? destino : "/mi-cuenta";
+    /^\/(mis-reservas|mi-perfil|mi-cuenta|reservar(?:\/encomienda)?|consultar|(?:encomiendas|reservas)\/\d+)(\?|$)/.test(destino)
+    ? destino : "/reservar";
 }
 
 async function enviar() {
@@ -128,7 +128,7 @@ async function enviar() {
           <p>
             {{ esRegistro
               ? "Completa tus datos para comenzar."
-              : "Gestiona tus encomiendas y consulta tus solicitudes." }}
+              : "Reserva un casillero y consulta tus reservas." }}
           </p>
         </header>
 

@@ -17,12 +17,18 @@ internal sealed partial class EncomiendasOperativasSql
         Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","Primero debe confirmarse el pago manual del remitente.");
         if(finalidad==FinalidadPinEncomienda.Deposito) {
             Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Faltan consentimientos de los participantes.");
-            await using var q=Comando(c,tx,"SELECT COUNT(*) FROM dbo.ReferenciasEncomiendaV3 r JOIN dbo.ClientesWebPrototipo u ON u.PersonaId=r.PersonaId WHERE r.PersonaId=@persona AND r.RevalidarUtc>@ahora AND u.Activa=1",("@persona",o.RemitenteId),("@ahora",Ahora.UtcDateTime));
-            Exigir(Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1,"ReferenciaPendiente","El remitente debe registrar o revalidar su referencia facial.");
         }
         string telefono;
-        await using(var q=Comando(c,tx,"SELECT Telefono FROM dbo.ParticipantesEncomiendaOperativa WITH(UPDLOCK,HOLDLOCK) WHERE ReservaId=@id AND Rol=@rol AND Consentimiento=N'Confirmado' AND AceptaEncomienda=1",("@id",id),("@rol",rol)))
+        var personal=(await LeerReserva(c,tx,id,ct))?.Servicio=="Personal";
+        if(finalidad==FinalidadPinEncomienda.Deposito||personal) {
+            var cuenta=await LeerConsentimientoCuenta(c,tx,o.RemitenteId,ct);
+            Exigir(cuenta.Estado=="Confirmado"||!personal&&finalidad==FinalidadPinEncomienda.Deposito,"NumeroNoAutorizado","Falta la autorización de WhatsApp del titular.");
+            telefono=cuenta.Telefono;
+        }
+        else {
+            await using var q=Comando(c,tx,"SELECT Telefono FROM dbo.ParticipantesEncomiendaOperativa WITH(UPDLOCK,HOLDLOCK) WHERE ReservaId=@id AND Rol=@rol AND Consentimiento=N'Confirmado' AND AceptaEncomienda=1",("@id",id),("@rol",rol));
             telefono=(string?)await q.ExecuteScalarAsync(ct)??throw new OperacionEncomiendaException("NumeroNoAutorizado","No se puede entregar un PIN a un número sin autorización comprobada.");
+        }
         await using(var q=Comando(c,tx,"SELECT COUNT(*),MAX(CreadoUtc),SUM(CASE WHEN Activo=1 THEN 1 ELSE 0 END) FROM dbo.PinesEncomiendaOperativa WITH(UPDLOCK,HOLDLOCK) WHERE ReservaId=@id AND Finalidad=@fin",("@id",id),("@fin",finalidad.ToString()))) {
             await using var r=await q.ExecuteReaderAsync(ct);await r.ReadAsync(ct);var cantidad=r.GetInt32(0);
             Exigir(cantidad<4,"LimiteReemisiones","Se alcanzó el límite de reemisiones.",429);
@@ -67,14 +73,14 @@ internal sealed partial class EncomiendasOperativasSql
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
         Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","El pago no está confirmado.");
         string finalidadEntrega;
+        var personal=(await LeerReserva(c,tx,id,ct))?.Servicio=="Personal";
         await using(var q=Comando(c,tx,"SELECT Finalidad FROM dbo.PinesEncomiendaOperativa WITH(UPDLOCK,HOLDLOCK) WHERE Id=@pin AND ReservaId=@id",("@pin",datos.PinId),("@id",id)))
             finalidadEntrega=(string?)await q.ExecuteScalarAsync(ct)??throw new OperacionEncomiendaException("PinNoDisponible","PIN no disponible.");
         if(finalidadEntrega=="Deposito") {
             Preparacion(o,Ahora);
             Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Faltan consentimientos de los participantes.");
-            await using var q=Comando(c,tx,"SELECT COUNT(*) FROM dbo.ReferenciasEncomiendaV3 r JOIN dbo.ClientesWebPrototipo u ON u.PersonaId=r.PersonaId WHERE r.PersonaId=@persona AND r.RevalidarUtc>@ahora AND u.Activa=1",("@persona",o.RemitenteId),("@ahora",Ahora.UtcDateTime));
-            Exigir(Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1,"ReferenciaPendiente","La cuenta y la referencia facial deben estar vigentes.");
         } else Exigir(o.Estado=="Depositada","EstadoNoDisponible","La encomienda no permite entregar el PIN de retiro.");
+        if(personal)Exigir((await LeerConsentimientoCuenta(c,tx,o.RemitenteId,ct)).Estado=="Confirmado","NumeroNoAutorizado","Falta la autorización de WhatsApp del titular.");
         await using(var q=Comando(c,tx,"""
             UPDATE pin SET EntregadoUtc=@ahora,AdminEntregaId=@admin,MensajeReferencia=@referencia
             FROM dbo.PinesEncomiendaOperativa pin WITH(UPDLOCK,HOLDLOCK)
@@ -82,8 +88,9 @@ internal sealed partial class EncomiendasOperativasSql
               AND p.Rol=CASE pin.Finalidad WHEN N'Deposito' THEN N'Remitente' ELSE N'Destinatario' END
             WHERE pin.Id=@pin AND pin.ReservaId=@id AND pin.Activo=1 AND pin.ConsumidoUtc IS NULL
               AND pin.VenceUtc>@ahora AND pin.IntentosFallidos<5 AND pin.EntregadoUtc IS NULL
-              AND p.Telefono=@telefono AND p.Consentimiento=N'Confirmado' AND p.AceptaEncomienda=1;
-            """,("@ahora",Ahora.UtcDateTime),("@admin",admin),("@referencia",referencia),("@pin",datos.PinId),("@id",id),("@telefono",datos.Telefono.Trim())))
+              AND (((pin.Finalidad=N'Deposito' OR @personal=1) AND EXISTS(SELECT 1 FROM dbo.ClientesWebPrototipo cli WHERE cli.PersonaId=p.PersonaId AND cli.Activa=1 AND cli.Telefono=@telefono))
+                OR (@personal=0 AND pin.Finalidad=N'Retiro' AND p.Telefono=@telefono AND p.Consentimiento=N'Confirmado' AND p.AceptaEncomienda=1));
+            """,("@ahora",Ahora.UtcDateTime),("@admin",admin),("@referencia",referencia),("@pin",datos.PinId),("@id",id),("@telefono",WhatsAppEncomienda.Telefono(datos.Telefono)),("@personal",personal)))
             Exigir(await q.ExecuteNonQueryAsync(ct)==1,"EntregaNoDisponible","El PIN no está vigente o el número no tiene autorización comprobada.");
         await Auditar(c,tx,id,null,"Administrador",admin,"PinEntregadoManual",o.Estado,"Entrega manual comprobada. Referencia: "+referencia,ct,datos.PinId);
         await Versionar(c,tx,id,ct);await tx.CommitAsync(ct);return new{entregaManualConfirmada=true};

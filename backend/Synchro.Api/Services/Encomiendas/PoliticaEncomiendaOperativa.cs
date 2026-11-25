@@ -22,7 +22,7 @@ internal sealed record CondicionesEncomiendaOperativa(
     EstadoConsentimientoEncomienda ConsentimientoDestinatario,
     bool DestinatarioAceptoEncomienda,
     EstadoPagoEncomienda Pago,
-    DateTimeOffset ReservaVenceUtc);
+    DateTimeOffset ReservaVenceUtc,bool UsoPersonal=false);
 
 internal sealed record CondicionesPinEncomiendaOperativa(
     FinalidadPinEncomienda Finalidad,
@@ -66,8 +66,6 @@ internal static class PoliticaEncomiendaOperativa
         var resultadoEvidencia = ValidarEvidencia(evidencia, encomienda.ReservaId,
             encomienda.RemitenteId, terminalAutenticada, terminalActiva, TipoEvidenciaEncomienda.VerificacionRemitente, ahora);
         if (!resultadoEvidencia.Permitida) return resultadoEvidencia;
-        if (!evidencia.ComparacionRemitenteAprobada)
-            return DecisionEncomiendaOperativa.Rechazar("IdentidadRemitenteNoVerificada");
         if (!solicitudDepositoAutorizada)
             return DecisionEncomiendaOperativa.Rechazar("SolicitudTerminalNoAutorizada");
         return casilleroDisponible ? DecisionEncomiendaOperativa.Autorizar
@@ -103,7 +101,7 @@ internal static class PoliticaEncomiendaOperativa
 
     private static DecisionEncomiendaOperativa ValidarParticipantes(CondicionesEncomiendaOperativa encomienda)
     {
-        if (encomienda.RemitenteId <= 0 || encomienda.DestinatarioId <= 0 || encomienda.RemitenteId == encomienda.DestinatarioId)
+        if (encomienda.RemitenteId <= 0 || encomienda.DestinatarioId <= 0 || !encomienda.UsoPersonal&&encomienda.RemitenteId == encomienda.DestinatarioId)
             return DecisionEncomiendaOperativa.Rechazar("ParticipantesNoValidos");
         if (!encomienda.CuentaRemitenteActiva)
             return DecisionEncomiendaOperativa.Rechazar("CuentaRemitenteInactiva");

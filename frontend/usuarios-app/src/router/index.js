@@ -11,19 +11,24 @@ const rutas = [
     component: () => import("../views/AccesoView.vue")
   },
   {
-    path: "/mi-cuenta", name: "cuenta",
-    meta: { privada: true, titulo: "Mi espacio" },
+    path: "/mis-reservas", alias: "/mi-cuenta", name: "cuenta",
+    meta: { privada: true, titulo: "Mis reservas" },
     component: () => import("../views/PanelView.vue")
   },
   {
-    path: "/encomiendas/:id(\\d+)", name: "detalle-encomienda",
-    meta: { privada: true, titulo: "Detalle de encomienda" },
+    path: "/reservas/:id(\\d+)", alias: "/encomiendas/:id(\\d+)", name: "detalle-encomienda",
+    meta: { privada: true, titulo: "Detalle de reserva" },
     component: () => import("../views/EncomiendaDetalleView.vue")
   },
   {
-    path: "/reservar/encomienda", name: "encomienda",
-    meta: { privada: true, titulo: "Nueva encomienda" },
+    path: "/reservar", alias: "/reservar/encomienda", name: "encomienda",
+    meta: { privada: true, titulo: "Reservar casillero" },
     component: () => import("../views/PreReservaView.vue")
+  },
+  {
+    path: "/mi-perfil", name: "perfil",
+    meta: { privada: true, titulo: "Mi perfil" },
+    component: () => import("../views/PerfilView.vue")
   },
   {
     path: "/consultar", name: "consultar",

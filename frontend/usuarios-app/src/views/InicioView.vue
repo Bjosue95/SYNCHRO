@@ -43,11 +43,11 @@ onBeforeUnmount(() => observador?.disconnect());
           <h1>Tu espacio.<br><span>Tu tiempo.</span></h1>
           <p>
             SYNCHRO reúne almacenamiento temporal, encomiendas y carga de dispositivos.
-            Desde tu cuenta puedes preparar una encomienda y consultar su estado.
+            Desde tu cuenta puedes reservar un casillero para tus pertenencias o una encomienda y consultar su estado.
           </p>
           <div class="syn-hero-actions">
-            <RouterLink to="/reservar/encomienda" class="boton boton-primario">
-              Crear pre-reserva
+            <RouterLink to="/reservar" class="boton boton-primario">
+              Reservar casillero
               <AppIcon nombre="flecha" :tamano="19" />
             </RouterLink>
             <a href="#servicios" class="syn-hero-secondary">
@@ -90,7 +90,7 @@ onBeforeUnmount(() => observador?.disconnect());
             <span><AppIcon nombre="seguridad" :tamano="23"/> Verificación</span>
           </div>
           <MiniLockerDemo tipo="encomiendas" />
-          <RouterLink to="/reservar/encomienda" class="syn-feature-action">
+          <RouterLink to="/reservar?servicio=Encomienda" class="syn-feature-action">
             Preparar encomienda <AppIcon nombre="flecha" :tamano="20"/>
           </RouterLink>
         </article>
@@ -101,9 +101,9 @@ onBeforeUnmount(() => observador?.disconnect());
             <span class="syn-feature-type">En las estaciones</span>
           </div>
           <h3>Almacenamiento personal</h3>
-          <p>Guarda tus pertenencias de manera temporal y retíralas mediante el proceso de verificación.</p>
+          <p>Reserva un casillero para tus pertenencias. Recibirás un PIN de depósito y otro de retiro por WhatsApp.</p>
           <MiniLockerDemo tipo="personales" />
-          <span class="syn-feature-foot">Un espacio para cuidar de tus pertenencias</span>
+          <RouterLink to="/reservar" class="syn-feature-action">Reservar casillero <AppIcon nombre="flecha" :tamano="20"/></RouterLink>
         </article>
 
         <article class="syn-feature syn-feature-thermal" data-reveal>

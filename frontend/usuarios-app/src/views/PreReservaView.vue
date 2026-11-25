@@ -1,177 +1,67 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { RouterLink, useRouter } from "vue-router";
-import { encomiendasApi } from "../services/encomiendasApi.js";
-import {
-  TAMANOS_ENCOMIENDA,
-  normalizarTelefono,
-} from "../services/validaciones.js";
-import ReferenciaFacialEncomienda from "../components/ui/ReferenciaFacialEncomienda.vue";
-import SynButton from "../components/ui/SynButton.vue";
-const router = useRouter(),
-  paso = ref(0),
-  config = ref<any>(null),
-  facial = ref<any>(null),
-  telefono = ref(""),
-  tamano = ref("Mediano"),
-  enviando = ref(false),
-  error = ref("");
-const pasos = ["Tu identidad", "Destinatario", "Revisar y crear"];
-onMounted(async () => {
-  try {
-    [config.value, facial.value] = await Promise.all([
-      encomiendasApi.configuracion(),
-      encomiendasApi.referencia(),
-    ]);
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-});
-function siguiente() {
-  error.value = "";
-  if (paso.value === 0 && !facial.value?.vigente) {
-    error.value = "Registra una referencia facial vigente antes de continuar.";
-    return;
-  }
-  if (paso.value === 1 && !normalizarTelefono(telefono.value)) {
-    error.value =
-      "Escribe el WhatsApp del destinatario con código de país, por ejemplo +504XXXXXXXX.";
-    return;
-  }
-  paso.value++;
+import { computed,onMounted,ref,watch } from 'vue';
+import { useRouter,useRoute } from 'vue-router';
+import { encomiendasApi } from '../services/encomiendasApi.js';
+import { normalizarTelefono,TAMANOS_ENCOMIENDA } from '../services/validaciones.js';
+import SeleccionReservaCard from '../components/ui/SeleccionReservaCard.vue';
+import SynButton from '../components/ui/SynButton.vue';
+const router=useRouter(),route=useRoute();
+const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),tipo=ref('Normal'),tamano=ref(''),ubicacion=ref(''),minutos=ref(0),telefono=ref('');
+const opciones=ref<any[]>([]),cargando=ref(true),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
+const tipos=[{id:'Normal',nombre:'Normal',icono:'casillero'},{id:'Refrigerado',nombre:'Refrigerado',icono:'frio'},{id:'Caliente',nombre:'Caliente',icono:'calor'}];
+const porTipo=computed(()=>opciones.value.filter(o=>o.tipo===tipo.value));
+const porTamano=computed(()=>porTipo.value.filter(o=>o.tamano===tamano.value));
+const ubicaciones=computed(()=>[...new Map<string,string>(porTamano.value.map(o=>[o.ubicacionId,o.ubicacion])).entries()]);
+const elegibles=computed(()=>porTamano.value.filter(o=>o.ubicacionId===ubicacion.value));
+const duraciones=computed<number[]>(()=>[...new Set<number>(elegibles.value.flatMap(o=>o.duraciones))].sort((a,b)=>a-b));
+const disponible=computed(()=>elegibles.value.some(o=>o.duraciones.includes(minutos.value)));
+const ubicacionNombre=computed(()=>ubicaciones.value.find(([id])=>id===ubicacion.value)?.[1]);
+watch(tipo,()=>{tamano.value='';ubicacion.value='';minutos.value=0;revisando.value=false;});
+watch(tamano,()=>{ubicacion.value='';minutos.value=0;revisando.value=false;});
+watch(ubicaciones,lista=>{if(lista.length===1)ubicacion.value=lista[0][0];});
+watch(duraciones,lista=>{if(!lista.includes(minutos.value))minutos.value=lista[0]||0;});
+async function cargar(){cargando.value=true;error.value='';try{const datos=await encomiendasApi.disponibilidad();opciones.value=datos.opciones;ubicacionPendiente.value=datos.ubicacionPendiente;}catch(e){error.value=(e as Error).message;}finally{cargando.value=false;}}
+function revisar(){error.value='';if(!disponible.value){error.value='Selecciona tipo, tamaño, ubicación y duración disponibles.';return;}if(servicio.value==='Encomienda'&&!normalizarTelefono(telefono.value)){error.value='Escribe el WhatsApp del destinatario con código de país.';return;}revisando.value=true;}
+async function crear(){
+  if(enviando.value)return;enviando.value=true;error.value='';
+  try{const d=await encomiendasApi.reservar({servicio:servicio.value,tipoCasillero:tipo.value,tamanoSolicitado:tamano.value,ubicacionId:ubicacion.value,minutos:minutos.value,telefonoDestinatario:servicio.value==='Encomienda'?normalizarTelefono(telefono.value):null});await router.replace('/reservas/'+d.id);}
+  catch(e){error.value=(e as Error).message;revisando.value=false;try{const datos=await encomiendasApi.disponibilidad();opciones.value=datos.opciones;}catch{opciones.value=[];}}finally{enviando.value=false;}
 }
-async function crear() {
-  if (enviando.value) return;
-  enviando.value = true;
-  error.value = "";
-  try {
-    const d = await encomiendasApi.crear({
-      telefonoDestinatario: normalizarTelefono(telefono.value),
-      tamanoSolicitado: tamano.value,
-    });
-    await router.replace("/encomiendas/" + d.id);
-  } catch (e) {
-    error.value = (e as Error).message;
-  } finally {
-    enviando.value = false;
-  }
-}
+onMounted(cargar);
 </script>
 <template>
   <section class="env-page">
-    <RouterLink to="/mi-cuenta" class="enlace-volver"
-      >Volver a mis encomiendas</RouterLink
-    >
-    <header class="env-heading">
-      <div>
-        <p class="env-kicker">PREPARACIÓN DEL ENVÍO</p>
-        <h1>Nueva encomienda</h1>
-        <p>
-          Identifica a los participantes y prepara las autorizaciones para tu
-          depósito.
-        </p>
-      </div>
-    </header>
-    <ol class="env-steps" aria-label="Pasos de creación">
-      <li
-        v-for="(p, i) in pasos"
-        :key="p"
-        :aria-current="i === paso ? 'step' : undefined"
-      >
-        <span>{{ i + 1 }}</span
-        >{{ p }}
-      </li>
-    </ol>
-    <p v-if="error" class="alerta" role="alert">{{ error }}</p>
-    <ReferenciaFacialEncomienda
-      v-if="paso === 0 && config"
-      :config="config"
-      @actualizada="facial = $event"
-    />
-    <form
-      v-if="paso === 1"
-      class="env-card formulario"
-      @submit.prevent="siguiente"
-    >
-      <h2>¿Quién recibe la encomienda?</h2>
-      <label class="campo"
-        ><span>WhatsApp del destinatario</span
-        ><input
-          v-model="telefono"
-          type="tel"
-          inputmode="tel"
-          maxlength="16"
-          autocomplete="off"
-          placeholder="+504XXXXXXXX"
-          required
-        /><small
-          >Debe ser distinto al del remitente. Su aceptación se comprobará por
-          separado.</small
-        ></label
-      >
-      <fieldset class="grupo-tamanos">
-        <legend>Tamaño de la encomienda</legend>
-        <label
-          v-for="t in TAMANOS_ENCOMIENDA"
-          :key="t.valor"
-          class="opcion-tamano"
-          :class="{ elegido: tamano === t.valor }"
-          ><input
-            v-model="tamano"
-            type="radio"
-            :value="t.valor"
-            name="tamano"
-          /><strong>{{ t.nombre }}</strong
-          ><small>{{ t.detalle }}</small></label
-        >
-      </fieldset>
-      <button type="submit" class="boton boton-primario">
-        Revisar encomienda
-      </button>
-    </form>
-    <section v-if="paso === 2" class="env-card">
-      <h2>Revisa los datos</h2>
-      <dl class="env-facts">
-        <div>
-          <dt>Destinatario</dt>
-          <dd>{{ normalizarTelefono(telefono) }}</dd>
-        </div>
-        <div>
-          <dt>Tamaño</dt>
-          <dd>{{ tamano }}</dd>
-        </div>
-        <div>
-          <dt>Pago</dt>
-          <dd>Lo realiza el remitente. Aún no está confirmado.</dd>
-        </div>
-      </dl>
-      <p class="env-help">
-        Al crear la encomienda se preparan dos solicitudes de consentimiento. El
-        administrador comprobará los mensajes y el pago antes de emitir el PIN
-        de depósito. No se enviarán mensajes automáticamente.
-      </p>
-      <SynButton tipo="button" :cargando="enviando" @click="crear"
-        >Crear encomienda</SynButton
-      >
-    </section>
-    <div class="env-actions">
-      <button
-        v-if="paso > 0"
-        type="button"
-        class="boton boton-secundario"
-        :disabled="enviando"
-        @click="paso--"
-      >
-        Anterior</button
-      ><button
-        v-if="paso === 0"
-        type="button"
-        class="boton boton-primario"
-        :disabled="!facial?.vigente"
-        @click="siguiente"
-      >
-        Continuar con el destinatario
-      </button>
-    </div>
+    <header class="env-heading"><div><h1>Reservar casillero</h1><p>Elige qué vas a guardar y encuentra un casillero disponible.</p></div></header>
+    <p v-if="error" class="alerta" role="alert">{{ error }}</p><p v-if="cargando" role="status">Consultando disponibilidad…</p>
+    <template v-if="!cargando">
+      <template v-if="!revisando">
+        <section class="env-card"><h2>¿Qué vas a guardar?</h2><div class="reserva-opciones">
+          <SeleccionReservaCard titulo="Pertenencias personales" descripcion="Guardarlas y retirarlas con tus PIN" icono="guardar" :seleccionado="servicio==='Personal'" @seleccionar="servicio='Personal'" />
+          <SeleccionReservaCard titulo="Una encomienda" descripcion="El destinatario retira con su PIN" icono="encomienda" :seleccionado="servicio==='Encomienda'" @seleccionar="servicio='Encomienda'" />
+        </div></section>
+        <section class="env-card"><h2>Tipo de casillero</h2><div class="reserva-opciones reserva-tres">
+          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre" :icono="t.icono" :seleccionado="tipo===t.id" :disponibles="opciones.filter(o=>o.tipo===t.id).length" @seleccionar="tipo=t.id" />
+        </div><p v-if="!opciones.length">No hay casilleros compatibles disponibles. <button class="boton boton-secundario" @click="cargar">Actualizar disponibilidad</button></p></section>
+        <section v-if="porTipo.length" class="env-card"><h2>Tamaño</h2><div class="reserva-opciones reserva-tres">
+          <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" icono="casillero" :seleccionado="tamano===t.valor" :disponibles="porTipo.filter(o=>o.tamano===t.valor).length" @seleccionar="tamano=t.valor" />
+        </div></section>
+        <form v-if="tamano" class="env-card formulario" @submit.prevent="revisar">
+          <h2>Ubicación y duración</h2>
+          <label class="campo"><span>Ubicación</span><select v-model="ubicacion" required><option value="" disabled>Selecciona una ubicación</option><option v-for="[id,nombre] in ubicaciones" :key="id" :value="id">{{ nombre }}</option></select></label>
+          <p v-if="ubicacionPendiente" class="env-help">El inventario del prototipo todavía no tiene una ubicación geográfica configurada.</p>
+          <label class="campo"><span>Duración</span><select v-model="minutos" required><option :value="0" disabled>Selecciona una duración</option><option v-for="m in duraciones" :key="m" :value="m">{{ m }} minutos</option></select></label>
+          <label v-if="servicio==='Encomienda'" class="campo"><span>WhatsApp del destinatario</span><input v-model="telefono" type="tel" inputmode="tel" maxlength="16" placeholder="+504XXXXXXXX" required /><small>Su aceptación se comprueba por WhatsApp para esta encomienda.</small></label>
+          <button class="boton boton-primario" :disabled="!disponible">Revisar reserva</button>
+        </form>
+      </template>
+      <section v-else class="env-card"><h2>Tu reserva</h2><dl class="env-facts"><div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div><div><dt>Casillero</dt><dd>{{ tipo }} · {{ tamano }}</dd></div><div><dt>Ubicación</dt><dd>{{ ubicacionNombre }}</dd></div><div><dt>Duración</dt><dd>{{ minutos }} minutos</dd></div><div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div></dl>
+        <p>El administrador comprobará el consentimiento de WhatsApp y el pago antes de entregarte el PIN de depósito. El PIN de retiro será diferente y se entregará después del depósito.</p>
+        <p class="env-help">Las capturas demostrativas se realizarán en la tablet al depositar y retirar. No se comparan rostros ni necesitas registrar uno en la web.</p>
+        <SynButton tipo="button" :cargando="enviando" @click="crear">Confirmar reserva</SynButton><button class="boton boton-secundario" :disabled="enviando" @click="revisando=false">Cambiar selección</button>
+      </section>
+    </template>
   </section>
 </template>
+<style scoped>
+.reserva-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.reserva-tres{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:600px){.reserva-opciones{grid-template-columns:1fr}.reserva-tres{grid-template-columns:repeat(2,minmax(0,1fr))}.reserva-tres>:last-child:nth-child(odd){grid-column:1/-1}}
+</style>

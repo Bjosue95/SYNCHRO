@@ -1,9 +1,18 @@
 import { solicitarCliente } from "./clientesApi.js";
 const base = "/api/web/encomiendas";
+const reservas = "/api/web/reservas";
 export const encomiendasApi = Object.freeze({
+  disponibilidad: () => solicitarCliente(`${reservas}/disponibilidad`),
+  reservar: (datos) => solicitarCliente(reservas, { metodo: "POST", datos }),
   configuracion: () => solicitarCliente(`${base}/configuracion`),
-  listar: () => solicitarCliente(base),
-  detalle: (id) => solicitarCliente(`${base}/${Number(id)}`),
+  listar: (filtros = {}) => {
+    const consulta = new URLSearchParams(Object.entries(filtros).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]));
+    return solicitarCliente(consulta.size ? `${reservas}?${consulta}` : reservas);
+  },
+  detalle: (id) => solicitarCliente(`${reservas}/${Number(id)}`),
+  cancelar: (id, datos) => solicitarCliente(`${reservas}/${Number(id)}/cancelar`, { metodo: "POST", datos }),
+  consentimientoCuenta: () => solicitarCliente(`${base}/consentimiento-cuenta`),
+  revocarConsentimientoCuenta: () => solicitarCliente(`${base}/consentimiento-cuenta`, { metodo: "DELETE" }),
   crear: (datos) => solicitarCliente(base, { metodo: "POST", datos }),
   referencia: () => solicitarCliente(`${base}/referencia-facial`),
   revocarReferencia: () =>

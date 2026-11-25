@@ -5,6 +5,15 @@ namespace Synchro.Api.Tests;
 
 public sealed class PinEncomiendaOperativaTests
 {
+    [Fact]
+    public void PinPersonalNoEsIntercambiableConDepositoNiRetiroDeEncomienda()
+    {
+        var configuracion=new ConfigurationBuilder().AddConfiguration(Configuracion).AddInMemoryCollection(new Dictionary<string,string?>{
+            ["RetiroPersonal:ClaveHmac"]=Configuracion["RetiroPin:ClaveHmac"]}).Build();
+        var personal=CodigoPinRetiroPersonal.CalcularHash("123456",17,Salt,configuracion);
+        foreach(var finalidad in new[]{FinalidadPinEncomienda.Deposito,FinalidadPinEncomienda.Retiro})
+            Assert.False(CodigoPinRetiro.VerificarHash(personal,CodigoPinRetiro.CalcularHashEncomienda("123456",17,101,Salt,configuracion,finalidad)));
+    }
     // Vector público de prueba. No es una clave de configuración ni se usa fuera de estos tests.
     private static IConfiguration Configuracion => new ConfigurationBuilder().AddInMemoryCollection(
         new Dictionary<string, string?> {

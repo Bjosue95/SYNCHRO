@@ -1,0 +1,9 @@
+/* Superficies existentes de la ficha y del centro de trabajo; misma geometría en ambos temas. */
+:root[data-theme="oscuro"] :is(.wa-workspace,.enc-page,.manual-admin){
+  color-scheme:dark;--ink:#e4f1f7;--muted:#b0c5d0;--border:#38505f;--canvas:#0d202e;--white:#172e3e;--navy:#a6d7f4;color:var(--ink);background:var(--canvas);
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="claro"]) :is(.wa-workspace,.enc-page,.manual-admin){
+    color-scheme:dark;--ink:#e4f1f7;--muted:#b0c5d0;--border:#38505f;--canvas:#0d202e;--white:#172e3e;--navy:#a6d7f4;color:var(--ink);background:var(--canvas);
+  }
+}

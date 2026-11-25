@@ -137,9 +137,9 @@ public sealed class PoliticaEncomiendaOperativaTests
     }
 
     [Fact]
-    public void RemitenteRequiereComparacionAprobadaPorServidor()
+    public void CapturaDemostrativaNoRequiereCompararRostros()
     {
-        Assert.Equal("IdentidadRemitenteNoVerificada", Depositar(evidencia: Evidencia with { ComparacionRemitenteAprobada = false }).Codigo);
+        Assert.True(Depositar(evidencia: Evidencia with { ComparacionRemitenteAprobada = false }).Permitida);
     }
 
     [Fact]

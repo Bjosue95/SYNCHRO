@@ -19,11 +19,11 @@ public static class WhatsAppManualEndpoints
 
     public sealed record ConfirmarAutorizacionPeticion(
         Guid IntentoId, string? CodigoAutorizacion, string? TelefonoCliente,
-        bool MensajeComprobado);
+        bool MensajeComprobado,string? TextoMensaje=null,string? MensajeReferencia=null);
     public sealed record OperacionPeticion(Guid IntentoId);
     private sealed record SolicitudInicioFacialV3(byte[]? ImagenPng, double[]? Descriptor, string? VersionConsentimiento);
     public sealed record EmitirPinPeticion(Guid IntentoId, bool Reemplazar);
-    public sealed record MarcarEnviadoPeticion(Guid IntentoId, bool EnvioComprobado);
+    public sealed record MarcarEnviadoPeticion(Guid IntentoId, bool EnvioComprobado,string? TelefonoCliente=null,string? MensajeReferencia=null);
     public sealed record FinalizarRetiroPagadoPeticion(
         Guid CobroId, string? AutorizacionPago)
     {
@@ -1042,7 +1042,7 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                     title: "No se pudo confirmar el pago simulado.");
             }
         });
-        admin.MapGet("/pendientes",async (HttpContext http) =>
+        admin.MapGet("/pendientes",async (HttpContext http,Guid? intentoId) =>
         {
             if (!http.Request.IsHttps) return Results.StatusCode(403);
             http.Response.Headers.CacheControl="no-store";
@@ -1056,9 +1056,10 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                       u.FechaVencimiento
                     FROM dbo.AutorizacionesWhatsAppManuales a
                     LEFT JOIN dbo.UsosCasillero u ON a.UsoId=u.Id
-                    WHERE a.Estado NOT IN(N'Confirmado',N'Cancelado')
+                    WHERE (@intento IS NOT NULL AND a.Id=@intento) OR (@intento IS NULL AND a.Estado NOT IN(N'Confirmado',N'Cancelado'))
                     ORDER BY a.CreadoUtc DESC
                     """, db);
+                cmd.Parameters.Add("@intento",SqlDbType.UniqueIdentifier).Value=(object?)intentoId??DBNull.Value;
                 var items=new List<object>();
                 await using var reader=await cmd.ExecuteReaderAsync(http.RequestAborted);
                 while(await reader.ReadAsync(http.RequestAborted))
@@ -1089,6 +1090,8 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                 !codigo.All(char.IsAsciiHexDigit) || telefono.Length!=11 ||
                 !telefono.StartsWith("504",StringComparison.Ordinal) || !telefono.All(char.IsAsciiDigit))
                 return Results.BadRequest(new { mensaje="Debes cotejar el codigo del mensaje y el telefono con WhatsApp." });
+            if(datos.TextoMensaje?.Trim()!=$"SYNCHRO ACEPTO {codigo} RECIBIR PIN DE RETIRO POR WHATSAPP"||!ReferenciaMensajeValida(datos.MensajeReferencia))
+                return Results.BadRequest(new{mensaje="Comprueba el texto completo de resguardo personal y registra la referencia del mensaje recibido."});
             if (!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int operadorId)||operadorId<=0)
                 return Results.Unauthorized();
             string pin=CodigoPinRetiroPersonal.Generar();
@@ -1177,6 +1180,7 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                     emitir.Parameters.Add("@Id",SqlDbType.UniqueIdentifier).Value=datos.IntentoId;
                     await emitir.ExecuteNonQueryAsync(http.RequestAborted);
                 }
+                await AuditarComunicacionPersonal(db,tx,datos.IntentoId,operadorId,"WhatsAppPersonalConfirmado",telefono,datos.MensajeReferencia!,http.RequestAborted);
                 await tx.CommitAsync(http.RequestAborted);
                 return Results.Ok(new { reservado=true, usoId, codigoCasillero=casillero, pinRetiro=pin, telefonoCliente=telefono });
             }
@@ -1226,6 +1230,7 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                     WHERE a.Id=@Id AND a.VenceUtc>SYSUTCDATETIME()
                       AND ((a.Estado=N'Reservado' AND @Reemplazar=0)
                         OR (a.Estado=N'PinEmitido' AND @Reemplazar=1))
+                      AND u.TipoServicio=N'ResguardoPersonal' AND u.OrigenReserva=N'Terminal'
                       AND u.Estado=N'Reservado' AND u.FechaVencimiento>SYSUTCDATETIME()
                       AND u.FechaIngreso IS NULL AND u.FechaRetiro IS NULL
                     """,db,tx))
@@ -1285,25 +1290,51 @@ admin.MapPost("/cobros/retiro/confirmar", async (
             if (!await TerminalSegura(http,csrf)) return Results.StatusCode(403);
             http.Response.Headers.CacheControl="no-store";
             if (!datos.EnvioComprobado || datos.IntentoId==Guid.Empty) return Results.BadRequest(new { mensaje="Confirma el envio manual." });
+            string telefono=(datos.TelefonoCliente??"").Trim().TrimStart('+');
+            if(telefono.Length!=11||!telefono.StartsWith("504",StringComparison.Ordinal)||!telefono.All(char.IsAsciiDigit)||!ReferenciaMensajeValida(datos.MensajeReferencia))
+                return Results.BadRequest(new{mensaje="Comprueba el teléfono de entrega y la referencia del mensaje enviado."});
+            if(!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int operadorId)||operadorId<=0)return Results.Unauthorized();
             try
             {
                 await using var db=new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
+                await using var tx=(SqlTransaction)await db.BeginTransactionAsync(http.RequestAborted);
                 await using var cmd=new SqlCommand("""
                     UPDATE a SET Estado=N'Enviado',FechaEnvioDeclaradaUtc=SYSUTCDATETIME()
                     FROM dbo.AutorizacionesWhatsAppManuales a
                     INNER JOIN dbo.UsosCasillero u ON u.Id=a.UsoId
                     WHERE a.Id=@Id AND a.Estado=N'PinEmitido' AND a.VenceUtc>SYSUTCDATETIME()
+                      AND a.TelefonoCliente=@Telefono
+                      AND u.TipoServicio=N'ResguardoPersonal' AND u.OrigenReserva=N'Terminal'
+                      AND u.FechaIngreso IS NULL AND u.FechaRetiro IS NULL
                       AND u.Estado=N'Reservado' AND u.FechaVencimiento>SYSUTCDATETIME();
                     SELECT @@ROWCOUNT;
-                    """,db);
+                    """,db,tx);
                 cmd.Parameters.Add("@Id",SqlDbType.UniqueIdentifier).Value=datos.IntentoId;
+                cmd.Parameters.Add("@Telefono",SqlDbType.VarChar,15).Value=telefono;
                 int cambiados=Convert.ToInt32(await cmd.ExecuteScalarAsync(http.RequestAborted));
                 if(cambiados!=1) return Results.Conflict(new {mensaje="La operacion no permite confirmar el envio."});
+                await AuditarComunicacionPersonal(db,tx,datos.IntentoId,operadorId,"PinPersonalEntregadoManual",telefono,datos.MensajeReferencia!,http.RequestAborted);
+                await tx.CommitAsync(http.RequestAborted);
                 return Results.Ok(new {envioDeclarado=true});
             }
             catch(SqlException) { return Results.Problem(statusCode:503,title:"No se pudo confirmar el envio."); }
         });
+    }
+
+    private static bool ReferenciaMensajeValida(string? referencia)=>!string.IsNullOrWhiteSpace(referencia)&&referencia.Length<=120&&!referencia.Any(char.IsControl);
+    private static async Task AuditarComunicacionPersonal(SqlConnection db,SqlTransaction tx,Guid intento,int operador,string accion,string telefono,string referencia,CancellationToken ct)
+    {
+        // La auditoría común ya existe en la instalación integrada. Sin dependencia
+        // nueva del esquema para las instalaciones anteriores de resguardo personal.
+        await using var q=new SqlCommand("""
+            IF OBJECT_ID(N'dbo.AuditoriaEncomiendaOperativa',N'U') IS NOT NULL
+              INSERT dbo.AuditoriaEncomiendaOperativa(ActorTipo,ActorId,Accion,Estado,Detalle)
+              VALUES(N'Administrador',@operador,@accion,N'Confirmado',@detalle);
+            """,db,tx);
+        q.Parameters.AddWithValue("@operador",operador);q.Parameters.AddWithValue("@accion",accion);
+        q.Parameters.AddWithValue("@detalle",JsonSerializer.Serialize(new{IntentoId=intento,Telefono=telefono,Referencia=referencia},new JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping}));
+        await q.ExecuteNonQueryAsync(ct);
     }
 
     private static async Task<int> CrearReservaAsync(SqlConnection db,SqlTransaction tx,string codigo,CancellationToken token)

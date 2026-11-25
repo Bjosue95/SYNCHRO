@@ -2,8 +2,8 @@
 const estados = Object.freeze({
   Preparacion: "En preparación",
   ListaParaDeposito: "Lista para depósito",
-  Depositada: "Depositada",
-  Retirada: "Entregada",
+  Depositada: "Depositada y pendiente de retiro",
+  Retirada: "Retirada por el destinatario",
   ConfirmadoManual: "Confirmado manualmente",
   Pequeno: "Pequeño",
   PendienteConsentimiento: "Pendiente de consentimiento",
