@@ -110,7 +110,7 @@ async function crear(){
     return;
   }
   if(servicio.value==='Encomienda'&&pagador.value==='Remitente'&&!tarjetaPruebaValida.value){
-    error.value='Usa únicamente los valores de la tarjeta de prueba mostrados en pantalla. No ingreses datos bancarios reales.';
+    error.value='Introduce los datos habilitados para esta operación. No ingreses datos bancarios reales.';
     return;
   }
   enviando.value=true;
@@ -274,7 +274,7 @@ onMounted(cargar);
         <template v-if="servicio==='Encomienda'">
           <div class="reserva-final__intro">
             <h3>¿Quién realizará el pago?</h3>
-            <p>Selecciona una modalidad. Ninguna operación cobra dinero real.</p>
+            <p>Elige cómo deseas gestionar el pago de esta reserva.</p>
           </div>
           <div class="reserva-pagadores" role="group" aria-label="Quién realizará el pago">
             <button type="button" class="reserva-pagador"
@@ -283,7 +283,7 @@ onMounted(cargar);
               @click="pagador='Remitente'">
               <IconoTablet nombre="pago" :tamano="32" />
               <strong>Yo pagaré desde la web</strong>
-              <small>Tarjeta de prueba · requiere aprobación del administrador.</small>
+              <small>Pago con tarjeta · sujeto a confirmación.</small>
             </button>
             <button type="button" class="reserva-pagador"
               :class="{'es-seleccionada':pagador==='Destinatario'}"
@@ -297,33 +297,33 @@ onMounted(cargar);
 
           <section v-if="pagador==='Remitente'" class="reserva-prueba" aria-labelledby="reserva-prueba-titulo">
             <div class="reserva-final__intro">
-              <h3 id="reserva-prueba-titulo">Tarjeta para demostración</h3>
-              <p>Usa solamente los valores indicados. No introduzcas números de tarjetas reales ni contraseñas bancarias.</p>
+              <h3 id="reserva-prueba-titulo">Pago con tarjeta</h3>
+              <p>Completa los datos de acceso facilitados para esta operación. No utilices información de una tarjeta bancaria real.</p>
             </div>
             <div class="reserva-prueba__campos">
               <label class="campo reserva-prueba__numero">
-                <span>Número de tarjeta de prueba</span>
+                <span>Número de tarjeta</span>
                 <input v-model="numeroTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
                   maxlength="23" placeholder="4242 4242 4242 4242" :disabled="enviando" />
-                <small>Dato de prueba: 4242 4242 4242 4242</small>
+                <small>Número habilitado: 4242 4242 4242 4242</small>
               </label>
               <label class="campo">
-                <span>Vencimiento de prueba</span>
+                <span>Fecha de vencimiento</span>
                 <input v-model="venceTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
                   maxlength="5" placeholder="MM/AA" :disabled="enviando" />
                 <small>Usa 12/30</small>
               </label>
               <label class="campo">
-                <span>Código de seguridad de prueba</span>
+                <span>Código de seguridad</span>
                 <input v-model="codigoTarjetaPrueba" type="password" inputmode="numeric" autocomplete="off"
                   maxlength="3" placeholder="•••" :disabled="enviando" />
                 <small>Usa 123 · no es un PIN bancario.</small>
               </label>
             </div>
-            <p class="reserva-bloque__nota">Estos datos solo se verifican en esta pantalla, nunca se envían al servidor ni se guardan. El pago seguirá pendiente hasta que lo confirme el administrador.</p>
+            <p class="reserva-bloque__nota">Los datos se verifican únicamente en esta pantalla y no se almacenan. No se realizará ningún cargo bancario. El pago quedará pendiente de confirmación administrativa.</p>
           </section>
           <p v-else class="reserva-bloque__nota">
-            El destinatario podrá solicitar el pago de prueba en la Tablet tras el depósito. La entrega quedará bloqueada hasta que el administrador confirme el cobro.
+            El destinatario podrá solicitar el pago en la tablet tras el depósito. La entrega quedará bloqueada hasta que el administrador confirme el cobro.
           </p>
         </template>
         <p v-else class="reserva-bloque__nota">
