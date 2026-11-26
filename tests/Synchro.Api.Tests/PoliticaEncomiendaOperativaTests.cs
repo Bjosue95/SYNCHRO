@@ -67,6 +67,24 @@ public sealed class PoliticaEncomiendaOperativaTests
     }
 
     [Fact]
+    public void PagoDiferidoSoloHabilitaDepositoYNoPermiteRetiroSinAprobacion()
+    {
+        var diferida = Encomienda with {
+            Pago = EstadoPagoEncomienda.Pendiente,
+            PagoDiferidoDestinatario = true
+        };
+        Assert.True(Depositar(diferida).Permitida);
+        Assert.Equal("PagoNoConfirmado", Depositar(diferida with {
+            PagoDiferidoDestinatario = false
+        }).Codigo);
+        var yaDepositada = diferida with { Estado = EstadoEncomiendaOperativa.Depositada };
+        Assert.Equal("PagoNoConfirmado", Retirar(yaDepositada).Codigo);
+        Assert.True(Retirar(yaDepositada with {
+            Pago = EstadoPagoEncomienda.ConfirmadoManual
+        }).Permitida);
+    }
+
+    [Fact]
     public void AceptacionDelDestinatarioNoSeDeduceDelConsentimientoDeMensajes()
     {
         Assert.Equal("AceptacionDestinatarioPendiente", Depositar(Encomienda with { DestinatarioAceptoEncomienda = false }).Codigo);
