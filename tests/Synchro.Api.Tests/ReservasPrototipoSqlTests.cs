@@ -5,12 +5,27 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Synchro.Api.Services.Encomiendas;
 using Synchro.Api.Services.Temporales;
+using Synchro.Api.Models;
 
 namespace Synchro.Api.Tests;
 
 // Fixtures propios acotados por código. Sin migraciones, borrados ni cambios en otros servicios.
 public sealed partial class EncomiendasOperativasSqlTests
 {
+    [Fact]
+    public void InventarioFisicoDeTabletYReservasTieneDiezCodigosSinDuplicados()
+    {
+        string[] esperados = [
+            "S01", "S02", "M03", "M04", "L05",
+            "M06", "M07", "M08", "M09", "L10"
+        ];
+        Assert.Equal(esperados, InventarioEstacionPrototipo.Codigos);
+        Assert.Equal(10, InventarioEstacionPrototipo.Codigos.Distinct().Count());
+        Assert.Equal("Frio", InventarioEstacionPrototipo.TipoReal("M04", "Normal"));
+        Assert.Equal("Calor", InventarioEstacionPrototipo.TipoReal("M09", "Normal"));
+        Assert.Equal("Normal", InventarioEstacionPrototipo.TipoReal("M03", "Normal"));
+    }
+
     private static IConfiguration ConfiguracionReserva(Fixture f)=>new ConfigurationBuilder().AddConfiguration(Configuracion).AddInMemoryCollection(new Dictionary<string,string?>{
         ["ReservasPrototipo:Casilleros:0"]=f.Casillero,["ReservasPrototipo:Ubicacion"]="Inventario de pruebas",["ReservasPrototipo:DuracionesMinutos:0"]="30",
         ["ReservasPrototipo:DuracionesMinutos:1"]="60"}).Build();
