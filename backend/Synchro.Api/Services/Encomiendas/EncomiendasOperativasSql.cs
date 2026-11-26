@@ -333,7 +333,11 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
         Exigir(datos.ImporteHnl>0&&datos.ImporteHnl<=100000&&decimal.Round(datos.ImporteHnl,2)==datos.ImporteHnl,"ImporteInvalido","Indica un importe positivo válido con hasta dos decimales.",400);
         Exigir(datos.Metodo is "Efectivo" or "Transferencia" or "Tarjeta","MetodoInvalido","Método de pago manual no válido.",400);
         var referencia=Texto(datos.Referencia,160,"la referencia del pago");
-        await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);Preparacion(o,Ahora);
+        await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
+        var reservaPago=await LeerReserva(c,tx,id,ct);
+        var esDiferido=PagoDiferidoDestinatario(reservaPago);
+        if(esDiferido && o.Estado=="Depositada" && o.UsoId.HasValue) { /* Pagará el destinatario antes del retiro. */ }
+        else Preparacion(o,Ahora);
         Exigir(o.Pago!="ConfirmadoManual","PagoYaConfirmado","El pago ya está confirmado.");
         Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Comprueba primero la autorización de WhatsApp del remitente.");
         var tarifa=(await LeerReserva(c,tx,id,ct))?.TarifaHnl??Tarifa(o.Tamano);
@@ -343,7 +347,10 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
             UPDATE dbo.EncomiendasOperativas SET PagoEstado=N'ConfirmadoManual',ImporteHnl=@importe,MetodoPago=@metodo,
               PagoReferencia=@referencia,JustificacionImporte=@motivo,PagoAdminId=@admin,PagoConfirmadoUtc=@ahora,Version=Version+1 WHERE ReservaId=@id;
             """,("@importe",datos.ImporteHnl),("@metodo",datos.Metodo),("@referencia",referencia),("@motivo",motivo),("@admin",admin),("@ahora",Ahora.UtcDateTime),("@id",id)))await q.ExecuteNonQueryAsync(ct);
-        await Auditar(c,tx,id,null,"Administrador",admin,"PagoConfirmadoManual",o.Estado,"Pago manual verificado; no procede de un cobro simulado. Referencia: "+referencia,ct);
+        var pagoPrueba=PagoWebDemo(reservaPago)||esDiferido;
+        await Auditar(c,tx,id,null,"Administrador",admin,"PagoConfirmadoManual",o.Estado,
+            pagoPrueba?"Operación de pago de prueba confirmada manualmente; no se procesó dinero real. Referencia: "+referencia
+                      :"Pago manual verificado; no procede de un cobro simulado. Referencia: "+referencia,ct);
         await tx.CommitAsync(ct);return new{estado="ConfirmadoManual",importeHnl=datos.ImporteHnl};
     }
 }

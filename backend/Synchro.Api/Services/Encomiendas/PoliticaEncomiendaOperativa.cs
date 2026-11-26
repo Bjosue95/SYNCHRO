@@ -22,7 +22,7 @@ internal sealed record CondicionesEncomiendaOperativa(
     EstadoConsentimientoEncomienda ConsentimientoDestinatario,
     bool DestinatarioAceptoEncomienda,
     EstadoPagoEncomienda Pago,
-    DateTimeOffset ReservaVenceUtc,bool UsoPersonal=false);
+    DateTimeOffset ReservaVenceUtc,bool UsoPersonal=false,bool PagoDiferidoDestinatario=false);
 
 internal sealed record CondicionesPinEncomiendaOperativa(
     FinalidadPinEncomienda Finalidad,
@@ -59,7 +59,9 @@ internal static class PoliticaEncomiendaOperativa
             return DecisionEncomiendaOperativa.Rechazar("ReservaVencida");
         var participantes = ValidarParticipantes(encomienda);
         if (!participantes.Permitida) return participantes;
-        if (encomienda.Pago != EstadoPagoEncomienda.ConfirmadoManual)
+        // Solo encomiendas cuyo destinatario pagará en Tablet pueden depositarse
+        // antes del cobro. Retirar() continúa exigiendo confirmación administrativa.
+        if (encomienda.Pago != EstadoPagoEncomienda.ConfirmadoManual && !encomienda.PagoDiferidoDestinatario)
             return DecisionEncomiendaOperativa.Rechazar("PagoNoConfirmado");
         var resultadoPin = ValidarPin(pin, FinalidadPinEncomienda.Deposito, ahora);
         if (!resultadoPin.Permitida) return resultadoPin;

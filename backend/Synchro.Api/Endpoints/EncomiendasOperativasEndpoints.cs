@@ -57,6 +57,15 @@ public static class EncomiendasOperativasEndpoints
         admin.MapPost("/{id:int}/consentimientos/{rol}/confirmar",(int id,string rol,ConsentimientoOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarConsentimiento(id,rol,d,Identidad(h),false,h.RequestAborted),h));
         admin.MapPost("/{id:int}/consentimientos/{rol}/rechazar",(int id,string rol,ConsentimientoOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarConsentimiento(id,rol,d,Identidad(h),true,h.RequestAborted),h));
         admin.MapPost("/{id:int}/pago/confirmar",(int id,PagoEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarPago(id,d,Identidad(h),h.RequestAborted),h));
+        var cobrosReserva=app.MapGroup("/api/admin/encomiendas/cobros")
+            .RequireAuthorization("OperarServicios")
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>()
+            .RequireRateLimiting("EncomiendasOperativas");
+        cobrosReserva.MapGet("/pendientes",(HttpContext h,EncomiendasOperativasSql s)=>
+            Ejecutar(()=>s.CobrosReservaPendientes(h.RequestAborted),h));
+        cobrosReserva.MapPost("/{id:int}/confirmar",(int id,ConfirmacionPagoReservaDemoSolicitud d,
+            HttpContext h,EncomiendasOperativasSql s)=>
+            Ejecutar(()=>s.ConfirmarPagoReservaDemo(id,d,Identidad(h),h.RequestAborted),h));
         admin.MapPost("/{id:int}/pines/{finalidad}/emitir",(int id,string finalidad,EmitirPinOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.EmitirPin(id,finalidad,d.Reemplazar,Identidad(h),h.RequestAborted),h));
         admin.MapPost("/{id:int}/pines/entrega",(int id,EntregaPinEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarEntregaPin(id,d,Identidad(h),h.RequestAborted),h));
         admin.MapPost("/{id:int}/evidencias/{evidencia:guid}/conservacion",(int id,Guid evidencia,ExtenderEvidenciaOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ExtenderConservacion(id,evidencia,Identidad(h),d.Incidencia,d.Motivo,d.HastaUtc,h.RequestAborted),h)).RequireAuthorization("SoloAdministradores");
@@ -88,6 +97,9 @@ public static class EncomiendasOperativasEndpoints
         prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.DepositarDemostrativo(id,Identidad(h),d,h.RequestAborted);}));
         prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaDeposito(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
         prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapPost("/{id:int}/pago/solicitar",(int id,SolicitudPagoReservaTablet d,
+            HttpContext h,EncomiendasOperativasSql s)=>
+            Terminal(h,s,()=>s.SolicitarPagoReservaTablet(id,Identidad(h),d,h.RequestAborted)));
         prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.CapturarDestinatario(id,Identidad(h),d,h.RequestAborted);}));
         prototipo.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.Retirar(id,Identidad(h),d,h.RequestAborted)));
     }

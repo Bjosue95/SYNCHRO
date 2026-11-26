@@ -16,7 +16,12 @@ internal sealed partial class EncomiendasOperativasSql
             SELECT o.ReservaId,o.DestinatarioId,p.PinHash,p.PinSalt
             FROM dbo.EncomiendasOperativas o JOIN dbo.PinesEncomiendaOperativa p ON p.ReservaId=o.ReservaId
             JOIN dbo.ParticipantesEncomiendaOperativa d ON d.ReservaId=o.ReservaId AND d.Rol=N'Destinatario'
-            WHERE o.TerminalId=@terminal AND o.Estado=N'Depositada' AND o.PagoEstado=N'ConfirmadoManual'
+            WHERE o.TerminalId=@terminal AND o.Estado=N'Depositada'
+              AND (o.PagoEstado=N'ConfirmadoManual'
+                   OR EXISTS (SELECT 1 FROM dbo.AuditoriaEncomiendaOperativa a
+                       WHERE a.ReservaId=o.ReservaId AND a.Accion=N'ReservaPrototipoCreada'
+                         AND JSON_VALUE(a.Detalle,'$.Pagador')=N'Destinatario'
+                         AND JSON_VALUE(a.Detalle,'$.ModalidadPago')=N'Tablet'))
               AND p.Finalidad=N'Retiro' AND p.Activo=1 AND p.ConsumidoUtc IS NULL AND p.EntregadoUtc IS NOT NULL
               AND p.VenceUtc>@ahora AND p.IntentosFallidos<5 AND d.AceptaEncomienda=1;
             """,("@terminal",terminal),("@ahora",Ahora.UtcDateTime))) {
@@ -69,7 +74,11 @@ internal sealed partial class EncomiendasOperativasSql
             JOIN dbo.PinesEncomiendaOperativa p
                 ON p.ReservaId = o.ReservaId
             WHERE o.TerminalId IS NULL AND o.Estado IN (N'Preparacion', N'ListaParaDeposito')
-              AND o.PagoEstado = N'ConfirmadoManual'
+              AND (o.PagoEstado = N'ConfirmadoManual'
+                OR EXISTS (SELECT 1 FROM dbo.AuditoriaEncomiendaOperativa a
+                    WHERE a.ReservaId=o.ReservaId AND a.Accion=N'ReservaPrototipoCreada'
+                      AND JSON_VALUE(a.Detalle,'$.Pagador')=N'Destinatario'
+                      AND JSON_VALUE(a.Detalle,'$.ModalidadPago')=N'Tablet'))
               AND r.FechaExpiracion > @ahora
               AND p.Finalidad = N'Deposito'
               AND p.Activo = 1
@@ -158,11 +167,16 @@ internal sealed partial class EncomiendasOperativasSql
     {
         await using var c=await Abrir(ct);var o=await Leer(c,null,id,null,ct);
         Exigir(o.TerminalId==terminal&&o.Estado is "Depositada" or "Retirada","NoEncontrada","Encomienda no disponible en esta terminal.",404);
-        Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","La encomienda no tiene un pago confirmado.");
         var reserva=await LeerReserva(c,null,id,ct);
+        var diferido=PagoDiferidoDestinatario(reserva);
+        Exigir(o.Pago=="ConfirmadoManual"||diferido,
+            "PagoPendiente","La encomienda no tiene un pago confirmado.");
         await using var q=Comando(c,null,"SELECT CodigoCasillero FROM dbo.UsosCasillero WHERE Id=@uso",("@uso",o.UsoId));
         return new{encomiendaId=id,estado=o.Estado,tamano=o.Tamano,casillero=(string?)await q.ExecuteScalarAsync(ct),
-            pagoConfirmado=true,pagoAdicionalRequerido=false,capturaComoEvidencia=true,
+            pagoConfirmado=o.Pago=="ConfirmadoManual",
+            pagoAdicionalRequerido=diferido&&o.Pago!="ConfirmadoManual",
+            importeHnl=reserva?.TarifaHnl??Tarifa(o.Tamano),
+            pagador=reserva?.Pagador??"Remitente",capturaComoEvidencia=true,
             reserva,versionConsentimientoRetiro=reserva is null?VersionConsentimientoRetiro:VersionCapturaDemostrativa,
             versionCapturaDemostrativa=VersionCapturaDemostrativa,comparacionFacialRequerida=false,conservacionFotografiaDias=30,hardwareSimulado=true};
     }
@@ -207,10 +221,12 @@ internal sealed partial class EncomiendasOperativasSql
                 if(r.GetString(0)=="Remitente")remitente=Enum.Parse<EstadoConsentimientoEncomienda>(EstadoRemitente(cuenta,r.GetString(3),r.GetString(1)));else{destinatario=estado;acepta=r.GetBoolean(2);}
             }
         }
-        var personal=(await LeerReserva(c,tx,o.Id,ct))?.Servicio=="Personal";
+        var reserva=await LeerReserva(c,tx,o.Id,ct);
+        var personal=reserva?.Servicio=="Personal";
         if(personal){destinatario=remitente;acepta=true;}
         return new(o.Id,o.RemitenteId,o.DestinatarioId,Enum.Parse<EstadoEncomiendaOperativa>(o.Estado),activa,remitente,destinatario,acepta,
-            o.Pago=="ConfirmadoManual"?EstadoPagoEncomienda.ConfirmadoManual:EstadoPagoEncomienda.Pendiente,o.Vence,personal);
+            o.Pago=="ConfirmadoManual"?EstadoPagoEncomienda.ConfirmadoManual:EstadoPagoEncomienda.Pendiente,
+            o.Vence,personal,PagoDiferidoDestinatario(reserva));
     }
     private async Task<CondicionesPinEncomiendaOperativa> CondicionesPin(SqlConnection c,SqlTransaction tx,int reserva,Guid id,FinalidadPinEncomienda finalidad,CancellationToken ct)
     {

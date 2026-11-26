@@ -19,7 +19,9 @@ internal sealed partial class EncomiendasOperativasSql
         try {
             await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);
             var o=await Leer(c,tx,id,null,ct);Preparacion(o,Ahora);
-            Exigir(o.Pago=="ConfirmadoManual"&&await Consentimientos(c,tx,id,ct),"CondicionesPendientes","Faltan pago o consentimientos comprobados.");
+            Exigir((o.Pago=="ConfirmadoManual"||PagoDiferidoDestinatario(await LeerReserva(c,tx,id,ct)))
+                &&await Consentimientos(c,tx,id,ct),
+                "CondicionesPendientes","Faltan pago o consentimientos comprobados.");
             var reserva=await LeerReserva(c,tx,id,ct);var codigo=reserva?.CodigoCasillero??Texto(datos.CodigoCasillero,10,"el casillero");
             await ExigirCompartimento(c,tx,reserva,codigo,o.Tamano,ct);
             var pin=await VerificarPin(c,tx,o,FinalidadPinEncomienda.Deposito,datos.Pin,terminal,ct);

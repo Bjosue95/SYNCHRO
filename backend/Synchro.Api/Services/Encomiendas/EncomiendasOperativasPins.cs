@@ -14,7 +14,8 @@ internal sealed partial class EncomiendasOperativasSql
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
         if(finalidad==FinalidadPinEncomienda.Deposito)Preparacion(o,Ahora);
         else Exigir(o.Estado=="Depositada"&&o.UsoId.HasValue,"EstadoNoDisponible","El PIN de retiro se emite después del depósito confirmado.");
-        Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","Primero debe confirmarse el pago manual del remitente.");
+        Exigir(o.Pago=="ConfirmadoManual"||PagoDiferidoDestinatario(await LeerReserva(c,tx,id,ct)),
+            "PagoPendiente","La reserva necesita confirmación del pago.");
         if(finalidad==FinalidadPinEncomienda.Deposito) {
             Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Falta la autorización comprobada del remitente.");
         }
@@ -76,7 +77,8 @@ internal sealed partial class EncomiendasOperativasSql
             ?"DeclaracionManual:"+datos.PinId.ToString("N")
             :Texto(datos.MensajeReferencia,160,"la referencia del envío");
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
-        Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","El pago no está confirmado.");
+        Exigir(o.Pago=="ConfirmadoManual"||PagoDiferidoDestinatario(await LeerReserva(c,tx,id,ct)),
+            "PagoPendiente","El pago no está confirmado.");
         string finalidadEntrega;
         var personal=(await LeerReserva(c,tx,id,ct))?.Servicio=="Personal";
         await using(var q=Comando(c,tx,"SELECT Finalidad FROM dbo.PinesEncomiendaOperativa WITH(UPDLOCK,HOLDLOCK) WHERE Id=@pin AND ReservaId=@id",("@pin",datos.PinId),("@id",id)))
