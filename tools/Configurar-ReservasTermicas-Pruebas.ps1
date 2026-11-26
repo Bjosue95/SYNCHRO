@@ -110,7 +110,7 @@ WHERE c.Codigo IN(N'M04',N'M09');
     $ruta = Join-Path $carpeta ('SynchroDB_Pruebas_termicos_'+(Get-Date -Format 'yyyyMMdd_HHmmss')+'.bak')
     $backup = $db.CreateCommand()
     $backup.CommandTimeout = 180
-    $backup.CommandText = 'BACKUP DATABASE [SynchroDB_Pruebas] TO DISK=@ruta WITH COPY_ONLY,INIT,CHECKSUM;'
+    $backup.CommandText = 'BACKUP DATABASE [SynchroDB_Pruebas] TO DISK = @ruta WITH COPY_ONLY, INIT, CHECKSUM;'
     [void]$backup.Parameters.Add('@ruta',[System.Data.SqlDbType]::NVarChar,4000)
     $backup.Parameters['@ruta'].Value=$ruta
     [void]$backup.ExecuteNonQuery()
