@@ -116,15 +116,18 @@ public static class AdminMovimientosEndpoints
                       AND (@codigo IS NULL OR CHARINDEX(@codigo, Codigo)>0)
                     """;
 
-                string consulta = Fuente +
-                    "SELECT COUNT(*) FROM Registro " + filtros + ";" +
-                    Fuente +
+                // Las cadenas raw de C# no conservan un espacio final de
+                // forma implícita. Separar siempre los bloques SQL para evitar
+                // concatenaciones como "RegistroWHERE" y ")SELECT".
+                string consulta = Fuente + "\n" +
+                    "SELECT COUNT(*) FROM Registro\n" + filtros + ";\n" +
+                    Fuente + "\n" +
                     """
                     SELECT MovimientoId,Codigo,Servicio,Estado,InicioUtc,FinUtc,
                            Detalle,UsoId,EncomiendaId,SesionId
                     FROM Registro
-                    """ + filtros +
-                    " ORDER BY InicioUtc DESC,MovimientoId DESC " +
+                    """ + "\n" + filtros + "\n" +
+                    "ORDER BY InicioUtc DESC, MovimientoId DESC\n" +
                     "OFFSET @salto ROWS FETCH NEXT @cantidad ROWS ONLY;";
 
                 await using var cmd = new SqlCommand(consulta, db);
