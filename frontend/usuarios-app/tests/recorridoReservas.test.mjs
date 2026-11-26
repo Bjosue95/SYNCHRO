@@ -88,6 +88,15 @@ test('iconos de Tablet respetan tamaño en botones de reservar y volver', () => 
   assert.ok(vista.includes('.reserva-final__acciones .boton {'));
 });
 
+test('el botón revisar reserva no crece hasta 280px de alto en móviles', () => {
+  const vista = leer('PreReservaView');
+  const reglasMovil = vista.slice(vista.indexOf('@media (max-width: 470px)'));
+  assert.match(reglasMovil, /\.reserva-final__acciones \{ flex-direction: column-reverse; \}/);
+  assert.match(reglasMovil, /\.reserva-final__acciones \.boton \{[^}]*flex: 0 0 auto;/);
+  assert.match(reglasMovil, /\.reserva-final__acciones \.boton \{[^}]*min-height: 54px;/);
+  assert.match(reglasMovil, /\.reserva-final__acciones \.boton \{[^}]*height: auto;/);
+});
+
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
   const panel = leer('PanelView');
   assert.match(panel, /encomiendasApi\.listar\(/);
