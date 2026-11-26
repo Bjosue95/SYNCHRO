@@ -107,7 +107,7 @@ internal sealed partial class EncomiendasOperativasSql
             "ReservaNoDisponible","La reserva no corresponde a esta terminal.",404);
         var reserva=await LeerReserva(c,null,id,ct);
         Exigir(reserva is not null,"ReservaNoDisponible","Reserva no disponible.",404);
-        return new { reservaId=id,casillero=reserva.CodigoCasillero,
+        return new { reservaId=id,casillero=reserva!.CodigoCasillero,
             pagoConfirmado=o.Pago=="ConfirmadoManual",
             pagoAdicionalRequerido=PagoDiferidoDestinatario(reserva)&&o.Pago!="ConfirmadoManual",
             importeHnl=reserva.TarifaHnl??Tarifa(o.Tamano) };
