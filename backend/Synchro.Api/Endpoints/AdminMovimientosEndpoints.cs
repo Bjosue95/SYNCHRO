@@ -156,10 +156,9 @@ public static class AdminMovimientosEndpoints
                         usoId = lector.IsDBNull(7) ? (int?)null : lector.GetInt32(7),
                         encomiendaId = lector.IsDBNull(8) ? (int?)null : lector.GetInt32(8),
                         sesionId = lector.IsDBNull(9) ? (Guid?)null : lector.GetGuid(9),
-                        duracionMinutos = (int?)(
-                            fin.HasValue
-                            ? Math.Max(0, Math.Ceiling((fin.Value - inicio).TotalMinutes))
-                            : null)
+                        duracionMinutos = fin.HasValue
+                            ? (int?)Math.Max(0, (int)Math.Ceiling((fin.Value - inicio).TotalMinutes))
+                            : null
                     });
                 }
 
