@@ -8,8 +8,8 @@ const leer = nombre =>
 test('la reserva distingue la autorizacion del remitente y la del destinatario', () => {
   const reserva = leer('PreReservaView');
   assert.match(reserva, /normalizarTelefono\(telefono\.value\)/);
-  assert.match(reserva, /El administrador comprobará tu autorización de WhatsApp y el pago/);
-  assert.match(reserva, /Después de confirmar el depósito/);
+  assert.match(reserva, /La autorización de retiro del destinatario se gestiona después de confirmar el depósito/);
+  assert.match(reserva, /El pago seguirá pendiente hasta que lo confirme el administrador/);
   assert.match(reserva, /Number\.isSafeInteger\(Number\(d\?\.id\)\)/);
   assert.doesNotMatch(reserva, /No se comparan rostros ni necesitas registrar uno en la web/);
 });
