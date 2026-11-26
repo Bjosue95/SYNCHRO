@@ -200,7 +200,7 @@ async function cerrarSesion() {
 async function cancelar(item) {
   if(!window.confirm(`¿Cancelar la reserva ${item.codigoCasillero}? Solo se liberará si no se depositaron pertenencias.`))return;
   error.value='';aviso.value='';trabajando.value=String(item.intentoId);
-  try { await ejecutar('/api/admin/whatsapp-manual/cancelar',{intentoId:item.intentoId});if(pinActual.value?.intentoId===item.intentoId)pinActual.value=null;aviso.value='Reserva cancelada y casillero liberado con validación del servidor.';await actualizar(); }
+  try { await ejecutar('/api/admin/whatsapp-manual/cancelar',{intentoId:item.intentoId});if(pinActual.value?.intentoId===item.intentoId)pinActual.value=null;aviso.value='Reserva cancelada y casillero liberado con validación del servidor.';await actualizar();emit('actualizado'); }
   catch(e){error.value=e.message;}finally{trabajando.value='';}
 }
 function protegerSalida(evento){if(pinActual.value){evento.preventDefault();evento.returnValue='';}}
@@ -263,7 +263,7 @@ defineExpose({ actualizar });
     <template v-else>
       <div class="acciones">
         <span>Sesión: {{ rol }}</span>
-        <button class="secundario" @click="actualizar">Actualizar solicitudes</button>
+        <button v-if="!props.integrado" class="secundario" @click="actualizar">Actualizar solicitudes</button>
       </div>
       <p class="ayuda">Comprueba en WhatsApp el mensaje de aceptación del cliente, identifica la solicitud correspondiente e introduce su número antes de generar el PIN.</p>
       <p v-if="operaciones.length===0" class="tarjeta">No hay autorizaciones pendientes.</p>
