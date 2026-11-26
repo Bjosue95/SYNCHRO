@@ -24,10 +24,20 @@ test('los contadores reservables cuentan codigos unicos y no todas las filas SQL
 
 test('al cambiar entre encomienda y pertenencias se consulta nuevamente SQL', () => {
   const reserva = leer('PreReservaView');
-  assert.match(reserva, /watch\(servicio,\(\)=>\{revisando\.value=false;void cargar\(true\);\}\)/);
+  assert.match(reserva, /watch\(servicio,\(nuevo\)=>\{/);
+  assert.match(reserva, /void cargar\(true\)/);
   assert.match(reserva, /const cargaInicial=!discreta/);
   assert.match(reserva, /else actualizando\.value=true/);
   assert.match(reserva, /actual!==versionCatalogo/);
+});
+
+test('pertenencias personales solo habilita Normal y encomiendas permite termicos', () => {
+  const reserva = leer('PreReservaView');
+  assert.match(reserva, /const tipoPermitido=computed\(\(\)=>servicio\.value==='Encomienda'\|\|tipo\.value==='Normal'\)/);
+  assert.match(reserva, /if\(nuevo==='Personal' && tipo\.value!=='Normal'\)tipo\.value='Normal'/);
+  assert.match(reserva, /:disabled="servicio==='Personal' && t\.id!=='Normal'"/);
+  assert.match(reserva, /Exclusivo para encomiendas/);
+  assert.match(reserva, /const disponible=computed\(\(\)=>tipoPermitido\.value/);
 });
 
 test('las tarjetas tienen dimensiones fijas y muestran los iconos reales de Tablet', () => {

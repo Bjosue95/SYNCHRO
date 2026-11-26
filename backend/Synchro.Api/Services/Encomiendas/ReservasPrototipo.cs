@@ -72,6 +72,10 @@ internal sealed partial class EncomiendasOperativasSql
     {
         Exigir(d.Servicio is "Personal" or "Encomienda","ServicioInvalido","Selecciona pertenencias personales o encomienda.",400);
         Exigir(d.UbicacionId=="prototipo"&&d.TipoCasillero is "Normal" or "Refrigerado" or "Caliente","SeleccionInvalida","Selecciona un tipo y una ubicación disponibles.",400);
+        // La regla es también del servidor: ocultar tarjetas no impide peticiones directas.
+        Exigir(d.Servicio=="Encomienda"||d.TipoCasillero=="Normal",
+            "CasilleroExclusivoEncomiendas",
+            "Los casilleros refrigerados y calientes son exclusivos para encomiendas.",400);
         await using var q=Comando(c,tx,"""
             SELECT c.Codigo,c.Tipo,t.ConfiguracionJson FROM dbo.Casilleros c WITH(UPDLOCK,HOLDLOCK)
             LEFT JOIN dbo.CompartimentosServiciosTemporales t ON t.Codigo=c.Codigo

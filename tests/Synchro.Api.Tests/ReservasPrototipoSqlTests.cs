@@ -34,8 +34,6 @@ public sealed partial class EncomiendasOperativasSqlTests
 
     [Theory]
     [InlineData("Personal","Normal")]
-    [InlineData("Personal","Refrigerado")]
-    [InlineData("Personal","Caliente")]
     [InlineData("Encomienda","Normal")]
     [InlineData("Encomienda","Refrigerado")]
     [InlineData("Encomienda","Caliente")]
@@ -85,6 +83,20 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.All(detalle.GetProperty("evidencias").EnumerateArray(),e=>Assert.NotEqual(JsonValueKind.True,e.GetProperty("coincidenciaBiometrica").ValueKind));
         await using var lectura=new SqlConnection(Cadena);await lectura.OpenAsync();await using var comprobar=new SqlCommand("SELECT COUNT(*) FROM dbo.ReferenciasEncomiendaV3 WHERE PersonaId=@persona; SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",lectura);
         comprobar.Parameters.AddWithValue("@persona",f.Persona);comprobar.Parameters.AddWithValue("@codigo",f.Casillero);await using var r=await comprobar.ExecuteReaderAsync();await r.ReadAsync();Assert.Equal(0,r.GetInt32(0));await r.NextResultAsync();await r.ReadAsync();Assert.Equal("Disponible",r.GetString(0));
+    }
+
+    [Theory]
+    [InlineData("Refrigerado")]
+    [InlineData("Caliente")]
+    public async Task ReservaPersonalRechazaTermicosAunqueElClienteLosSoliciteDirectamente(string tipo)
+    {
+        var f=await Preparar();
+        var s=new EncomiendasOperativasSql(ConfiguracionReserva(f),f.Proteccion,TimeProvider.System);
+        var solicitud=new CrearReservaPrototipoSolicitud("Personal",tipo,"Mediano","prototipo",30);
+        var rechazo=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
+            s.Crear(f.Persona,"","Mediano",CancellationToken.None,solicitud));
+        Assert.Equal("CasilleroExclusivoEncomiendas",rechazo.Codigo);
+        Assert.Equal(400,rechazo.Estado);
     }
 
     [Fact]

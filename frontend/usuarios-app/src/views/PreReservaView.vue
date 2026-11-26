@@ -18,7 +18,8 @@ const porTamano=computed(()=>porTipo.value.filter(o=>o.tamano===tamano.value));
 const ubicaciones=computed(()=>[...new Map<string,string>(porTamano.value.map(o=>[o.ubicacionId,o.ubicacion])).entries()]);
 const elegibles=computed(()=>porTamano.value.filter(o=>o.ubicacionId===ubicacion.value));
 const duraciones=computed<number[]>(()=>[...new Set<number>(elegibles.value.flatMap(o=>o.duraciones))].sort((a,b)=>a-b));
-const disponible=computed(()=>elegibles.value.some(o=>o.duraciones.includes(minutos.value)));
+const tipoPermitido=computed(()=>servicio.value==='Encomienda'||tipo.value==='Normal');
+const disponible=computed(()=>tipoPermitido.value && elegibles.value.some(o=>o.duraciones.includes(minutos.value)));
 const ubicacionNombre=computed(()=>ubicaciones.value.find(([id])=>id===ubicacion.value)?.[1]);
 watch(() => route.query.servicio, valor => {
   const nuevo = valor === 'Encomienda' ? 'Encomienda' : 'Personal';
@@ -58,7 +59,13 @@ async function cargar(discreta=false){
 }
 // Encomienda y pertenencias comparten el inventario, pero lo refrescamos en
 // segundo plano para evitar bloquear la seleccion.
-watch(servicio,()=>{revisando.value=false;void cargar(true);});
+watch(servicio,(nuevo)=>{
+  // Frío y calor se reservan exclusivamente para encomiendas.
+  // Al volver a pertenencias personales se restaura Normal sin ocultar las tarjetas.
+  if(nuevo==='Personal' && tipo.value!=='Normal')tipo.value='Normal';
+  revisando.value=false;
+  void cargar(true);
+});
 function revisar(){
   error.value='';
   if(!disponible.value){
@@ -112,7 +119,12 @@ onMounted(cargar);
           <SeleccionReservaCard titulo="Una encomienda" descripcion="El destinatario retira con su PIN" icono-tablet="encomienda" :seleccionado="servicio==='Encomienda'" @seleccionar="servicio='Encomienda'" />
         </div></section>
         <section class="env-card"><h2>Tipo de casillero</h2><div class="reserva-opciones reserva-tres">
-          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre" :icono-tablet="t.id" :seleccionado="tipo===t.id" :disponibles="cantidadPorTipo(t.id)" @seleccionar="tipo=t.id" />
+          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre"
+            :icono-tablet="t.id" :seleccionado="tipo===t.id"
+            :descripcion="servicio==='Personal' && t.id!=='Normal' ? 'Exclusivo para encomiendas' : undefined"
+            :disponibles="servicio==='Personal' && t.id!=='Normal' ? undefined : cantidadPorTipo(t.id)"
+            :disabled="servicio==='Personal' && t.id!=='Normal'"
+            @seleccionar="tipo=t.id" />
         </div><p v-if="!opciones.length">No hay casilleros compatibles disponibles. <button class="boton boton-secundario" @click="cargar(true)">Actualizar disponibilidad</button></p></section>
         <section v-if="porTipo.length" class="env-card"><h2>Tamaño</h2><div class="reserva-opciones reserva-tres">
           <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" :icono-tablet="t.valor" :seleccionado="tamano===t.valor" :disponibles="cantidadPorTamano(t.valor)" @seleccionar="tamano=t.valor" />
