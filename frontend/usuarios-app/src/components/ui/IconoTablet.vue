@@ -15,7 +15,8 @@ const archivos: Record<string, string> = {
   tiempo: '21_tiempo_tarifa',
   whatsapp: '40_whatsapp',
   volver: '28_regresar',
-  continuar: '29_continuar'
+  continuar: '29_continuar',
+  pago: '22_pagos'
 };
 const props = withDefaults(defineProps<{ nombre: string; tamano?: number }>(), { tamano: 58 });
 const { tema } = useTheme();
