@@ -118,3 +118,23 @@ export async function identificarDepositoReservaWeb(pin) {
 
   return enviar("/depositos/identificar", { pin });
 }
+
+export async function solicitarPagoReservaWebTablet(id, pin, metodo) {
+  validarId(id);
+  validarPin(pin);
+  if (!["Efectivo","Tarjeta","NFC"].includes(metodo)) {
+    throw new Error("Selecciona un método de pago válido.");
+  }
+  // La petición contiene un PIN de retiro y un método permitido.
+  // Nunca datos de tarjeta, vencimiento o código de seguridad.
+  return enviar(`/${id}/pago/solicitar`, { pin, metodo });
+}
+
+export async function consultarPagoReservaWebTablet(id) {
+  validarId(id);
+  const respuesta = await fetch(`${BASE}/${id}/pago/estado`, {
+    credentials: "same-origin",
+    cache: "no-store"
+  });
+  return leer(respuesta);
+}
