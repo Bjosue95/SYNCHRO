@@ -113,7 +113,7 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.doesNotMatch(api, /numeroTarjetaPrueba|venceTarjetaPrueba|codigoTarjetaPrueba/);
   assert.doesNotMatch(vista, /localStorage|sessionStorage/);
   assert.doesNotMatch(vista, /Volver a tamaños/);
-  assert.match(vista, /El resguardo de pertenencias personales conserva su proceso de pago/);
+  assert.match(vista, /La reserva personal requiere la comprobación administrativa del pago antes del depósito/);
 });
 
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
