@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { encomiendasApi } from "../services/encomiendasApi.js";
 import { fechaHonduras, nombreEstadoReserva } from "../services/formatos.js";
@@ -12,12 +12,18 @@ const route = useRoute(),
   cancelando=ref(route.query.cancelar==='1'),motivoCancelacion=ref(""),detalleCancelacion=ref(""),confirmarCancelacion=ref(false);
 let reloj: ReturnType<typeof setInterval> | undefined,
   montada = true;
+let consultaActual = 0;
 const pinEntregado = computed(() =>
   detalle.value?.pines?.some(
-    (p: any) => p.finalidad === "Deposito" && p.estado === "Entregado",
+    (p: any) => p.finalidad === "Deposito" && ["Entregado","Consumido"].includes(p.estado),
   ),
 );
 const puedeCancelar=computed(()=>detalle.value&&['Preparacion','ListaParaDeposito','Vencida','PendienteConsentimiento','Pendiente'].includes(detalle.value.estado)&&!detalle.value.depositoUtc);
+const esPersonal = computed(() => detalle.value?.reserva?.servicio === 'Personal');
+const depositoConfirmado = computed(() =>
+  Boolean(detalle.value?.depositoUtc) ||
+  ['Depositada','Retirada'].includes(detalle.value?.estado)
+);
 async function cancelar() {
   if(procesando.value||!confirmarCancelacion.value||!motivoCancelacion.value)return;
   procesando.value=true;error.value="";
@@ -30,18 +36,20 @@ async function cancelar() {
   finally{procesando.value=false;}
 }
 async function cargar() {
-  if (cargando.value) return;
+  const numeroReserva = String(route.params.id);
+  const turno = ++consultaActual;
   cargando.value = true;
   try {
-    const d = await encomiendasApi.detalle(route.params.id);
-    if (montada) {
+    const d = await encomiendasApi.detalle(numeroReserva);
+    if (montada && turno === consultaActual && String(route.params.id) === numeroReserva) {
       detalle.value = d;
       error.value = "";
     }
   } catch (e) {
-    if (montada) error.value = (e as Error).message;
+    if (montada && turno === consultaActual)
+      error.value = (e as Error).message || "No se pudo consultar tu reserva.";
   } finally {
-    cargando.value = false;
+    if (turno === consultaActual) cargando.value = false;
   }
 }
 function enlaceValido(valor: unknown): valor is string {
@@ -62,14 +70,22 @@ async function copiarMensaje() {
       "No se pudo copiar. Selecciona el mensaje de invitación y cópialo manualmente.";
   }
 }
+watch(() => route.params.id, () => {
+  detalle.value = null;
+  aviso.value = "";
+  error.value = "";
+  cancelando.value = route.query.cancelar === '1';
+  void cargar();
+});
 onMounted(async () => {
   await cargar();
   reloj = setInterval(() => {
-    if (!document.hidden && !procesando.value) void cargar();
+    if (!document.hidden && !procesando.value && !cargando.value) void cargar();
   }, 15000);
 });
 onBeforeUnmount(() => {
   montada = false;
+  consultaActual++;
   clearInterval(reloj);
 });
 </script>
@@ -88,7 +104,7 @@ onBeforeUnmount(() => {
           <p>
             {{ detalle.tamano }} ·
             <span class="env-status">{{
-              detalle.estado==='Retirada'&&!detalle.retiradaConfirmada?'Retiro pendiente de confirmar':nombreEstadoReserva(detalle.estado)
+              detalle.estado==='Retirada'&&!detalle.retiradaConfirmada?'Retiro pendiente de confirmar':esPersonal&&detalle.retiradaConfirmada?'Pertenencias retiradas':nombreEstadoReserva(detalle.estado)
             }}</span>
           </p>
         </div>
@@ -122,7 +138,7 @@ onBeforeUnmount(() => {
       <section v-if="detalle.historica" class="env-card">
         <h2>Registro anterior</h2><dl class="env-facts"><div><dt>Creación</dt><dd>{{ fechaHonduras(detalle.creadaUtc) }}</dd></div><div><dt>Destinatario</dt><dd>{{ detalle.telefonoDestinatario }}</dd></div><div><dt>Depósito</dt><dd>{{ detalle.depositoUtc ? fechaHonduras(detalle.depositoUtc) : 'Pendiente' }}</dd></div><div><dt>Retiro confirmado</dt><dd>{{ detalle.retiradaConfirmada ? fechaHonduras(detalle.entregaUtc) : 'Retiro no confirmado' }}</dd></div></dl>
       </section>
-      <template v-if="!detalle.historica">
+      <template v-if="!detalle.historica && !detalle.cancelacion">
       <div class="env-two-columns">
         <section
           v-for="rol in (detalle.reserva?.servicio==='Personal'?['remitente']:['remitente','destinatario'])"
@@ -146,14 +162,17 @@ onBeforeUnmount(() => {
             {{ nombreEstadoReserva(detalle[rol].consentimiento) }}.
           </p>
           <p v-if="rol === 'destinatario'">
-            Aceptación de la encomienda:
-            {{
-              detalle.destinatario.aceptaEncomienda
+            <template v-if="!depositoConfirmado">
+              La autorización del destinatario se habilitará cuando se confirme el depósito.
+            </template>
+            <template v-else>
+              Aceptación de la encomienda:
+              {{ detalle.destinatario.aceptaEncomienda
                 ? "Comprobada por el administrador"
-                : "Pendiente de comprobar después del depósito"
-            }}.
+                : "Pendiente de comprobar por el administrador" }}.
+            </template>
           </p>
-          <template v-if="detalle.estado !== 'Cancelada' && ['Pendiente', 'Revocado'].includes(detalle[rol].consentimiento)"
+          <template v-if="(rol === 'remitente' || depositoConfirmado) && detalle.estado !== 'Cancelada' && ['Pendiente', 'Revocado'].includes(detalle[rol].consentimiento)"
             ><p class="env-help">
               {{
                 rol === "remitente"
@@ -174,12 +193,12 @@ onBeforeUnmount(() => {
                   : "Enlace de aceptación del destinatario"
               }}</a
             >
-            <p v-if="!detalle[rol].enlaceWhatsApp" class="env-help">
+            <p v-if="rol === 'remitente' && !detalle[rol].enlaceWhatsApp" class="env-help">
               El número oficial todavía no está configurado en el servidor.
             </p></template>
             <a
               v-if="
-                rol === 'destinatario' &&
+                rol === 'destinatario' && depositoConfirmado &&
                 enlaceValido(detalle.compartir?.enlaceWhatsApp)
               "
               :href="detalle.compartir.enlaceWhatsApp"
@@ -189,7 +208,7 @@ onBeforeUnmount(() => {
             >
               Compartir con destinatario
             </a>
-            <template v-if="rol === 'destinatario' && detalle.compartir?.mensaje">
+            <template v-if="rol === 'destinatario' && depositoConfirmado && detalle.compartir?.mensaje">
               <label class="campo"><span>Invitación para el destinatario</span><textarea :value="detalle.compartir.mensaje" readonly rows="7" /></label>
               <button type="button" class="boton boton-secundario" @click="copiarMensaje">Copiar mensaje</button>
               <p class="env-help">Si WhatsApp no está disponible, copia el mensaje y compártelo manualmente. Abrir, copiar o compartir no confirma la aceptación.</p>
@@ -233,9 +252,8 @@ onBeforeUnmount(() => {
           </div>
         </dl>
         <p class="env-help">
-          El administrador registra el pago efectivamente comprobado. No hay
-          pasarela conectada. El destinatario no paga al retirar una encomienda
-          ya pagada.
+          El administrador registra el pago efectivamente comprobado. No hay pasarela de pago conectada.
+          <template v-if="!esPersonal">El destinatario no paga otra vez al retirar una encomienda ya pagada.</template>
         </p>
       </section>
       <section class="env-card">
@@ -243,7 +261,7 @@ onBeforeUnmount(() => {
         <ol class="env-checklist">
           <li>
             {{
-              detalle.condiciones.consentimientosConfirmados
+              detalle.condiciones.remitenteAutorizado
                 ? "Consentimiento de WhatsApp comprobado."
                 : detalle.reserva?.servicio==='Personal' ? "Espera la comprobación manual de tu consentimiento." : "Espera la comprobación manual del consentimiento del remitente."
             }}
@@ -264,7 +282,7 @@ onBeforeUnmount(() => {
           </li>
         </ol>
         <p class="env-help">
-          Usa el PIN de depósito en la tablet cuando esté integrada. La tablet hará una captura demostrativa al depositar y otra al retirar, sin comparar rostros. No debes registrar ni verificar tu rostro en la web.
+          Usa tu PIN de depósito en la terminal SYNCHRO. El estado cambiará cuando el servidor confirme que la encomienda o tus pertenencias quedaron depositadas.
         </p>
       </section>
       <section class="env-card">
@@ -288,9 +306,7 @@ onBeforeUnmount(() => {
           </li>
         </ul>
         <p class="env-help">
-          Los valores de los PIN no se muestran en este historial. La fotografía
-          del destinatario constituye evidencia de retiro, sin afirmar una
-          coincidencia biométrica.
+          Los valores de los PIN no se muestran en este historial. La autorización de retiro solo se habilita después de confirmar el depósito. La identidad y el retiro se registran durante la operación.
         </p>
       </section>
       </template>
