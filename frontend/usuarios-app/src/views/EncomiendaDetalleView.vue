@@ -20,6 +20,24 @@ const pinEntregado = computed(() =>
 );
 const puedeCancelar=computed(()=>detalle.value&&['Preparacion','ListaParaDeposito','Vencida','PendienteConsentimiento','Pendiente'].includes(detalle.value.estado)&&!detalle.value.depositoUtc);
 const esPersonal = computed(() => detalle.value?.reserva?.servicio === 'Personal');
+const depositoDisponible=computed(()=>
+  Boolean(detalle.value?.condiciones?.remitenteAutorizado)&&
+  (Boolean(detalle.value?.condiciones?.pagoConfirmado)||
+   detalle.value?.reserva?.servicio==='Encomienda'&&
+   detalle.value?.reserva?.pagador==='Destinatario'&&
+   detalle.value?.reserva?.modalidadPago==='Tablet')
+);
+const pinRetiroEntregado=computed(()=>detalle.value?.pines?.some(
+  (p:any)=>p.finalidad==='Retiro'&&['Entregado','Consumido'].includes(p.estado)
+));
+const etapaActual=computed(()=>{
+  if(!detalle.value)return 0;
+  if(detalle.value?.retiradaConfirmada)return 4;
+  if(depositoConfirmado.value)return 3;
+  if(pinEntregado.value)return 2;
+  if(depositoDisponible.value)return 1;
+  return 0;
+});
 const depositoConfirmado = computed(() =>
   Boolean(detalle.value?.depositoUtc) ||
   ['Depositada','Retirada'].includes(detalle.value?.estado)
@@ -121,6 +139,28 @@ onBeforeUnmount(() => {
           Actualizar estado
         </button>
       </header>
+      <section v-if="!detalle.historica && !detalle.cancelacion" class="env-card reserva-seguimiento" aria-labelledby="reserva-seguimiento-titulo">
+        <h2 id="reserva-seguimiento-titulo">Progreso de tu operación</h2>
+        <ol class="reserva-seguimiento__pasos">
+          <li :class="{activo:etapaActual>=0}"><span>1</span><strong>Reserva y pago</strong></li>
+          <li :class="{activo:etapaActual>=1}"><span>2</span><strong>Autorización</strong></li>
+          <li :class="{activo:etapaActual>=2}"><span>3</span><strong>PIN de depósito</strong></li>
+          <li :class="{activo:etapaActual>=3}"><span>4</span><strong>Depósito confirmado</strong></li>
+          <li :class="{activo:etapaActual>=4}"><span>5</span><strong>Retiro</strong></li>
+        </ol>
+        <p v-if="!detalle.condiciones?.pagoConfirmado && detalle.reserva?.modalidadPago==='WebTarjeta'" role="status">
+          La solicitud de pago está en revisión. Al confirmarse, el administrador podrá gestionar el PIN de depósito cuando esté autorizado el WhatsApp.
+        </p>
+        <p v-else-if="!depositoConfirmado && !pinEntregado" role="status">
+          {{ depositoDisponible ? 'Esperando que el administrador emita y entregue el PIN de depósito.' : 'Completa la autorización pendiente para continuar con el depósito.' }}
+        </p>
+        <p v-else-if="!depositoConfirmado" role="status">El PIN de depósito ya fue entregado al teléfono autorizado. Esperando el depósito en la estación SYNCHRO.</p>
+        <p v-else-if="!esPersonal && !pinRetiroEntregado" role="status">
+          El depósito está confirmado. Ahora se habilita la aceptación del destinatario; después de verificarla, el administrador podrá entregarle su PIN de retiro.
+        </p>
+        <p v-else-if="!esPersonal && pinRetiroEntregado" role="status">PIN de retiro entregado al teléfono autorizado del destinatario.</p>
+        <p v-else role="status">Consulta la información de depósito y retiro de tus pertenencias.</p>
+      </section>
       <section v-if="detalle.reserva" class="env-card"><h2>{{ detalle.reserva.servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</h2><p>{{ detalle.reserva.tipoCasillero }} · {{ nombreEstadoReserva(detalle.tamano) }} · {{ detalle.reserva.minutos }} minutos</p><p>{{ detalle.reserva.ubicacion }}</p></section>
       <section v-if="detalle.cancelacion" class="env-card" aria-label="Cancelación registrada">
         <h2>Reserva cancelada</h2><p>{{ fechaHonduras(detalle.cancelacion.fechaUtc) }} · {{ detalle.cancelacion.motivo }}</p>
@@ -301,6 +341,8 @@ onBeforeUnmount(() => {
       </section>
       <section class="env-card">
         <h2>Depósito y retiro</h2>
+        <p v-if="!esPersonal && !depositoConfirmado" class="env-help">El envío de la invitación y la entrega del PIN del destinatario permanecen deshabilitados hasta que la tablet confirme el depósito.</p>
+        <p v-else-if="!esPersonal && depositoConfirmado" class="env-help">Depósito confirmado. Ya puedes compartir la invitación de WhatsApp con el destinatario. Su aceptación debe ser comprobada antes de que el administrador emita el PIN de retiro.</p>
         <p v-if="detalle.estado === 'Depositada'">
           El depósito está confirmado. El administrador puede emitir y
           entregar el PIN de retiro al teléfono autorizado.
@@ -339,3 +381,13 @@ onBeforeUnmount(() => {
     </template>
   </section>
 </template>
+
+<style scoped>
+.reserva-seguimiento {display:grid;gap:17px;}
+.reserva-seguimiento__pasos {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;list-style:none;padding:0;margin:0;}
+.reserva-seguimiento__pasos li {display:grid;justify-items:center;gap:9px;text-align:center;color:var(--text-muted);font-size:11px;line-height:1.4;}
+.reserva-seguimiento__pasos li span {width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border-strong);background:var(--surface-soft);color:var(--text-strong);border-radius:50%;font-weight:800;}
+.reserva-seguimiento__pasos li.activo span {border-color:var(--brand-accent);background:var(--surface-accent);}
+.reserva-seguimiento__pasos li.activo strong {color:var(--text-strong);}
+@media(max-width:600px){.reserva-seguimiento__pasos{grid-template-columns:repeat(3,minmax(0,1fr));}}
+</style>
