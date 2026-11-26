@@ -16,16 +16,69 @@ const elegibles=computed(()=>porTamano.value.filter(o=>o.ubicacionId===ubicacion
 const duraciones=computed<number[]>(()=>[...new Set<number>(elegibles.value.flatMap(o=>o.duraciones))].sort((a,b)=>a-b));
 const disponible=computed(()=>elegibles.value.some(o=>o.duraciones.includes(minutos.value)));
 const ubicacionNombre=computed(()=>ubicaciones.value.find(([id])=>id===ubicacion.value)?.[1]);
+watch(() => route.query.servicio, valor => {
+  const nuevo = valor === 'Encomienda' ? 'Encomienda' : 'Personal';
+  if (nuevo !== servicio.value) { servicio.value = nuevo; revisando.value = false; }
+});
 watch(tipo,()=>{tamano.value='';ubicacion.value='';minutos.value=0;revisando.value=false;});
 watch(tamano,()=>{ubicacion.value='';minutos.value=0;revisando.value=false;});
 watch(ubicaciones,lista=>{if(lista.length===1)ubicacion.value=lista[0][0];});
 watch(duraciones,lista=>{if(!lista.includes(minutos.value))minutos.value=lista[0]||0;});
-async function cargar(){cargando.value=true;error.value='';try{const datos=await encomiendasApi.disponibilidad();opciones.value=datos.opciones;ubicacionPendiente.value=datos.ubicacionPendiente;}catch(e){error.value=(e as Error).message;}finally{cargando.value=false;}}
-function revisar(){error.value='';if(!disponible.value){error.value='Selecciona tipo, tamaño, ubicación y duración disponibles.';return;}if(servicio.value==='Encomienda'&&!normalizarTelefono(telefono.value)){error.value='Escribe el WhatsApp del destinatario con código de país.';return;}revisando.value=true;}
+async function cargar(){
+  if(cargando.value && opciones.value.length)return;
+  cargando.value=true;
+  error.value='';
+  try {
+    const datos=await encomiendasApi.disponibilidad();
+    if(!Array.isArray(datos?.opciones))throw new Error('La disponibilidad no pudo verificarse.');
+    opciones.value=datos.opciones;
+    ubicacionPendiente.value=Boolean(datos.ubicacionPendiente);
+    if(!disponible.value)revisando.value=false;
+  } catch(e) {
+    opciones.value=[];
+    ubicacionPendiente.value=false;
+    revisando.value=false;
+    error.value=(e as Error).message || 'No pudimos consultar la disponibilidad.';
+  } finally { cargando.value=false; }
+}
+function revisar(){
+  error.value='';
+  if(!disponible.value){
+    error.value='Selecciona tipo, tamaño, ubicación y duración disponibles.';
+    return;
+  }
+  if(servicio.value==='Encomienda'&&!normalizarTelefono(telefono.value)){
+    error.value='Escribe el WhatsApp del destinatario con código de país.';
+    return;
+  }
+  revisando.value=true;
+}
 async function crear(){
-  if(enviando.value)return;enviando.value=true;error.value='';
-  try{const d=await encomiendasApi.reservar({servicio:servicio.value,tipoCasillero:tipo.value,tamanoSolicitado:tamano.value,ubicacionId:ubicacion.value,minutos:minutos.value,telefonoDestinatario:servicio.value==='Encomienda'?normalizarTelefono(telefono.value):null});await router.replace('/reservas/'+d.id);}
-  catch(e){error.value=(e as Error).message;revisando.value=false;try{const datos=await encomiendasApi.disponibilidad();opciones.value=datos.opciones;}catch{opciones.value=[];}}finally{enviando.value=false;}
+  if(enviando.value)return;
+  if(!disponible.value || (servicio.value==='Encomienda'&&!normalizarTelefono(telefono.value))){
+    revisando.value=false;
+    error.value='Verifica la selección antes de crear tu reserva.';
+    return;
+  }
+  enviando.value=true;
+  error.value='';
+  try {
+    const d=await encomiendasApi.reservar({
+      servicio:servicio.value,
+      tipoCasillero:tipo.value,
+      tamanoSolicitado:tamano.value,
+      ubicacionId:ubicacion.value,
+      minutos:minutos.value,
+      telefonoDestinatario:servicio.value==='Encomienda'?normalizarTelefono(telefono.value):null
+    });
+    if(!Number.isSafeInteger(Number(d?.id))||Number(d.id)<=0)
+      throw new Error('La reserva fue recibida, pero el servidor no devolvió una referencia válida. Consulta Mis reservas antes de crear otra.');
+    await router.replace('/reservas/'+d.id);
+  } catch(e) {
+    error.value=(e as Error).message || 'No se pudo completar la reserva.';
+    // En caso de error de conexión no se genera otra reserva automáticamente.
+    revisando.value=false;
+  } finally { enviando.value=false; }
 }
 onMounted(cargar);
 </script>
@@ -48,15 +101,16 @@ onMounted(cargar);
         <form v-if="tamano" class="env-card formulario" @submit.prevent="revisar">
           <h2>Ubicación y duración</h2>
           <label class="campo"><span>Ubicación</span><select v-model="ubicacion" required><option value="" disabled>Selecciona una ubicación</option><option v-for="[id,nombre] in ubicaciones" :key="id" :value="id">{{ nombre }}</option></select></label>
-          <p v-if="ubicacionPendiente" class="env-help">El inventario del prototipo todavía no tiene una ubicación geográfica configurada.</p>
+          <p v-if="ubicacionPendiente" class="env-help">La ubicación de esta estación está pendiente de confirmación. Comprueba la dirección antes de continuar.</p>
           <label class="campo"><span>Duración</span><select v-model="minutos" required><option :value="0" disabled>Selecciona una duración</option><option v-for="m in duraciones" :key="m" :value="m">{{ m }} minutos</option></select></label>
-          <label v-if="servicio==='Encomienda'" class="campo"><span>WhatsApp del destinatario</span><input v-model="telefono" type="tel" inputmode="tel" maxlength="16" placeholder="+504XXXXXXXX" required /><small>Su aceptación se comprueba por WhatsApp para esta encomienda.</small></label>
+          <label v-if="servicio==='Encomienda'" class="campo"><span>WhatsApp del destinatario</span><input v-model="telefono" type="tel" inputmode="tel" maxlength="16" placeholder="+504XXXXXXXX" required /><small>La autorización de retiro del destinatario se habilita después de confirmar el depósito.</small></label>
           <button class="boton boton-primario" :disabled="!disponible">Revisar reserva</button>
         </form>
       </template>
       <section v-else class="env-card"><h2>Tu reserva</h2><dl class="env-facts"><div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div><div><dt>Casillero</dt><dd>{{ tipo }} · {{ tamano }}</dd></div><div><dt>Ubicación</dt><dd>{{ ubicacionNombre }}</dd></div><div><dt>Duración</dt><dd>{{ minutos }} minutos</dd></div><div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div></dl>
-        <p>El administrador comprobará el consentimiento de WhatsApp y el pago antes de entregarte el PIN de depósito. El PIN de retiro será diferente y se entregará después del depósito.</p>
-        <p class="env-help">Las capturas demostrativas se realizarán en la tablet al depositar y retirar. No se comparan rostros ni necesitas registrar uno en la web.</p>
+        <p>El administrador comprobará tu autorización de WhatsApp y el pago antes de entregarte el PIN de depósito.</p>
+        <p class="env-help" v-if="servicio==='Encomienda'">Después de confirmar el depósito, se podrá gestionar la autorización del destinatario y entregarle un PIN diferente para el retiro.</p>
+        <p class="env-help" v-else>Recibirás un PIN de depósito y otro de retiro. Consulta el estado de cada operación desde Mis reservas.</p>
         <SynButton tipo="button" :cargando="enviando" @click="crear">Confirmar reserva</SynButton><button class="boton boton-secundario" :disabled="enviando" @click="revisando=false">Cambiar selección</button>
       </section>
     </template>
