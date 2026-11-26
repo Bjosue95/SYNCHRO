@@ -62,6 +62,15 @@ const autorizado = computed(
 const pagado = computed(
   () => detalle.value?.pago.estado === "ConfirmadoManual",
 );
+const pagoDiferido = computed(() =>
+  detalle.value?.reserva?.servicio==="Encomienda" &&
+  detalle.value?.reserva?.pagador==="Destinatario" &&
+  detalle.value?.reserva?.modalidadPago==="Tablet"
+);
+const pagoDemoReserva = computed(() =>
+  detalle.value?.reserva?.modalidadPago==="WebTarjeta" || pagoDiferido.value
+);
+const permitePin = computed(() => pagado.value || pagoDiferido.value);
 const ruta = () => `/${detalle.value.id}`;
 function fecha(valor: string) {
   return valor
@@ -544,7 +553,7 @@ onBeforeUnmount(() => {
         </section>
       </div>
       <section v-if="!props.centroWhatsApp" class="enc-card">
-        <h3>Pago del remitente</h3>
+        <h3>{{ pagoDiferido?'Pago del destinatario en Tablet':'Pago del remitente' }}</h3>
         <dl class="enc-facts">
           <div>
             <dt>Estado</dt>
@@ -568,13 +577,19 @@ onBeforeUnmount(() => {
             </dd>
           </div>
         </dl>
-        <p class="enc-help">
-          Sin pasarela de pago. Confirma únicamente dinero efectivamente
-          recibido. Un cobro simulado de otros servicios no acredita este pago.
-          El destinatario no paga de nuevo.
+        <p v-if="pagoDemoReserva" class="enc-help">
+          Origen: {{ pagoDiferido?'Tablet · Destinatario':'Web · Remitente' }}.
+          Esta operación es de prueba y se confirma desde Cobros pendientes.
+          <template v-if="pagoDiferido">
+            El PIN de depósito se entrega antes del pago; el retiro permanecerá bloqueado hasta confirmarlo.
+          </template>
+        </p>
+        <p v-else class="enc-help">
+          Sin pasarela de pago. Comprueba únicamente pagos recibidos realmente.
+          Las reservas personales conservan su proceso de pago manual.
         </p>
         <form
-          v-if="enPreparacion && !pagado"
+          v-if="enPreparacion && !pagado && !pagoDemoReserva"
           class="enc-form enc-payment"
           @submit.prevent="confirmarPago"
         >
@@ -649,7 +664,7 @@ onBeforeUnmount(() => {
         <ul>
           <li v-for="p in detalle.pines" :key="p.id">
             {{ p.finalidad }}: {{ p.estado }} · Vence {{ fecha(p.venceUtc) }}
-            <button v-if="p.estado === 'Emitido'" type="button" class="enc-button" :disabled="procesando || !pagado" @click="prepararEntrega(p)">Registrar entrega manual</button>
+            <button v-if="p.estado === 'Emitido'" type="button" class="enc-button" :disabled="procesando || !permitePin" @click="prepararEntrega(p)">Registrar entrega manual</button>
           </li>
         </ul>
         <div class="enc-actions">
@@ -659,7 +674,7 @@ onBeforeUnmount(() => {
             :disabled="
               procesando ||
               !enPreparacion ||
-              !pagado ||
+              !permitePin ||
               !autorizado
             "
             @click="emitir('deposito')"
@@ -671,7 +686,7 @@ onBeforeUnmount(() => {
             :disabled="
               procesando ||
               detalle.estado !== 'Depositada' ||
-              !pagado ||
+              !permitePin ||
               detalle.destinatario.consentimiento !== 'Confirmado'
             "
             @click="emitir('retiro')"
