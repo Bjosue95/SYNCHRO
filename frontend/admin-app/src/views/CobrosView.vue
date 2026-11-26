@@ -544,7 +544,7 @@ onMounted(actualizarTodo);
           <template v-if="item.requiereImporteManual">
             <label :for="'reserva-motivo-'+item.reservaId">Justificación de tarifa manual</label>
             <input :id="'reserva-motivo-'+item.reservaId"
-              v-model="justificacionesReservas[item.reservaId]" maxlength="250"
+              v-model="justificacionesReservas[item.reservaId]" type="text" maxlength="250"
               placeholder="Describe el importe utilizado" :disabled="!!procesandoReserva" />
           </template>
           <label class="cobro-check">
