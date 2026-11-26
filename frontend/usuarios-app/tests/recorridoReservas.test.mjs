@@ -157,3 +157,12 @@ test('el pago muestra instrucciones y permite confirmar para ver errores', () =>
   assert.match(vista, /:disabled="enviando"\s+@click="crear"/);
   assert.match(vista, /pagoError\.value='Los valores no coinciden/);
 });
+
+test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /const importeReserva=computed/);
+  assert.match(vista, /opcion\.tarifas\?\.\[minutos\.value\]/);
+  assert.match(vista, /Total de la reserva/);
+  assert.match(vista, /importeTexto/);
+  assert.match(vista, /Importe por definir/);
+});
