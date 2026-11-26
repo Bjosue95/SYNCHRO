@@ -114,9 +114,9 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.doesNotMatch(api, /numeroTarjetaPrueba|venceTarjetaPrueba|codigoTarjetaPrueba/);
   assert.doesNotMatch(vista, /localStorage|sessionStorage/);
   assert.doesNotMatch(vista, /Volver a tamaños/);
-  assert.match(vista, /La reserva personal requiere la comprobación administrativa del pago antes del depósito/);
+  assert.match(vista, /El pago presencial se realizará mediante el proceso habitual de la tablet/);
   assert.match(vista, /\? 'Confirmar pago' : 'Confirmar reserva'/);
-  assert.match(vista, /modalidadPago:servicio\.value==='Encomienda'/);
+  assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
 });
 
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
