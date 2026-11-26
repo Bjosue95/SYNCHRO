@@ -25,7 +25,10 @@ const grupos = [
   ] },
 ];
 
-const tituloActual = computed(() => grupos.flatMap(x => x.enlaces).find(x => x.ruta === route.path)?.titulo || "Administración");
+const tituloActual = computed(() =>
+  grupos.flatMap(x => x.enlaces).find(x => x.ruta === route.path)?.titulo ||
+  (route.path === "/admin/encomiendas" ? "Ficha de encomienda" : "Administración")
+);
 watch(() => route.path, () => { menuAbierto.value = false; });
 function cerrarConEscape(e) { if (e.key === "Escape") menuAbierto.value = false; }
 
