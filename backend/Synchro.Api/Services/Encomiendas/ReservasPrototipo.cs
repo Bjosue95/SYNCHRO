@@ -74,7 +74,7 @@ internal sealed partial class EncomiendasOperativasSql
         Exigir(d.UbicacionId=="prototipo"&&d.TipoCasillero is "Normal" or "Refrigerado" or "Caliente","SeleccionInvalida","Selecciona un tipo y una ubicación disponibles.",400);
         Exigir(
             d.Pagador is null && d.ModalidadPago is null ||
-            d.Servicio=="Encomienda" && d.Pagador=="Remitente" && d.ModalidadPago=="WebTarjeta" ||
+            (d.Servicio=="Encomienda" || d.Servicio=="Personal") && d.Pagador=="Remitente" && d.ModalidadPago=="WebTarjeta" ||
             d.Servicio=="Encomienda" && d.Pagador=="Destinatario" && d.ModalidadPago=="Tablet",
             "PreferenciaPagoInvalida","Selecciona quién pagará y dónde se realizará el pago.",400);
         // La regla es también del servidor: ocultar tarjetas no impide peticiones directas.
