@@ -257,7 +257,7 @@ onBeforeUnmount(() => {
         </dl>
         <p v-if="detalle.reserva?.modalidadPago==='WebTarjeta'" class="env-help">
           <strong>Origen: Web · Pagador: remitente.</strong>
-          La tarjeta utilizada en la revisión fue únicamente de prueba. El administrador debe confirmar la operación; no se procesó dinero real.
+          Tu solicitud de pago fue enviada a revisión. El administrador confirmará la operación antes de habilitar el siguiente paso. No se ha efectuado ningún cargo bancario.
         </p>
         <p v-else-if="detalle.reserva?.modalidadPago==='Tablet'" class="env-help">
           <strong>Origen: Tablet · Pagador: destinatario.</strong>
