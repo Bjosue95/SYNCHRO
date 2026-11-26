@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import SelectorMetodoPago from "../components/pagos/SelectorMetodoPago.vue";
 import {
   identificarRetiroReservaWeb,
   solicitarPagoReservaWebTablet,
@@ -167,12 +168,7 @@ onBeforeUnmount(()=>{desmontada=true;detenerIntervalo();detenerCamara();pin.valu
         <h2>Pago pendiente de la encomienda</h2>
         <p>Casillero {{ casillero }} · {{ precio }}</p>
         <p>Selecciona cómo deseas realizar el pago de prueba en la Tablet.</p>
-        <div class="syn-encomienda-retirar__metodos" role="group" aria-label="Modalidad de pago">
-          <button v-for="opcion in ['Efectivo','Tarjeta','NFC']" :key="opcion"
-            type="button" class="syn-encomienda-retirar__metodo"
-            :class="{elegido:metodo===opcion}" :aria-pressed="metodo===opcion"
-            @click="metodo=opcion">{{ opcion==='NFC'?'NFC del celular':opcion }}</button>
-        </div>
+        <SelectorMetodoPago v-model="metodo" :oscuro="oscuro" />
         <p>No introduzcas datos bancarios. No se cobra dinero real.</p>
         <button type="button" :disabled="procesando" @click="solicitarPago">
           {{ procesando?'Solicitando…':'Solicitar confirmación del pago' }}
@@ -254,13 +250,6 @@ onBeforeUnmount(()=>{desmontada=true;detenerIntervalo();detenerCamara();pin.valu
   border-radius:13px;background:#01305c;color:#fff;cursor:pointer;
 }
 .syn-encomienda-retirar__form button:disabled{opacity:.55;cursor:not-allowed;}
-.syn-encomienda-retirar__metodos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
-.syn-encomienda-retirar__metodo {
-  min-width:0;min-height:82px;border:2px solid var(--local-borde);border-radius:13px;
-  background:var(--local-fondo);color:var(--local-texto);font:inherit;font-weight:750;
-  cursor:pointer;
-}
-.syn-encomienda-retirar__metodo.elegido{border-color:#00b9c7;background:var(--local-suave);}
 .syn-encomienda-retirar__consentimiento{display:flex;gap:12px;align-items:start;line-height:1.5;}
 .syn-encomienda-retirar__consentimiento input{width:22px;height:22px;flex:0 0 22px;}
 .syn-encomienda-retirar__form video{width:100%;max-height:360px;border-radius:14px;background:#081724;object-fit:cover;}
@@ -272,7 +261,6 @@ onBeforeUnmount(()=>{desmontada=true;detenerIntervalo();detenerCamara();pin.valu
 }
 @media(max-width:520px){
   .syn-encomienda-retirar__cabecera{flex-direction:column;align-items:stretch;}
-  .syn-encomienda-retirar__metodos{grid-template-columns:1fr;}
-  .syn-encomienda-retirar__metodo{min-height:54px;}
+
 }
 </style>
