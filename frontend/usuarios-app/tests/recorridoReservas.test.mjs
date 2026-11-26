@@ -142,7 +142,7 @@ test('el detalle no ofrece la autorizacion del destinatario antes del deposito',
 
 test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos bancarios', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /<template>\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
+  assert.match(vista, /<div class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
   assert.match(vista, /pagador:pagador\.value==='Remitente'\?'Remitente'/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
   assert.match(vista, /:disabled="pagador==='Remitente'&&!tarjetaPruebaValida"/);
