@@ -109,7 +109,7 @@ async function crear(){
     error.value='Verifica la selección antes de crear tu reserva.';
     return;
   }
-  if(servicio.value==='Encomienda'&&pagador.value==='Remitente'&&!tarjetaPruebaValida.value){
+  if(pagador.value==='Remitente'&&!tarjetaPruebaValida.value){
     error.value='Introduce los datos habilitados para esta operación. No ingreses datos bancarios reales.';
     return;
   }
@@ -123,10 +123,8 @@ async function crear(){
       ubicacionId:ubicacion.value,
       minutos:minutos.value,
       telefonoDestinatario:servicio.value==='Encomienda'?normalizarTelefono(telefono.value):null,
-      pagador:servicio.value==='Encomienda'?pagador.value:null,
-      modalidadPago:servicio.value==='Encomienda'
-        ? pagador.value==='Remitente'?'WebTarjeta':'Tablet'
-        :null
+      pagador:pagador.value==='Remitente'?'Remitente':servicio.value==='Encomienda'?'Destinatario':null,
+      modalidadPago:pagador.value==='Remitente'?'WebTarjeta':servicio.value==='Encomienda'?'Tablet':null
     });
     if(!Number.isSafeInteger(Number(d?.id))||Number(d.id)<=0)
       throw new Error('La reserva fue recibida, pero el servidor no devolvió una referencia válida. Consulta Mis reservas antes de crear otra.');
@@ -271,9 +269,9 @@ onMounted(cargar);
           <div><dt>Duración</dt><dd>{{ nombreDuracion(minutos) }}</dd></div>
           <div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div>
         </dl>
-        <template v-if="servicio==='Encomienda'">
+        <template>
           <div class="reserva-final__intro">
-            <h3>¿Quién realizará el pago?</h3>
+            <h3>¿Cómo deseas realizar el pago?</h3>
             <p>Elige cómo deseas gestionar el pago de esta reserva.</p>
           </div>
           <div class="reserva-pagadores" role="group" aria-label="Quién realizará el pago">
@@ -282,7 +280,7 @@ onMounted(cargar);
               :aria-pressed="pagador==='Remitente'" :disabled="enviando"
               @click="pagador='Remitente'">
               <IconoTablet nombre="pago" :tamano="32" />
-              <strong>Yo pagaré desde la web</strong>
+              <strong>Pagar desde la web</strong>
               <small>Pago con tarjeta · sujeto a confirmación.</small>
             </button>
             <button type="button" class="reserva-pagador"
@@ -290,8 +288,8 @@ onMounted(cargar);
               :aria-pressed="pagador==='Destinatario'" :disabled="enviando"
               @click="pagador='Destinatario'">
               <IconoTablet nombre="encomienda" :tamano="32" />
-              <strong>Pagará el destinatario en la Tablet</strong>
-              <small>Después del depósito, antes de retirar la encomienda.</small>
+              <strong>{{ servicio==='Encomienda' ? 'Pagará el destinatario en la tablet' : 'Pagar en la estación' }}</strong>
+              <small>{{ servicio==='Encomienda' ? 'Después del depósito, antes del retiro.' : 'Gestionar el pago presencial con el procedimiento de la tablet.' }}</small>
             </button>
           </div>
 
@@ -346,19 +344,16 @@ onMounted(cargar);
             </div>
           </section>
           <p v-else class="reserva-bloque__nota">
-            El destinatario podrá solicitar el pago en la tablet tras el depósito. La entrega quedará bloqueada hasta que el administrador confirme el cobro.
+            {{ servicio==='Encomienda' ? 'El destinatario solicitará el pago en la tablet después del depósito. El administrador deberá confirmarlo antes de permitir el retiro.' : 'El pago presencial se realizará mediante el proceso habitual de la tablet, con comprobación administrativa cuando corresponda.' }}
           </p>
         </template>
-        <p v-else class="reserva-bloque__nota">
-          La reserva personal requiere la comprobación administrativa del pago antes del depósito. Los cobros adicionales por tiempo de uso se gestionan en el retiro, según corresponda.
-        </p>
 
         <div class="reserva-revision__acciones">
           <button type="button" class="boton boton-secundario" :disabled="enviando"
             @click="revisando=false;limpiarTarjetaPrueba()">Modificar selección</button>
           <SynButton tipo="button" :cargando="enviando"
-            :disabled="servicio==='Encomienda'&&pagador==='Remitente'&&!tarjetaPruebaValida"
-            @click="crear">{{ servicio==='Encomienda' && pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}</SynButton>
+            :disabled="pagador==='Remitente'&&!tarjetaPruebaValida"
+            @click="crear">{{ pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}</SynButton>
         </div>
       </section>
     </template>
