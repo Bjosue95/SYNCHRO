@@ -167,8 +167,11 @@ async function cargarReservas() {
     if(!Array.isArray(datos?.cobros))throw new Error("La respuesta de cobros de reservas no es válida.");
     cobrosReservas.value=datos.cobros;
     for(const item of datos.cobros){
-      if(importesReservas.value[item.reservaId]===undefined)
-        importesReservas.value[item.reservaId]=item.importeHnl==null?"":String(item.importeHnl);
+      // Siempre sincronizar la tarifa real devuelta por el servidor.
+      if(item.importeHnl!=null)
+        importesReservas.value[item.reservaId]=String(item.importeHnl);
+      else if(importesReservas.value[item.reservaId]===undefined)
+        importesReservas.value[item.reservaId]="";
     }
   }catch(e) {
     cobrosReservas.value=[];
@@ -546,7 +549,7 @@ onBeforeUnmount(()=>{
           <span class="cobro-estado">Pendiente</span>
         </div>
         <div class="cobro-datos">
-          <div><small>Importe de la reserva</small>
+          <div><small>Total por confirmar (HNL)</small>
             <strong class="cobro-importe">{{ item.importeHnl==null?'Por definir':'L '+dinero(item.importeHnl) }}</strong>
           </div>
           <div><small>Quién solicita el pago</small><strong>{{ item.pagador==='Remitente'?'Remitente':'Destinatario' }}</strong></div>
@@ -554,6 +557,8 @@ onBeforeUnmount(()=>{
           <div><small>Registro</small><strong>{{ fechaLocal(item.creadoUtc) }}</strong></div>
         </div>
         <div class="cobro-confirmacion">
+          <p v-if="item.importeHnl!=null" class="cobro-tarifa">Total calculado desde la tarifa de la reserva. Debe coincidir con lo mostrado al usuario.</p>
+          <p v-else class="cobro-tarifa">La reserva no tiene una tarifa configurada. Debes indicar y justificar el importe manual antes de confirmar.</p>
           <label :for="'reserva-importe-'+item.reservaId">Importe verificado (L)</label>
           <input :id="'reserva-importe-'+item.reservaId" v-model="importesReservas[item.reservaId]"
             type="number" min="0.01" max="100000" step="0.01"
