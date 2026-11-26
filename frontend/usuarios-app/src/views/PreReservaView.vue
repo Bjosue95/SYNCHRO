@@ -269,7 +269,7 @@ onMounted(cargar);
           <div><dt>Duración</dt><dd>{{ nombreDuracion(minutos) }}</dd></div>
           <div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div>
         </dl>
-        <template>
+        <div class="reserva-pago__seccion">
           <div class="reserva-final__intro">
             <h3>¿Cómo deseas realizar el pago?</h3>
             <p>Elige cómo deseas gestionar el pago de esta reserva.</p>
@@ -346,7 +346,7 @@ onMounted(cargar);
           <p v-else class="reserva-bloque__nota">
             {{ servicio==='Encomienda' ? 'El destinatario solicitará el pago en la tablet después del depósito. El administrador deberá confirmarlo antes de permitir el retiro.' : 'El pago presencial se realizará mediante el proceso habitual de la tablet, con comprobación administrativa cuando corresponda.' }}
           </p>
-        </template>
+        </div>
 
         <div class="reserva-revision__acciones">
           <button type="button" class="boton boton-secundario" :disabled="enviando"
@@ -609,6 +609,7 @@ onMounted(cargar);
   background:var(--surface-soft); border:1px solid var(--border);border-radius:15px;
 }
 .reserva-prueba__campos { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.reserva-pago__seccion { display:grid; gap:20px; }
 .reserva-pago__encabezado { display:flex;justify-content:space-between;align-items:flex-start;gap:18px; }
 .reserva-pago__seguridad { display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:var(--accent-text);font-size:12px;font-weight:750;padding:9px 12px;background:var(--surface-accent);border-radius:99px; }
 .reserva-pago__contenido { display:grid;grid-template-columns:minmax(240px,.85fr) minmax(0,1.15fr);align-items:start;gap:22px; }
