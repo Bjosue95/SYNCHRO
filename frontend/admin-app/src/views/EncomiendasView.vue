@@ -49,6 +49,7 @@ const entrega = reactive({
 const extension = reactive({ incidencia: "", motivo: "", hastaUtc: "" });
 const reemplazar = ref(false);
 const ficha = ref<HTMLElement | null>(null);
+const soloFicha = computed(() => !props.centroWhatsApp && Number(route.query.encomienda) > 0);
 const visibles = computed(() =>
   lista.value.filter((e) => !filtro.value || e.estado === filtro.value),
 );
@@ -279,7 +280,7 @@ onMounted(async () => {
   try {
     const s = await consultarSesion();
     administrador.value = s.roles.includes("Administrador");
-    if(!props.centroWhatsApp)await cargar();
+    if(!props.centroWhatsApp && !soloFicha.value)await cargar();
     const id=props.encomiendaId||Number(route.query.encomienda);
     if(id>0)await abrir(id);
   } catch (e) {
@@ -300,13 +301,13 @@ onBeforeUnmount(() => {
   <section class="enc-page">
     <div v-if="!props.centroWhatsApp" class="page-heading">
       <div>
-        <h1>Encomiendas</h1>
+        <h1>{{ soloFicha ? 'Ficha de encomienda' : 'Gestión de encomiendas' }}</h1>
         <p>
           Consentimientos independientes, pago del remitente y entrega manual de
           PIN.
         </p>
       </div>
-      <button
+      <button v-if="!soloFicha"
         type="button"
         class="enc-button"
         :disabled="cargando || procesando"
@@ -314,10 +315,13 @@ onBeforeUnmount(() => {
       >
         Actualizar listado
       </button>
+      <RouterLink v-else to="/admin/operaciones" class="enc-button">
+        Volver a Movimientos
+      </RouterLink>
     </div>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
     <p v-if="aviso" class="enc-notice" role="status">{{ aviso }}</p>
-    <section v-if="!props.centroWhatsApp" class="enc-card" aria-label="Listado de encomiendas">
+    <section v-if="!props.centroWhatsApp && !soloFicha" class="enc-card" aria-label="Listado de encomiendas">
       <label class="enc-field enc-filter"
         >Estado<select v-model="filtro">
           <option value="">Todos los estados</option>
