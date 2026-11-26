@@ -99,6 +99,20 @@ internal sealed partial class EncomiendasOperativasSql
         return await ConfirmarPago(id,new(metodo,datos.ImporteHnl,referencia,true,datos.JustificacionImporte),admin,ct);
     }
 
+    public async Task<object> EstadoPagoReservaTablet(int id,int terminal,CancellationToken ct)
+    {
+        await using var c=await Abrir(ct);
+        var o=await Leer(c,null,id,null,ct);
+        Exigir(o.Estado=="Depositada" && o.TerminalId==terminal && o.UsoId.HasValue,
+            "ReservaNoDisponible","La reserva no corresponde a esta terminal.",404);
+        var reserva=await LeerReserva(c,null,id,ct);
+        Exigir(reserva is not null,"ReservaNoDisponible","Reserva no disponible.",404);
+        return new { reservaId=id,casillero=reserva.CodigoCasillero,
+            pagoConfirmado=o.Pago=="ConfirmadoManual",
+            pagoAdicionalRequerido=PagoDiferidoDestinatario(reserva)&&o.Pago!="ConfirmadoManual",
+            importeHnl=reserva.TarifaHnl??Tarifa(o.Tamano) };
+    }
+
     public async Task<object> SolicitarPagoReservaTablet(int id,int terminal,SolicitudPagoReservaTablet datos,CancellationToken ct)
     {
         Exigir(datos.Metodo is "Efectivo" or "Tarjeta" or "NFC",
