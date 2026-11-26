@@ -52,6 +52,14 @@ const elegibles=computed(()=>porTamano.value.filter(o=>o.ubicacionId===ubicacion
 const duraciones=computed<number[]>(()=>[...new Set<number>(elegibles.value.flatMap(o=>o.duraciones))].sort((a,b)=>a-b));
 const tipoPermitido=computed(()=>servicio.value==='Encomienda'||tipo.value==='Normal');
 const disponible=computed(()=>tipoPermitido.value && elegibles.value.some(o=>o.duraciones.includes(minutos.value)));
+const importeReserva=computed<number|null>(()=>{
+  const opcion=elegibles.value.find(o=>o.duraciones.includes(minutos.value));
+  if(!opcion)return null;
+  const valor=opcion.tarifas?.[minutos.value];
+  const importe=Number(valor);
+  return valor!=null&&Number.isFinite(importe)&&importe>0?importe:null;
+});
+const importeTexto=computed(()=>importeReserva.value===null?'Importe por definir':new Intl.NumberFormat('es-HN',{style:'currency',currency:'HNL',minimumFractionDigits:2,maximumFractionDigits:2}).format(importeReserva.value));
 const nombreUbicacion=(nombre:string)=>ubicacionPendiente.value?'Estación SYNCHRO':nombre;
 const ubicacionNombre=computed(()=>{
   const nombre=ubicaciones.value.find(([id])=>id===ubicacion.value)?.[1];
@@ -287,8 +295,11 @@ onMounted(cargar);
           <div><dt>Casillero</dt><dd>{{ tipo }} · {{ tamano }}</dd></div>
           <div><dt>Estación</dt><dd>{{ ubicacionNombre }}</dd></div>
           <div><dt>Duración</dt><dd>{{ nombreDuracion(minutos) }}</dd></div>
+          <div class="reserva-revision__importe"><dt>Total de la reserva</dt><dd>{{ importeTexto }}</dd></div>
           <div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div>
         </dl>
+        <p v-if="importeReserva===null" class="reserva-revision__tarifa-aviso">Esta selección aún no tiene una tarifa configurada. El administrador deberá establecer el importe antes de confirmar el cobro.</p>
+        <p v-else class="reserva-revision__tarifa-aviso">Importe de la reserva: <strong>{{ importeTexto }}</strong>. La confirmación del pago queda sujeta a revisión administrativa.</p>
         <div class="reserva-pago__seccion">
           <div class="reserva-final__intro">
             <h3>¿Cómo deseas realizar el pago?</h3>
@@ -612,6 +623,9 @@ onMounted(cargar);
   border-radius: 15px;
 }
 .reserva-revision__datos > div { display:grid; gap:6px; min-width:0; }
+.reserva-revision__importe {padding:12px 14px;border:1px solid var(--border-strong);background:var(--surface-accent);border-radius:11px;}
+.reserva-revision__importe dd {font-size:22px;color:var(--text-strong);}
+.reserva-revision__tarifa-aviso {font-size:13px;line-height:1.6;color:var(--text-muted);}
 .reserva-revision__datos dt { font-size:12px; color:var(--text-muted); font-weight:700; }
 .reserva-revision__datos dd { margin:0; color:var(--text-strong); font-weight:800; overflow-wrap:anywhere; }
 .reserva-pagadores { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
