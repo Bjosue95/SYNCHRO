@@ -336,18 +336,49 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
         var reservaPago=await LeerReserva(c,tx,id,ct);
         var esDiferido=PagoDiferidoDestinatario(reservaPago);
-        if(esDiferido && o.Estado=="Depositada" && o.UsoId.HasValue) { /* Pagará el destinatario antes del retiro. */ }
-        else Preparacion(o,Ahora);
+        var pagoPrueba=PagoWebDemo(reservaPago)||esDiferido;
+        if(esDiferido)
+        {
+            Exigir(o.Estado=="Depositada"&&o.UsoId.HasValue,
+                "PagoTabletPendiente","El destinatario debe realizar el depósito previo y solicitar el pago en la Tablet.");
+            string? metodoTablet;
+            await using(var q=Comando(c,tx,"""
+                SELECT TOP(1) Detalle FROM dbo.AuditoriaEncomiendaOperativa
+                WHERE ReservaId=@id AND Accion=N'PagoTabletPendiente' ORDER BY Id DESC;
+                """,("@id",id)))
+                metodoTablet=(string?)await q.ExecuteScalarAsync(ct);
+            Exigir(metodoTablet is "Efectivo" or "Tarjeta" or "NFC",
+                "PagoTabletPendiente","El destinatario todavía no ha solicitado el pago en la Tablet.");
+            Exigir(datos.Metodo==(metodoTablet=="NFC"?"Tarjeta":metodoTablet),
+                "MetodoNoCoincide","El método debe coincidir con el elegido en la Tablet.",400);
+        }
+        else {
+            Preparacion(o,Ahora);
+            if(PagoWebDemo(reservaPago))
+                Exigir(datos.Metodo=="Tarjeta","MetodoNoCoincide",
+                    "Esta solicitud de prueba se realizó con tarjeta desde la web.",400);
+        }
         Exigir(o.Pago!="ConfirmadoManual","PagoYaConfirmado","El pago ya está confirmado.");
-        Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Comprueba primero la autorización de WhatsApp del remitente.");
-        var tarifa=(await LeerReserva(c,tx,id,ct))?.TarifaHnl??Tarifa(o.Tamano);
+        // Tras el depósito, la baja del remitente no puede impedir que el
+        // destinatario pague y retire una encomienda ya aceptada.
+        if(esDiferido) {
+            await using var q=Comando(c,tx,"""
+                SELECT COUNT(*) FROM dbo.ParticipantesEncomiendaOperativa
+                WHERE ReservaId=@id AND Rol=N'Destinatario'
+                  AND Consentimiento=N'Confirmado' AND AceptaEncomienda=1;
+                """,("@id",id));
+            Exigir(Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1,
+                "ConsentimientosPendientes","Falta la aceptación comprobada del destinatario.");
+        }else
+            Exigir(await Consentimientos(c,tx,id,ct),
+                "ConsentimientosPendientes","Comprueba primero la autorización de WhatsApp del remitente.");
+        var tarifa=reservaPago?.TarifaHnl??Tarifa(o.Tamano);
         if(tarifa.HasValue)Exigir(tarifa.Value==datos.ImporteHnl,"ImporteNoCoincide","El importe debe coincidir con la tarifa configurada.",400);
         var motivo=tarifa.HasValue?"Tarifa configurada":Texto(datos.JustificacionImporte,500,"la justificación del importe sin tarifa configurada");
         await using(var q=Comando(c,tx,"""
             UPDATE dbo.EncomiendasOperativas SET PagoEstado=N'ConfirmadoManual',ImporteHnl=@importe,MetodoPago=@metodo,
               PagoReferencia=@referencia,JustificacionImporte=@motivo,PagoAdminId=@admin,PagoConfirmadoUtc=@ahora,Version=Version+1 WHERE ReservaId=@id;
             """,("@importe",datos.ImporteHnl),("@metodo",datos.Metodo),("@referencia",referencia),("@motivo",motivo),("@admin",admin),("@ahora",Ahora.UtcDateTime),("@id",id)))await q.ExecuteNonQueryAsync(ct);
-        var pagoPrueba=PagoWebDemo(reservaPago)||esDiferido;
         await Auditar(c,tx,id,null,"Administrador",admin,"PagoConfirmadoManual",o.Estado,
             pagoPrueba?"Operación de pago de prueba confirmada manualmente; no se procesó dinero real. Referencia: "+referencia
                       :"Pago manual verificado; no procede de un cobro simulado. Referencia: "+referencia,ct);
