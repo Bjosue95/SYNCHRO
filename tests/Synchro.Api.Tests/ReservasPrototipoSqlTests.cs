@@ -100,6 +100,85 @@ public sealed partial class EncomiendasOperativasSqlTests
     }
 
     [Fact]
+    public async Task PagoWebDePruebaSeEnviaAlAdministradorSinRecibirTarjeta()
+    {
+        var f=await Preparar();
+        var cfg=ConfiguracionReserva(f);
+        var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);
+        var ct=CancellationToken.None;
+        var seleccion=new CrearReservaPrototipoSolicitud(
+            "Encomienda","Normal","Mediano","prototipo",30,
+            "+999123456702","Remitente","WebTarjeta");
+        int id=Json(await s.Crear(f.Persona,seleccion.TelefonoDestinatario!,"Mediano",ct,seleccion))
+            .GetProperty("id").GetInt32();
+        var detalle=Json(await s.Detalle(id,f.Persona,ct));
+        Assert.Equal("Remitente",detalle.GetProperty("reserva").GetProperty("pagador").GetString());
+        Assert.Equal("WebTarjeta",detalle.GetProperty("reserva").GetProperty("modalidadPago").GetString());
+        var cobros=Json(await s.CobrosReservaPendientes(ct)).GetProperty("cobros").EnumerateArray().ToArray();
+        var item=Assert.Single(cobros.Where(x=>x.GetProperty("reservaId").GetInt32()==id));
+        Assert.Equal("Web",item.GetProperty("origen").GetString());
+        Assert.Equal("Tarjeta",item.GetProperty("metodoPago").GetString());
+        await Consentir(f,id,"Remitente");
+        var recibido=Json(await s.ConfirmarPagoReservaDemo(id,new(22,null,true),f.Admin,ct));
+        Assert.Equal("ConfirmadoManual",recibido.GetProperty("estado").GetString());
+        Assert.DoesNotContain(Json(await s.CobrosReservaPendientes(ct)).GetProperty("cobros").EnumerateArray(),
+            x=>x.GetProperty("reservaId").GetInt32()==id);
+        var auditado=Json(await s.Detalle(id,f.Persona,ct));
+        var texto=JsonSerializer.Serialize(auditado);
+        Assert.DoesNotContain("4242424242424242",texto);
+        Assert.DoesNotContain("12/30",texto);
+    }
+
+    [Fact]
+    public async Task DestinatarioPagaDespuesDelDepositoEnTabletAntesDeRetirar()
+    {
+        var f=await Preparar();
+        var cfg=ConfiguracionReserva(f);
+        var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);
+        var ct=CancellationToken.None;
+        var seleccion=new CrearReservaPrototipoSolicitud(
+            "Encomienda","Normal","Mediano","prototipo",30,
+            "+999123456702","Destinatario","Tablet");
+        int id=Json(await s.Crear(f.Persona,seleccion.TelefonoDestinatario!,"Mediano",ct,seleccion))
+            .GetProperty("id").GetInt32();
+        await Consentir(f,id,"Remitente");
+        var deposito=Json(await s.EmitirPin(id,"Deposito",false,f.Admin,ct));
+        var pinDeposito=deposito.GetProperty("pin").GetString()!;
+        await s.ConfirmarEntregaPin(id,new(deposito.GetProperty("id").GetGuid(),
+            "+999123456701","WA-DIFERIDO-DEPOSITO",true),f.Admin,ct);
+        await s.DepositarDemostrativo(id,f.Terminal,
+            new(pinDeposito,CapturaDemostrativa(),true),ct);
+        Assert.Equal("Depositada",Json(await s.Detalle(id,f.Persona,ct))
+            .GetProperty("estado").GetString());
+        await Consentir(f,id,"Destinatario");
+        var retiro=Json(await s.EmitirPin(id,"Retiro",false,f.Admin,ct));
+        var pinRetiro=retiro.GetProperty("pin").GetString()!;
+        await s.ConfirmarEntregaPin(id,new(retiro.GetProperty("id").GetGuid(),
+            "+999123456702","WA-DIFERIDO-RETIRO",true),f.Admin,ct);
+        var identificado=Json(await s.IdentificarParaRetiro(pinRetiro,f.Terminal,ct));
+        Assert.True(identificado.GetProperty("pagoAdicionalRequerido").GetBoolean());
+        Assert.False(identificado.GetProperty("pagoConfirmado").GetBoolean());
+        var foto=Json(await s.CapturarDestinatario(id,f.Terminal,CapturaDemostrativa(true),ct))
+            .GetProperty("evidenciaId").GetGuid();
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
+            s.Retirar(id,f.Terminal,new(foto,pinRetiro,true),ct));
+        Assert.DoesNotContain(Json(await s.CobrosReservaPendientes(ct)).GetProperty("cobros").EnumerateArray(),
+            x=>x.GetProperty("reservaId").GetInt32()==id);
+        var solicitud=Json(await s.SolicitarPagoReservaTablet(id,f.Terminal,
+            new(pinRetiro,"Tarjeta"),ct));
+        Assert.False(solicitud.GetProperty("pagoConfirmado").GetBoolean());
+        Assert.False(solicitud.GetProperty("pagoRealProcesado").GetBoolean());
+        var pendiente=Assert.Single(Json(await s.CobrosReservaPendientes(ct))
+            .GetProperty("cobros").EnumerateArray().Where(x=>x.GetProperty("reservaId").GetInt32()==id));
+        Assert.Equal("Tablet",pendiente.GetProperty("origen").GetString());
+        await s.ConfirmarPagoReservaDemo(id,new(22,null,true),f.Admin,ct);
+        var estado=Json(await s.EstadoPagoReservaTablet(id,f.Terminal,ct));
+        Assert.True(estado.GetProperty("pagoConfirmado").GetBoolean());
+        await s.Retirar(id,f.Terminal,new(foto,pinRetiro,true),ct);
+        Assert.True(Json(await s.Detalle(id,f.Persona,ct)).GetProperty("retiradaConfirmada").GetBoolean());
+    }
+
+    [Fact]
     public async Task PrototipoNoSobreReservaYLiberaAlCancelarOVencer()
     {
         var f=await Preparar();var cfg=ConfiguracionReserva(f);var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);var ct=CancellationToken.None;
