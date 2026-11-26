@@ -28,23 +28,31 @@ watch(tipo,()=>{tamano.value='';ubicacion.value='';minutos.value=0;revisando.val
 watch(tamano,()=>{ubicacion.value='';minutos.value=0;revisando.value=false;});
 watch(ubicaciones,lista=>{if(lista.length===1)ubicacion.value=lista[0][0];});
 watch(duraciones,lista=>{if(!lista.includes(minutos.value))minutos.value=lista[0]||0;});
+let versionCatalogo=0;
 async function cargar(){
-  if(cargando.value && opciones.value.length)return;
+  const actual=++versionCatalogo;
   cargando.value=true;
   error.value='';
   try {
     const datos=await encomiendasApi.disponibilidad();
+    if(actual!==versionCatalogo)return;
     if(!Array.isArray(datos?.opciones))throw new Error('La disponibilidad no pudo verificarse.');
     opciones.value=datos.opciones;
     ubicacionPendiente.value=Boolean(datos.ubicacionPendiente);
     if(!disponible.value)revisando.value=false;
   } catch(e) {
+    if(actual!==versionCatalogo)return;
     opciones.value=[];
     ubicacionPendiente.value=false;
     revisando.value=false;
     error.value=(e as Error).message || 'No pudimos consultar la disponibilidad.';
-  } finally { cargando.value=false; }
+  } finally {
+    if(actual===versionCatalogo)cargando.value=false;
+  }
 }
+// Al elegir pertenencias o encomienda se vuelve a consultar el inventario real.
+// No cambia las reglas térmicas ni convierte casilleros ocupados en disponibles.
+watch(servicio,()=>{revisando.value=false;void cargar();});
 function revisar(){
   error.value='';
   if(!disponible.value){
