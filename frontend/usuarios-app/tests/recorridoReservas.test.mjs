@@ -68,7 +68,8 @@ test('detalle de reserva usa opciones de ubicación y duración, teléfono y nav
   assert.match(vista, /Dirección pendiente de confirmación/);
   assert.match(vista, /@submit\.prevent="revisar"/);
   assert.match(vista, /:disabled="!disponible \|\| actualizando"/);
-  assert.match(vista, /@click="volverATamanos"/);
+  assert.doesNotMatch(vista, /@click="volverATamanos"/);
+  assert.match(vista, /<h2>Revisa y confirma tu reserva<\/h2>/);
   assert.doesNotMatch(vista, /<select v-model="minutos"/);
   assert.doesNotMatch(vista, /<select v-model="ubicacion"/);
   for(const nombre of ['ubicacion','tiempo','whatsapp','volver','continuar']) {
@@ -95,6 +96,24 @@ test('el botón revisar reserva no crece hasta 280px de alto en móviles', () =>
   assert.match(reglasMovil, /\.reserva-final__acciones \.boton \{[^}]*flex: 0 0 auto;/);
   assert.match(reglasMovil, /\.reserva-final__acciones \.boton \{[^}]*min-height: 54px;/);
   assert.match(reglasMovil, /\.reserva-final__acciones \.boton \{[^}]*height: auto;/);
+});
+
+test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () => {
+  const vista=leer('PreReservaView');
+  const api=vista.slice(vista.indexOf('encomiendasApi.reservar({'),
+    vista.indexOf('});',vista.indexOf('encomiendasApi.reservar({')));
+  assert.match(vista, /pagador==='Remitente'/);
+  assert.match(vista, /pagador==='Destinatario'/);
+  assert.match(vista, /4242 4242 4242 4242/);
+  assert.match(vista, /12\/30/);
+  assert.match(vista, /Usa 123/);
+  assert.match(vista, /limpiarTarjetaPrueba\(\)/);
+  assert.match(api, /pagador:/);
+  assert.match(api, /modalidadPago:/);
+  assert.doesNotMatch(api, /numeroTarjetaPrueba|venceTarjetaPrueba|codigoTarjetaPrueba/);
+  assert.doesNotMatch(vista, /localStorage|sessionStorage/);
+  assert.doesNotMatch(vista, /Volver a tamaños/);
+  assert.match(vista, /El resguardo de pertenencias personales conserva su proceso de pago/);
 });
 
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
