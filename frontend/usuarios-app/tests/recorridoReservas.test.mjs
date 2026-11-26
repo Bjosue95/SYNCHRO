@@ -14,6 +14,14 @@ test('la reserva distingue la autorizacion del remitente y la del destinatario',
   assert.doesNotMatch(reserva, /No se comparan rostros ni necesitas registrar uno en la web/);
 });
 
+test('los contadores reservables cuentan codigos unicos y no todas las filas SQL', () => {
+  const reserva = leer('PreReservaView');
+  assert.match(reserva, /new Set\(lista\.map\(/);
+  assert.match(reserva, /:disponibles="cantidadPorTipo\(t\.id\)"/);
+  assert.match(reserva, /:disponibles="cantidadPorTamano\(t\.valor\)"/);
+  assert.doesNotMatch(reserva, /:disponibles="opciones\.filter\(o=>o\.tipo===t\.id\)\.length"/);
+});
+
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
   const panel = leer('PanelView');
   assert.match(panel, /encomiendasApi\.listar\(/);
