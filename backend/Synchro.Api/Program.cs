@@ -621,6 +621,7 @@ if (app.Environment.IsDevelopment() &&
     app.MapRetiroCargaCobroEndpoints();
     app.MapAdminCobrosCargaEndpoints();
     app.MapAdminEspaciosCargaEndpoints();
+    app.MapAdminMovimientosEndpoints();
     app.MapUsuariosAdministrativosEndpoints();
     app.MapOpenApi().RequireAuthorization("SoloAdministradores");
 }
