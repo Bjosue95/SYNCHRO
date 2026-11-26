@@ -457,7 +457,13 @@ onMounted(cargar);
 }
 @media (max-width: 470px) {
   .reserva-final__acciones { flex-direction: column-reverse; }
-  .reserva-final__acciones .boton { width: 100%; max-width: none; }
+  .reserva-final__acciones .boton {
+    width: 100%;
+    max-width: none;
+    min-height: 54px;
+    height: auto;
+    flex: 0 0 auto; /* Evita convertir el ancho de referencia de 280px en altura móvil. */
+  }
   .reserva-final__resumen { padding: 16px; }
   .reserva-final__resumen dl { gap: 12px; }
   .reserva-bloque { padding: 16px 13px; }
