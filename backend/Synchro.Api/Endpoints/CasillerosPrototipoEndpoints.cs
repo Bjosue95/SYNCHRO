@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Models;
 
@@ -48,39 +49,26 @@ public static class CasillerosPrototipoEndpoints
                         statusCode: 503);
             }
 
+            // El catálogo de la tablet y el de reservas comparten exactamente
+            // el mismo inventario de la estación. Otros fixtures quedan fuera.
             await using var comando = new SqlCommand("""
                 SELECT
-                    Codigo,
-                    Tamano,
+                    c.Codigo,
+                    c.Tamano,
                     CASE
-                        WHEN Codigo = N'M04' THEN N'Frio'
-                        WHEN Codigo = N'M09' THEN N'Calor'
-                        ELSE Tipo
+                        WHEN c.Codigo = N'M04' THEN N'Frio'
+                        WHEN c.Codigo = N'M09' THEN N'Calor'
+                        ELSE c.Tipo
                     END AS Tipo,
-                    Estado
-                FROM dbo.Casilleros
-                WHERE Codigo IN
-                (
-                    N'S01', N'S02',
-                    N'M03', N'M04',
-                    N'L05', N'M06',
-                    N'M07', N'M08',
-                    N'M09', N'L10'
-                )
-                ORDER BY CASE Codigo
-                    WHEN N'S01' THEN 1
-                    WHEN N'S02' THEN 2
-                    WHEN N'M03' THEN 3
-                    WHEN N'M04' THEN 4
-                    WHEN N'L05' THEN 5
-                    WHEN N'M06' THEN 6
-                    WHEN N'M07' THEN 7
-                    WHEN N'M08' THEN 8
-                    WHEN N'M09' THEN 9
-                    WHEN N'L10' THEN 10
-                    ELSE 99
-                END;
+                    c.Estado
+                FROM dbo.Casilleros AS c
+                JOIN OPENJSON(@codigos) AS inventario
+                    ON inventario.[value] = c.Codigo
+                ORDER BY TRY_CONVERT(int, inventario.[key]);
                 """, db);
+
+            comando.Parameters.Add("@codigos", SqlDbType.NVarChar, -1)
+                .Value = InventarioEstacionPrototipo.CodigosJson;
 
             var lista = new List<Casillero>();
 
@@ -98,10 +86,10 @@ public static class CasillerosPrototipoEndpoints
                 });
             }
 
-            if (lista.Count != 10)
+            if (lista.Count != InventarioEstacionPrototipo.Codigos.Length)
                 return Results.Problem(
                     title: "Inventario fisico del prototipo incompleto.",
-                    detail: $"Se encontraron {lista.Count} de los 10 casilleros esperados.",
+                    detail: $"Se encontraron {lista.Count} de los {InventarioEstacionPrototipo.Codigos.Length} casilleros esperados.",
                     statusCode: 503);
 
             return Results.Ok(lista);
