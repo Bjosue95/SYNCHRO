@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Services.Temporales;
+using Synchro.Api.Models;
 
 namespace Synchro.Api.Services.Encomiendas;
 
@@ -18,7 +19,12 @@ internal sealed partial class EncomiendasOperativasSql
     private string UbicacionPrototipo=>config["ReservasPrototipo:Ubicacion"]?.Trim() is {Length:>0 and <=100} nombre?nombre:"Estación del prototipo · ubicación por configurar";
     private int[] DuracionesPrototipo=>config.GetSection("ReservasPrototipo:DuracionesMinutos").Get<int[]>() is {Length:>0} minutos
         ?minutos.Where(m=>m is >0 and <=1440).Distinct().Order().ToArray():[30,60,120];
-    private string? CodigosPrototipo=>config.GetSection("ReservasPrototipo:Casilleros").Get<string[]>() is {Length:>0} codigos?JsonSerializer.Serialize(codigos):null;
+    // La ausencia de una lista configurada NO autoriza a ofrecer todos los fixtures SQL.
+    // Por defecto, solo se reservan los 10 compartimentos visibles en la tablet.
+    // La lista explícita permite usar una estación de pruebas aislada en los tests.
+    private string CodigosPrototipo=>config.GetSection("ReservasPrototipo:Casilleros").Get<string[]>() is {Length:>0} codigos
+        ? JsonSerializer.Serialize(codigos.Distinct(StringComparer.OrdinalIgnoreCase).ToArray())
+        : InventarioEstacionPrototipo.CodigosJson;
     private static string? TipoReserva(string tipo)=>tipo switch{"Normal"=>"Normal","Refrigerado" or "Frio"=>"Refrigerado","Caliente" or "Calor"=>"Caliente",_=>null};
 
     private async Task<ReservaPrototipo?> LeerReserva(SqlConnection c,SqlTransaction? tx,int id,CancellationToken ct)
@@ -51,7 +57,7 @@ internal sealed partial class EncomiendasOperativasSql
             """,("@codigos",CodigosPrototipo));
         var opciones=new List<OpcionReservaPrototipo>();await using var r=await q.ExecuteReaderAsync(ct);
         while(await r.ReadAsync(ct)) {
-            var tipo=TipoReserva(r.GetString(1));if(tipo is null)continue;
+            var tipo=TipoReserva(InventarioEstacionPrototipo.TipoReal(r.GetString(0),r.GetString(1)));if(tipo is null)continue;
             var configuracion=ConfiguracionCompartimento(r.IsDBNull(3)?null:r.GetString(3),tipo);
             if((tipo!="Normal"||!r.IsDBNull(3))&&configuracion is null)continue;
             var duraciones=configuracion?.Tarifas.Where(t=>t.Value>0).Select(t=>t.Key).Order().ToArray()??DuracionesPrototipo;
@@ -71,7 +77,12 @@ internal sealed partial class EncomiendasOperativasSql
             LEFT JOIN dbo.CompartimentosServiciosTemporales t ON t.Codigo=c.Codigo
             WHERE c.Estado=N'Disponible' AND (c.Tamano=@tamano OR @tamano=N'Pequeno' AND c.Tamano=N'Pequeño')
               AND (@codigos IS NULL OR c.Codigo IN(SELECT value FROM OPENJSON(@codigos)))
-              AND (@tipo=c.Tipo OR @tipo=N'Refrigerado' AND c.Tipo=N'Frio' OR @tipo=N'Caliente' AND c.Tipo=N'Calor')
+              AND @tipo = CASE
+                    WHEN c.Codigo=N'M04' THEN N'Refrigerado'
+                    WHEN c.Codigo=N'M09' THEN N'Caliente'
+                    WHEN c.Tipo=N'Frio' THEN N'Refrigerado'
+                    WHEN c.Tipo=N'Calor' THEN N'Caliente'
+                    ELSE c.Tipo END
               AND NOT EXISTS(SELECT 1 FROM dbo.UsosCasillero u WHERE u.CodigoCasillero=c.Codigo AND u.FechaRetiro IS NULL AND u.Estado IN(N'Reservado',N'Ocupado'))
               AND NOT EXISTS(SELECT 1 FROM dbo.OperacionesServiciosTemporales s WHERE s.Codigo=c.Codigo AND s.Estado IN(N'Reservada',N'Pagada',N'Activa',N'Agotada'))
             ORDER BY c.Codigo;
@@ -90,7 +101,8 @@ internal sealed partial class EncomiendasOperativasSql
     private async Task ExigirCompartimento(SqlConnection c,SqlTransaction tx,ReservaPrototipo? reserva,string codigo,string tamano,CancellationToken ct)
     {
         await using var q=Comando(c,tx,"""
-            SELECT c.Tipo,c.Estado,t.ConfiguracionJson FROM dbo.Casilleros c WITH(UPDLOCK,HOLDLOCK)
+            SELECT CASE WHEN c.Codigo=N'M04' THEN N'Frio' WHEN c.Codigo=N'M09' THEN N'Calor' ELSE c.Tipo END AS Tipo,
+                   c.Estado,t.ConfiguracionJson FROM dbo.Casilleros c WITH(UPDLOCK,HOLDLOCK)
             LEFT JOIN dbo.CompartimentosServiciosTemporales t ON t.Codigo=c.Codigo WHERE c.Codigo=@codigo AND (c.Tamano=@tamano OR @tamano=N'Pequeno' AND c.Tamano=N'Pequeño');
             """,("@codigo",codigo),("@tamano",tamano));
         await using var r=await q.ExecuteReaderAsync(ct);Exigir(await r.ReadAsync(ct),"CasilleroNoDisponible","Casillero no disponible.");
