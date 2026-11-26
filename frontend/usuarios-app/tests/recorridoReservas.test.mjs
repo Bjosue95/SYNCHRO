@@ -81,7 +81,8 @@ test('iconos de Tablet respetan tamaño en botones de reservar y volver', () => 
   const vista = leer('PreReservaView');
   assert.ok(icono.includes(':style="{ width: tamano +'));
   assert.ok(icono.includes("height: tamano + 'px'"));
-  assert.doesNotMatch(icono, /width: 100%;/);
+  assert.doesNotMatch(icono, /^\s*width:\s*100%;/m);
+  assert.doesNotMatch(icono, /^\s*height:\s*100%;/m);
   assert.match(vista, /<IconoTablet nombre="volver" :tamano="21"/);
   assert.match(vista, /<IconoTablet nombre="continuar" :tamano="21"/);
   assert.ok(vista.includes('.reserva-final__acciones .boton {'));
