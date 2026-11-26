@@ -14,6 +14,12 @@ const cobrosCarga = ref([]);
 const cargandoCarga = ref(false);
 const procesandoCarga = ref("");
 const comprobadosCarga = ref({});
+const cobrosReservas=ref([]);
+const cargandoReservas=ref(false);
+const procesandoReserva=ref(null);
+const comprobadosReservas=ref({});
+const importesReservas=ref({});
+const justificacionesReservas=ref({});
 
 function dinero(valor) {
   const numero = Number(valor);
@@ -151,8 +157,67 @@ async function cargarCarga(forzar = false) {
   }
 }
 
+async function cargarReservas() {
+  if(procesandoReserva.value)return;
+  cargandoReservas.value=true;
+  try {
+    const datos=await apiAdmin("/api/admin/encomiendas/cobros/pendientes");
+    if(!Array.isArray(datos?.cobros))throw new Error("La respuesta de cobros de reservas no es válida.");
+    cobrosReservas.value=datos.cobros;
+    for(const item of datos.cobros){
+      if(importesReservas.value[item.reservaId]===undefined)
+        importesReservas.value[item.reservaId]=item.importeHnl==null?"":String(item.importeHnl);
+    }
+  }catch(e) {
+    cobrosReservas.value=[];
+    error.value=e?.message||"No se pudieron consultar los cobros de reservas.";
+  }finally{cargandoReservas.value=false;}
+}
+async function confirmarReserva(item) {
+  const id=item?.reservaId;
+  const monto=Number(importesReservas.value[id]);
+  if(!Number.isInteger(id)||id<=0||!Number.isFinite(monto)||monto<=0||monto>100000 ||
+    Math.round(monto*100)!==monto*100){
+    error.value="Introduce un importe válido para la reserva.";
+    return;
+  }
+  if(item.importeHnl!=null && monto!==Number(item.importeHnl)){
+    error.value="El importe debe coincidir con la tarifa configurada.";
+    return;
+  }
+  if(item.requiereImporteManual&&!String(justificacionesReservas.value[id]||"").trim()){
+    error.value="Indica por qué se utiliza un importe manual.";
+    return;
+  }
+  if(comprobadosReservas.value[id]!==true){
+    error.value="Debes confirmar expresamente la operación de prueba.";
+    return;
+  }
+  if(!window.confirm("¿Confirmas el pago de prueba de L "+dinero(monto)+" para la reserva #"+id+
+    " desde "+item.origen+"? No se ha recibido dinero real."))return;
+  procesandoReserva.value=id;
+  error.value="";aviso.value="";
+  try{
+    const csrf=await apiAdmin("/api/admin/csrf-token");
+    if(!csrf?.csrfToken)throw new Error("No se obtuvo el token de seguridad.");
+    const resultado=await apiAdmin("/api/admin/encomiendas/cobros/"+id+"/confirmar",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","X-CSRF-TOKEN":csrf.csrfToken},
+      body:JSON.stringify({
+        importeHnl:monto,
+        justificacionImporte:item.requiereImporteManual?String(justificacionesReservas.value[id]).trim():null,
+        comprobado:true
+      })
+    });
+    if(resultado?.estado!=="ConfirmadoManual")throw new Error("El servidor no confirmó la reserva.");
+    delete comprobadosReservas.value[id];
+    aviso.value="Pago de prueba confirmado para la reserva #"+id+". Origen: "+item.origen+
+      ". No se procesó dinero real.";
+  }catch(e){error.value=e?.message||"No se pudo confirmar el cobro de reserva.";}
+  finally{procesandoReserva.value=null;await cargarReservas();}
+}
 async function actualizarTodo() {
-  await Promise.all([cargar(), cargarCarga()]);
+  await Promise.all([cargar(), cargarCarga(), cargarReservas()]);
 }
 
 async function confirmarCarga(item) {
@@ -232,11 +297,11 @@ onMounted(actualizarTodo);
       <button
         type="button"
         class="button-secondary"
-        :disabled="cargando || cargandoCarga || !!procesando || !!procesandoCarga"
+        :disabled="cargando || cargandoCarga || cargandoReservas || !!procesando || !!procesandoCarga || !!procesandoReserva"
         @click="actualizarTodo"
       >
         <AdminIcon name="refresh" :size="17" />
-        {{ cargando || cargandoCarga ? "Actualizando..." : "Actualizar cobros" }}
+        {{ cargando || cargandoCarga || cargandoReservas ? "Actualizando..." : "Actualizar cobros" }}
       </button>
     </div>
 
@@ -441,11 +506,83 @@ onMounted(actualizarTodo);
         </div>
       </article>
     </section>
+
+    <section class="panel cobros-panel cobros-carga-panel" aria-labelledby="cobros-reservas-titulo">
+      <div class="cobros-encabezado">
+        <div>
+          <h2 id="cobros-reservas-titulo">Reservas web y encomiendas</h2>
+          <p>Solicitudes del cliente web o del destinatario en Tablet. Sin movimientos bancarios reales.</p>
+        </div>
+        <strong class="cobros-total">{{ cobrosReservas.length }}</strong>
+      </div>
+      <div v-if="cargandoReservas" class="empty-state" role="status">Consultando pagos pendientes de reservas…</div>
+      <div v-else-if="!cobrosReservas.length" class="empty-state">
+        No hay solicitudes de pago de reservas pendientes.
+      </div>
+      <article v-for="item in cobrosReservas" :key="'reserva-'+item.reservaId" class="cobro-tarjeta">
+        <div class="cobro-cabecera">
+          <div>
+            <span class="cobro-etiqueta">RESERVA #{{ item.reservaId }} · ORIGEN {{ item.origen.toUpperCase() }}</span>
+            <h3>{{ item.codigoCasillero }}</h3>
+          </div>
+          <span class="cobro-estado">Pendiente</span>
+        </div>
+        <div class="cobro-datos">
+          <div><small>Importe de la reserva</small>
+            <strong class="cobro-importe">{{ item.importeHnl==null?'Por definir':'L '+dinero(item.importeHnl) }}</strong>
+          </div>
+          <div><small>Quién solicita el pago</small><strong>{{ item.pagador==='Remitente'?'Remitente':'Destinatario' }}</strong></div>
+          <div><small>Origen y modalidad</small><strong>{{ item.origen }} · {{ item.metodoPago }}</strong></div>
+          <div><small>Registro</small><strong>{{ fechaLocal(item.creadoUtc) }}</strong></div>
+        </div>
+        <div class="cobro-confirmacion">
+          <label :for="'reserva-importe-'+item.reservaId">Importe verificado (L)</label>
+          <input :id="'reserva-importe-'+item.reservaId" v-model="importesReservas[item.reservaId]"
+            type="number" min="0.01" max="100000" step="0.01"
+            :readonly="!item.requiereImporteManual"
+            :disabled="!!procesandoReserva" />
+          <template v-if="item.requiereImporteManual">
+            <label :for="'reserva-motivo-'+item.reservaId">Justificación de tarifa manual</label>
+            <input :id="'reserva-motivo-'+item.reservaId"
+              v-model="justificacionesReservas[item.reservaId]" maxlength="250"
+              placeholder="Describe el importe utilizado" :disabled="!!procesandoReserva" />
+          </template>
+          <label class="cobro-check">
+            <input type="checkbox" v-model="comprobadosReservas[item.reservaId]"
+              :disabled="!!procesandoReserva" />
+            <span>Confirmo que revisé esta operación de pago de prueba. No representa un cobro bancario real.</span>
+          </label>
+          <button type="button" class="cobro-boton"
+            :disabled="!!procesandoReserva || comprobadosReservas[item.reservaId]!==true || cargandoReservas"
+            @click="confirmarReserva(item)">
+            <AdminIcon name="check" :size="18" />
+            {{ procesandoReserva===item.reservaId?'Confirmando...':'Confirmar pago de reserva' }}
+          </button>
+        </div>
+      </article>
+    </section>
   </div>
 </template>
 
 <style scoped>
 .cobros-carga-panel { margin-top: 24px; }
+.cobros-carga-panel input[type="number"],
+.cobros-carga-panel input[type="text"] {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #c3d6e0;
+  background: #fff;
+  color: #01305c;
+  font: inherit;
+}
+.cobros-carga-panel input:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 2px;
+}
+
 .cobro-metodo-carga {
   display: block;
   padding: 12px 14px;
