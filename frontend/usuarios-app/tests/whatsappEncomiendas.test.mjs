@@ -11,7 +11,7 @@ test('el chat manual abre al participante correcto sin incorporar el PIN al enla
   assert.equal(chatPinEncomienda(deposito, detalle), 'https://wa.me/999123456701');
   assert.equal(chatPinEncomienda(retiro, { ...detalle, estado: 'Depositada' }), 'https://wa.me/999123456702');
   assert.doesNotMatch(chatPinEncomienda(deposito, detalle), /123456$|\?text=|token|pin=/i);
-  assert.match(mensajePinEncomienda(deposito, detalle, 'fecha de prueba'), /PIN exclusivo de deposito: 123456/);
+  assert.match(mensajePinEncomienda(deposito, detalle, 'fecha de prueba'), /PIN exclusivo de depósito: 123456\./);
   assert.match(mensajePinEncomienda(retiro, { ...detalle, estado: 'Depositada' }, 'fecha de prueba'), /PIN exclusivo de retiro: 654321/);
 });
 
