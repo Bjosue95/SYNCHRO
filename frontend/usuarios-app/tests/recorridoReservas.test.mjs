@@ -9,7 +9,7 @@ test('la reserva distingue la autorizacion del remitente y la del destinatario',
   const reserva = leer('PreReservaView');
   assert.match(reserva, /normalizarTelefono\(telefono\.value\)/);
   assert.match(reserva, /La autorización de retiro del destinatario se gestiona después de confirmar el depósito/);
-  assert.match(reserva, /El pago seguirá pendiente hasta que lo confirme el administrador/);
+  assert.match(reserva, /La solicitud quedará pendiente de confirmación administrativa/);
   assert.match(reserva, /Number\.isSafeInteger\(Number\(d\?\.id\)\)/);
   assert.doesNotMatch(reserva, /No se comparan rostros ni necesitas registrar uno en la web/);
 });
@@ -115,6 +115,8 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.doesNotMatch(vista, /localStorage|sessionStorage/);
   assert.doesNotMatch(vista, /Volver a tamaños/);
   assert.match(vista, /La reserva personal requiere la comprobación administrativa del pago antes del depósito/);
+  assert.match(vista, /\? 'Confirmar pago' : 'Confirmar reserva'/);
+  assert.match(vista, /modalidadPago:servicio\.value==='Encomienda'/);
 });
 
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
@@ -134,4 +136,6 @@ test('el detalle no ofrece la autorizacion del destinatario antes del deposito',
   assert.match(detalle, /detalle\.condiciones\.remitenteAutorizado/);
   assert.match(detalle, /\["Entregado","Consumido"\]\.includes\(p\.estado\)/);
   assert.match(detalle, /watch\(\(\) => route\.params\.id/);
+  assert.match(detalle, /Tu solicitud de pago fue enviada a revisión/);
+  assert.match(detalle, /No se ha efectuado ningún cargo bancario/);
 });
