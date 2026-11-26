@@ -26,14 +26,15 @@ const ruta = computed(() => {
 </script>
 <template>
   <img class="icono-tablet" :src="ruta" :width="tamano" :height="tamano"
+    :style="{ width: tamano + 'px', height: tamano + 'px' }"
     alt="" aria-hidden="true" draggable="false" decoding="async" />
 </template>
 <style scoped>
 .icono-tablet {
   display: block;
   flex: 0 0 auto;
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 </style>
