@@ -62,7 +62,10 @@ internal sealed partial class EncomiendasOperativasSql
             if((tipo!="Normal"||!r.IsDBNull(3))&&configuracion is null)continue;
             var duraciones=configuracion?.Tarifas.Where(t=>t.Value>0).Select(t=>t.Key).Order().ToArray()??DuracionesPrototipo;
             if(duraciones.Length==0)continue;
-            opciones.Add(new(r.GetString(0),tipo,r.GetString(2)=="Pequeño"?"Pequeno":r.GetString(2),"prototipo",UbicacionPrototipo,duraciones,configuracion?.Tarifas));
+            var tamano=r.GetString(2)=="Pequeño"?"Pequeno":r.GetString(2);
+            var tarifas=configuracion?.Tarifas??(Tarifa(tamano) is decimal tarifa
+                ?duraciones.ToDictionary(d=>d,_=>tarifa):null);
+            opciones.Add(new(r.GetString(0),tipo,tamano,"prototipo",UbicacionPrototipo,duraciones,tarifas));
         }
         return new{opciones,ubicacionPendiente=string.IsNullOrWhiteSpace(config["ReservasPrototipo:Ubicacion"]),
             capturaEnWebRequerida=false,capturaTablet="DemostrativaSinComparacion",hardwareSimulado=true};
