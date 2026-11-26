@@ -320,7 +320,7 @@ onMounted(cargar);
                 <small>Usa 123 · no es un PIN bancario.</small>
               </label>
             </div>
-            <p class="reserva-bloque__nota">Los datos se verifican únicamente en esta pantalla y no se almacenan. No se realizará ningún cargo bancario. El pago quedará pendiente de confirmación administrativa.</p>
+            <p class="reserva-bloque__nota">Los datos se verifican únicamente en esta pantalla y no se almacenan. No se realizará ningún cargo bancario. La solicitud quedará pendiente de confirmación administrativa.</p>
           </section>
           <p v-else class="reserva-bloque__nota">
             El destinatario podrá solicitar el pago en la tablet tras el depósito. La entrega quedará bloqueada hasta que el administrador confirme el cobro.
@@ -335,7 +335,7 @@ onMounted(cargar);
             @click="revisando=false;limpiarTarjetaPrueba()">Modificar selección</button>
           <SynButton tipo="button" :cargando="enviando"
             :disabled="servicio==='Encomienda'&&pagador==='Remitente'&&!tarjetaPruebaValida"
-            @click="crear">Confirmar reserva</SynButton>
+            @click="crear">{{ servicio==='Encomienda' && pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}</SynButton>
         </div>
       </section>
     </template>
