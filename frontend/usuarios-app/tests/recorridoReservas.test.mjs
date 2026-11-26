@@ -145,6 +145,15 @@ test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos ban
   assert.match(vista, /<div class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
   assert.match(vista, /pagador:pagador\.value==='Remitente'\?'Remitente'/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
-  assert.match(vista, /:disabled="pagador==='Remitente'&&!tarjetaPruebaValida"/);
+  assert.match(vista, /@click="usarDatosPrueba"/);
+  assert.match(vista, /v-if="pagoError"/);
   assert.doesNotMatch(vista, /servicio==='Encomienda'&&pagador==='Remitente'&&!tarjetaPruebaValida/);
+});
+
+test('el pago muestra instrucciones y permite confirmar para ver errores', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /function usarDatosPrueba\(\)/);
+  assert.match(vista, /@click="usarDatosPrueba"/);
+  assert.match(vista, /:disabled="enviando"\s+@click="crear"/);
+  assert.match(vista, /pagoError\.value='Los valores no coinciden/);
 });
