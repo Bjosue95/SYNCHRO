@@ -255,9 +255,19 @@ onBeforeUnmount(() => {
             </dd>
           </div>
         </dl>
-        <p class="env-help">
-          El administrador registra el pago efectivamente comprobado. No hay pasarela de pago conectada.
-          <template v-if="!esPersonal">El destinatario no paga otra vez al retirar una encomienda ya pagada.</template>
+        <p v-if="detalle.reserva?.modalidadPago==='WebTarjeta'" class="env-help">
+          <strong>Origen: Web · Pagador: remitente.</strong>
+          La tarjeta utilizada en la revisión fue únicamente de prueba. El administrador debe confirmar la operación; no se procesó dinero real.
+        </p>
+        <p v-else-if="detalle.reserva?.modalidadPago==='Tablet'" class="env-help">
+          <strong>Origen: Tablet · Pagador: destinatario.</strong>
+          El depósito puede confirmarse primero. El destinatario elegirá cómo pagar en la Tablet y el administrador deberá aprobar el pago antes de permitir el retiro.
+        </p>
+        <p v-else class="env-help">
+          El administrador comprueba los pagos manualmente. No hay pasarela bancaria conectada.
+        </p>
+        <p v-if="!esPersonal&&detalle.condiciones.pagoConfirmado" class="env-help">
+          El pago ya está confirmado; no se cobrará una segunda vez al retirar.
         </p>
       </section>
       <section class="env-card">
