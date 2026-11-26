@@ -17,7 +17,7 @@ test('la reserva distingue la autorizacion del remitente y la del destinatario',
 test('los contadores reservables cuentan codigos unicos y no todas las filas SQL', () => {
   const reserva = leer('PreReservaView');
   assert.match(reserva, /new Set\(lista\.map\(/);
-  assert.match(reserva, /:disponibles="cantidadPorTipo\(t\.id\)"/);
+  assert.match(reserva, /:disponibles="servicio===\x27Personal\x27 && t\.id!==\x27Normal\x27 \? undefined : cantidadPorTipo\(t\.id\)"/);
   assert.match(reserva, /:disponibles="cantidadPorTamano\(t\.valor\)"/);
   assert.doesNotMatch(reserva, /:disponibles="opciones\.filter\(o=>o\.tipo===t\.id\)\.length"/);
 });
