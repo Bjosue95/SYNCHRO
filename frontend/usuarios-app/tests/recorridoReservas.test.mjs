@@ -79,11 +79,12 @@ test('detalle de reserva usa opciones de ubicación y duración, teléfono y nav
 test('iconos de Tablet respetan tamaño en botones de reservar y volver', () => {
   const icono = readFileSync(new URL('../src/components/ui/IconoTablet.vue', import.meta.url), 'utf8');
   const vista = leer('PreReservaView');
-  assert.match(icono, /:style="\\{ width: tamano \\+ 'px', height: tamano \\+ 'px' \\}"/);
-  assert.doesNotMatch(icono, /\\bwidth: 100%;\\s*height: 100%;/);
+  assert.ok(icono.includes(':style="{ width: tamano +'));
+  assert.ok(icono.includes("height: tamano + 'px'"));
+  assert.doesNotMatch(icono, /width: 100%;/);
   assert.match(vista, /<IconoTablet nombre="volver" :tamano="21"/);
   assert.match(vista, /<IconoTablet nombre="continuar" :tamano="21"/);
-  assert.match(vista, /\\.reserva-final__acciones \\.boton \\{/);
+  assert.ok(vista.includes('.reserva-final__acciones .boton {'));
 });
 
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
