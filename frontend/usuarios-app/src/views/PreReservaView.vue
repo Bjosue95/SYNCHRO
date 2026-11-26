@@ -433,7 +433,20 @@ onMounted(cargar);
 .reserva-final__resumen dt { font-size: 11px; font-weight: 700; color: var(--text-muted); }
 .reserva-final__resumen dd { margin: 0; font-size: 13px; font-weight: 750; color: var(--text-strong); overflow-wrap: anywhere; }
 .reserva-final__acciones { display: flex; align-items: stretch; justify-content: space-between; gap: 14px; }
-.reserva-final__acciones .boton { display: inline-flex; align-items: center; gap: 12px; min-height: 54px; padding-inline: 22px; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.reserva-final__acciones .boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 12px 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  cursor: pointer;
+}
 .reserva-final__volver { flex: 0 1 auto; }
 .reserva-final__continuar { flex: 1 1 280px; max-width: 460px; }
 .reserva-final__continuar :deep(.icono-tablet) { filter: var(--action-icon-filter); }
