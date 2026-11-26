@@ -32,8 +32,11 @@ async function cancelar() {
     cancelando.value=false;confirmarCancelacion.value=false;
     aviso.value="Reserva cancelada. Se conserva en tu historial. Tu autorización general de WhatsApp permanece vigente.";
     await cargar();
-  } catch(e){error.value=(e as Error).message;await cargar();}
-  finally{procesando.value=false;}
+  } catch(e){
+    const mensaje=(e as Error).message || 'No se pudo cancelar la reserva.';
+    await cargar();
+    error.value=mensaje;
+  } finally{procesando.value=false;}
 }
 async function cargar() {
   const numeroReserva = String(route.params.id);
@@ -79,6 +82,7 @@ watch(() => route.params.id, () => {
 });
 onMounted(async () => {
   await cargar();
+  if(!montada)return;
   reloj = setInterval(() => {
     if (!document.hidden && !procesando.value && !cargando.value) void cargar();
   }, 15000);
