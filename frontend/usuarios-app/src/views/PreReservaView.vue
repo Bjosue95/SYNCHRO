@@ -327,7 +327,7 @@ onMounted(cargar);
           </p>
         </template>
         <p v-else class="reserva-bloque__nota">
-          El resguardo de pertenencias personales conserva su proceso de pago al finalizar el uso.
+          La reserva personal requiere la comprobación administrativa del pago antes del depósito. Los cobros adicionales por tiempo de uso se gestionan en el retiro, según corresponda.
         </p>
 
         <div class="reserva-revision__acciones">
