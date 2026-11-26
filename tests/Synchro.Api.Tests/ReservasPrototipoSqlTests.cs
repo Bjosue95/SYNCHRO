@@ -99,6 +99,22 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.Equal(400,rechazo.Estado);
     }
 
+    [Theory]
+    [InlineData("Personal","Remitente","WebTarjeta")]
+    [InlineData("Personal","Destinatario","Tablet")]
+    [InlineData("Encomienda","Remitente","Tablet")]
+    public async Task RechazaCombinacionesDePagadorYCanalNoPermitidas(
+        string servicio,string pagador,string canal)
+    {
+        var f=await Preparar();
+        var s=new EncomiendasOperativasSql(ConfiguracionReserva(f),f.Proteccion,TimeProvider.System);
+        var d=new CrearReservaPrototipoSolicitud(servicio,"Normal","Mediano",
+            "prototipo",30,servicio=="Personal"?null:"+999123456702",pagador,canal);
+        var error=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
+            s.Crear(f.Persona,d.TelefonoDestinatario??"","Mediano",CancellationToken.None,d));
+        Assert.Equal("PreferenciaPagoInvalida",error.Codigo);
+    }
+
     [Fact]
     public async Task PagoWebDePruebaSeEnviaAlAdministradorSinRecibirTarjeta()
     {
