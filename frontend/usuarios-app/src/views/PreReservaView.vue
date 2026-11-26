@@ -14,12 +14,30 @@ const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado
 // Campos solamente de memoria local. No se envían al backend ni se almacenan.
 const pagador=ref<'Remitente'|'Destinatario'>('Remitente');
 const numeroTarjetaPrueba=ref(''),venceTarjetaPrueba=ref(''),codigoTarjetaPrueba=ref('');
-const tarjetaPruebaValida=computed(()=>numeroTarjetaPrueba.value.replace(/\s/g,'')==='4242424242424242'
-  &&venceTarjetaPrueba.value.trim()==='12/30'&&codigoTarjetaPrueba.value.trim()==='123');
+const tarjetaPruebaValida=computed(()=>numeroTarjetaPrueba.value.replace(/\D/g,'')==='4242424242424242'
+  &&venceTarjetaPrueba.value.replace(/\s/g,'')==='12/30'&&codigoTarjetaPrueba.value.trim()==='123');
+const pagoError=ref('');
+function usarDatosPrueba(){
+  numeroTarjetaPrueba.value='4242 4242 4242 4242';
+  venceTarjetaPrueba.value='12/30';
+  codigoTarjetaPrueba.value='123';
+  pagoError.value='';
+}
+function cambiarNumeroTarjeta(valor:string){
+  const digitos=valor.replace(/\D/g,'').slice(0,16);
+  numeroTarjetaPrueba.value=digitos.replace(/(.{4})/g,'$1 ').trim();
+  pagoError.value='';
+}
+function cambiarVencimiento(valor:string){
+  const digitos=valor.replace(/\D/g,'').slice(0,4);
+  venceTarjetaPrueba.value=digitos.length>2 ? digitos.slice(0,2)+'/'+digitos.slice(2) : digitos;
+  pagoError.value='';
+}
 function limpiarTarjetaPrueba(){
   numeroTarjetaPrueba.value='';
   venceTarjetaPrueba.value='';
   codigoTarjetaPrueba.value='';
+  pagoError.value='';
 }
 watch(pagador,limpiarTarjetaPrueba);
 onBeforeUnmount(limpiarTarjetaPrueba);
@@ -110,10 +128,12 @@ async function crear(){
     return;
   }
   if(pagador.value==='Remitente'&&!tarjetaPruebaValida.value){
-    error.value='Introduce los datos habilitados para esta operación. No ingreses datos bancarios reales.';
+    pagoError.value='Los valores no coinciden con los datos habilitados. Utiliza «Usar datos de prueba» y vuelve a confirmar.';
+    error.value='Verifica los datos de pago antes de continuar.';
     return;
   }
   enviando.value=true;
+  pagoError.value='';
   error.value='';
   try {
     const d=await encomiendasApi.reservar({
@@ -315,26 +335,28 @@ onMounted(cargar);
                 </div>
               </div>
               <div class="reserva-pago__formulario">
+                <div class="reserva-pago__datos-prueba"><span>Para continuar, utiliza los datos habilitados para esta operación.</span><button type="button" class="reserva-pago__aplicar" :disabled="enviando" @click="usarDatosPrueba">Usar datos de prueba</button></div>
                 <div class="reserva-prueba__campos">
                   <label class="campo reserva-prueba__numero">
                     <span>Número de tarjeta</span>
-                    <input v-model="numeroTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
+                    <input :value="numeroTarjetaPrueba" @input="cambiarNumeroTarjeta(($event.target as HTMLInputElement).value)" type="text" inputmode="numeric" autocomplete="off"
                       maxlength="23" placeholder="4242 4242 4242 4242" :disabled="enviando" />
                     <small>Número habilitado: 4242 4242 4242 4242</small>
                   </label>
                   <label class="campo">
                     <span>Fecha de vencimiento</span>
-                    <input v-model="venceTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
+                    <input :value="venceTarjetaPrueba" @input="cambiarVencimiento(($event.target as HTMLInputElement).value)" type="text" inputmode="numeric" autocomplete="off"
                       maxlength="5" placeholder="MM/AA" :disabled="enviando" />
                     <small>Usa 12/30</small>
                   </label>
                   <label class="campo">
                     <span>Código de seguridad</span>
                     <input v-model="codigoTarjetaPrueba" type="password" inputmode="numeric" autocomplete="off"
-                      maxlength="3" placeholder="•••" :disabled="enviando" />
+                      maxlength="3" placeholder="•••" :disabled="enviando" @input="pagoError=''" />
                     <small>Usa 123 · no es un PIN bancario.</small>
                   </label>
                 </div>
+                <p v-if="pagoError" class="reserva-pago__error" role="alert">{{ pagoError }}</p>
                 <p class="reserva-pago__aviso">Utiliza únicamente los valores habilitados en esta pantalla; no ingreses una tarjeta real. Los datos no se almacenan ni se envían al servidor. No se efectuarán cargos bancarios.</p>
               </div>
             </div>
@@ -352,7 +374,7 @@ onMounted(cargar);
           <button type="button" class="boton boton-secundario" :disabled="enviando"
             @click="revisando=false;limpiarTarjetaPrueba()">Modificar selección</button>
           <SynButton tipo="button" :cargando="enviando"
-            :disabled="pagador==='Remitente'&&!tarjetaPruebaValida"
+            :disabled="enviando"
             @click="crear">{{ pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}</SynButton>
         </div>
       </section>
@@ -622,6 +644,10 @@ onMounted(cargar);
 .reserva-pago__tarjeta-inferior span {display:grid;gap:5px;}
 .reserva-pago__tarjeta-inferior small {font-size:9px;opacity:.75;}
 .reserva-pago__formulario { min-width:0;display:grid;gap:14px; }
+.reserva-pago__datos-prueba {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--border);border-radius:12px;background:var(--surface-accent);font-size:12px;color:var(--text-strong);}
+.reserva-pago__aplicar {font:inherit;font-size:12px;font-weight:800;color:var(--text-strong);border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);padding:10px 12px;cursor:pointer;}
+.reserva-pago__aplicar:hover:not(:disabled){border-color:var(--brand-accent);}
+.reserva-pago__error {font-size:12px;line-height:1.5;color:var(--text-strong);border-left:3px solid #c15d37;padding:10px 12px;background:var(--surface);}
 .reserva-pago__aviso {font-size:11px;line-height:1.6;color:var(--text-muted);margin:0;}
 .reserva-pago__pie {display:flex;gap:10px;align-items:center;padding:13px 15px;color:var(--text-strong);font-size:12px;font-weight:700;background:var(--surface-accent);border:1px solid var(--border);border-radius:12px;}
 .reserva-pago__pie :deep(svg) {flex:0 0 auto;}
