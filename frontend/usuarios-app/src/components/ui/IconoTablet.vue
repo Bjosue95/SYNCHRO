@@ -10,7 +10,12 @@ const archivos: Record<string, string> = {
   Caliente: '08_caliente',
   Pequeno: 'casillero-tamano-S',
   Mediano: 'casillero-tamano-M',
-  Grande: 'casillero-tamano-L'
+  Grande: 'casillero-tamano-L',
+  ubicacion: '53_ubicacion',
+  tiempo: '21_tiempo_tarifa',
+  whatsapp: '40_whatsapp',
+  volver: '28_regresar',
+  continuar: '29_continuar'
 };
 const props = withDefaults(defineProps<{ nombre: string; tamano?: number }>(), { tamano: 58 });
 const { tema } = useTheme();

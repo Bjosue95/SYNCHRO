@@ -56,6 +56,26 @@ test('las tarjetas tienen dimensiones fijas y muestran los iconos reales de Tabl
   assert.match(icono, /casillero-tamano-S/);
 });
 
+test('detalle de reserva usa opciones de ubicación y duración, teléfono y navegación visual', () => {
+  const vista = leer('PreReservaView');
+  const iconos = readFileSync(new URL('../src/components/ui/IconoTablet.vue', import.meta.url), 'utf8');
+  assert.match(vista, /v-for="\[id,nombre\] in ubicaciones"/);
+  assert.match(vista, /v-for="m in duraciones"/);
+  assert.match(vista, /:aria-pressed="minutos===m"/);
+  assert.match(vista, /:aria-pressed="ubicacion===id"/);
+  assert.match(vista, /type="tel"/);
+  assert.match(vista, /nombreUbicacion\(nombre\)/);
+  assert.match(vista, /Dirección pendiente de confirmación/);
+  assert.match(vista, /@submit\.prevent="revisar"/);
+  assert.match(vista, /:disabled="!disponible \|\| actualizando"/);
+  assert.match(vista, /@click="volverATamanos"/);
+  assert.doesNotMatch(vista, /<select v-model="minutos"/);
+  assert.doesNotMatch(vista, /<select v-model="ubicacion"/);
+  for(const nombre of ['ubicacion','tiempo','whatsapp','volver','continuar']) {
+    assert.match(iconos, new RegExp(nombre + ':'));
+  }
+});
+
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
   const panel = leer('PanelView');
   assert.match(panel, /encomiendasApi\.listar\(/);
