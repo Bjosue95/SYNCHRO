@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed,onMounted,ref,watch } from 'vue';
+import { computed,onMounted,onBeforeUnmount,ref,watch } from 'vue';
 import { useRouter,useRoute } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
 import { normalizarTelefono,TAMANOS_ENCOMIENDA } from '../services/validaciones.js';
@@ -11,6 +11,18 @@ const router=useRouter(),route=useRoute();
 const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),tipo=ref('Normal'),tamano=ref(''),ubicacion=ref(''),minutos=ref(0),telefono=ref('');
 const opciones=ref<any[]>([]),cargando=ref(true),actualizando=ref(false),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
 const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado'},{id:'Caliente',nombre:'Caliente'}];
+// Campos solamente de memoria local. No se envían al backend ni se almacenan.
+const pagador=ref<'Remitente'|'Destinatario'>('Remitente');
+const numeroTarjetaPrueba=ref(''),venceTarjetaPrueba=ref(''),codigoTarjetaPrueba=ref('');
+const tarjetaPruebaValida=computed(()=>numeroTarjetaPrueba.value.replace(/\s/g,'')==='4242424242424242'
+  &&venceTarjetaPrueba.value.trim()==='12/30'&&codigoTarjetaPrueba.value.trim()==='123');
+function limpiarTarjetaPrueba(){
+  numeroTarjetaPrueba.value='';
+  venceTarjetaPrueba.value='';
+  codigoTarjetaPrueba.value='';
+}
+watch(pagador,limpiarTarjetaPrueba);
+onBeforeUnmount(limpiarTarjetaPrueba);
 // Una opción corresponde a un casillero; una duración nunca suma otro casillero.
 const contarCasilleros=(lista:any[])=>new Set(lista.map(o=>typeof o.codigo==='string'?o.codigo.trim():'').filter(Boolean)).size;
 const cantidadPorTipo=(t:string)=>contarCasilleros(opciones.value.filter(o=>o.tipo===t));
@@ -31,11 +43,6 @@ const ubicacionNombre=computed(()=>{
 const nombreDuracion=(valor:number)=>valor%60===0
   ? `${valor/60} ${valor===60?'hora':'horas'}`
   : `${valor} min`;
-function volverATamanos(){
-  const reducir=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-  document.getElementById('reserva-seleccion-tamano')
-    ?.scrollIntoView({behavior:reducir?'auto':'smooth',block:'start'});
-}
 watch(() => route.query.servicio, valor => {
   const nuevo = valor === 'Encomienda' ? 'Encomienda' : 'Personal';
   if (nuevo !== servicio.value) { servicio.value = nuevo; revisando.value = false; }
@@ -78,6 +85,8 @@ watch(servicio,(nuevo)=>{
   // Frío y calor se reservan exclusivamente para encomiendas.
   // Al volver a pertenencias personales se restaura Normal sin ocultar las tarjetas.
   if(nuevo==='Personal' && tipo.value!=='Normal')tipo.value='Normal';
+  pagador.value='Remitente';
+  limpiarTarjetaPrueba();
   revisando.value=false;
   void cargar(true);
 });
@@ -100,6 +109,10 @@ async function crear(){
     error.value='Verifica la selección antes de crear tu reserva.';
     return;
   }
+  if(servicio.value==='Encomienda'&&pagador.value==='Remitente'&&!tarjetaPruebaValida.value){
+    error.value='Usa únicamente los valores de la tarjeta de prueba mostrados en pantalla. No ingreses datos bancarios reales.';
+    return;
+  }
   enviando.value=true;
   error.value='';
   try {
@@ -109,10 +122,15 @@ async function crear(){
       tamanoSolicitado:tamano.value,
       ubicacionId:ubicacion.value,
       minutos:minutos.value,
-      telefonoDestinatario:servicio.value==='Encomienda'?normalizarTelefono(telefono.value):null
+      telefonoDestinatario:servicio.value==='Encomienda'?normalizarTelefono(telefono.value):null,
+      pagador:servicio.value==='Encomienda'?pagador.value:null,
+      modalidadPago:servicio.value==='Encomienda'
+        ? pagador.value==='Remitente'?'WebTarjeta':'Tablet'
+        :null
     });
     if(!Number.isSafeInteger(Number(d?.id))||Number(d.id)<=0)
       throw new Error('La reserva fue recibida, pero el servidor no devolvió una referencia válida. Consulta Mis reservas antes de crear otra.');
+    limpiarTarjetaPrueba();
     await router.replace('/reservas/'+d.id);
   } catch(e) {
     error.value=(e as Error).message || 'No se pudo completar la reserva.';
@@ -233,10 +251,6 @@ onMounted(cargar);
             </dl>
           </div>
           <div class="reserva-final__acciones">
-            <button type="button" class="boton boton-secundario reserva-final__volver" @click="volverATamanos">
-              <IconoTablet nombre="volver" :tamano="21" />
-              Volver a tamaños
-            </button>
             <button type="submit" class="boton boton-primario reserva-final__continuar" :disabled="!disponible || actualizando">
               Revisar reserva
               <IconoTablet nombre="continuar" :tamano="21" />
@@ -244,11 +258,85 @@ onMounted(cargar);
           </div>
         </form>
       </template>
-      <section v-else class="env-card"><h2>Tu reserva</h2><dl class="env-facts"><div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div><div><dt>Casillero</dt><dd>{{ tipo }} · {{ tamano }}</dd></div><div><dt>Ubicación</dt><dd>{{ ubicacionNombre }}</dd></div><div><dt>Duración</dt><dd>{{ minutos }} minutos</dd></div><div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div></dl>
-        <p>El administrador comprobará tu autorización de WhatsApp y el pago antes de entregarte el PIN de depósito.</p>
-        <p class="env-help" v-if="servicio==='Encomienda'">Después de confirmar el depósito, se podrá gestionar la autorización del destinatario y entregarle un PIN diferente para el retiro.</p>
-        <p class="env-help" v-else>Recibirás un PIN de depósito y otro de retiro. Consulta el estado de cada operación desde Mis reservas.</p>
-        <SynButton tipo="button" :cargando="enviando" @click="crear">Confirmar reserva</SynButton><button class="boton boton-secundario" :disabled="enviando" @click="revisando=false">Cambiar selección</button>
+      <section v-else class="env-card reserva-revision">
+        <div class="reserva-final__intro">
+          <span class="reserva-final__etapa">ÚLTIMO PASO</span>
+          <h2>Revisa y confirma tu reserva</h2>
+          <p>Comprueba la información antes de crear la reserva y elegir quién realizará el pago.</p>
+        </div>
+        <dl class="reserva-revision__datos">
+          <div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div>
+          <div><dt>Casillero</dt><dd>{{ tipo }} · {{ tamano }}</dd></div>
+          <div><dt>Estación</dt><dd>{{ ubicacionNombre }}</dd></div>
+          <div><dt>Duración</dt><dd>{{ nombreDuracion(minutos) }}</dd></div>
+          <div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div>
+        </dl>
+        <template v-if="servicio==='Encomienda'">
+          <div class="reserva-final__intro">
+            <h3>¿Quién realizará el pago?</h3>
+            <p>Selecciona una modalidad. Ninguna operación cobra dinero real.</p>
+          </div>
+          <div class="reserva-pagadores" role="group" aria-label="Quién realizará el pago">
+            <button type="button" class="reserva-pagador"
+              :class="{'es-seleccionada':pagador==='Remitente'}"
+              :aria-pressed="pagador==='Remitente'" :disabled="enviando"
+              @click="pagador='Remitente'">
+              <IconoTablet nombre="pago" :tamano="32" />
+              <strong>Yo pagaré desde la web</strong>
+              <small>Tarjeta de prueba · requiere aprobación del administrador.</small>
+            </button>
+            <button type="button" class="reserva-pagador"
+              :class="{'es-seleccionada':pagador==='Destinatario'}"
+              :aria-pressed="pagador==='Destinatario'" :disabled="enviando"
+              @click="pagador='Destinatario'">
+              <IconoTablet nombre="encomienda" :tamano="32" />
+              <strong>Pagará el destinatario en la Tablet</strong>
+              <small>Después del depósito, antes de retirar la encomienda.</small>
+            </button>
+          </div>
+
+          <section v-if="pagador==='Remitente'" class="reserva-prueba" aria-labelledby="reserva-prueba-titulo">
+            <div class="reserva-final__intro">
+              <h3 id="reserva-prueba-titulo">Tarjeta para demostración</h3>
+              <p>Usa solamente los valores indicados. No introduzcas números de tarjetas reales ni contraseñas bancarias.</p>
+            </div>
+            <div class="reserva-prueba__campos">
+              <label class="campo reserva-prueba__numero">
+                <span>Número de tarjeta de prueba</span>
+                <input v-model="numeroTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
+                  maxlength="23" placeholder="4242 4242 4242 4242" :disabled="enviando" />
+                <small>Dato de prueba: 4242 4242 4242 4242</small>
+              </label>
+              <label class="campo">
+                <span>Vencimiento de prueba</span>
+                <input v-model="venceTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
+                  maxlength="5" placeholder="MM/AA" :disabled="enviando" />
+                <small>Usa 12/30</small>
+              </label>
+              <label class="campo">
+                <span>Código de seguridad de prueba</span>
+                <input v-model="codigoTarjetaPrueba" type="password" inputmode="numeric" autocomplete="off"
+                  maxlength="3" placeholder="•••" :disabled="enviando" />
+                <small>Usa 123 · no es un PIN bancario.</small>
+              </label>
+            </div>
+            <p class="reserva-bloque__nota">Estos datos solo se verifican en esta pantalla, nunca se envían al servidor ni se guardan. El pago seguirá pendiente hasta que lo confirme el administrador.</p>
+          </section>
+          <p v-else class="reserva-bloque__nota">
+            El destinatario podrá solicitar el pago de prueba en la Tablet tras el depósito. La entrega quedará bloqueada hasta que el administrador confirme el cobro.
+          </p>
+        </template>
+        <p v-else class="reserva-bloque__nota">
+          El resguardo de pertenencias personales conserva su proceso de pago al finalizar el uso.
+        </p>
+
+        <div class="reserva-revision__acciones">
+          <button type="button" class="boton boton-secundario" :disabled="enviando"
+            @click="revisando=false;limpiarTarjetaPrueba()">Modificar selección</button>
+          <SynButton tipo="button" :cargando="enviando"
+            :disabled="servicio==='Encomienda'&&pagador==='Remitente'&&!tarjetaPruebaValida"
+            @click="crear">Confirmar reserva</SynButton>
+        </div>
       </section>
     </template>
   </section>
@@ -471,4 +559,46 @@ onMounted(cargar);
 @media (prefers-reduced-motion: reduce) {
   .reserva-final button { transition: none; }
 }
+
+.reserva-revision { gap: 24px; }
+.reserva-revision__datos {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 20px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+}
+.reserva-revision__datos > div { display:grid; gap:6px; min-width:0; }
+.reserva-revision__datos dt { font-size:12px; color:var(--text-muted); font-weight:700; }
+.reserva-revision__datos dd { margin:0; color:var(--text-strong); font-weight:800; overflow-wrap:anywhere; }
+.reserva-pagadores { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+.reserva-pagador {
+  display:grid; justify-items:start; align-content:start; gap:12px;
+  text-align:left; padding:18px; min-height:158px;
+  font:inherit; color:var(--text-strong); background:var(--surface-soft);
+  border:2px solid var(--border-strong); border-radius:15px; cursor:pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.reserva-pagador strong { font-size:15px; line-height:1.45; }
+.reserva-pagador small { color:var(--text-muted);font-size:12px;line-height:1.55; }
+.reserva-pagador.es-seleccionada { border-color:var(--brand-accent);background:var(--surface-accent); }
+.reserva-pagador:disabled { opacity:.6;cursor:wait; }
+.reserva-prueba {
+  display:grid;gap:16px;padding:20px;
+  background:var(--surface-soft); border:1px solid var(--border);border-radius:15px;
+}
+.reserva-prueba__campos { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.reserva-prueba__numero { grid-column:1/-1; }
+.reserva-revision__acciones { display:flex; gap:14px; justify-content:flex-end;flex-wrap:wrap; }
+.reserva-revision__acciones > * { min-height:54px; flex:1 1 200px;max-width:400px; }
+@media(max-width:600px){
+  .reserva-pagadores { grid-template-columns:1fr; }
+  .reserva-revision__datos {grid-template-columns:repeat(2,minmax(0,1fr));padding:16px;}
+  .reserva-revision__acciones { flex-direction:column-reverse; }
+  .reserva-revision__acciones > * { width:100%;max-width:none;flex:0 0 auto; }
+}
+@media(prefers-reduced-motion:reduce){.reserva-pagador{transition:none;}}
 </style>
