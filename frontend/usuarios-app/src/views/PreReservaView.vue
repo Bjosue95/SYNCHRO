@@ -9,6 +9,10 @@ const router=useRouter(),route=useRoute();
 const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),tipo=ref('Normal'),tamano=ref(''),ubicacion=ref(''),minutos=ref(0),telefono=ref('');
 const opciones=ref<any[]>([]),cargando=ref(true),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
 const tipos=[{id:'Normal',nombre:'Normal',icono:'casillero'},{id:'Refrigerado',nombre:'Refrigerado',icono:'frio'},{id:'Caliente',nombre:'Caliente',icono:'calor'}];
+// Una opción corresponde a un casillero; una duración nunca suma otro casillero.
+const contarCasilleros=(lista:any[])=>new Set(lista.map(o=>String(o.codigo)).filter(Boolean)).size;
+const cantidadPorTipo=(t:string)=>contarCasilleros(opciones.value.filter(o=>o.tipo===t));
+const cantidadPorTamano=(t:string)=>contarCasilleros(porTipo.value.filter(o=>o.tamano===t));
 const porTipo=computed(()=>opciones.value.filter(o=>o.tipo===tipo.value));
 const porTamano=computed(()=>porTipo.value.filter(o=>o.tamano===tamano.value));
 const ubicaciones=computed(()=>[...new Map<string,string>(porTamano.value.map(o=>[o.ubicacionId,o.ubicacion])).entries()]);
@@ -93,10 +97,10 @@ onMounted(cargar);
           <SeleccionReservaCard titulo="Una encomienda" descripcion="El destinatario retira con su PIN" icono="encomienda" :seleccionado="servicio==='Encomienda'" @seleccionar="servicio='Encomienda'" />
         </div></section>
         <section class="env-card"><h2>Tipo de casillero</h2><div class="reserva-opciones reserva-tres">
-          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre" :icono="t.icono" :seleccionado="tipo===t.id" :disponibles="opciones.filter(o=>o.tipo===t.id).length" @seleccionar="tipo=t.id" />
+          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre" :icono="t.icono" :seleccionado="tipo===t.id" :disponibles="cantidadPorTipo(t.id)" @seleccionar="tipo=t.id" />
         </div><p v-if="!opciones.length">No hay casilleros compatibles disponibles. <button class="boton boton-secundario" @click="cargar">Actualizar disponibilidad</button></p></section>
         <section v-if="porTipo.length" class="env-card"><h2>Tamaño</h2><div class="reserva-opciones reserva-tres">
-          <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" icono="casillero" :seleccionado="tamano===t.valor" :disponibles="porTipo.filter(o=>o.tamano===t.valor).length" @seleccionar="tamano=t.valor" />
+          <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" icono="casillero" :seleccionado="tamano===t.valor" :disponibles="cantidadPorTamano(t.valor)" @seleccionar="tamano=t.valor" />
         </div></section>
         <form v-if="tamano" class="env-card formulario" @submit.prevent="revisar">
           <h2>Ubicación y duración</h2>
