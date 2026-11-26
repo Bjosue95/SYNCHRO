@@ -7,9 +7,9 @@ using Synchro.Api.Models;
 namespace Synchro.Api.Services.Encomiendas;
 
 internal sealed record CrearReservaPrototipoSolicitud(string Servicio,string TipoCasillero,string TamanoSolicitado,
-    string UbicacionId,int Minutos,string? TelefonoDestinatario=null);
+    string UbicacionId,int Minutos,string? TelefonoDestinatario=null,string? Pagador=null,string? ModalidadPago=null);
 internal sealed record ReservaPrototipo(string Servicio,string TipoCasillero,string CodigoCasillero,string UbicacionId,
-    string Ubicacion,int Minutos,decimal? TarifaHnl);
+    string Ubicacion,int Minutos,decimal? TarifaHnl,string? Pagador=null,string? ModalidadPago=null);
 internal sealed record OpcionReservaPrototipo(string Codigo,string Tipo,string Tamano,string UbicacionId,string Ubicacion,
     int[] Duraciones,Dictionary<int,decimal>? Tarifas);
 
@@ -72,6 +72,11 @@ internal sealed partial class EncomiendasOperativasSql
     {
         Exigir(d.Servicio is "Personal" or "Encomienda","ServicioInvalido","Selecciona pertenencias personales o encomienda.",400);
         Exigir(d.UbicacionId=="prototipo"&&d.TipoCasillero is "Normal" or "Refrigerado" or "Caliente","SeleccionInvalida","Selecciona un tipo y una ubicación disponibles.",400);
+        Exigir(
+            d.Pagador is null && d.ModalidadPago is null ||
+            d.Pagador=="Remitente" && d.ModalidadPago=="WebTarjeta" ||
+            d.Servicio=="Encomienda" && d.Pagador=="Destinatario" && d.ModalidadPago=="Tablet",
+            "PreferenciaPagoInvalida","Selecciona quién pagará y dónde se realizará el pago.",400);
         // La regla es también del servidor: ocultar tarjetas no impide peticiones directas.
         Exigir(d.Servicio=="Encomienda"||d.TipoCasillero=="Normal",
             "CasilleroExclusivoEncomiendas",
@@ -97,7 +102,7 @@ internal sealed partial class EncomiendasOperativasSql
             if((d.TipoCasillero!="Normal"||!r.IsDBNull(2))&&configuracion is null)continue;
             if(!(configuracion is null?DuracionesPrototipo.Contains(d.Minutos):configuracion.Tarifas.TryGetValue(d.Minutos,out var importe)&&importe>0))continue;
             return new(d.Servicio,d.TipoCasillero,r.GetString(0),"prototipo",UbicacionPrototipo,d.Minutos,
-                configuracion?.Tarifas.GetValueOrDefault(d.Minutos) is >0?configuracion.Tarifas[d.Minutos]:null);
+                configuracion?.Tarifas.GetValueOrDefault(d.Minutos) is >0?configuracion.Tarifas[d.Minutos]:null,d.Pagador,d.ModalidadPago);
         }
         throw new OperacionEncomiendaException("SinDisponibilidad","Ya no hay un casillero compatible con esa selección. Actualiza la disponibilidad.");
     }
