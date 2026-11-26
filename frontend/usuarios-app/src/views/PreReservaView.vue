@@ -7,8 +7,8 @@ import SeleccionReservaCard from '../components/ui/SeleccionReservaCard.vue';
 import SynButton from '../components/ui/SynButton.vue';
 const router=useRouter(),route=useRoute();
 const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),tipo=ref('Normal'),tamano=ref(''),ubicacion=ref(''),minutos=ref(0),telefono=ref('');
-const opciones=ref<any[]>([]),cargando=ref(true),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
-const tipos=[{id:'Normal',nombre:'Normal',icono:'casillero'},{id:'Refrigerado',nombre:'Refrigerado',icono:'frio'},{id:'Caliente',nombre:'Caliente',icono:'calor'}];
+const opciones=ref<any[]>([]),cargando=ref(true),actualizando=ref(false),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
+const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado'},{id:'Caliente',nombre:'Caliente'}];
 // Una opción corresponde a un casillero; una duración nunca suma otro casillero.
 const contarCasilleros=(lista:any[])=>new Set(lista.map(o=>typeof o.codigo==='string'?o.codigo.trim():'').filter(Boolean)).size;
 const cantidadPorTipo=(t:string)=>contarCasilleros(opciones.value.filter(o=>o.tipo===t));
@@ -29,9 +29,12 @@ watch(tamano,()=>{ubicacion.value='';minutos.value=0;revisando.value=false;});
 watch(ubicaciones,lista=>{if(lista.length===1)ubicacion.value=lista[0][0];});
 watch(duraciones,lista=>{if(!lista.includes(minutos.value))minutos.value=lista[0]||0;});
 let versionCatalogo=0;
-async function cargar(){
+async function cargar(discreta=false){
   const actual=++versionCatalogo;
-  cargando.value=true;
+  // El cambio de servicio consulta SQL sin desmontar las tarjetas.
+  const cargaInicial=!discreta || (cargando.value && opciones.value.length===0);
+  if(cargaInicial)cargando.value=true;
+  else actualizando.value=true;
   error.value='';
   try {
     const datos=await encomiendasApi.disponibilidad();
@@ -47,12 +50,15 @@ async function cargar(){
     revisando.value=false;
     error.value=(e as Error).message || 'No pudimos consultar la disponibilidad.';
   } finally {
-    if(actual===versionCatalogo)cargando.value=false;
+    if(actual===versionCatalogo){
+      cargando.value=false;
+      actualizando.value=false;
+    }
   }
 }
-// Al elegir pertenencias o encomienda se vuelve a consultar el inventario real.
-// No cambia las reglas térmicas ni convierte casilleros ocupados en disponibles.
-watch(servicio,()=>{revisando.value=false;void cargar();});
+// Encomienda y pertenencias comparten el inventario, pero lo refrescamos en
+// segundo plano para evitar bloquear la seleccion.
+watch(servicio,()=>{revisando.value=false;void cargar(true);});
 function revisar(){
   error.value='';
   if(!disponible.value){
@@ -98,17 +104,18 @@ onMounted(cargar);
   <section class="env-page">
     <header class="env-heading"><div><h1>Reservar casillero</h1><p>Elige qué vas a guardar y encuentra un casillero disponible.</p></div></header>
     <p v-if="error" class="alerta" role="alert">{{ error }}</p><p v-if="cargando" role="status">Consultando disponibilidad…</p>
+    <span v-if="actualizando" class="reserva-sr-only" role="status">Actualizando disponibilidad</span>
     <template v-if="!cargando">
       <template v-if="!revisando">
         <section class="env-card"><h2>¿Qué vas a guardar?</h2><div class="reserva-opciones">
-          <SeleccionReservaCard titulo="Pertenencias personales" descripcion="Guardarlas y retirarlas con tus PIN" icono="guardar" :seleccionado="servicio==='Personal'" @seleccionar="servicio='Personal'" />
-          <SeleccionReservaCard titulo="Una encomienda" descripcion="El destinatario retira con su PIN" icono="encomienda" :seleccionado="servicio==='Encomienda'" @seleccionar="servicio='Encomienda'" />
+          <SeleccionReservaCard titulo="Pertenencias personales" descripcion="Guardarlas y retirarlas con tus PIN" icono-tablet="guardar" :seleccionado="servicio==='Personal'" @seleccionar="servicio='Personal'" />
+          <SeleccionReservaCard titulo="Una encomienda" descripcion="El destinatario retira con su PIN" icono-tablet="encomienda" :seleccionado="servicio==='Encomienda'" @seleccionar="servicio='Encomienda'" />
         </div></section>
         <section class="env-card"><h2>Tipo de casillero</h2><div class="reserva-opciones reserva-tres">
-          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre" :icono="t.icono" :seleccionado="tipo===t.id" :disponibles="cantidadPorTipo(t.id)" @seleccionar="tipo=t.id" />
-        </div><p v-if="!opciones.length">No hay casilleros compatibles disponibles. <button class="boton boton-secundario" @click="cargar">Actualizar disponibilidad</button></p></section>
+          <SeleccionReservaCard v-for="t in tipos" :key="t.id" :titulo="t.nombre" :icono-tablet="t.id" :seleccionado="tipo===t.id" :disponibles="cantidadPorTipo(t.id)" @seleccionar="tipo=t.id" />
+        </div><p v-if="!opciones.length">No hay casilleros compatibles disponibles. <button class="boton boton-secundario" @click="cargar(true)">Actualizar disponibilidad</button></p></section>
         <section v-if="porTipo.length" class="env-card"><h2>Tamaño</h2><div class="reserva-opciones reserva-tres">
-          <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" icono="casillero" :seleccionado="tamano===t.valor" :disponibles="cantidadPorTamano(t.valor)" @seleccionar="tamano=t.valor" />
+          <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" :icono-tablet="t.valor" :seleccionado="tamano===t.valor" :disponibles="cantidadPorTamano(t.valor)" @seleccionar="tamano=t.valor" />
         </div></section>
         <form v-if="tamano" class="env-card formulario" @submit.prevent="revisar">
           <h2>Ubicación y duración</h2>
@@ -129,5 +136,27 @@ onMounted(cargar);
   </section>
 </template>
 <style scoped>
-.reserva-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.reserva-tres{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:600px){.reserva-opciones{grid-template-columns:1fr}.reserva-tres{grid-template-columns:repeat(2,minmax(0,1fr))}.reserva-tres>:last-child:nth-child(odd){grid-column:1/-1}}
+.reserva-opciones {
+  --reserva-gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--reserva-gap);
+  align-items: stretch;
+}
+.reserva-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.reserva-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+@media (max-width: 600px) {
+  .reserva-opciones { grid-template-columns: 1fr; }
+  .reserva-tres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reserva-tres > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc((100% - var(--reserva-gap)) / 2);
+  }
+}
 </style>

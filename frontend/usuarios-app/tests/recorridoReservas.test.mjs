@@ -24,8 +24,26 @@ test('los contadores reservables cuentan codigos unicos y no todas las filas SQL
 
 test('al cambiar entre encomienda y pertenencias se consulta nuevamente SQL', () => {
   const reserva = leer('PreReservaView');
-  assert.match(reserva, /watch\(servicio,\(\)=>\{revisando\.value=false;void cargar\(\);\}\)/);
+  assert.match(reserva, /watch\(servicio,\(\)=>\{revisando\.value=false;void cargar\(true\);\}\)/);
+  assert.match(reserva, /const cargaInicial=!discreta/);
+  assert.match(reserva, /else actualizando\.value=true/);
   assert.match(reserva, /actual!==versionCatalogo/);
+});
+
+test('las tarjetas tienen dimensiones fijas y muestran los iconos reales de Tablet', () => {
+  const reserva = leer('PreReservaView');
+  const tarjeta = readFileSync(new URL('../src/components/ui/SeleccionReservaCard.vue', import.meta.url), 'utf8');
+  const icono = readFileSync(new URL('../src/components/ui/IconoTablet.vue', import.meta.url), 'utf8');
+  assert.match(reserva, /icono-tablet="guardar"/);
+  assert.match(reserva, /icono-tablet="encomienda"/);
+  assert.match(reserva, /:icono-tablet="t\.id"/);
+  assert.match(reserva, /:icono-tablet="t\.valor"/);
+  assert.match(tarjeta, /height: 260px;/);
+  assert.match(tarjeta, /grid-template-rows: 56px 54px 50px 20px 20px;/);
+  assert.match(tarjeta, /seleccionada::after/);
+  assert.match(icono, /32_guardar_pertenencias_personales/);
+  assert.match(icono, /09_encomienda_paquete/);
+  assert.match(icono, /casillero-tamano-S/);
 });
 
 test('el historial utiliza solo datos reales y descarta respuestas antiguas', () => {
