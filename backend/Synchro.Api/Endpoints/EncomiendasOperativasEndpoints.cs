@@ -97,6 +97,8 @@ public static class EncomiendasOperativasEndpoints
         prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.DepositarDemostrativo(id,Identidad(h),d,h.RequestAborted);}));
         prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaDeposito(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
         prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapGet("/{id:int}/pago/estado",(int id,HttpContext h,EncomiendasOperativasSql s)=>
+            Terminal(h,s,()=>s.EstadoPagoReservaTablet(id,Identidad(h),h.RequestAborted)));
         prototipo.MapPost("/{id:int}/pago/solicitar",(int id,SolicitudPagoReservaTablet d,
             HttpContext h,EncomiendasOperativasSql s)=>
             Terminal(h,s,()=>s.SolicitarPagoReservaTablet(id,Identidad(h),d,h.RequestAborted)));
