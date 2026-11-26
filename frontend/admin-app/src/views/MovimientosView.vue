@@ -80,6 +80,10 @@ async function cargar() {
       hour: '2-digit', minute: '2-digit'
     });
   } catch (e) {
+    movimientos.value = [];
+    total.value = 0;
+    totalPaginas.value = 1;
+    actualizado.value = '';
     error.value = (e as Error).message || 'No fue posible consultar el historial.';
   } finally {
     cargando.value = false;
@@ -134,7 +138,7 @@ onMounted(() => { void cargar(); });
 
       <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
       <div class="movimientos-meta" aria-live="polite">
-        <strong>{{ total }} movimientos</strong>
+        <strong>{{ error ? 'Movimientos no disponibles' : total + ' movimientos' }}</strong>
         <span v-if="actualizado">Actualizado a las {{ actualizado }}</span>
         <span v-if="hayRegistros">Página {{ pagina }} de {{ totalPaginas }}</span>
       </div>
