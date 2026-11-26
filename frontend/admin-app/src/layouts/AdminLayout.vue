@@ -15,13 +15,11 @@ const grupos = [
   { titulo: "OPERACIONES", enlaces: [
     { ruta: "/admin", titulo: "Resumen", icono: "dashboard" },
     { ruta: "/admin/whatsapp", titulo: "WhatsApp y PIN", icono: "message" },
-    { ruta: "/admin/encomiendas", titulo: "Encomiendas", icono: "lockers" },
     { ruta: "/admin/cobros", titulo: "Cobros", icono: "check" },
     { ruta: "/admin/casilleros", titulo: "Casilleros", icono: "lockers" },
+    { ruta: "/admin/operaciones", titulo: "Movimientos", icono: "activity" },
   ] },
   { titulo: "GESTIÓN", enlaces: [
-    { ruta: "/admin/reservas", titulo: "Reservas", icono: "calendar", pendiente: true },
-    { ruta: "/admin/operaciones", titulo: "Movimientos", icono: "activity", pendiente: true },
     { ruta: "/admin/reportes", titulo: "Reportes", icono: "report", pendiente: true },
     { ruta: "/admin/configuracion", titulo: "Configuración", icono: "settings", pendiente: true },
   ] },
