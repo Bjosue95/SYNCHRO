@@ -1,5 +1,6 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, onBeforeUnmount, ref } from "vue";
+import { RouterLink } from "vue-router";
 import { apiAdmin } from "../services/adminApi";
 import AdminIcon from "../components/AdminIcon.vue";
 
@@ -20,6 +21,7 @@ const procesandoReserva=ref(null);
 const comprobadosReservas=ref({});
 const importesReservas=ref({});
 const justificacionesReservas=ref({});
+const reservaConfirmada=ref(null);
 
 function dinero(valor) {
   const numero = Number(valor);
@@ -196,7 +198,7 @@ async function confirmarReserva(item) {
   if(!window.confirm("¿Confirmas el pago de prueba de L "+dinero(monto)+" para la reserva #"+id+
     " desde "+item.origen+"? No se ha recibido dinero real."))return;
   procesandoReserva.value=id;
-  error.value="";aviso.value="";
+  error.value="";aviso.value="";reservaConfirmada.value=null;
   try{
     const csrf=await apiAdmin("/api/admin/csrf-token");
     if(!csrf?.csrfToken)throw new Error("No se obtuvo el token de seguridad.");
@@ -211,6 +213,7 @@ async function confirmarReserva(item) {
     });
     if(resultado?.estado!=="ConfirmadoManual")throw new Error("El servidor no confirmó la reserva.");
     delete comprobadosReservas.value[id];
+    reservaConfirmada.value=id;
     aviso.value="Pago de prueba confirmado para la reserva #"+id+". Origen: "+item.origen+
       ". No se procesó dinero real.";
   }catch(e){error.value=e?.message||"No se pudo confirmar el cobro de reserva.";}
@@ -218,6 +221,9 @@ async function confirmarReserva(item) {
 }
 async function actualizarTodo() {
   await Promise.all([cargar(), cargarCarga(), cargarReservas()]);
+}
+function actualizarAlVolver(){
+  if(document.visibilityState==="visible"&&!procesandoReserva.value&&!procesando.value&&!procesandoCarga.value)void actualizarTodo();
 }
 
 async function confirmarCarga(item) {
@@ -279,7 +285,15 @@ async function confirmarCarga(item) {
   }
 }
 
-onMounted(actualizarTodo);
+onMounted(()=>{
+  void actualizarTodo();
+  document.addEventListener("visibilitychange",actualizarAlVolver);
+  window.addEventListener("focus",actualizarAlVolver);
+});
+onBeforeUnmount(()=>{
+  document.removeEventListener("visibilitychange",actualizarAlVolver);
+  window.removeEventListener("focus",actualizarAlVolver);
+});
 </script>
 
 <template>
@@ -312,6 +326,10 @@ onMounted(actualizarTodo);
     <p v-if="aviso" class="cobros-aviso" role="status">
       {{ aviso }}
     </p>
+    <div v-if="reservaConfirmada" class="cobros-siguiente">
+      <p>El pago está confirmado. Continúa en la ficha de la reserva para comprobar el consentimiento y emitir el PIN de depósito.</p>
+      <RouterLink :to="{path:'/admin/encomiendas',query:{encomienda:reservaConfirmada}}" class="cobro-boton">Abrir reserva #{{ reservaConfirmada }} y gestionar PIN</RouterLink>
+    </div>
 
     <section class="panel cobros-panel">
       <div class="cobros-encabezado">
@@ -511,7 +529,7 @@ onMounted(actualizarTodo);
       <div class="cobros-encabezado">
         <div>
           <h2 id="cobros-reservas-titulo">Reservas web y encomiendas</h2>
-          <p>Solicitudes del cliente web o del destinatario en Tablet. Sin movimientos bancarios reales.</p>
+          <p>Solicitudes del cliente web o del destinatario en Tablet. Confirma primero el consentimiento de WhatsApp del remitente en Gestión de encomiendas. No se realizan movimientos bancarios reales.</p>
         </div>
         <strong class="cobros-total">{{ cobrosReservas.length }}</strong>
       </div>
@@ -552,6 +570,7 @@ onMounted(actualizarTodo);
               :disabled="!!procesandoReserva" />
             <span>Confirmo que revisé esta operación de pago de prueba. No representa un cobro bancario real.</span>
           </label>
+          <RouterLink :to="{path:'/admin/encomiendas',query:{encomienda:item.reservaId}}" class="cobro-enlace-reserva">Abrir ficha y comprobar consentimiento</RouterLink>
           <button type="button" class="cobro-boton"
             :disabled="!!procesandoReserva || comprobadosReservas[item.reservaId]!==true || cargandoReservas"
             @click="confirmarReserva(item)">
@@ -565,6 +584,11 @@ onMounted(actualizarTodo);
 </template>
 
 <style scoped>
+.cobros-siguiente {display:grid;gap:12px;padding:18px;margin:14px 0;border:1px solid #a6d5dc;border-radius:13px;background:#edf9fa;color:#01305c;}
+.cobros-siguiente p {margin:0;}
+.cobros-siguiente .cobro-boton {text-decoration:none;justify-self:start;}
+.cobro-enlace-reserva {display:inline-block;padding:10px 0;color:#006f87;font-size:14px;font-weight:750;text-decoration:underline;text-underline-offset:3px;}
+
 .cobros-carga-panel { margin-top: 24px; }
 .cobros-carga-panel input[type="number"],
 .cobros-carga-panel input[type="text"] {
