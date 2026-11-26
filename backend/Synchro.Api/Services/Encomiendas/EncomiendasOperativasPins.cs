@@ -13,16 +13,16 @@ internal sealed partial class EncomiendasOperativasSql
         var finalidad=Finalidad(finalidadEntrada);var rol=finalidad==FinalidadPinEncomienda.Deposito?"Remitente":"Destinatario";
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
         if(finalidad==FinalidadPinEncomienda.Deposito)Preparacion(o,Ahora);
-        else Exigir(o.Estado=="Depositada","EstadoNoDisponible","El PIN de retiro se emite después del depósito.");
+        else Exigir(o.Estado=="Depositada"&&o.UsoId.HasValue,"EstadoNoDisponible","El PIN de retiro se emite después del depósito confirmado.");
         Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","Primero debe confirmarse el pago manual del remitente.");
         if(finalidad==FinalidadPinEncomienda.Deposito) {
-            Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Faltan consentimientos de los participantes.");
+            Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Falta la autorización comprobada del remitente.");
         }
         string telefono;
         var personal=(await LeerReserva(c,tx,id,ct))?.Servicio=="Personal";
         if(finalidad==FinalidadPinEncomienda.Deposito||personal) {
             var cuenta=await LeerConsentimientoCuenta(c,tx,o.RemitenteId,ct);
-            Exigir(cuenta.Estado=="Confirmado"||!personal&&finalidad==FinalidadPinEncomienda.Deposito,"NumeroNoAutorizado","Falta la autorización de WhatsApp del titular.");
+            Exigir(cuenta.Estado=="Confirmado"||!personal&&finalidad==FinalidadPinEncomienda.Deposito&&await Consentimientos(c,tx,id,ct),"NumeroNoAutorizado","Falta la autorización de WhatsApp del remitente.");
             telefono=cuenta.Telefono;
         }
         else {
@@ -69,7 +69,12 @@ internal sealed partial class EncomiendasOperativasSql
     public async Task<object> ConfirmarEntregaPin(int id,EntregaPinEncomiendaSolicitud datos,int admin,CancellationToken ct)
     {
         Exigir(datos.EnvioComprobado,"EnvioNoComprobado","Confirma explícitamente la entrega manual del mensaje.",400);
-        var referencia=Texto(datos.MensajeReferencia,160,"la referencia del envío");
+        // La confirmación manual es una declaración de operador, NO una prueba
+        // automática de entrega de WhatsApp. Si no dispone de ID externo, el
+        // servidor registra una referencia interna de auditoría inequívoca.
+        var referencia=string.IsNullOrWhiteSpace(datos.MensajeReferencia)
+            ?"DeclaracionManual:"+datos.PinId.ToString("N")
+            :Texto(datos.MensajeReferencia,160,"la referencia del envío");
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
         Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","El pago no está confirmado.");
         string finalidadEntrega;
@@ -78,7 +83,7 @@ internal sealed partial class EncomiendasOperativasSql
             finalidadEntrega=(string?)await q.ExecuteScalarAsync(ct)??throw new OperacionEncomiendaException("PinNoDisponible","PIN no disponible.");
         if(finalidadEntrega=="Deposito") {
             Preparacion(o,Ahora);
-            Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Faltan consentimientos de los participantes.");
+            Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Falta la autorización comprobada del remitente.");
         } else Exigir(o.Estado=="Depositada","EstadoNoDisponible","La encomienda no permite entregar el PIN de retiro.");
         if(personal)Exigir((await LeerConsentimientoCuenta(c,tx,o.RemitenteId,ct)).Estado=="Confirmado","NumeroNoAutorizado","Falta la autorización de WhatsApp del titular.");
         await using(var q=Comando(c,tx,"""

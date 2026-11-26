@@ -21,9 +21,13 @@ internal static class WhatsAppEncomienda
         return numero is null ? null : $"https://wa.me/{numero[1..]}?text={Uri.EscapeDataString(texto)}";
     }
 
-    public static string? Invitacion(int id, string? oficial)
+    // La referencia de consentimiento es aleatoria; no revela número de reserva.
+    public static string AceptacionDestinatario(Guid codigo) =>
+        "SYNCHRO ACEPTO ENCOMIENDA " + codigo.ToString("N");
+
+    public static string? Invitacion(Guid codigo, string? oficial)
     {
-        var enlace = Enlace(oficial, Aceptacion(id));
-        return enlace is null ? null : $"Tienes una encomienda SYNCHRO #{id}. Para aceptar recibirla y autorizar los avisos y el PIN de retiro por WhatsApp, abre este enlace y envía el mensaje prellenado desde tu propio WhatsApp al número oficial de SYNCHRO: {enlace}\nNo necesitas cuenta ni iniciar sesión. La referencia no permite retirar la encomienda. Después del depósito recibirás un PIN de retiro de un solo uso. No hay cobro adicional al retirar.";
+        var enlace = Enlace(oficial, AceptacionDestinatario(codigo));
+        return enlace is null ? null : $"Tienes una encomienda pendiente de retiro en SYNCHRO. Para aceptar recibirla y autorizar el PIN por WhatsApp, abre este enlace y envía el mensaje prellenado desde tu propio número al WhatsApp oficial de SYNCHRO: {enlace}\nLa aceptación no permite retirar por sí sola. Recibirás un PIN exclusivo después de que el operador compruebe tu mensaje. No hay un segundo cobro al retirar.";
     }
 }

@@ -90,7 +90,8 @@ internal static class PoliticaEncomiendaOperativa
             return DecisionEncomiendaOperativa.Rechazar("TerminalNoCorresponde");
         // La baja posterior del remitente o el vencimiento de la pre-reserva no
         // deben inmovilizar una encomienda ya depositada. No se envían nuevos mensajes aquí.
-        if (!encomienda.DestinatarioAceptoEncomienda)
+        if (encomienda.ConsentimientoDestinatario != EstadoConsentimientoEncomienda.Confirmado ||
+            !encomienda.DestinatarioAceptoEncomienda)
             return DecisionEncomiendaOperativa.Rechazar("AceptacionDestinatarioPendiente");
         var resultadoPin = ValidarPin(pin, FinalidadPinEncomienda.Retiro, ahora);
         if (!resultadoPin.Permitida) return resultadoPin;
@@ -107,10 +108,9 @@ internal static class PoliticaEncomiendaOperativa
             return DecisionEncomiendaOperativa.Rechazar("CuentaRemitenteInactiva");
         if (encomienda.ConsentimientoRemitente != EstadoConsentimientoEncomienda.Confirmado)
             return DecisionEncomiendaOperativa.Rechazar("ConsentimientoRemitentePendiente");
-        if (encomienda.ConsentimientoDestinatario != EstadoConsentimientoEncomienda.Confirmado)
-            return DecisionEncomiendaOperativa.Rechazar("ConsentimientoDestinatarioPendiente");
-        return encomienda.DestinatarioAceptoEncomienda ? DecisionEncomiendaOperativa.Autorizar
-            : DecisionEncomiendaOperativa.Rechazar("AceptacionDestinatarioPendiente");
+        // La aceptación del destinatario se solicita únicamente después del depósito.
+        // Este método valida las condiciones del remitente para DEPOSITAR.
+        return DecisionEncomiendaOperativa.Autorizar;
     }
 
     private static DecisionEncomiendaOperativa ValidarPin(

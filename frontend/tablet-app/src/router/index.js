@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+﻿import { createRouter, createWebHistory } from "vue-router";
 import { iniciarRetiroCarga } from "../services/retiroCargaSesion.js";
 import { registrarRutasVistaPrevia } from "../preview/rutas.js";
 
@@ -23,6 +23,8 @@ const router = createRouter({
       name: "guardar",
       component: GuardarView,
     },
+    { path: "/guardar/reserva", name: "guardar-reserva", component: () => import("../views/ReservaPinView.vue") },
+    { path: "/guardar/reserva/captura", name: "guardar-reserva-captura", component: VerificacionFacialView },
     {
       path: "/guardar/tamano",
       name: "guardar-tamano",
@@ -102,3 +104,4 @@ router.beforeEach((to) => {
 registrarRutasVistaPrevia(router);
 
 export default router;
+

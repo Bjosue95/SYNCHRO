@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Data.SqlClient;
@@ -86,6 +86,7 @@ public static class EncomiendasOperativasEndpoints
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
         prototipo.MapGet("/csrf-token",(HttpContext h,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(h).RequestToken}));
         prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.DepositarDemostrativo(id,Identidad(h),d,h.RequestAborted);}));
+        prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaDeposito(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
         prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
         prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.CapturarDestinatario(id,Identidad(h),d,h.RequestAborted);}));
         prototipo.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.Retirar(id,Identidad(h),d,h.RequestAborted)));
@@ -110,3 +111,4 @@ public static class EncomiendasOperativasEndpoints
         catch(ArgumentException){return Results.BadRequest(new{mensaje="Datos de encomienda no válidos."});}
     }
 }
+

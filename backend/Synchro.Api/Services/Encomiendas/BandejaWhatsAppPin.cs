@@ -1,8 +1,8 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 
 namespace Synchro.Api.Services.Encomiendas;
 
-internal sealed record ConsultaBandejaWhatsApp(int Pagina=1,int TamanoPagina=20,string? Servicio=null,string? Telefono=null,string? Referencia=null);
+internal sealed record ConsultaBandejaWhatsApp(int Pagina=1,int TamanoPagina=20,string? Servicio=null,string? Telefono=null,string? Referencia=null,bool SoloPendientes=false);
 
 internal sealed partial class EncomiendasOperativasSql
 {
@@ -32,7 +32,7 @@ internal sealed partial class EncomiendasOperativasSql
               p.SolicitadoUtc CreadoUtc,CASE WHEN o.Estado=N'Cancelada' AND o.PagoEstado=N'ConfirmadoManual' THEN N'PendienteRevision' ELSE o.PagoEstado END Pago,
               CASE WHEN p.Rol=N'Remitente' AND general.Id IS NOT NULL AND general.Estado=N'Confirmado' THEN general.FechaUtc ELSE p.VerificadoUtc END VerificadoUtc,
               CASE WHEN p.Rol=N'Remitente' AND general.Id IS NOT NULL THEN ag.NombreUsuario ELSE ap.NombreUsuario END Responsable,
-              CASE p.Rol WHEN N'Remitente' THEN N'SYNCHRO ACEPTO' ELSE N'SYNCHRO ACEPTO '+CONVERT(nvarchar(12),o.ReservaId) END Referencia,
+              CASE p.Rol WHEN N'Remitente' THEN N'SYNCHRO ACEPTO' ELSE N'SYNCHRO ACEPTO ENCOMIENDA '+REPLACE(CONVERT(nvarchar(36),p.CodigoSolicitud),N'-',N'') END Referencia,
               pin.EntregadoUtc,COALESCE(JSON_VALUE(seleccion.Detalle,'$.Servicio'),N'Encomienda') ClaseReserva,
               COALESCE(JSON_VALUE(seleccion.Detalle,'$.TipoCasillero'),N'Normal') TipoCasillero,JSON_VALUE(seleccion.Detalle,'$.Minutos') Minutos
             FROM dbo.EncomiendasOperativas o JOIN dbo.PreReservasEncomiendasWeb r ON r.Id=o.ReservaId
@@ -45,7 +45,8 @@ internal sealed partial class EncomiendasOperativasSql
             LEFT JOIN dbo.Administradores ap ON ap.Id=p.VerificadoAdminId
             OUTER APPLY(SELECT TOP(1) * FROM dbo.PinesEncomiendaOperativa pin WHERE pin.ReservaId=o.ReservaId
               AND (JSON_VALUE(seleccion.Detalle,'$.Servicio')=N'Personal' OR pin.Finalidad=CASE p.Rol WHEN N'Remitente' THEN N'Deposito' ELSE N'Retiro' END) ORDER BY pin.CreadoUtc DESC) pin
-            WHERE JSON_VALUE(seleccion.Detalle,'$.Servicio') IS NULL OR JSON_VALUE(seleccion.Detalle,'$.Servicio')<>N'Personal' OR p.Rol=N'Remitente'
+            WHERE (JSON_VALUE(seleccion.Detalle,'$.Servicio') IS NULL OR JSON_VALUE(seleccion.Detalle,'$.Servicio')<>N'Personal' OR p.Rol=N'Remitente')
+              AND (p.Rol=N'Remitente' OR (o.Estado=N'Depositada' AND o.UsoId IS NOT NULL))
             """);
         if(config.GetValue<bool>("WhatsAppManual:Habilitado")&&filtro.Servicio!="Encomiendas")fuentes.Add($"""
             SELECT N'ResguardoPersonal',CONVERT(nvarchar(40),a.Id),CAST(NULL AS int),a.Id,a.UsoId,N'Titular',N'Cliente de tablet',
@@ -70,6 +71,8 @@ internal sealed partial class EncomiendasOperativasSql
         Exigir(fuentes.Count>0,"NoHabilitado","La gestión manual no está habilitada.",503);
         var cte="WITH Bandeja(Servicio,OperacionId,EncomiendaId,IntentoId,UsoId,Rol,Persona,Telefono,Consentimiento,Finalidad,Emision,Entrega,Estado,CreadoUtc,Pago,VerificadoUtc,Responsable,Referencia,EntregadoUtc,ClaseReserva,TipoCasillero,Minutos) AS ("+string.Join(" UNION ALL ",fuentes)+") ";
         var where=" WHERE (@servicio IS NULL OR Servicio=@servicio) AND (@telefono IS NULL OR Telefono=@telefono) AND (@referencia IS NULL OR OperacionId=@referencia OR CONVERT(nvarchar(20),UsoId)=@referencia OR Referencia=@referencia) ";
+        if(filtro.SoloPendientes)
+            where+=" AND Estado NOT IN(N'Cancelada',N'Cancelado',N'Retirada',N'Rechazada',N'Vencida',N'Vencido',N'Enviado') AND Consentimiento<>N'Rechazado' AND Entrega<>N'EnviadoManual' AND (Consentimiento=N'Pendiente' OR Emision=N'NoEmitido' OR (Emision=N'Emitido' AND Entrega=N'Pendiente')) ";
         // Cada búsqueda debe planificarse con sus filtros reales; evitar recorrer ambos servicios y auditorías cuando se busca una sola operación.
         await using var q=Comando(c,null,cte+"SELECT COUNT(*),COUNT(CASE WHEN Estado NOT IN(N'Cancelada',N'Cancelado',N'Retirada',N'Rechazada',N'Vencida',N'Vencido') AND Consentimiento=N'Pendiente' THEN 1 END),COUNT(CASE WHEN Estado NOT IN(N'Cancelada',N'Cancelado',N'Retirada',N'Rechazada',N'Vencida',N'Vencido') AND Emision=N'Emitido' AND Entrega=N'Pendiente' THEN 1 END) FROM Bandeja "+where+" OPTION(RECOMPILE);"+cte+"SELECT * FROM Bandeja "+where+" ORDER BY CreadoUtc DESC,Servicio,OperacionId,Rol OFFSET @salto ROWS FETCH NEXT @tamano ROWS ONLY OPTION(RECOMPILE);",
             ("@servicio",string.IsNullOrEmpty(filtro.Servicio)?null:filtro.Servicio),("@telefono",telefono),("@referencia",referencia),("@ahora",Ahora.UtcDateTime),
@@ -84,3 +87,4 @@ internal sealed partial class EncomiendasOperativasSql
         return new{solicitudes=items,total,porVerificar,pinPorEnviar,pagina=filtro.Pagina,tamanoPagina=filtro.TamanoPagina,totalPaginas=(int)Math.Ceiling((double)total/filtro.TamanoPagina)};
     }
 }
+

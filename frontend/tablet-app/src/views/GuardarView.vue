@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 
@@ -339,7 +339,47 @@ function continuar() {
   .tarjeta { padding: 6px; gap: 4px; }
   .contenedor-icono { width: clamp(32px, 8vh, 52px); }
   .nombre-tarjeta { font-size: 14px; }
-  .boton-continuar { min-height: 42px; }
+  .boton-reserva-web {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 9px 20px;
+  border: 2px solid #c7e2e9;
+  border-radius: 14px;
+  background: #e4f2f6;
+  color: #01305c;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+.boton-reserva-web:active {
+  transform: scale(.985);
+}
+.boton-reserva-web:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
+.accion-guardar {
+  gap: 12px;
+}
+.tema-oscuro .boton-reserva-web {
+  background: #204766;
+  border-color: #42647e;
+  color: #ffffff;
+}
+@media (max-width: 540px) {
+  .accion-guardar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .boton-reserva-web {
+    min-height: 46px;
+  }
+}
+.boton-continuar { min-height: 42px; }
 }
 @media (max-height: 450px) {
   .pantalla-guardar { min-height: 350px; }
@@ -347,7 +387,47 @@ function continuar() {
   .cuadricula { min-height: 200px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pantalla-guardar, .regresar, .tarjeta, .imagen-icono, .boton-continuar { transition: none; }
+  .pantalla-guardar, .regresar, .tarjeta, .imagen-icono, .boton-reserva-web {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 9px 20px;
+  border: 2px solid #c7e2e9;
+  border-radius: 14px;
+  background: #e4f2f6;
+  color: #01305c;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+.boton-reserva-web:active {
+  transform: scale(.985);
+}
+.boton-reserva-web:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
+.accion-guardar {
+  gap: 12px;
+}
+.tema-oscuro .boton-reserva-web {
+  background: #204766;
+  border-color: #42647e;
+  color: #ffffff;
+}
+@media (max-width: 540px) {
+  .accion-guardar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .boton-reserva-web {
+    min-height: 46px;
+  }
+}
+.boton-continuar { transition: none; }
   .regresar:active, .tarjeta:active { transform: none; }
 }
 
@@ -373,7 +453,47 @@ function continuar() {
     padding: 9px 20px;
     font-size: clamp(17px, 1.5vw, 19px);
   }
-  .boton-continuar {
+  .boton-reserva-web {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 9px 20px;
+  border: 2px solid #c7e2e9;
+  border-radius: 14px;
+  background: #e4f2f6;
+  color: #01305c;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+.boton-reserva-web:active {
+  transform: scale(.985);
+}
+.boton-reserva-web:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
+.accion-guardar {
+  gap: 12px;
+}
+.tema-oscuro .boton-reserva-web {
+  background: #204766;
+  border-color: #42647e;
+  color: #ffffff;
+}
+@media (max-width: 540px) {
+  .accion-guardar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .boton-reserva-web {
+    min-height: 46px;
+  }
+}
+.boton-continuar {
     min-width: 240px;
     min-height: 62px;
     font-size: 21px;
@@ -393,7 +513,49 @@ function continuar() {
   .contenedor-icono { width: clamp(58px, 10vh, 77px); }
   .nombre-tarjeta { font-size: 19px; }
   .regresar { min-height: 48px; font-size: 16px; padding: 6px 16px; }
-  .boton-continuar { min-height: 52px; font-size: 18px; }
+  .boton-reserva-web {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 9px 20px;
+  border: 2px solid #c7e2e9;
+  border-radius: 14px;
+  background: #e4f2f6;
+  color: #01305c;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+.boton-reserva-web:active {
+  transform: scale(.985);
+}
+.boton-reserva-web:focus-visible {
+  outline: 3px solid #00b9c7;
+  outline-offset: 3px;
+}
+.accion-guardar {
+  gap: 12px;
+}
+.tema-oscuro .boton-reserva-web {
+  background: #204766;
+  border-color: #42647e;
+  color: #ffffff;
+}
+@media (max-width: 540px) {
+  .accion-guardar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .boton-reserva-web {
+    min-height: 46px;
+  }
+}
+.boton-continuar { min-height: 52px; font-size: 18px; }
 }
 
 </style>
+
+

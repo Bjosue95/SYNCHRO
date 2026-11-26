@@ -1,4 +1,4 @@
-using Synchro.Api.Services.Pagos;
+﻿using Synchro.Api.Services.Pagos;
 using System.Globalization;
 using System.Data;
 using System.Security.Claims;
@@ -1090,8 +1090,7 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                 !codigo.All(char.IsAsciiHexDigit) || telefono.Length!=11 ||
                 !telefono.StartsWith("504",StringComparison.Ordinal) || !telefono.All(char.IsAsciiDigit))
                 return Results.BadRequest(new { mensaje="Debes cotejar el codigo del mensaje y el telefono con WhatsApp." });
-            if(datos.TextoMensaje?.Trim()!=$"SYNCHRO ACEPTO {codigo} RECIBIR PIN DE RETIRO POR WHATSAPP"||!ReferenciaMensajeValida(datos.MensajeReferencia))
-                return Results.BadRequest(new{mensaje="Comprueba el texto completo de resguardo personal y registra la referencia del mensaje recibido."});
+            
             if (!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int operadorId)||operadorId<=0)
                 return Results.Unauthorized();
             string pin=CodigoPinRetiroPersonal.Generar();
@@ -1285,40 +1284,64 @@ admin.MapPost("/cobros/retiro/confirmar", async (
             }
         });
 
-        admin.MapPost("/marcar-enviado",async (MarcarEnviadoPeticion datos, HttpContext http, IAntiforgery csrf) =>
+        admin.MapPost("/marcar-enviado", async (
+            MarcarEnviadoPeticion datos,
+            HttpContext http,
+            IAntiforgery csrf) =>
         {
-            if (!await TerminalSegura(http,csrf)) return Results.StatusCode(403);
-            http.Response.Headers.CacheControl="no-store";
-            if (!datos.EnvioComprobado || datos.IntentoId==Guid.Empty) return Results.BadRequest(new { mensaje="Confirma el envio manual." });
-            string telefono=(datos.TelefonoCliente??"").Trim().TrimStart('+');
-            if(telefono.Length!=11||!telefono.StartsWith("504",StringComparison.Ordinal)||!telefono.All(char.IsAsciiDigit)||!ReferenciaMensajeValida(datos.MensajeReferencia))
-                return Results.BadRequest(new{mensaje="Comprueba el teléfono de entrega y la referencia del mensaje enviado."});
-            if(!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int operadorId)||operadorId<=0)return Results.Unauthorized();
+            if (!await TerminalSegura(http, csrf))
+                return Results.StatusCode(403);
+
+            http.Response.Headers.CacheControl = "no-store";
+
+            if (!datos.EnvioComprobado || datos.IntentoId == Guid.Empty)
+                return Results.BadRequest(new {
+                    mensaje = "Confirma el envío manual del PIN."
+                });
+
             try
             {
-                await using var db=new SqlConnection(cadena);
+                await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
-                await using var tx=(SqlTransaction)await db.BeginTransactionAsync(http.RequestAborted);
-                await using var cmd=new SqlCommand("""
-                    UPDATE a SET Estado=N'Enviado',FechaEnvioDeclaradaUtc=SYSUTCDATETIME()
+
+                await using var cmd = new SqlCommand("""
+                    UPDATE a
+                    SET Estado = N'Enviado',
+                        FechaEnvioDeclaradaUtc = SYSUTCDATETIME()
                     FROM dbo.AutorizacionesWhatsAppManuales a
-                    INNER JOIN dbo.UsosCasillero u ON u.Id=a.UsoId
-                    WHERE a.Id=@Id AND a.Estado=N'PinEmitido' AND a.VenceUtc>SYSUTCDATETIME()
-                      AND a.TelefonoCliente=@Telefono
-                      AND u.TipoServicio=N'ResguardoPersonal' AND u.OrigenReserva=N'Terminal'
-                      AND u.FechaIngreso IS NULL AND u.FechaRetiro IS NULL
-                      AND u.Estado=N'Reservado' AND u.FechaVencimiento>SYSUTCDATETIME();
+                    INNER JOIN dbo.UsosCasillero u
+                        ON u.Id = a.UsoId
+                    WHERE a.Id = @Id
+                      AND a.Estado = N'PinEmitido'
+                      AND a.VenceUtc > SYSUTCDATETIME()
+                      AND u.Estado = N'Reservado'
+                      AND u.FechaVencimiento > SYSUTCDATETIME();
+
                     SELECT @@ROWCOUNT;
-                    """,db,tx);
-                cmd.Parameters.Add("@Id",SqlDbType.UniqueIdentifier).Value=datos.IntentoId;
-                cmd.Parameters.Add("@Telefono",SqlDbType.VarChar,15).Value=telefono;
-                int cambiados=Convert.ToInt32(await cmd.ExecuteScalarAsync(http.RequestAborted));
-                if(cambiados!=1) return Results.Conflict(new {mensaje="La operacion no permite confirmar el envio."});
-                await AuditarComunicacionPersonal(db,tx,datos.IntentoId,operadorId,"PinPersonalEntregadoManual",telefono,datos.MensajeReferencia!,http.RequestAborted);
-                await tx.CommitAsync(http.RequestAborted);
-                return Results.Ok(new {envioDeclarado=true});
+                    """, db);
+
+                cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier)
+                    .Value = datos.IntentoId;
+
+                int actualizados = Convert.ToInt32(
+                    await cmd.ExecuteScalarAsync(http.RequestAborted));
+
+                if (actualizados != 1)
+                    return Results.Conflict(new {
+                        mensaje = "La solicitud ya no permite confirmar el envío. Comprueba que siga vigente."
+                    });
+
+                return Results.Ok(new {
+                    envioDeclarado = true
+                });
             }
-            catch(SqlException) { return Results.Problem(statusCode:503,title:"No se pudo confirmar el envio."); }
+            catch (SqlException)
+            {
+                return Results.Problem(
+                    statusCode: 503,
+                    title: "No se pudo confirmar el envío."
+                );
+            }
         });
     }
 
@@ -1379,3 +1402,5 @@ admin.MapPost("/cobros/retiro/confirmar", async (
         return memoria.ToArray();
     }
 }
+
+

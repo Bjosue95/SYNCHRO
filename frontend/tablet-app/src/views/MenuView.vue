@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 
 import ServiceCard from "../components/ServiceCard.vue";
 
@@ -27,6 +27,7 @@ const servicios = [
     titulo: "Tengo una reserva",
     descripcion: "Continúa tu reserva web",
     icono: "03_reserva",
+    ruta: "/guardar/reserva",
   },
   {
     titulo: "Retirar",
@@ -148,4 +149,5 @@ const servicios = [
 }
 
 </style>
+
 

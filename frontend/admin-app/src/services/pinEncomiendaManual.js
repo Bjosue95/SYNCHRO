@@ -10,5 +10,5 @@ export function chatPinEncomienda(pin, detalle) {
 
 export function mensajePinEncomienda(pin, detalle, vencimiento) {
   if (!chatPinEncomienda(pin, detalle) || !/^[0-9]{6}$/.test(pin.pin)) return "";
-  return `SYNCHRO · Reserva #${detalle.id}. PIN exclusivo de ${pin.finalidad.toLowerCase()}: ${pin.pin}. Vence: ${vencimiento}. No lo compartas.`;
+  return `SYNCHRO · El punto donde todo se conecta.\nPIN exclusivo de ${pin.finalidad === "Deposito" ? "depósito" : "retiro"}: ${pin.pin}.\nVence: ${vencimiento}.\nNo lo compartas. Este código es personal y de un solo uso.`;
 }

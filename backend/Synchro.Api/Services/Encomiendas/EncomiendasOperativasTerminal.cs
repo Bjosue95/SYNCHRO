@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using System.Security.Cryptography;
 
 namespace Synchro.Api.Services.Encomiendas;
@@ -35,6 +35,125 @@ internal sealed partial class EncomiendasOperativasSql
         return await ConsultarParaRetiro(identificada!.Value,terminal,ct);
     }
 
+    // Identifica una reserva web usando exclusivamente su PIN de depósito.
+    // No consume el PIN ni confirma el depósito.
+    public async Task<object> IdentificarParaDeposito(
+        string pin, int terminal, CancellationToken ct)
+    {
+        Exigir(
+            pin is { Length: 6 } && pin.All(char.IsAsciiDigit),
+            "PinNoValido",
+            "No se pudo validar el PIN de depósito.",
+            403
+        );
+
+        var terminalConfigurada =
+            config.GetValue<int?>("ReservasPrototipo:TerminalId");
+
+        Exigir(
+            terminalConfigurada.HasValue &&
+            terminalConfigurada.Value == terminal,
+            "TerminalNoAutorizada",
+            "Esta terminal no está autorizada para estas reservas.",
+            403
+        );
+        await using var c = await Abrir(ct);
+        int? identificada = null;
+
+        await using (var q = Comando(c, null, """
+            SELECT o.ReservaId, o.RemitenteId,
+                   p.PinHash, p.PinSalt
+            FROM dbo.EncomiendasOperativas o
+            JOIN dbo.PreReservasEncomiendasWeb r
+                ON r.Id = o.ReservaId
+            JOIN dbo.PinesEncomiendaOperativa p
+                ON p.ReservaId = o.ReservaId
+            WHERE o.TerminalId IS NULL AND o.Estado IN (N'Preparacion', N'ListaParaDeposito')
+              AND o.PagoEstado = N'ConfirmadoManual'
+              AND r.FechaExpiracion > @ahora
+              AND p.Finalidad = N'Deposito'
+              AND p.Activo = 1
+              AND p.ConsumidoUtc IS NULL
+              AND p.EntregadoUtc IS NOT NULL
+              AND p.VenceUtc > @ahora
+              AND p.IntentosFallidos < 5
+              AND EXISTS (
+                  SELECT 1
+                  FROM dbo.AuditoriaEncomiendaOperativa a
+                  WHERE a.ReservaId = o.ReservaId
+                    AND a.Accion = N'ReservaPrototipoCreada'
+              );
+            """, ("@ahora", Ahora.UtcDateTime)))
+        {
+            await using var r = await q.ExecuteReaderAsync(ct);
+
+            while (await r.ReadAsync(ct))
+            {
+                int reservaId = r.GetInt32(0);
+                int remitenteId = r.GetInt32(1);
+
+                byte[] hash = (byte[])r[2];
+                byte[] salt = (byte[])r[3];
+                byte[]? calculado = null;
+
+                try
+                {
+                    calculado = CodigoPinRetiro.CalcularHashEncomienda(
+                        pin,
+                        reservaId,
+                        remitenteId,
+                        salt,
+                        config,
+                        FinalidadPinEncomienda.Deposito
+                    );
+
+                    if (!CodigoPinRetiro.VerificarHash(calculado, hash))
+                        continue;
+
+                    Exigir(
+                        identificada is null,
+                        "PinNoValido",
+                        "No se pudo identificar una reserva única.",
+                        403
+                    );
+
+                    identificada = reservaId;
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(hash);
+                    CryptographicOperations.ZeroMemory(salt);
+
+                    if (calculado is not null)
+                        CryptographicOperations.ZeroMemory(calculado);
+                }
+            }
+        }
+
+        Exigir(
+            identificada.HasValue,
+            "PinNoValido",
+            "No se pudo validar el PIN de depósito.",
+            403
+        );
+
+        var reserva = await LeerReserva(c, null, identificada.GetValueOrDefault(), ct);
+
+        Exigir(
+            reserva is not null,
+            "ReservaNoDisponible",
+            "No se encontró una reserva web disponible.",
+            404
+        );
+
+        return new
+        {
+            reservaId = identificada.GetValueOrDefault(),
+            casillero = reserva!.CodigoCasillero,
+            servicio = reserva.Servicio,
+            tipoCasillero = reserva.TipoCasillero
+        };
+    }
     public async Task<object> ConsultarParaRetiro(int id,int terminal,CancellationToken ct)
     {
         await using var c=await Abrir(ct);var o=await Leer(c,null,id,null,ct);
@@ -190,3 +309,7 @@ internal sealed partial class EncomiendasOperativasSql
         await tx.CommitAsync(ct);return new{retiroConfirmado=true,pagoAdicionalRequerido=false,casillero=codigo,hardwareSimulado=true};
     }
 }
+
+
+
+

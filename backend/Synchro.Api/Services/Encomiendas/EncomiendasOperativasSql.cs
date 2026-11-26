@@ -182,7 +182,7 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
         var cuenta = await LeerConsentimientoCuenta(c,null,o.RemitenteId,ct);
         var reserva = await LeerReserva(c,null,id,ct);
         var partes=new Dictionary<string,object>();bool consentimientos=true;
-        var invitacion = reserva?.Servicio=="Personal"||o.Estado is "Cancelada" or "Rechazada" or "Retirada"?null:WhatsAppEncomienda.Invitacion(id,config["WhatsAppManual:NumeroE164"]);
+        string? invitacion = null; // La invitación de destinatario se crea después del depósito.
         string? telefonoDestinatario = null;
         await using(var q=Comando(c,null,"""
             SELECT p.Rol,p.PersonaId,p.Telefono,p.Consentimiento,p.AceptaEncomienda,p.CodigoSolicitud,p.VenceUtc,p.VerificadoUtc,a.NombreUsuario,p.MensajeReferencia
@@ -193,19 +193,23 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
                 var rol=r.GetString(0);var esRemitente=rol=="Remitente";
                 var estado=esRemitente?EstadoRemitente(cuenta,r.GetString(2),r.GetString(3)):reserva?.Servicio=="Personal"?cuenta.Estado:r.GetString(3);
                 consentimientos&=estado=="Confirmado"&&(esRemitente||reserva?.Servicio=="Personal"||r.GetBoolean(4));
-                var texto=WhatsAppEncomienda.Aceptacion(esRemitente?null:id);
+                var codigoDestinatario = r.GetGuid(5);
+                var texto=esRemitente?WhatsAppEncomienda.Aceptacion():WhatsAppEncomienda.AceptacionDestinatario(codigoDestinatario);
+                // No invitar ni autorizar al destinatario durante la preparación.
+                if(!esRemitente && o.Estado=="Depositada" && reserva?.Servicio!="Personal")
+                    invitacion=WhatsAppEncomienda.Invitacion(codigoDestinatario, config["WhatsAppManual:NumeroE164"]);
                 if(!esRemitente)telefonoDestinatario=r.GetString(2);
                 var deCuenta=esRemitente&&cuenta.Registrado;
                 partes[rol]=new { personaId=r.GetInt32(1),telefono=esRemitente?cuenta.Telefono:r.GetString(2),consentimiento=estado,aceptaEncomienda=esRemitente?estado=="Confirmado":r.GetBoolean(4),
                     alcance=esRemitente?(deCuenta?"CuentaTelefono":r.GetString(3)=="Confirmado"?"EncomiendaAnterior":"CuentaTelefono"):"Encomienda",
-                    codigo=esRemitente?null:id.ToString(CultureInfo.InvariantCulture),venceUtc=esRemitente?(DateTimeOffset?)null:Fecha(r,6),
+                    codigo=esRemitente?null:codigoDestinatario.ToString("N"),venceUtc=esRemitente?(DateTimeOffset?)null:Fecha(r,6),
                     codigoAnterior=persona is null?r.GetGuid(5).ToString("N"):null,
                     textoAnterior=persona is null?$"SYNCHRO ACEPTO ENCOMIENDA {id} {rol.ToUpperInvariant()} {r.GetGuid(5):N} RECIBIR MENSAJES Y PIN POR WHATSAPP"+(esRemitente?"":" Y ACEPTO RECIBIR LA ENCOMIENDA"):null,
                     verificadoUtc=deCuenta?cuenta.Fecha:r.IsDBNull(7)?(DateTimeOffset?)null:Fecha(r,7),
                     referencia=deCuenta?cuenta.Referencia:r.IsDBNull(9)?null:r.GetString(9),
                     telefonoVerificado=deCuenta?cuenta.TelefonoVerificado:r.IsDBNull(7)?null:r.GetString(2),
                     administrador=persona is not null?null:deCuenta?cuenta.Administrador:r.IsDBNull(8)?null:r.GetString(8),texto,
-                    enlaceWhatsApp=!esRemitente&&invitacion is null?null:WhatsAppEncomienda.Enlace(config["WhatsAppManual:NumeroE164"],texto) };
+                    enlaceWhatsApp=!esRemitente&&o.Estado!="Depositada"?null:WhatsAppEncomienda.Enlace(config["WhatsAppManual:NumeroE164"],texto) };
             }
         }
         var pines=new List<object>(); await using(var q=Comando(c,null,"SELECT Id,Finalidad,Activo,IntentosFallidos,VenceUtc,ConsumidoUtc,EntregadoUtc FROM dbo.PinesEncomiendaOperativa WHERE ReservaId=@id ORDER BY CreadoUtc DESC",("@id",id))) {
@@ -255,7 +259,13 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
             reserva,historica=false,creadaUtc=fila.CreadaUtc,depositoUtc=fila.DepositoUtc,entregaUtc=fila.EntregaUtc,retiradaConfirmada=fila.RetiradaConfirmada,
             cancelacion=fila.Cancelacion,pagoRequiereRevision=fila.PagoRequiereRevision,seguimiento,
             compartir=new{mensaje=invitacion,enlaceWhatsApp=invitacion is null?null:WhatsAppEncomienda.Enlace(telefonoDestinatario,invitacion)},
-            condiciones=new{consentimientosConfirmados=consentimientos,pagoConfirmado=o.Pago=="ConfirmadoManual",tabletIntegrada=false,hardwareSimulado=true},version=o.Version};
+            condiciones=new{consentimientosConfirmados=consentimientos,remitenteAutorizado=cuenta.Activa&&partes.ContainsKey("Remitente")&&(cuenta.Estado=="Confirmado" || !cuenta.Registrado && cuenta.Activa && await ConsentimientoRemitenteRegistrado(c,o.Id,ct)),pagoConfirmado=o.Pago=="ConfirmadoManual",tabletIntegrada=false,hardwareSimulado=true},version=o.Version};
+    }
+
+    private static async Task<bool> ConsentimientoRemitenteRegistrado(SqlConnection c,int id,CancellationToken ct)
+    {
+        await using var q=Comando(c,null,"SELECT COUNT(*) FROM dbo.ParticipantesEncomiendaOperativa WHERE ReservaId=@id AND Rol=N'Remitente' AND Consentimiento=N'Confirmado'",("@id",id));
+        return Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1;
     }
 
     public async Task<object> ConfirmarConsentimiento(int id,string rolEntrada,ConsentimientoOperativoSolicitud datos,int admin,bool rechazar,CancellationToken ct)
@@ -279,15 +289,22 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
             await RegistrarConsentimientoCuenta(c,tx,o.RemitenteId,cuenta.Telefono,referencia,rechazar?"Revocado":"Confirmado","Administrador",admin,ct);
             await Versionar(c,tx,id,ct);await tx.CommitAsync(ct);return new{estado=rechazar?"Revocado":"Confirmado",alcance="CuentaTelefono"};
         }
-        Preparacion(o,Ahora);
+        if(rol=="Destinatario")
+            Exigir(o.Estado=="Depositada"&&o.UsoId.HasValue,"DepositoPendiente","El destinatario solo se autoriza después del depósito confirmado.");
+        else Preparacion(o,Ahora);
         await using(var q=Comando(c,tx,"SELECT Telefono,CodigoSolicitud,Consentimiento,VenceUtc FROM dbo.ParticipantesEncomiendaOperativa WITH(UPDLOCK,HOLDLOCK) WHERE ReservaId=@id AND Rol=@rol",("@id",id),("@rol",rol))) {
             await using var r=await q.ExecuteReaderAsync(ct);Exigir(await r.ReadAsync(ct),"ParticipanteNoDisponible","Participante no disponible.");
             var textoAnterior=$"SYNCHRO ACEPTO ENCOMIENDA {id} {rol.ToUpperInvariant()} {r.GetGuid(1):N} RECIBIR MENSAJES Y PIN POR WHATSAPP"+(rol=="Destinatario"?" Y ACEPTO RECIBIR LA ENCOMIENDA":"");
-            var nuevo=rol=="Destinatario"&&datos.Codigo==id.ToString(CultureInfo.InvariantCulture)&&datos.TextoMensaje?.Trim()==WhatsAppEncomienda.Aceptacion(id);
+            var nuevo=rol=="Destinatario"&&Guid.TryParseExact(datos.Codigo,"N",out var codigoNuevo)
+                &&codigoNuevo==r.GetGuid(1)&&datos.TextoMensaje?.Trim()==WhatsAppEncomienda.AceptacionDestinatario(codigoNuevo);
+            // Formatos históricos admitidos únicamente para solicitudes antiguas.
             var anterior=Guid.TryParseExact(datos.Codigo,"N",out var codigo)&&codigo==r.GetGuid(1)&&datos.TextoMensaje?.Trim()==textoAnterior;
-            Exigir(WhatsAppEncomienda.Telefono(datos.Telefono)==r.GetString(0)&&(nuevo||anterior),"MensajeNoCoincide","El teléfono, texto o referencia de encomienda no coincide con el participante.",400);
+            var anteriorConNumero=rol=="Destinatario"&&datos.Codigo==id.ToString(CultureInfo.InvariantCulture)
+                &&datos.TextoMensaje?.Trim()==WhatsAppEncomienda.Aceptacion(id);
+            Exigir(WhatsAppEncomienda.Telefono(datos.Telefono)==r.GetString(0)&&(nuevo||anterior||anteriorConNumero),"MensajeNoCoincide","El teléfono, texto o referencia de encomienda no coincide con el participante.",400);
             if(rol=="Remitente")Exigir(cuenta.Activa&&cuenta.Telefono==r.GetString(0)&&!cuenta.Registrado,"MensajeNoCoincide","Utiliza la autorización de cuenta desde su teléfono actual.",400);
-            Exigir(Fecha(r,3)>Ahora&&r.GetString(2)=="Pendiente","ConsentimientoNoDisponible","La solicitud ya fue atendida o está vencida.");
+            Exigir((rol=="Destinatario"&&o.Estado=="Depositada" || Fecha(r,3)>Ahora)&&r.GetString(2)=="Pendiente",
+                "ConsentimientoNoDisponible","La solicitud ya fue atendida o está vencida.");
             Exigir(rechazar||rol!="Destinatario"||datos.AceptaEncomienda,"AceptacionPendiente","Confirma también la aceptación de la encomienda.",400);
         }
         var estado=rechazar?"Rechazado":"Confirmado";
@@ -304,8 +321,10 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
     {
         var o=await Leer(c,tx,id,null,ct);
         var condiciones=await Condiciones(c,tx,o,ct);
-        return condiciones.CuentaRemitenteActiva&&condiciones.ConsentimientoRemitente==EstadoConsentimientoEncomienda.Confirmado&&
-            condiciones.ConsentimientoDestinatario==EstadoConsentimientoEncomienda.Confirmado&&condiciones.DestinatarioAceptoEncomienda;
+        // Antes del depósito solo se exige el consentimiento de remitente.
+        // El del destinatario se comprobará después, antes de emitir su PIN.
+        return condiciones.CuentaRemitenteActiva&&
+            condiciones.ConsentimientoRemitente==EstadoConsentimientoEncomienda.Confirmado;
     }
 
     public async Task<object> ConfirmarPago(int id,PagoEncomiendaSolicitud datos,int admin,CancellationToken ct)
@@ -316,7 +335,7 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
         var referencia=Texto(datos.Referencia,160,"la referencia del pago");
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);Preparacion(o,Ahora);
         Exigir(o.Pago!="ConfirmadoManual","PagoYaConfirmado","El pago ya está confirmado.");
-        Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Comprueba primero los consentimientos de ambos participantes.");
+        Exigir(await Consentimientos(c,tx,id,ct),"ConsentimientosPendientes","Comprueba primero la autorización de WhatsApp del remitente.");
         var tarifa=(await LeerReserva(c,tx,id,ct))?.TarifaHnl??Tarifa(o.Tamano);
         if(tarifa.HasValue)Exigir(tarifa.Value==datos.ImporteHnl,"ImporteNoCoincide","El importe debe coincidir con la tarifa configurada.",400);
         var motivo=tarifa.HasValue?"Tarifa configurada":Texto(datos.JustificacionImporte,500,"la justificación del importe sin tarifa configurada");

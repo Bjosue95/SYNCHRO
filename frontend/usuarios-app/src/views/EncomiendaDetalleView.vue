@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
             {{
               detalle.destinatario.aceptaEncomienda
                 ? "Comprobada por el administrador"
-                : "Pendiente de comprobar"
+                : "Pendiente de comprobar después del depósito"
             }}.
           </p>
           <template v-if="detalle.estado !== 'Cancelada' && ['Pendiente', 'Revocado'].includes(detalle[rol].consentimiento)"
@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
               {{
                 rol === "remitente"
                   ? "Envía SYNCHRO ACEPTO desde el teléfono registrado en tu cuenta."
-                  : "Comparte la invitación para que el destinatario envíe su aceptación desde su propio número al WhatsApp oficial. No necesita cuenta ni iniciar sesión."
+                  : detalle.estado === "Depositada" ? "El destinatario puede aceptar la encomienda por WhatsApp desde su número después del depósito." : "La autorización del destinatario se habilitará después del depósito confirmado."
               }}
               Abrir el enlace no confirma el consentimiento.
             </p>
@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
             {{
               detalle.condiciones.consentimientosConfirmados
                 ? "Consentimiento de WhatsApp comprobado."
-                : detalle.reserva?.servicio==='Personal' ? "Espera la comprobación manual de tu consentimiento." : "Espera la comprobación manual de los dos consentimientos."
+                : detalle.reserva?.servicio==='Personal' ? "Espera la comprobación manual de tu consentimiento." : "Espera la comprobación manual del consentimiento del remitente."
             }}
           </li>
           <li>

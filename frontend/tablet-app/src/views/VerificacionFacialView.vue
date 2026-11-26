@@ -1,7 +1,9 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import { obtenerReservaWebDeposito, limpiarReservaWebDeposito } from "../services/reservaWebSesion.js";
+import { depositarReservaWeb } from "../services/reservasWebTerminalApi.js";
 import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
 import { registrarCaptura } from "../services/retiroSesion";
 import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
@@ -14,6 +16,9 @@ import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumir
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
+const esReservaWeb = computed(() => route.path === "/guardar/reserva/captura");
+const consentimientoFotoReserva = ref(false);
+const depositoConfirmado = ref(false);
 const pruebaDescriptorV3 = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_PRUEBA === "true";
 const propsVistaPrevia = defineProps({
   modoRetiroEjemplo: {
@@ -49,6 +54,9 @@ const estado = ref("Pulsa Comenzar escaneo para iniciar.");
 const error = ref("");
 
 const casillero = computed(() => {
+  if (esReservaWeb.value) {
+    return obtenerReservaWebDeposito()?.casillero || "Sin reserva";
+  }
   const codigo = route.query.casillero;
   return (
     typeof codigo === "string" &&
@@ -600,6 +608,54 @@ function cancelar() {
 
 async function continuar() {
   if (!tomada.value || !fotoBase64.value || validandoEnServidor.value) return;
+  if (esReservaWeb.value) {
+    const sesion = obtenerReservaWebDeposito();
+
+    if (!sesion) {
+      error.value = "La sesión de reserva venció. Introduce nuevamente el PIN.";
+      return;
+    }
+
+    if (!consentimientoFotoReserva.value) {
+      error.value = "Debes autorizar la captura fotográfica.";
+      return;
+    }
+
+    validandoEnServidor.value = true;
+    error.value = "";
+    estado.value = "Confirmando depósito con SYNCHRO...";
+
+    try {
+      const coincidencia = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
+
+      if (!coincidencia) {
+        throw new Error("La fotografía no tiene un formato PNG válido.");
+      }
+
+      await depositarReservaWeb(sesion.reservaId, {
+        pin: sesion.pin,
+        depositoComprobado: true,
+        codigoCasillero: sesion.casillero,
+        captura: {
+          imagenPng: coincidencia[1],
+          descriptor: null,
+          modelo: "SYNCHRO-CAPTURA-DEMOSTRATIVA",
+          versionConsentimiento: "SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11"
+        }
+      });
+
+      depositoConfirmado.value = true;
+      estado.value = `Depósito registrado. Casillero ${sesion.casillero}.`;
+      limpiarReservaWebDeposito();
+      fotoBase64.value = "";
+    } catch (e) {
+      error.value = e?.message || "No se pudo confirmar el depósito.";
+      estado.value = "La confirmación está pendiente.";
+    } finally {
+      validandoEnServidor.value = false;
+    }
+    return;
+  }
 
   if (retirando.value) {
     validandoEnServidor.value = true;
@@ -663,6 +719,14 @@ async function continuar() {
 }
 
 function comenzarEscaneo() {
+  if (esReservaWeb.value && !obtenerReservaWebDeposito()) {
+    error.value = "Primero debes verificar tu PIN de depósito.";
+    return;
+  }
+  if (esReservaWeb.value && !consentimientoFotoReserva.value) {
+    error.value = "Autoriza la captura fotográfica para continuar.";
+    return;
+  }
   if (consentimiento.value) {
     iniciarCamara();
   } else {
@@ -700,6 +764,7 @@ function ocultar() {
 document.addEventListener("visibilitychange", ocultar);
 
 onBeforeUnmount(() => {
+  if (esReservaWeb.value) limpiarReservaWebDeposito();
   montada = false;
   detenerCamara();
   limpiarCaptura();
@@ -710,7 +775,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>Registro facial</h1>
+      <h1>{{ esReservaWeb ? (depositoConfirmado ? "Depósito registrado" : "Captura de depósito") : "Registro facial" }}</h1>
       <p>Casillero {{ casillero }}</p>
     </header>
 
@@ -754,13 +819,13 @@ onBeforeUnmount(() => {
 
         <div class="texto-panel">
           <h2>
-            {{ tomada ? "Rostro capturado" : "Coloca tu rostro en el óvalo" }}
+            {{ depositoConfirmado ? "Depósito confirmado" : tomada ? "Fotografía capturada" : "Coloca tu rostro en el óvalo" }}
           </h2>
 
           <p>
             {{
               tomada
-                ? (retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para enviar el PIN por WhatsApp.")
+                ? (esReservaWeb ? "Confirma el depósito cuando hayas colocado los objetos en el casillero." : retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para enviar el PIN por WhatsApp.")
                 : "La captura se realizará automáticamente."
             }}
           </p>
@@ -785,7 +850,7 @@ onBeforeUnmount(() => {
           experimental y el PIN seguirá siendo obligatorio.
         </span>
       </label>      <label
-        v-if="pruebaDescriptorV3 && registroV3Habilitado && !retirando && !encendida && !tomada"
+        v-if="pruebaDescriptorV3 && registroV3Habilitado && !retirando && !esReservaWeb && !encendida && !tomada"
         class="consentimiento-v3"
       >
         <input
@@ -800,8 +865,19 @@ onBeforeUnmount(() => {
           Versión del aviso: {{ VERSION_CONSENTIMIENTO_V3 }}.
         </span>
       </label>
+      <label
+        v-if="esReservaWeb && !depositoConfirmado && !encendida && !tomada"
+        class="consentimiento-v3"
+      >
+        <input v-model="consentimientoFotoReserva" type="checkbox" />
+        <span>
+          Autorizo la fotografía como evidencia del depósito,
+          sin comparación facial. Su eliminación está programada
+          a los 30 días.
+        </span>
+      </label>
       <button
-        v-if="!tomada && !encendida && !iniciando"
+        v-if="!tomada && !encendida && !iniciando && !depositoConfirmado"
         type="button"
         class="continuar"
         @click="comenzarEscaneo"
@@ -823,11 +899,11 @@ onBeforeUnmount(() => {
       <button
         class="continuar"
         type="button"
-        v-if="tomada && !error"
+        v-if="tomada && !error && !depositoConfirmado"
         :disabled="validandoEnServidor"
         @click="continuar"
       >
-        <span>Continuar</span>
+        <span>{{ esReservaWeb ? "Confirmar depósito" : "Continuar" }}</span>
 
         <span class="icono-continuar" aria-hidden="true">
           <img
@@ -841,6 +917,14 @@ onBeforeUnmount(() => {
             alt=""
           />
         </span>
+      </button>
+      <button
+        v-if="esReservaWeb && depositoConfirmado"
+        type="button"
+        class="continuar"
+        @click="router.replace('/menu')"
+      >
+        Finalizar
       </button>
     </footer>
   </main>

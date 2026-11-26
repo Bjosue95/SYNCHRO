@@ -1,7 +1,9 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import { identificarDepositoReservaWeb } from "../services/reservasWebTerminalApi.js";
+import { iniciarReservaWebDeposito } from "../services/reservaWebSesion.js";
 import {
   confirmarRetiroFacialConPin,
   prevalidarRetiroFacialConPin,
@@ -17,6 +19,10 @@ const router = useRouter();
 const { oscuro } = useTema();
 
 const propsVistaPrevia = defineProps({
+  modoReserva: {
+    type: Boolean,
+    default: false
+  },
   modoVistaPrevia: {
     type: Boolean,
     default: false
@@ -98,6 +104,34 @@ function tecladoFisico(evento) {
 
 async function verificar() {
   if (!completo.value || procesando.value || terminado.value) return;
+
+  if (propsVistaPrevia.modoReserva) {
+    procesando.value = true;
+    mensaje.value = "";
+
+    try {
+      const resultado = await identificarDepositoReservaWeb(pin.value);
+
+      if (
+        !Number.isInteger(resultado?.reservaId) ||
+        typeof resultado?.casillero !== "string"
+      ) {
+        throw new Error("No se pudo identificar la reserva.");
+      }
+
+      iniciarReservaWebDeposito(resultado, pin.value);
+      await router.push("/guardar/reserva/captura");
+    } catch (error) {
+      mensaje.value = error instanceof Error
+        ? error.message
+        : "No se pudo verificar el PIN de depósito.";
+    } finally {
+      pin.value = "";
+      procesando.value = false;
+    }
+
+    return;
+  }
 
   // El servidor autoriza este pago durante cinco minutos.
   // Usamos un margen local de cuatro minutos para reintentos.
@@ -239,7 +273,7 @@ onMounted(() => {
   window.addEventListener("resize", actualizarAltoCabecera);
 
   if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) return;
-  if (!obtenerRetiro().capturaHecha) {
+  if (!propsVistaPrevia.modoReserva && !obtenerRetiro().capturaHecha) {
     router.replace("/retirar/rostro");
     return;
   }
@@ -267,7 +301,7 @@ onBeforeUnmount(() => {
     <section class="pin-contenido">
 
       <header ref="encabezadoRef" class="pin-encabezado">
-        <h1>{{ terminado ? "Retiro completado" : "Introduce tu PIN" }}</h1>
+        <h1>{{ terminado ? (propsVistaPrevia.modoReserva ? "Reserva localizada" : "Retiro completado") : (propsVistaPrevia.modoReserva ? "PIN de depósito" : "Introduce tu PIN") }}</h1>
         <p v-if="!terminado">
           Ingresa los 6 d&iacute;gitos.
         </p>
@@ -367,7 +401,7 @@ onBeforeUnmount(() => {
           :disabled="!terminado && !completo"
           @click="terminado ? router.replace('/menu') : verificar()"
         >
-          <span>{{ terminado ? "Finalizar" : autorizacionPagoPendiente ? "Reintentar cobro" : "Verificar PIN" }}</span>
+          <span>{{ terminado ? (propsVistaPrevia.modoReserva ? "Volver al menú" : "Finalizar") : (propsVistaPrevia.modoReserva ? "Verificar PIN" : autorizacionPagoPendiente ? "Reintentar cobro" : "Verificar PIN") }}</span>
 
           <span class="icono-ir" aria-hidden="true">
             <img
@@ -968,3 +1002,5 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 </style>
+
+

@@ -56,7 +56,7 @@ const enPreparacion = computed(() =>
   ["Preparacion", "ListaParaDeposito"].includes(detalle.value?.estado),
 );
 const autorizado = computed(
-  () => detalle.value?.condiciones.consentimientosConfirmados === true,
+  () => detalle.value?.remitente?.consentimiento === "Confirmado",
 );
 const pagado = computed(
   () => detalle.value?.pago.estado === "ConfirmadoManual",
@@ -456,14 +456,14 @@ onBeforeUnmount(() => {
             </div>
           </dl>
           <form
-            v-if="props.centroWhatsApp && detalle.estado!=='Cancelada' && (enPreparacion || rol === 'remitente') && (['Pendiente', 'Revocado'].includes(detalle[rol].consentimiento) || (rol === 'remitente' && detalle[rol].alcance === 'EncomiendaAnterior'))"
+            v-if="props.centroWhatsApp && detalle.estado!=='Cancelada' && ((rol === 'remitente' && enPreparacion) || (rol === 'destinatario' && detalle.estado === 'Depositada')) && (['Pendiente', 'Revocado'].includes(detalle[rol].consentimiento) || (rol === 'remitente' && detalle[rol].alcance === 'EncomiendaAnterior'))"
             class="enc-form"
             @submit.prevent="consentimiento(rol)"
           >
             <p class="enc-help">
               Comprueba en el WhatsApp oficial el número de origen y el texto exacto:
               <strong class="enc-code">{{ detalle[rol].texto }}</strong>.
-              {{ rol === 'remitente' ? 'La aceptación se vincula a la cuenta por su teléfono; no lleva número de encomienda.' : 'La referencia identifica esta encomienda y no autoriza el retiro.' }}
+              {{ rol === 'remitente' ? 'La aceptación se vincula a la cuenta por su teléfono; no lleva número de encomienda.' : 'El código es aleatorio, no incluye el número de reserva ni autoriza el retiro.' }}
               El enlace no confirma la autorización ni existe recepción automática.
             </p>
             <label class="enc-check"><input v-model="consentimientos[rol].usarFormatoAnterior" type="checkbox" :disabled="procesando" />Comprobar un mensaje del formato anterior, válido solo para esta encomienda.</label>
@@ -478,7 +478,7 @@ onBeforeUnmount(() => {
                 placeholder="+504…"
             /></label>
             <label v-if="rol === 'destinatario' || consentimientos[rol].usarFormatoAnterior" class="enc-field"
-              >{{ consentimientos[rol].usarFormatoAnterior ? 'Código del mensaje anterior' : 'Número de encomienda del mensaje recibido' }}<input
+              >{{ consentimientos[rol].usarFormatoAnterior ? 'Código del mensaje anterior' : 'Código de autorización del mensaje recibido' }}<input
                 v-model="consentimientos[rol].codigo"
                 autocomplete="off"
                 required
@@ -631,7 +631,7 @@ onBeforeUnmount(() => {
             Confirmar pago recibido
           </button>
           <p v-if="!autorizado" class="enc-help">
-            Primero comprueba los consentimientos de ambos participantes.
+            Primero comprueba el consentimiento del remitente.
           </p>
         </form>
       </section>
