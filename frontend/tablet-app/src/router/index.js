@@ -52,6 +52,7 @@ const router = createRouter({
     },
 
     { path: "/retirar", name: "retirar", component: () => import("../views/RetirarView.vue") },
+    { path: "/retirar/encomienda", name: "retirar-encomienda", component: () => import("../views/RetiroEncomiendaWebView.vue") },
     {
       path: "/retirar/dispositivo",
       name: "retirar-dispositivo",

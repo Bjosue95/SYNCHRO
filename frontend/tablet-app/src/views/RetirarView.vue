@@ -41,6 +41,10 @@ function continuar() {
     router.push("/retirar/dispositivo");
     return;
   }
+  if (seleccion.value === "encomienda") {
+    router.push("/retirar/encomienda");
+    return;
+  }
   if (seleccion.value !== "personal") return;
 
   iniciarRetiro();
@@ -83,8 +87,8 @@ function continuar() {
         <button
           v-for="item in pertenencias"
           :key="item.id"
-          :disabled="item.id === 'encomienda'"
-          :aria-label="item.id === 'encomienda' ? 'Una encomienda, no disponible' : item.titulo"
+          
+          :aria-label="item.titulo"
           type="button"
           class="tarjeta"
           :class="{ seleccionada: seleccion === item.id }"
@@ -114,7 +118,7 @@ function continuar() {
         <button
           type="button"
           class="boton-continuar"
-          :disabled="!['personal', 'dispositivo'].includes(seleccion)"
+          :disabled="!['personal', 'dispositivo', 'encomienda'].includes(seleccion)"
           @click="continuar"
         >
           <span class="texto-continuar">Continuar</span>
