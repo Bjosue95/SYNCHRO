@@ -10,7 +10,7 @@ const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),
 const opciones=ref<any[]>([]),cargando=ref(true),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
 const tipos=[{id:'Normal',nombre:'Normal',icono:'casillero'},{id:'Refrigerado',nombre:'Refrigerado',icono:'frio'},{id:'Caliente',nombre:'Caliente',icono:'calor'}];
 // Una opción corresponde a un casillero; una duración nunca suma otro casillero.
-const contarCasilleros=(lista:any[])=>new Set(lista.map(o=>String(o.codigo)).filter(Boolean)).size;
+const contarCasilleros=(lista:any[])=>new Set(lista.map(o=>typeof o.codigo==='string'?o.codigo.trim():'').filter(Boolean)).size;
 const cantidadPorTipo=(t:string)=>contarCasilleros(opciones.value.filter(o=>o.tipo===t));
 const cantidadPorTamano=(t:string)=>contarCasilleros(porTipo.value.filter(o=>o.tamano===t));
 const porTipo=computed(()=>opciones.value.filter(o=>o.tipo===tipo.value));
