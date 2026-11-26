@@ -69,7 +69,7 @@ test('detalle de reserva usa opciones de ubicación y duración, teléfono y nav
   assert.match(vista, /@submit\.prevent="revisar"/);
   assert.match(vista, /:disabled="!disponible \|\| actualizando"/);
   assert.doesNotMatch(vista, /@click="volverATamanos"/);
-  assert.match(vista, /<h2>Revisa y confirma tu reserva<\/h2>/);
+  assert.match(vista, /'Revisa tu reserva' : 'Selecciona cómo pagar'/);
   assert.doesNotMatch(vista, /<select v-model="minutos"/);
   assert.doesNotMatch(vista, /<select v-model="ubicacion"/);
   for(const nombre of ['ubicacion','tiempo','whatsapp','volver','continuar']) {
@@ -142,7 +142,7 @@ test('el detalle no ofrece la autorizacion del destinatario antes del deposito',
 
 test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos bancarios', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /<div class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
+  assert.match(vista, /<div v-if="paso===4" class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
   assert.match(vista, /pagador:pagador\.value==='Remitente'\?'Remitente'/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
   assert.match(vista, /@click="usarDatosPrueba"/);
@@ -165,4 +165,23 @@ test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', 
   assert.match(vista, /Total de la reserva/);
   assert.match(vista, /importeTexto/);
   assert.match(vista, /Importe por definir/);
+});
+
+test('reserva en cinco pantallas conserva selecciones y espera aprobacion del pago', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /const pasosReserva=\['Servicio','Casillero','Detalles','Resumen','Pago'\]/);
+  assert.match(vista, /v-if="paso===0"/);
+  assert.match(vista, /v-if="paso===1"/);
+  assert.match(vista, /v-if="paso===2 && tamano"/);
+  assert.match(vista, /v-if="paso===3 \|\| paso===4"/);
+  assert.match(vista, /v-if="paso===5 && reservaEnEspera!==null"/);
+  assert.match(vista, /intervaloPago=setInterval/);
+  assert.match(vista, /d\.pago\?\.estado==='ConfirmadoManual'/);
+  assert.match(vista, /await router\.replace\('\/reservas\/'\+id\)/);
+});
+test('PIN destinatario permanece condicionado al deposito confirmado', () => {
+  const detalle=leer('EncomiendaDetalleView');
+  assert.match(detalle, /Depósito confirmado\. Ya puedes compartir la invitación de WhatsApp/);
+  assert.match(detalle, /permanecen deshabilitados hasta que la tablet confirme el depósito/);
+  assert.match(detalle, /pinRetiroEntregado/);
 });
