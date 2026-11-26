@@ -17,6 +17,10 @@ const pinActual = ref<any>(null);
 const copiado = ref(false);
 const ocupado = ref(false);
 const cargando = ref(false);
+const actualizandoTodo = ref(false);
+const tabletPendientes = ref<number | null>(null);
+const encomiendasListas = ref(false);
+const estadoActualizacion = ref('');
 const error = ref('');
 const aviso = ref('');
 let reloj: ReturnType<typeof setInterval> | undefined;
@@ -27,18 +31,33 @@ const rol = computed(() => categoria.value === 'remitente' ? 'Remitente' : 'Dest
 const finalidad = computed(() => categoria.value === 'remitente' ? 'deposito' : 'retiro');
 const participante = computed(() => detalle.value?.[categoria.value] || null);
 const enPreparacion = (e: string) => e === 'Preparacion' || e === 'ListaParaDeposito';
-const activos = computed(() => solicitudes.value.filter(x =>
-  x.servicio === 'Encomiendas' && x.claseReserva === 'Encomienda' && x.rol === rol.value &&
-  (categoria.value === 'remitente' ? enPreparacion(x.estado) : x.estado === 'Depositada')
-));
-const pendientes = computed(() => activos.value.filter(x =>
-  x.consentimiento !== 'Confirmado' || x.emision !== 'Emitido' || x.entrega !== 'EnviadoManual'
-));
+type RolEncomienda = 'remitente' | 'destinatario';
+function activosDe(tipo: RolEncomienda) {
+  const rolBuscado = tipo === 'remitente' ? 'Remitente' : 'Destinatario';
+  return solicitudes.value.filter(x =>
+    x.servicio === 'Encomiendas' && x.claseReserva === 'Encomienda' &&
+    x.rol === rolBuscado &&
+    (tipo === 'remitente' ? enPreparacion(x.estado) : x.estado === 'Depositada')
+  );
+}
+const requiereAtencion = (x: any) =>
+  x.consentimiento !== 'Confirmado' ||
+  x.emision !== 'Emitido' ||
+  x.entrega !== 'EnviadoManual';
+const activos = computed(() =>
+  categoria.value === 'tablet' ? [] : activosDe(categoria.value)
+);
+const pendientes = computed(() => activos.value.filter(requiereAtencion));
 const resumen = computed(() => ({
   pendientes: activos.value.filter(x => x.consentimiento !== 'Confirmado').length,
   porEnviar: activos.value.filter(x => x.consentimiento === 'Confirmado' && x.entrega !== 'EnviadoManual').length,
   enviados: activos.value.filter(x => x.entrega === 'EnviadoManual').length
 }));
+function conteoCategoria(tipo: Categoria): number | null {
+  if (tipo === 'tablet') return tabletPendientes.value;
+  if (!encomiendasListas.value) return null;
+  return activosDe(tipo).filter(requiereAtencion).length;
+}
 const pinValido = computed(() => /^\d{6}$/.test(pinActual.value?.pin || ''));
 const mensajePin = computed(() => pinValido.value
   ? mensajePinEncomienda(pinActual.value, detalle.value, new Date(pinActual.value.venceUtc).toLocaleString('es-HN', { timeZone:'America/Tegucigalpa' }))
@@ -57,32 +76,87 @@ function cerrarFicha() {
   detalle.value = null; telefono.value = '';
   aviso.value = ''; error.value = '';
 }
-function actualizarVista() {
-  if (categoria.value === 'tablet') {
-    void tabletVista.value?.actualizar();
-    return;
+async function consultarTablet(): Promise<boolean> {
+  try {
+    const datos = await apiAdmin('/api/admin/whatsapp-manual/pendientes');
+    if (!Array.isArray(datos?.operaciones))
+      throw new Error('No se recibió la lista de solicitudes de Tablet.');
+    if (montado) {
+      // Solo cuentan las solicitudes que todavía requieren una acción del operador.
+      tabletPendientes.value = datos.operaciones.filter((x: any) =>
+        ['Pendiente', 'Reservado', 'PinEmitido'].includes(x.estado)
+      ).length;
+    }
+    return true;
+  } catch {
+    if (montado) tabletPendientes.value = null;
+    return false;
   }
-  void actualizar();
 }
-function cambiarCategoria(nueva: Categoria) {
-  if (categoria.value === nueva) return;
-  cerrarFicha(); categoria.value = nueva; solicitudes.value = [];
-  void actualizar();
-}
-async function actualizar() {
-  if (categoria.value === 'tablet' || cargando.value || !montado) return;
+async function actualizar(): Promise<boolean> {
+  if (cargando.value || !montado) return false;
   cargando.value = true;
   try {
     const items: any[] = [];
-    for (let pagina = 1; pagina <= 3; pagina++) {
-      const params = new URLSearchParams({ servicio:'Encomiendas', pagina:String(pagina), tamanoPagina:'100' });
+    for (let pagina = 1; pagina <= 50; pagina++) {
+      const params = new URLSearchParams({
+        servicio: 'Encomiendas', pagina: String(pagina), tamanoPagina: '100'
+      });
       const datos = await apiAdmin('/api/admin/whatsapp-pin/solicitudes?' + params);
-      items.push(...(Array.isArray(datos?.solicitudes) ? datos.solicitudes : []));
-      if (pagina >= (datos?.totalPaginas || 1)) break;
+      if (!Array.isArray(datos?.solicitudes))
+        throw new Error('No se recibió la lista de encomiendas.');
+      items.push(...datos.solicitudes);
+      const paginasTotales = Number(datos.totalPaginas || 1);
+      if (pagina >= paginasTotales) break;
+      if (pagina === 50)
+        throw new Error('Hay más de 5000 solicitudes; ajusta la consulta para obtener un recuento completo.');
     }
-    if (montado) solicitudes.value = items;
-  } catch (e) { error.value = (e as Error).message; }
-  finally { cargando.value = false; }
+    if (montado) {
+      solicitudes.value = items;
+      encomiendasListas.value = true;
+      error.value = '';
+    }
+    return true;
+  } catch (e) {
+    if (montado) {
+      encomiendasListas.value = false;
+      error.value = (e as Error).message;
+    }
+    return false;
+  } finally {
+    cargando.value = false;
+  }
+}
+async function actualizarTodo(mostrarEstado = true) {
+  if (!montado || actualizandoTodo.value) return;
+  actualizandoTodo.value = true;
+  if (mostrarEstado) estadoActualizacion.value = 'Consultando Tablet, Remitente y Destinatario…';
+  try {
+    const [encomiendasOk, tabletOk] = await Promise.all([actualizar(), consultarTablet()]);
+    if (categoria.value === 'tablet') await tabletVista.value?.actualizar();
+    if (mostrarEstado && montado) {
+      if (encomiendasOk && tabletOk) {
+        const total = (conteoCategoria('tablet') ?? 0) +
+          (conteoCategoria('remitente') ?? 0) +
+          (conteoCategoria('destinatario') ?? 0);
+        const hora = new Date().toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' });
+        estadoActualizacion.value =
+          `Actualizado a las ${hora}. ${total} solicitud${total === 1 ? '' : 'es'} pendiente${total === 1 ? '' : 's'}.`;
+      } else {
+        estadoActualizacion.value = 'No se pudieron actualizar todas las categorías. Comprueba la conexión y tu sesión.';
+      }
+    }
+  } finally {
+    actualizandoTodo.value = false;
+  }
+}
+function actualizarVista() { void actualizarTodo(); }
+function cambiarCategoria(nueva: Categoria) {
+  if (categoria.value === nueva) return;
+  cerrarFicha();
+  categoria.value = nueva;
+  // No se borran las solicitudes de la otra pestaña; los contadores son compartidos.
+  void actualizarTodo(false);
 }
 async function abrir(id: number) {
   if (ocupado.value) return;
@@ -175,9 +249,10 @@ function ocultarAlSalir() { if (document.hidden) ocultarPin(); }
 onMounted(() => {
   document.addEventListener('visibilitychange', ocultarAlSalir);
   const id = Number(route.query.encomienda);
+  void actualizarTodo(false);
   if (Number.isSafeInteger(id) && id > 0) void abrirDesdeEnlace(id);
   reloj = setInterval(() => {
-    if (categoria.value !== 'tablet' && !detalle.value && document.visibilityState === 'visible') void actualizar();
+    if (!detalle.value && document.visibilityState === 'visible') void actualizarTodo(false);
   }, 10000);
 });
 onBeforeUnmount(() => {
@@ -201,9 +276,9 @@ watch(() => route.query.encomienda, valor => {
         <p>Gestiona las autorizaciones y el envío manual de PIN para cada servicio.</p>
       </div>
       <button class="button-secondary wa-refresh" type="button"
-        :disabled="cargando || ocupado" @click="actualizarVista">
+        :disabled="actualizandoTodo || cargando || ocupado" @click="actualizarVista">
         <AdminIcon name="refresh" :size="17" />
-        {{ cargando ? 'Actualizando...' : 'Actualizar' }}
+        {{ actualizandoTodo ? 'Actualizando...' : 'Actualizar' }}
       </button>
     </header>
 
@@ -211,11 +286,17 @@ watch(() => route.query.encomienda, valor => {
       <button v-for="cat in [{id:'tablet',nombre:'Tablet'},{id:'remitente',nombre:'Remitente'},{id:'destinatario',nombre:'Destinatario'}]"
         :key="cat.id" type="button" :class="{activo:categoria===cat.id}"
         :aria-current="categoria===cat.id ? 'page' : undefined"
-        @click="cambiarCategoria(cat.id as Categoria)">{{ cat.nombre }}</button>
+        @click="cambiarCategoria(cat.id as Categoria)">
+          <span>{{ cat.nombre }}</span>
+          <span class="wa-tab-counter" :class="{ 'con-pendientes': (conteoCategoria(cat.id as Categoria) ?? 0) > 0 }"
+            aria-hidden="true">{{ conteoCategoria(cat.id as Categoria) ?? '…' }}</span>
+        </button>
     </nav>
 
+    <p v-if="estadoActualizacion" class="wa-refresh-feedback" role="status" aria-live="polite">{{ estadoActualizacion }}</p>
     <div class="wa-surface">
-    <WhatsAppManualAdminView v-if="categoria === 'tablet'" ref="tabletVista" :integrado="true" />
+    <WhatsAppManualAdminView v-if="categoria === 'tablet'" ref="tabletVista" :integrado="true"
+      @actualizado="consultarTablet" />
     <section v-else class="wa-workspace seccion-encomiendas">
       <section class="resumen-operaciones" aria-label="Indicadores">
         <article class="indicador"><span>Solicitudes pendientes</span><strong>{{ resumen.pendientes }}</strong><small>Por verificar</small></article>
@@ -229,7 +310,6 @@ watch(() => route.query.encomienda, valor => {
       <template v-if="!detalle">
         <div class="barra-solicitudes">
           <strong>Sesión: Administrador · {{ categoria === 'remitente' ? 'Remitentes' : 'Destinatarios' }}</strong>
-          <button class="secundario" type="button" :disabled="cargando" @click="actualizar">Actualizar solicitudes</button>
         </div>
         <p class="ayuda">{{ categoria === 'remitente'
           ? 'Comprueba el mensaje de aceptación del remitente antes de generar su PIN de depósito.'
@@ -323,10 +403,25 @@ watch(() => route.query.encomienda, valor => {
   min-height: 45px; padding: 10px 22px; border: 1px solid transparent;
   border-radius: 11px; background: transparent; color: var(--wa-text);
   font-size: 14px; font-weight: 750; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   transition: background-color .15s ease, color .15s ease;
 }
 .wa-shell .wa-tabs button:hover:not(.activo) { background: var(--wa-canvas); }
 .wa-shell .wa-tabs button.activo { color: #01305c; background: #00b9c7; box-shadow: 0 3px 9px #00b9c71e; }
+.wa-shell .wa-tab-counter {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 25px; height: 25px; padding: 0 6px;
+  border-radius: 999px; background: var(--wa-canvas);
+  border: 1px solid var(--wa-border); color: var(--wa-muted);
+  font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.wa-shell .wa-tab-counter.con-pendientes {
+  background: #01305c; border-color: #01305c; color: #fff;
+}
+.wa-shell .wa-refresh-feedback {
+  margin: -5px 0 15px; font-size: 13px; line-height: 1.4;
+  color: var(--wa-muted);
+}
 
 /* El MISMO contenedor para Tablet, Remitente y Destinatario. */
 .wa-shell .wa-surface {
