@@ -296,31 +296,54 @@ onMounted(cargar);
           </div>
 
           <section v-if="pagador==='Remitente'" class="reserva-prueba" aria-labelledby="reserva-prueba-titulo">
-            <div class="reserva-final__intro">
-              <h3 id="reserva-prueba-titulo">Pago con tarjeta</h3>
-              <p>Completa los datos de acceso facilitados para esta operación. No utilices información de una tarjeta bancaria real.</p>
+            <div class="reserva-pago__encabezado">
+              <div class="reserva-final__intro">
+                <span class="reserva-final__etapa">PAGO EN LÍNEA</span>
+                <h3 id="reserva-prueba-titulo">Pago con tarjeta</h3>
+                <p>Revisa los datos de pago y confirma tu solicitud.</p>
+              </div>
+              <span class="reserva-pago__seguridad"><AppIcon nombre="seguridad" :tamano="18" /> Conexión segura</span>
             </div>
-            <div class="reserva-prueba__campos">
-              <label class="campo reserva-prueba__numero">
-                <span>Número de tarjeta</span>
-                <input v-model="numeroTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
-                  maxlength="23" placeholder="4242 4242 4242 4242" :disabled="enviando" />
-                <small>Número habilitado: 4242 4242 4242 4242</small>
-              </label>
-              <label class="campo">
-                <span>Fecha de vencimiento</span>
-                <input v-model="venceTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
-                  maxlength="5" placeholder="MM/AA" :disabled="enviando" />
-                <small>Usa 12/30</small>
-              </label>
-              <label class="campo">
-                <span>Código de seguridad</span>
-                <input v-model="codigoTarjetaPrueba" type="password" inputmode="numeric" autocomplete="off"
-                  maxlength="3" placeholder="•••" :disabled="enviando" />
-                <small>Usa 123 · no es un PIN bancario.</small>
-              </label>
+            <div class="reserva-pago__contenido">
+              <div class="reserva-pago__tarjeta" aria-label="Tarjeta habilitada para el recorrido de pago">
+                <div class="reserva-pago__tarjeta-superior">
+                  <span>SYNCHRO</span>
+                  <span class="reserva-pago__chip" aria-hidden="true"></span>
+                </div>
+                <span class="reserva-pago__numero-visual">4242  ••••  ••••  4242</span>
+                <div class="reserva-pago__tarjeta-inferior">
+                  <span><small>TITULAR</small> CLIENTE SYNCHRO</span>
+                  <span><small>VENCE</small> 12/30</span>
+                </div>
+              </div>
+              <div class="reserva-pago__formulario">
+                <div class="reserva-prueba__campos">
+                  <label class="campo reserva-prueba__numero">
+                    <span>Número de tarjeta</span>
+                    <input v-model="numeroTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
+                      maxlength="23" placeholder="4242 4242 4242 4242" :disabled="enviando" />
+                    <small>Número habilitado: 4242 4242 4242 4242</small>
+                  </label>
+                  <label class="campo">
+                    <span>Fecha de vencimiento</span>
+                    <input v-model="venceTarjetaPrueba" type="text" inputmode="numeric" autocomplete="off"
+                      maxlength="5" placeholder="MM/AA" :disabled="enviando" />
+                    <small>Usa 12/30</small>
+                  </label>
+                  <label class="campo">
+                    <span>Código de seguridad</span>
+                    <input v-model="codigoTarjetaPrueba" type="password" inputmode="numeric" autocomplete="off"
+                      maxlength="3" placeholder="•••" :disabled="enviando" />
+                    <small>Usa 123 · no es un PIN bancario.</small>
+                  </label>
+                </div>
+                <p class="reserva-pago__aviso">Utiliza únicamente los valores habilitados en esta pantalla; no ingreses una tarjeta real. Los datos no se almacenan ni se envían al servidor. No se efectuarán cargos bancarios.</p>
+              </div>
             </div>
-            <p class="reserva-bloque__nota">Los datos se verifican únicamente en esta pantalla y no se almacenan. No se realizará ningún cargo bancario. La solicitud quedará pendiente de confirmación administrativa.</p>
+            <div class="reserva-pago__pie">
+              <AppIcon nombre="check" :tamano="19" />
+              <span>La solicitud quedará pendiente de confirmación administrativa.</span>
+            </div>
           </section>
           <p v-else class="reserva-bloque__nota">
             El destinatario podrá solicitar el pago en la tablet tras el depósito. La entrega quedará bloqueada hasta que el administrador confirme el cobro.
@@ -591,6 +614,24 @@ onMounted(cargar);
   background:var(--surface-soft); border:1px solid var(--border);border-radius:15px;
 }
 .reserva-prueba__campos { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.reserva-pago__encabezado { display:flex;justify-content:space-between;align-items:flex-start;gap:18px; }
+.reserva-pago__seguridad { display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:var(--accent-text);font-size:12px;font-weight:750;padding:9px 12px;background:var(--surface-accent);border-radius:99px; }
+.reserva-pago__contenido { display:grid;grid-template-columns:minmax(240px,.85fr) minmax(0,1.15fr);align-items:start;gap:22px; }
+.reserva-pago__tarjeta { min-height:200px;aspect-ratio:1.6;display:flex;flex-direction:column;justify-content:space-between;gap:20px;padding:24px;color:#fff;background:linear-gradient(128deg,#01305c 0%,#07517a 65%,#008d9d 100%);border:1px solid rgba(255,255,255,.24);border-radius:19px;box-shadow:0 16px 35px rgba(1,48,92,.16); }
+.reserva-pago__tarjeta-superior,.reserva-pago__tarjeta-inferior { display:flex;align-items:center;justify-content:space-between;gap:15px; }
+.reserva-pago__tarjeta-superior { font-weight:850;letter-spacing:.13em;font-size:15px; }
+.reserva-pago__chip { width:36px;height:27px;flex:0 0 36px;border:1px solid rgba(255,255,255,.65);border-radius:7px;background:linear-gradient(140deg,#9ed1de,#f3fafb 55%,#8ac4d2); }
+.reserva-pago__numero-visual { font-size:clamp(17px,1.8vw,23px);font-weight:700;letter-spacing:.08em;white-space:nowrap; }
+.reserva-pago__tarjeta-inferior {font-size:12px;font-weight:700;letter-spacing:.06em;}
+.reserva-pago__tarjeta-inferior span {display:grid;gap:5px;}
+.reserva-pago__tarjeta-inferior small {font-size:9px;opacity:.75;}
+.reserva-pago__formulario { min-width:0;display:grid;gap:14px; }
+.reserva-pago__aviso {font-size:11px;line-height:1.6;color:var(--text-muted);margin:0;}
+.reserva-pago__pie {display:flex;gap:10px;align-items:center;padding:13px 15px;color:var(--text-strong);font-size:12px;font-weight:700;background:var(--surface-accent);border:1px solid var(--border);border-radius:12px;}
+.reserva-pago__pie :deep(svg) {flex:0 0 auto;}
+@media(max-width:850px){.reserva-pago__contenido{grid-template-columns:minmax(0,1fr);}.reserva-pago__tarjeta{max-width:420px;width:100%;}}
+@media(max-width:470px){.reserva-pago__encabezado{flex-direction:column;}.reserva-pago__tarjeta{padding:19px;min-height:175px;}.reserva-pago__numero-visual{font-size:17px;}.reserva-prueba__campos{grid-template-columns:minmax(0,1fr);}.reserva-prueba__numero{grid-column:auto;}}
+
 .reserva-prueba__numero { grid-column:1/-1; }
 .reserva-revision__acciones { display:flex; gap:14px; justify-content:flex-end;flex-wrap:wrap; }
 .reserva-revision__acciones > * { min-height:54px; flex:1 1 200px;max-width:400px; }
