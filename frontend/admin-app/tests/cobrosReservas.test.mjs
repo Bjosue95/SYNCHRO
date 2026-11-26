@@ -22,3 +22,12 @@ test("confirmación de reservas requiere CSRF, revisión del monto y autorizaci�
   assert.match(vista, /pago de prueba/);
   assert.doesNotMatch(vista, /numeroTarjeta|codigoSeguridad|cvv/i);
 });
+
+test("el administrador puede entregar PIN de depósito diferido sin marcar pago confirmado", () => {
+  const vista=readFileSync(new URL("../src/views/EncomiendasView.vue", import.meta.url), "utf8");
+  assert.match(vista, /const pagoDiferido = computed/);
+  assert.match(vista, /const permitePin = computed\(\(\) => pagado\.value \|\| pagoDiferido\.value\)/);
+  assert.match(vista, /!permitePin/);
+  assert.match(vista, /v-if="enPreparacion && !pagado && !pagoDemoReserva"/);
+  assert.match(vista, /El PIN de depósito se entrega antes del pago/);
+});
