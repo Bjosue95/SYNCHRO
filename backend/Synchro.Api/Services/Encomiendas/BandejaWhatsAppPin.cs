@@ -34,7 +34,8 @@ internal sealed partial class EncomiendasOperativasSql
               CASE WHEN p.Rol=N'Remitente' AND general.Id IS NOT NULL THEN ag.NombreUsuario ELSE ap.NombreUsuario END Responsable,
               CASE p.Rol WHEN N'Remitente' THEN N'SYNCHRO ACEPTO' ELSE N'SYNCHRO ACEPTO ENCOMIENDA '+REPLACE(CONVERT(nvarchar(36),p.CodigoSolicitud),N'-',N'') END Referencia,
               pin.EntregadoUtc,COALESCE(JSON_VALUE(seleccion.Detalle,'$.Servicio'),N'Encomienda') ClaseReserva,
-              COALESCE(JSON_VALUE(seleccion.Detalle,'$.TipoCasillero'),N'Normal') TipoCasillero,JSON_VALUE(seleccion.Detalle,'$.Minutos') Minutos
+              COALESCE(JSON_VALUE(seleccion.Detalle,'$.TipoCasillero'),N'Normal') TipoCasillero,JSON_VALUE(seleccion.Detalle,'$.Minutos') Minutos,
+              CAST(CASE WHEN solicitudPin.Id IS NOT NULL AND p.Rol=N'Remitente' THEN 1 ELSE 0 END AS bit) SolicitudPinDeposito
             FROM dbo.EncomiendasOperativas o JOIN dbo.PreReservasEncomiendasWeb r ON r.Id=o.ReservaId
             JOIN dbo.ParticipantesEncomiendaOperativa p ON p.ReservaId=o.ReservaId
             JOIN dbo.ClientesWebPrototipo cuenta ON cuenta.PersonaId=r.ClientePersonaId
@@ -43,6 +44,8 @@ internal sealed partial class EncomiendasOperativasSql
               FROM dbo.AuditoriaEncomiendaOperativa a WHERE a.ReservaId IS NULL AND a.PersonaId=r.ClientePersonaId AND a.Accion=N'ConsentimientoCuentaRemitente' ORDER BY a.Id DESC) general
             LEFT JOIN dbo.Administradores ag ON general.ActorTipo=N'Administrador' AND ag.Id=general.ActorId
             LEFT JOIN dbo.Administradores ap ON ap.Id=p.VerificadoAdminId
+            OUTER APPLY(SELECT TOP(1) a.Id FROM dbo.AuditoriaEncomiendaOperativa a
+              WHERE a.ReservaId=o.ReservaId AND a.Accion=N'PinDepositoSolicitado' ORDER BY a.Id DESC) solicitudPin
             OUTER APPLY(SELECT TOP(1) * FROM dbo.PinesEncomiendaOperativa pin WHERE pin.ReservaId=o.ReservaId
               AND (JSON_VALUE(seleccion.Detalle,'$.Servicio')=N'Personal' OR pin.Finalidad=CASE p.Rol WHEN N'Remitente' THEN N'Deposito' ELSE N'Retiro' END) ORDER BY pin.CreadoUtc DESC) pin
             WHERE (JSON_VALUE(seleccion.Detalle,'$.Servicio') IS NULL OR JSON_VALUE(seleccion.Detalle,'$.Servicio')<>N'Personal' OR p.Rol=N'Remitente')
@@ -58,7 +61,7 @@ internal sealed partial class EncomiendasOperativasSql
               CASE WHEN u.FechaRetiro IS NOT NULL THEN N'Retirada' WHEN u.FechaIngreso IS NOT NULL THEN N'Depositada'
                 WHEN a.Estado NOT IN(N'Confirmado',N'Cancelado') AND (a.VenceUtc<=@ahora OR u.FechaVencimiento<=@ahora) THEN N'Vencido' ELSE a.Estado END,
               a.CreadoUtc,N'NoAplicaEncomienda',{(auditable?"verificado.FechaUtc":"CAST(NULL AS datetime2)")},operador.NombreUsuario,
-              CONVERT(nvarchar(40),a.CodigoAutorizacion),a.FechaEnvioDeclaradaUtc,N'PersonalTablet',N'Normal',CAST(NULL AS nvarchar(10))
+              CONVERT(nvarchar(40),a.CodigoAutorizacion),a.FechaEnvioDeclaradaUtc,N'PersonalTablet',N'Normal',CAST(NULL AS nvarchar(10)),CAST(0 AS bit)
             FROM dbo.AutorizacionesWhatsAppManuales a LEFT JOIN dbo.UsosCasillero u ON u.Id=a.UsoId
             LEFT JOIN dbo.CodigosRetiroPersonal pin ON pin.UsoId=a.UsoId
             LEFT JOIN dbo.Administradores operador ON operador.Id=a.OperadorId
@@ -69,7 +72,7 @@ internal sealed partial class EncomiendasOperativasSql
                ORDER BY h.Id DESC) verificado
             """:""));
         Exigir(fuentes.Count>0,"NoHabilitado","La gestión manual no está habilitada.",503);
-        var cte="WITH Bandeja(Servicio,OperacionId,EncomiendaId,IntentoId,UsoId,Rol,Persona,Telefono,Consentimiento,Finalidad,Emision,Entrega,Estado,CreadoUtc,Pago,VerificadoUtc,Responsable,Referencia,EntregadoUtc,ClaseReserva,TipoCasillero,Minutos) AS ("+string.Join(" UNION ALL ",fuentes)+") ";
+        var cte="WITH Bandeja(Servicio,OperacionId,EncomiendaId,IntentoId,UsoId,Rol,Persona,Telefono,Consentimiento,Finalidad,Emision,Entrega,Estado,CreadoUtc,Pago,VerificadoUtc,Responsable,Referencia,EntregadoUtc,ClaseReserva,TipoCasillero,Minutos,SolicitudPinDeposito) AS ("+string.Join(" UNION ALL ",fuentes)+") ";
         var where=" WHERE (@servicio IS NULL OR Servicio=@servicio) AND (@telefono IS NULL OR Telefono=@telefono) AND (@referencia IS NULL OR OperacionId=@referencia OR CONVERT(nvarchar(20),UsoId)=@referencia OR Referencia=@referencia) ";
         if(filtro.SoloPendientes)
             where+=" AND Estado NOT IN(N'Cancelada',N'Cancelado',N'Retirada',N'Rechazada',N'Vencida',N'Vencido',N'Enviado') AND Consentimiento<>N'Rechazado' AND Entrega<>N'EnviadoManual' AND (Consentimiento=N'Pendiente' OR Emision=N'NoEmitido' OR (Emision=N'Emitido' AND Entrega=N'Pendiente')) ";
@@ -83,7 +86,8 @@ internal sealed partial class EncomiendasOperativasSql
             usoId=r.IsDBNull(4)?(int?)null:r.GetInt32(4),rol=r.GetString(5),persona=r.GetString(6),telefono=r.IsDBNull(7)?null:r.GetString(7),
             consentimiento=r.GetString(8),finalidad=r.GetString(9),emision=r.GetString(10),entrega=r.GetString(11),estado=r.GetString(12),creadoUtc=Fecha(r,13),
             pagoEstado=r.GetString(14),verificadoUtc=r.IsDBNull(15)?(DateTimeOffset?)null:Fecha(r,15),responsable=r.IsDBNull(16)?null:r.GetString(16),referencia=r.GetString(17),
-            entregadoUtc=r.IsDBNull(18)?(DateTimeOffset?)null:Fecha(r,18),claseReserva=r.GetString(19),tipoCasillero=r.GetString(20),minutos=r.IsDBNull(21)?null:r.GetString(21)});
+            entregadoUtc=r.IsDBNull(18)?(DateTimeOffset?)null:Fecha(r,18),claseReserva=r.GetString(19),tipoCasillero=r.GetString(20),minutos=r.IsDBNull(21)?null:r.GetString(21),
+            solicitudPinDeposito=r.GetBoolean(22)});
         return new{solicitudes=items,total,porVerificar,pinPorEnviar,pagina=filtro.Pagina,tamanoPagina=filtro.TamanoPagina,totalPaginas=(int)Math.Ceiling((double)total/filtro.TamanoPagina)};
     }
 }
