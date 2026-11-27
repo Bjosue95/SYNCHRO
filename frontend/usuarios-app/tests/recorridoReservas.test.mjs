@@ -293,3 +293,18 @@ test('selección de estación comienza arriba sin espacio vacío', () => {
   assert.match(vista,/\.reserva-vista > \.reserva-final \{\s*flex:0 0 auto;\s*justify-content:flex-start;/);
   assert.match(vista,/\.reserva-vista > \.reserva-final \.reserva-final__intro \{align-content:start;\}/);
 });
+
+test('duraciones fijas del backend llegan hasta cuatro horas sin incrementadores', () => {
+  const vista=leer('PreReservaView');
+  const config=JSON.parse(readFileSync(new URL('../../../backend/Synchro.Api/appsettings.json',import.meta.url),'utf8'));
+  const backend=readFileSync(new URL('../../../backend/Synchro.Api/Services/Encomiendas/ReservasPrototipo.cs',import.meta.url),'utf8');
+  assert.deepEqual(config.ReservasPrototipo.DuracionesMinutos,[30,60,120,180,240]);
+  for(const tarifa of Object.values(config.ReservasPrototipo.TarifasNormales)){
+    for(const minutos of [30,60,120,180,240])assert.ok(tarifa[minutos]>0);
+  }
+  assert.match(backend,/m is >0 and <=240/);
+  assert.match(backend,/t\.Key<=240/);
+  assert.match(backend,/if\(d\.Minutos>240/);
+  assert.match(vista,/v-for="m in duraciones"/);
+  assert.doesNotMatch(vista,/@click="aumentarDuracion"/);
+});
