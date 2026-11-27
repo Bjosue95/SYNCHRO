@@ -655,7 +655,7 @@ onBeforeUnmount(() => {
         </form>
       </section>
       <section v-if="props.centroWhatsApp" class="enc-card">
-        <p v-if="detalle.historial?.some((h:any)=>h.accion==='PinDepositoSolicitado') && !detalle.pines?.some((p:any)=>p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado))" class="enc-notice" role="status">
+        <p v-if="detalle.historial?.some((h)=>h.accion==='PinDepositoSolicitado') && !detalle.pines?.some((p)=>p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado))" class="enc-notice" role="status">
           <strong>PIN de depósito solicitado por el titular.</strong> Verifica la autorización y emite el PIN para su entrega manual al WhatsApp autorizado.
         </p>
         <h3>PIN independientes</h3>
