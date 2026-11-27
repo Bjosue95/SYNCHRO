@@ -27,6 +27,7 @@ public sealed partial class EncomiendasOperativasSqlTests
     }
 
     private static IConfiguration ConfiguracionReserva(Fixture f)=>new ConfigurationBuilder().AddConfiguration(Configuracion).AddInMemoryCollection(new Dictionary<string,string?>{
+        ["ReservasPrototipo:TerminalId"]=f.Terminal.ToString(System.Globalization.CultureInfo.InvariantCulture),
         ["ReservasPrototipo:Casilleros:0"]=f.Casillero,["ReservasPrototipo:Ubicacion"]="Inventario de pruebas",["ReservasPrototipo:DuracionesMinutos:0"]="30",
         ["ReservasPrototipo:DuracionesMinutos:1"]="60"}).Build();
     private static CapturaEncomiendaSolicitud CapturaDemostrativa(bool retiro=false)=>new(Convert.ToBase64String(RostroSimuladoTests.Png(retiro)),null,
@@ -64,6 +65,22 @@ public sealed partial class EncomiendasOperativasSqlTests
         var deposito=Json(await s.EmitirPin(id,"Deposito",false,f.Admin,ct));
         await s.ConfirmarEntregaPin(id,new(deposito.GetProperty("id").GetGuid(),"+999123456701","WA-DEPOSITO-TEST",true),f.Admin,ct);
         var pinDeposito=deposito.GetProperty("pin").GetString()!;var falso=pinDeposito=="000000"?"000001":"000000";
+        var identificacion=Json(await s.IdentificarParaDeposito(pinDeposito,f.Terminal,ct));
+        Assert.Equal(id,identificacion.GetProperty("reservaId").GetInt32());
+        Assert.Equal(servicio,identificacion.GetProperty("servicio").GetString());
+        Assert.Equal(tipo,identificacion.GetProperty("tipoCasillero").GetString());
+        var terminalErronea=new EncomiendasOperativasSql(new ConfigurationBuilder()
+            .AddConfiguration(cfg)
+            .AddInMemoryCollection(new Dictionary<string,string?> {
+                ["ReservasPrototipo:TerminalId"]=(f.Terminal+100000).ToString()
+            }).Build(),f.Proteccion,TimeProvider.System);
+        var rechazo=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
+            terminalErronea.IdentificarParaDeposito(pinDeposito,f.Terminal,ct));
+        Assert.Equal("TerminalNoAutorizada",rechazo.Codigo);
+        var rechazoDirecto=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
+            terminalErronea.DepositarDemostrativo(id,f.Terminal,
+                new(pinDeposito,CapturaDemostrativa(),true),ct));
+        Assert.Equal("TerminalNoAutorizada",rechazoDirecto.Codigo);
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.DepositarDemostrativo(id,f.Terminal,new(falso,CapturaDemostrativa(),true),ct));
         Assert.Equal("Preparacion",Json(await s.Detalle(id,f.Persona,ct)).GetProperty("estado").GetString());
         await s.DepositarDemostrativo(id,f.Terminal,new(pinDeposito,CapturaDemostrativa(),true),ct);
