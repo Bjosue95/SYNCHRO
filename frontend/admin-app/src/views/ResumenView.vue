@@ -3,29 +3,34 @@ import { computed, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { apiAdmin } from "../services/adminApi";
 import AdminIcon from "../components/AdminIcon.vue";
+import { resumirCasilleros } from "../services/resumenCasilleros.js";
 
 const cargando = ref(true);
 const error = ref("");
 const casilleros = ref(null);
+const espaciosCarga = ref(null);
+const inventario = computed(() => resumirCasilleros(casilleros.value, espaciosCarga.value));
 const solicitudes = ref(null);
 const ultimaActualizacion = ref("");
-const disponibles = computed(() => casilleros.value?.filter(x => x.estado === "Disponible").length ?? null);
-const ocupados = computed(() => casilleros.value?.filter(x => x.estado === "Ocupado").length ?? null);
+const disponibles = computed(() => inventario.value?.disponibles ?? null);
+const ocupados = computed(() => inventario.value?.ocupados ?? null);
 const pendientes = computed(() => solicitudes.value?.porVerificar ?? null);
 const pinPorEnviar = computed(() => solicitudes.value?.pinPorEnviar ?? null);
-const totalCasilleros = computed(() => casilleros.value?.length ?? null);
+const totalCasilleros = computed(() => inventario.value?.total ?? null);
 
 async function actualizar() {
   if (cargando.value && ultimaActualizacion.value) return;
   cargando.value = true;
   error.value = "";
-  const [c, s] = await Promise.allSettled([
+  const [c, carga, s] = await Promise.allSettled([
     apiAdmin("/api/terminales/casilleros-prototipo"),
+    apiAdmin("/api/admin/carga/espacios"),
     apiAdmin("/api/admin/whatsapp-pin/solicitudes?tamanoPagina=1"),
   ]);
   casilleros.value = c.status === "fulfilled" && Array.isArray(c.value) ? c.value : null;
+  espaciosCarga.value = carga.status === "fulfilled" && Array.isArray(carga.value?.espacios) ? carga.value.espacios : null;
   solicitudes.value = s.status === "fulfilled" && typeof s.value?.porVerificar === 'number' ? s.value : null;
-  if (!casilleros.value || !solicitudes.value) error.value = "Algunos datos no están disponibles. Comprueba la conexión con SYNCHRO e inténtalo otra vez.";
+  if (!inventario.value || !solicitudes.value) error.value = "Algunos datos no están disponibles. Comprueba la conexión con SYNCHRO e inténtalo otra vez.";
   ultimaActualizacion.value = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
   cargando.value = false;
 }
@@ -61,12 +66,13 @@ onMounted(actualizar);
         <RouterLink to="/admin/whatsapp" class="action-link">Gestionar WhatsApp <AdminIcon name="arrow" :size="17" /></RouterLink>
       </section>
       <section class="panel inventory-panel">
-        <div class="panel-heading"><div><p class="eyebrow">INFRAESTRUCTURA</p><h2>Disponibilidad</h2></div><AdminIcon name="lockers" :size="21" /></div>
-        <template v-if="casilleros !== null && totalCasilleros > 0">
+        <div class="panel-heading"><div><p class="eyebrow">CASILLEROS</p><h2>Disponibilidad</h2></div><AdminIcon name="lockers" :size="21" /></div>
+        <template v-if="inventario !== null && totalCasilleros > 0">
           <div class="inventory-number"><strong>{{ disponibles }} / {{ totalCasilleros }}</strong><span>Casilleros disponibles</span></div>
+          <p class="inventory-composition">{{ inventario.resguardo }} de resguardo · {{ inventario.carga }} de carga</p>
           <div class="inventory-track" role="meter" :aria-valuenow="disponibles" aria-valuemin="0" :aria-valuemax="totalCasilleros" aria-label="Casilleros disponibles"><div class="inventory-fill" :style="{ width: (disponibles / totalCasilleros * 100) + '%' }"></div></div>
         </template>
-        <p v-else-if="casilleros === null">No se pudo consultar la disponibilidad.</p>
+        <p v-else-if="inventario === null">No se pudo consultar la disponibilidad.</p>
         <p v-else>No hay casilleros registrados.</p>
         <RouterLink to="/admin/casilleros" class="text-link">Ver todos los casilleros <AdminIcon name="chevron" :size="17" /></RouterLink>
       </section>

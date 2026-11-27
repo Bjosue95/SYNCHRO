@@ -110,8 +110,11 @@
   background: #e7f5f8;
   color: #006f80;
 }
-.admin-page .kpi-card strong {
+.admin-page .kpi-card strong,
+.admin-page .inventory-number strong {
   color: #01305c;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   font-weight: 800;
   font-size: clamp(32px, 3.7vw, 44px);
   letter-spacing: -.05em;
@@ -159,7 +162,8 @@
   .admin-page .page-heading { border-radius: 16px; padding: 20px; }
   .admin-page .kpi-grid { gap: 10px; }
   .admin-page .kpi-card { padding: 15px; gap: 10px; }
-  .admin-page .kpi-card strong { font-size: 30px; }
+  .admin-page .kpi-card strong,
+  .admin-page .inventory-number strong { font-size: 30px; }
   .admin-page .panel { padding: 17px; }
   .admin-page .lockers-panel { padding: 0; }
 }
@@ -169,3 +173,5 @@
   .admin-sidebar .sidebar-link { transition: none; }
   .admin-page .kpi-card:hover { transform: none; }
 }
+
+.admin-page .inventory-composition { color: var(--muted); font-size: 12px; margin: -6px 0 15px; }
