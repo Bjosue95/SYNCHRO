@@ -40,10 +40,63 @@ internal sealed partial class EncomiendasOperativasSql
         return await ConsultarParaRetiro(identificada!.Value,terminal,ct);
     }
 
+    // Acceso libre EXCLUSIVO del prototipo de pruebas: el servidor conserva
+    // un identificador interno estable para relacionar depósitos, PIN y retiros.
+    // No identifica ni autoriza el navegador, y jamás acepta IDs del cliente.
+    public async Task<int> TerminalInternaReservasPruebas(CancellationToken ct)
+    {
+        if (!config.GetValue<bool>("ReservasPrototipo:AccesoLibrePruebas"))
+            throw new OperacionEncomiendaException(
+                "AccesoLibreNoHabilitado", "Modo de pruebas no habilitado.", 403);
+
+        await using var conexion = await Abrir(ct);
+        await using var transaccion = (SqlTransaction)await conexion
+            .BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+
+        int id;
+        await using (var buscar = Comando(conexion, transaccion, """
+            SELECT Id FROM dbo.Terminales WITH(UPDLOCK,HOLDLOCK)
+            WHERE Codigo=N'SYNCHRO-RESERVAS-DEMO';
+            """))
+        {
+            var existente = await buscar.ExecuteScalarAsync(ct);
+            id = existente is int actual ? actual : 0;
+        }
+
+        if (id == 0)
+        {
+            await using var crear = Comando(conexion, transaccion, """
+                INSERT dbo.Terminales(Codigo,Nombre,Activa,FechaAutorizacion)
+                OUTPUT INSERTED.Id
+                VALUES(N'SYNCHRO-RESERVAS-DEMO',N'Estación interna de pruebas',1,SYSUTCDATETIME());
+                """);
+            id = Convert.ToInt32(await crear.ExecuteScalarAsync(ct));
+        }
+        else
+        {
+            // No reactivar una estación de pruebas expresamente desactivada.
+            await using var comprobar = Comando(conexion, transaccion, """
+                SELECT COUNT(*) FROM dbo.Terminales
+                WHERE Id=@id AND Activa=1;
+                """, ("@id", id));
+            Exigir(Convert.ToInt32(await comprobar.ExecuteScalarAsync(ct)) == 1,
+                "TerminalDemoDesactivada",
+                "La estación interna de pruebas está desactivada.", 503);
+        }
+
+        await transaccion.CommitAsync(ct);
+        return id;
+    }
+
     // La vinculación (cookie Terminal) identifica la estación. Esta validación
     // adicional determina cuál estación puede atender las reservas web.
     private async Task ExigirTerminalDeReservas(int terminal, CancellationToken ct)
     {
+        // El prototipo acepta cualquier tablet; el backend asigna una estación
+        // interna para conservar la trazabilidad sin vincular el dispositivo.
+        if (config.GetValue<bool>("ReservasPrototipo:AccesoLibrePruebas"))
+            return;
+
         Exigir(terminal > 0, "TerminalNoAutorizada",
             "No se encontró una terminal autorizada.", 403);
 
