@@ -30,3 +30,26 @@ test('bienvenida explica servicios y permite reservar o consultar sin inventar o
   assert.match(shell,/to="\/bienvenida" class="enlace-marca"/);
   assert.doesNotMatch(vista,/Math\.random|reservas simuladas|total de reservas:/);
 });
+
+test('la bienvenida consulta reservas reales y ofrece siguiente paso de PIN solo tras pago confirmado',()=>{
+  const vista=leer('src/views/BienvenidaView.vue');
+  const detalle=leer('src/views/EncomiendaDetalleView.vue');
+  const api=leer('src/services/encomiendasApi.js');
+  const espera=leer('src/views/PagoPendienteView.vue');
+  assert.match(vista,/encomiendasApi\.listar\(\{pagina:1,tamanoPagina:20\}\)/);
+  assert.match(vista,/e\.pagoEstado==='ConfirmadoManual'/);
+  assert.match(vista,/encomiendasApi\.detalle\(reserva\.id\)/);
+  assert.match(vista,/reservaPendiente\.value=elegida/);
+  assert.match(vista,/!whatsappConfirmado\.value/);
+  assert.match(vista,/Solicitud de PIN registrada/);
+  assert.match(vista,/hash:'#solicitar-pin-deposito'/);
+  assert.match(vista,/Solicitar PIN de depósito/);
+  assert.match(detalle,/async function solicitarPinDeposito\(\)/);
+  assert.match(detalle,/await encomiendasApi\.solicitarPinDeposito\(detalle\.value\.id\)/);
+  assert.match(detalle,/const puedeSolicitarPin=computed/);
+  assert.match(detalle,/solicitudPinRegistrada/);
+  assert.match(detalle,/pinDepositoEmitido/);
+  assert.match(api,/pin-deposito\/solicitar/);
+  assert.match(api,/metodo: "POST"/);
+  assert.match(espera,/await router\.replace\('\/bienvenida'\)/);
+});
