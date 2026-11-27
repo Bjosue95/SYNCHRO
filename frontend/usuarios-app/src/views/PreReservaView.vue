@@ -176,8 +176,8 @@ async function crear(){
     return;
   }
   if(pagador.value==='Remitente'&&(paso.value!==8||!tarjetaPruebaValida.value)){
-    pagoError.value='Introduce un titular ficticio y utiliza únicamente los valores de demostración indicados en los campos.';
-    error.value='Revisa los datos de demostración para continuar.';
+    pagoError.value='Completa todos los campos con los valores de ejemplo indicados. El nombre debe tener al menos 3 caracteres.';
+    error.value='';
     return;
   }
   enviando.value=true;
@@ -394,9 +394,9 @@ onMounted(cargar);
               <div class="reserva-final__intro">
                 
                 <h2 id="reserva-prueba-titulo">Datos de la tarjeta</h2>
-                <p>Completa esta operación de demostración. No ingreses datos bancarios reales.</p>
+                <p>Completa los datos de la tarjeta para continuar.</p>
               </div>
-              <span class="reserva-pago__seguridad"><AppIcon nombre="seguridad" :tamano="18" /> Demostración</span>
+              <span class="reserva-pago__seguridad"><AppIcon nombre="seguridad" :tamano="18" /> Datos protegidos</span>
             </div>
             <div class="reserva-pago__contenido">
               <div class="reserva-pago__tarjeta" aria-label="Tarjeta habilitada para el recorrido de pago">
@@ -417,7 +417,7 @@ onMounted(cargar);
                     <span>Nombre del titular</span>
                     <input v-model="titularTarjeta" type="text" maxlength="60" autocomplete="off"
                       placeholder="CLIENTE SYNCHRO" :disabled="enviando" @input="pagoError=''" />
-                    <small>Escribe un nombre ficticio; no ingreses información bancaria personal.</small>
+                    
                   </label>
                   <label class="campo reserva-prueba__numero">
                     <span>Número de tarjeta</span>
@@ -439,12 +439,12 @@ onMounted(cargar);
                   </label>
                 </div>
                 <p v-if="pagoError" class="reserva-pago__error" role="alert">{{ pagoError }}</p>
-                <p class="reserva-pago__aviso">Usa exclusivamente los valores ficticios de los ejemplos (4242 4242 4242 4242, 12/30 y 123). Nunca ingreses una tarjeta real. Ningún dato de esta tarjeta se envía al servidor ni se realiza un cargo bancario.</p>
+                <p class="reserva-pago__aviso">Pago de demostración. Usa los valores de ejemplo que aparecen en los campos; no ingreses datos de una tarjeta real. No se realiza ningún cargo bancario.</p>
               </div>
             </div>
             <div class="reserva-pago__pie">
               <AppIcon nombre="check" :tamano="19" />
-              <span>La solicitud quedará pendiente de confirmación administrativa.</span>
+              <span>Al continuar, podrás consultar el estado de tu solicitud.</span>
             </div>
           </section>
 
