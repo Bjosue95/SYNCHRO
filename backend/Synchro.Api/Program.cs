@@ -178,6 +178,12 @@ builder.Services.AddAuthorization(options =>
         policy.AddAuthenticationSchemes("Terminal");
         policy.RequireAuthenticatedUser();
     });
+    options.AddPolicy("SoloTerminalDispositivo", policy =>
+    {
+        policy.AddAuthenticationSchemes("TerminalDispositivo");
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("TerminalDispositivo");
+    });
 
 });
 
@@ -293,6 +299,62 @@ builder.Services
                 StatusCodes.Status403Forbidden;
 
             return Task.CompletedTask;
+        };
+    })
+    // Cookie independiente: la vinculación del dispositivo permanece mientras
+    // se use la estación. Nunca contiene un PIN de cliente ni un secreto JS.
+    .AddCookie("TerminalDispositivo", options =>
+    {
+        options.Cookie.Name = "Synchro.Terminal.Dispositivo";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.ExpireTimeSpan = TimeSpan.FromDays(365);
+        options.SlidingExpiration = true;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            // Solo la ÚLTIMA vinculación aprobada conserva validez. Revocar
+            // la terminal o volver a vincularla invalida el dispositivo anterior.
+            var identidad = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var version = context.Principal?.FindFirstValue("VinculoVersion");
+            if (!int.TryParse(identidad, out var terminalId) || terminalId <= 0 ||
+                string.IsNullOrWhiteSpace(version))
+            {
+                context.RejectPrincipal();
+                return;
+            }
+
+            var cadena = context.HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>().GetConnectionString("SynchroDB");
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                context.RejectPrincipal();
+                return;
+            }
+            try
+            {
+                await using var conexion = new SqlConnection(cadena);
+                await conexion.OpenAsync(context.HttpContext.RequestAborted);
+                await using var comando = new SqlCommand(
+                    "SELECT Activa, FechaAutorizacion FROM dbo.Terminales WHERE Id=@id", conexion);
+                comando.Parameters.Add("@id", System.Data.SqlDbType.Int).Value = terminalId;
+                await using var lector = await comando.ExecuteReaderAsync(context.HttpContext.RequestAborted);
+                if (!await lector.ReadAsync(context.HttpContext.RequestAborted) ||
+                    !lector.GetBoolean(0) || lector.IsDBNull(1) ||
+                    lector.GetDateTime(1).Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) != version)
+                    context.RejectPrincipal();
+            }
+            catch (SqlException) { context.RejectPrincipal(); }
         };
     });
 
