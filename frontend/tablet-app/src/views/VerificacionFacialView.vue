@@ -2,8 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
-import { obtenerReservaWebDeposito, limpiarReservaWebDeposito } from "../services/reservaWebSesion.js";
-import { depositarReservaWeb } from "../services/reservasWebTerminalApi.js";
+import { obtenerEleccionReservaWeb, registrarFotoReservaWeb } from "../services/reservaWebSesion.js";
 import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
 import { registrarCaptura } from "../services/retiroSesion";
 import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
@@ -55,7 +54,7 @@ const error = ref("");
 
 const casillero = computed(() => {
   if (esReservaWeb.value) {
-    return obtenerReservaWebDeposito()?.casillero || "Sin reserva";
+    return "Reserva web";
   }
   const codigo = route.query.casillero;
   return (
@@ -609,50 +608,24 @@ function cancelar() {
 async function continuar() {
   if (!tomada.value || !fotoBase64.value || validandoEnServidor.value) return;
   if (esReservaWeb.value) {
-    const sesion = obtenerReservaWebDeposito();
-
-    if (!sesion) {
-      error.value = "La sesión de reserva venció. Introduce nuevamente el PIN.";
+    if (!obtenerEleccionReservaWeb()) {
+      error.value = "Vuelve a seleccionar el servicio de tu reserva.";
       return;
     }
-
     if (!consentimientoFotoReserva.value) {
       error.value = "Debes autorizar la captura fotográfica.";
       return;
     }
-
-    validandoEnServidor.value = true;
-    error.value = "";
-    estado.value = "Confirmando depósito con SYNCHRO...";
-
     try {
-      const coincidencia = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
-
-      if (!coincidencia) {
-        throw new Error("La fotografía no tiene un formato PNG válido.");
-      }
-
-      await depositarReservaWeb(sesion.reservaId, {
-        pin: sesion.pin,
-        depositoComprobado: true,
-        codigoCasillero: sesion.casillero,
-        captura: {
-          imagenPng: coincidencia[1],
-          descriptor: null,
-          modelo: "SYNCHRO-CAPTURA-DEMOSTRATIVA",
-          versionConsentimiento: "SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11"
-        }
-      });
-
-      depositoConfirmado.value = true;
-      estado.value = `Depósito registrado. Casillero ${sesion.casillero}.`;
-      limpiarReservaWebDeposito();
-      fotoBase64.value = "";
+      const coincidencia=/^data:image\\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
+      if (!coincidencia) throw new Error("La fotografía no tiene un formato PNG válido.");
+      // Fotografía temporal: no se crea un descriptor ni se compara un rostro.
+      registrarFotoReservaWeb(coincidencia[1]);
+      limpiarCaptura();
+      detenerCamara();
+      await router.push("/guardar/reserva/pin");
     } catch (e) {
-      error.value = e?.message || "No se pudo confirmar el depósito.";
-      estado.value = "La confirmación está pendiente.";
-    } finally {
-      validandoEnServidor.value = false;
+      error.value=e?.message||"No se pudo preparar la fotografía.";
     }
     return;
   }
@@ -719,8 +692,8 @@ async function continuar() {
 }
 
 function comenzarEscaneo() {
-  if (esReservaWeb.value && !obtenerReservaWebDeposito()) {
-    error.value = "Primero debes verificar tu PIN de depósito.";
+  if (esReservaWeb.value && !obtenerEleccionReservaWeb()) {
+    error.value = "Selecciona antes el tipo de reserva.";
     return;
   }
   if (esReservaWeb.value && !consentimientoFotoReserva.value) {
@@ -764,7 +737,6 @@ function ocultar() {
 document.addEventListener("visibilitychange", ocultar);
 
 onBeforeUnmount(() => {
-  if (esReservaWeb.value) limpiarReservaWebDeposito();
   montada = false;
   detenerCamara();
   limpiarCaptura();
@@ -775,8 +747,8 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>{{ esReservaWeb ? (depositoConfirmado ? "Depósito registrado" : "Captura de depósito") : "Registro facial" }}</h1>
-      <p>Casillero {{ casillero }}</p>
+      <h1>{{ esReservaWeb ? "Captura de fotografía" : "Registro facial" }}</h1>
+      <p v-if="!esReservaWeb">Casillero {{ casillero }}</p>
     </header>
 
     <section class="zona-facial" aria-label="Registro facial de demostración">
@@ -825,7 +797,7 @@ onBeforeUnmount(() => {
           <p>
             {{
               tomada
-                ? (esReservaWeb ? "Confirma el depósito cuando hayas colocado los objetos en el casillero." : retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para enviar el PIN por WhatsApp.")
+                ? (esReservaWeb ? "Continúa para introducir el PIN de depósito recibido por WhatsApp." : retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para enviar el PIN por WhatsApp.")
                 : "La captura se realizará automáticamente."
             }}
           </p>
@@ -903,7 +875,7 @@ onBeforeUnmount(() => {
         :disabled="validandoEnServidor"
         @click="continuar"
       >
-        <span>{{ esReservaWeb ? "Confirmar depósito" : "Continuar" }}</span>
+        <span>{{ esReservaWeb ? "Continuar al PIN" : "Continuar" }}</span>
 
         <span class="icono-continuar" aria-hidden="true">
           <img
