@@ -191,7 +191,7 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;clearInterval(reloj);});
       <div class="inicio-cliente__siguiente-principal">
         <div class="inicio-cliente__siguiente-icono"><AppIcon :nombre="iconoSiguiente" :tamano="29"/></div>
         <div class="inicio-cliente__siguiente-texto">
-          <span class="inicio-cliente__etiqueta">SIGUIENTE PASO · RESERVA #{{ reservaPendiente.id }}</span>
+          
           <h2 id="siguiente-paso-titulo">{{ siguienteAccion }}</h2>
           <p>{{ descripcionSiguiente }}</p>
         </div>
