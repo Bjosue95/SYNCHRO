@@ -2,6 +2,8 @@
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import { obtenerReservaWebDeposito,limpiarReservaWebDeposito } from "../services/reservaWebSesion.js";
+import { depositarReservaWeb } from "../services/reservasWebTerminalApi.js";
 import {
   MINUTO_DEPOSITO_MS,
   segundosRestantesDeposito,
@@ -12,6 +14,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
+const esReservaWeb = computed(()=>route.path==="/guardar/reserva/deposito");
 
 const propsVistaPrevia = defineProps({
   modoVistaPrevia: {
@@ -24,7 +27,7 @@ const claveIntento = "synchroWhatsappManualActivoV1";
 const claveTiempo = "synchroDepositoInicioV1";
 
 const casillero = computed(() => {
-  const valor = route.query.casillero;
+  const valor = esReservaWeb.value ? obtenerReservaWebDeposito()?.casillero : route.query.casillero;
   return typeof valor === "string" &&
     /^[A-Za-z0-9-]{1,10}$/.test(valor)
     ? valor
@@ -78,6 +81,7 @@ function limpiarRelojes() {
 }
 
 function limpiarSesion() {
+  if(esReservaWeb.value){limpiarReservaWebDeposito();return;}
   sessionStorage.removeItem(claveIntento);
   sessionStorage.removeItem(claveTiempo);
 }
@@ -125,6 +129,13 @@ function comprobarTiempo() {
 }
 
 function comenzarReloj() {
+  if(esReservaWeb.value){
+    limiteMs=Date.now()+MINUTO_DEPOSITO_MS;
+    ventanaSegundos.value=60;segundos.value=60;
+    clearInterval(reloj);
+    reloj=setInterval(comprobarTiempo,250);
+    return;
+  }
   let guardado = null;
 
   try {
@@ -185,7 +196,7 @@ function agregarMinuto() {
     ahora
   );
 
-  sessionStorage.setItem(claveTiempo, JSON.stringify({
+  if(!esReservaWeb.value)sessionStorage.setItem(claveTiempo, JSON.stringify({
     intentoId: intento.intentoId,
     limiteMs
   }));
@@ -332,6 +343,19 @@ async function confirmarDeposito() {
   error.value = "";
 
   try {
+    if(esReservaWeb.value){
+      const sesion=obtenerReservaWebDeposito();
+      if(!sesion||sesion.reservaId!==intento.reservaId)throw new Error("La reserva ha vencido. Verifica nuevamente tu PIN.");
+      const datos=await depositarReservaWeb(sesion.reservaId,{
+        pin:sesion.pin,
+        codigoCasillero:sesion.casillero,
+        depositoComprobado:true,
+        captura:{imagenPng:sesion.foto,descriptor:null,modelo:"SYNCHRO-CAPTURA-DEMOSTRATIVA",versionConsentimiento:"SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11"}
+      });
+      if(datos?.depositoConfirmado!==true)throw new Error("El servidor no confirmó el depósito.");
+      finalizar();
+      return;
+    }
     const datosCsrf = await solicitar(
       "/api/terminales/guardar/whatsapp/csrf-token"
     );
@@ -386,11 +410,19 @@ onMounted(() => {
     return;
   }
 
+  if(esReservaWeb.value){
+    intento=obtenerReservaWebDeposito();
+    if(!intento){estado.value="error";error.value="Verifica la reserva y el PIN antes de depositar.";return;}
+    estado.value="listo";
+    comenzarReloj();
+    return;
+  }
   cargarOperacion();
 });
 
 onBeforeUnmount(() => {
   vivo = false;
+  if(esReservaWeb.value&&estado.value!=="confirmado")limpiarReservaWebDeposito();
   limpiarRelojes();
 });
 </script>
