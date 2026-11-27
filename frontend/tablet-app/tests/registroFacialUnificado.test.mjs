@@ -9,6 +9,10 @@ test("pantallas faciales operativas usan el mismo título y no piden activar V3"
     assert.doesNotMatch(s,/type="checkbox"|aceptaDescriptorV3|aceptaRetiroV3|VITE_FACIAL_V3_PRUEBA/);
     assert.match(s,/const consentimiento = ref\(false\)/);
     assert.match(s,/aria-describedby="aviso-facial"/);
+    assert.match(s,/<details [^>]*class="privacidad-facial">/);
+    assert.match(s,/<summary data-preview-permitido>Privacidad<\/summary>/);
+    assert.match(s,/Autorizar e iniciar escaneo/);
+    assert.doesNotMatch(s,/<details[^>]*\sopen(?:\s|=|>)/);
     assert.match(s,/consentimiento\.value = true/);
   }
   assert.match(leer("VerificacionFacialView"),/v-if="!retirando && !esReservaWeb && casillero !== 'Sin seleccionar'"/);

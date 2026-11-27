@@ -43,7 +43,7 @@ const validandoEnServidor = ref(false);
 
 const fotoUrl = ref("");
 const fotoBase64 = ref("");
-const estado = ref("Pulsa Comenzar escaneo para iniciar.");
+const estado = ref("Inicia el escaneo para continuar.");
 const error = ref("");
 
 const casillero = computed(() => {
@@ -800,12 +800,15 @@ onBeforeUnmount(() => {
     </section>
 
     <footer class="pie-facial">
-      <p v-if="!encendida && !tomada && !depositoConfirmado" id="aviso-facial" class="consentimiento-v3">
+      <details v-if="!encendida && !tomada && !depositoConfirmado" class="privacidad-facial">
+        <summary data-preview-permitido>Privacidad</summary>
+        <p id="aviso-facial" class="privacidad-facial__texto">
         {{ usarDescriptor
           ? (retirando ? "Al iniciar el escaneo, autorizas comparar tu rostro con la referencia del depósito. También necesitas tu PIN."
             : "Al iniciar el escaneo, autorizas registrar tu referencia facial cifrada para verificar el retiro. Se elimina al cerrar el servicio o vencer la reserva." + (reservaPersonal ? " La fotografía de evidencia se conserva hasta 30 días." : ""))
           : "Al iniciar el escaneo, autorizas tomar una fotografía como evidencia de la encomienda, sin comparación biométrica. Se conserva hasta 30 días tras completar la operación." }}
       </p>
+      </details>
       <button
         v-if="!tomada && !encendida && !iniciando && !depositoConfirmado"
         type="button"
@@ -814,7 +817,7 @@ onBeforeUnmount(() => {
         @click="comenzarEscaneo"
       >
         <span>
-          {{ consentimiento ? "Reintentar escaneo" : "Comenzar escaneo" }}
+          {{ consentimiento ? "Reintentar escaneo" : "Autorizar e iniciar escaneo" }}
         </span>
       </button>
 
@@ -1357,5 +1360,29 @@ onBeforeUnmount(() => {
   text-shadow: 0 1px 4px rgba(0,0,0,.65);
 }
 
-.pie-facial p.consentimiento-v3 { display: block; text-align: center; line-height: 1.45; margin: 0; }
+/* Aviso accesible bajo demanda, sin párrafos permanentes en el recorrido. */
+.privacidad-facial {
+  position: relative; z-index: 3; flex: 0 0 auto;
+  font-size: 0.8rem; text-align: center; color: #01305c;
+}
+.privacidad-facial summary {
+  cursor: pointer; padding: 5px 10px; min-height: 28px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.privacidad-facial summary:focus-visible {
+  outline: 2px solid #00b9c7; outline-offset: 2px; border-radius: 4px;
+}
+.privacidad-facial__texto {
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); width: min(390px, 85vw);
+  max-height: min(36dvh, 220px); overflow-y: auto; box-sizing: border-box;
+  padding: 16px; margin: 0; background: #fff; color: #01305c;
+  border: 1px solid #5ec6e8; border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); text-align: left; line-height: 1.5;
+}
+.tema-oscuro .privacidad-facial { color: #d8f5fa; }
+.tema-oscuro .privacidad-facial__texto {
+  background: #103956; color: #fff; border-color: #315573;
+}
+
 </style>
