@@ -74,6 +74,7 @@ public static class ConfirmacionTerminalEndpoints
                 }
 
                 int terminalId;
+                string vinculoVersion;
 
                 try
                 {
@@ -101,8 +102,8 @@ public static class ConfirmacionTerminalEndpoints
                           IF @terminalId IS NULL
                             THROW 51021, 'Solicitud no aprobada o vencida.', 1;
                           UPDATE dbo.Terminales
-                          SET Activa=1, FechaAutorizacion=COALESCE(FechaAutorizacion,SYSUTCDATETIME())
-                          WHERE Id=@terminalId AND Activa=0;
+                          SET Activa=1, FechaAutorizacion=SYSUTCDATETIME()
+                          WHERE Id=@terminalId;
                           UPDATE dbo.SolicitudesVinculacionTerminal
                           SET Estado=N'Consumida',FechaConsumo=SYSUTCDATETIME()
                           WHERE TokenHash=@TokenHash
@@ -111,7 +112,7 @@ public static class ConfirmacionTerminalEndpoints
                           IF @@ROWCOUNT<>1
                             THROW 51023, 'No se pudo consumir la solicitud.', 1;
                           COMMIT TRANSACTION;
-                          SELECT @terminalId;
+                          SELECT Id,FechaAutorizacion FROM dbo.Terminales WHERE Id=@terminalId;
                         END TRY
                         BEGIN CATCH
                           IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
@@ -125,15 +126,14 @@ public static class ConfirmacionTerminalEndpoints
                         SqlDbType.VarBinary,
                         32).Value = tokenHash;
 
-                    var resultado = await comando.ExecuteScalarAsync();
+                    await using var resultado = await comando.ExecuteReaderAsync(contexto.RequestAborted);
+                    if (!await resultado.ReadAsync(contexto.RequestAborted) ||
+                        resultado.IsDBNull(1))
+                        return Results.Problem("No se pudo confirmar la terminal.");
 
-                    if (resultado is not int id)
-                    {
-                        return Results.Problem(
-                            "No se pudo confirmar la terminal.");
-                    }
-
-                    terminalId = id;
+                    terminalId = resultado.GetInt32(0);
+                    vinculoVersion = resultado.GetDateTime(1).Ticks
+                        .ToString(System.Globalization.CultureInfo.InvariantCulture);
                 }
                 catch (SqlException ex)
                     when (ex.Number == 51020 || ex.Number == 51021)
@@ -163,9 +163,21 @@ public static class ConfirmacionTerminalEndpoints
 
                 var principal = new ClaimsPrincipal(identidad);
 
+                // Sesión operativa renovable y credencial de dispositivo independiente.
+                // Ambas son cookies HttpOnly y Secure, nunca accesibles por JavaScript.
                 await contexto.SignInAsync(
-                    "Terminal",
-                    principal);
+                    "Terminal", principal,
+                    new AuthenticationProperties { IsPersistent = true });
+
+                var vinculo = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, terminalId.ToString()),
+                    new Claim(ClaimTypes.Role, "TerminalDispositivo"),
+                    new Claim("VinculoVersion", vinculoVersion)
+                }, "TerminalDispositivo"));
+
+                await contexto.SignInAsync("TerminalDispositivo", vinculo,
+                    new AuthenticationProperties { IsPersistent = true });
 
                 contexto.Response.Headers.CacheControl = "no-store";
 
