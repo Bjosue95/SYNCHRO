@@ -32,7 +32,7 @@ foreach ($modalidad in $modalidades) {
     ValidarPrecio $tarifa[0].PrecioAdicional
 }
 
-$db = [System.Data.SqlClient.SqlConnection]::new('Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Connect Timeout=10')
+$db = [System.Data.SqlClient.SqlConnection]::new('Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;Encrypt=False;TrustServerCertificate=True;Connect Timeout=10')
 $tx = $null
 try {
     $db.Open()
