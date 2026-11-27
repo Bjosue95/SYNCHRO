@@ -229,12 +229,8 @@ async function crear(){
       throw new Error('La reserva fue recibida, pero el servidor no devolvió una referencia válida. Consulta Mis reservas antes de crear otra.');
     limpiarTarjetaPrueba();
     if(pagador.value==='Remitente'){
-      reservaEnEspera.value=Number(d.id);
-      estadoEnEspera.value=null;
-      paso.value=9;
-      detenerConsultaPago();
-      void consultarPago();
-      intervaloPago=setInterval(()=>{void consultarPago();},5000);
+      // La pantalla independiente consulta la reserva real; no confirma el pago localmente.
+      await router.replace('/reservas/'+d.id+'/pago-pendiente');
     }else{
       await router.replace('/reservas/'+d.id);
     }
