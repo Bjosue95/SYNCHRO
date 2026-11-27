@@ -1,10 +1,67 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
-import { computed } from 'vue';
+import { computed,onMounted,onBeforeUnmount,ref } from 'vue';
 import { estadoSesion } from '../services/sesion.js';
+import { encomiendasApi } from '../services/encomiendasApi.js';
 import AppIcon from '../components/ui/AppIcon.vue';
 
 const usuario=computed(()=> (estadoSesion.cliente as {nombreUsuario?:string}|null)?.nombreUsuario || '');
+const reservaPendiente=ref<any>(null);
+const consultando=ref(true);
+const errorReservas=ref('');
+let montado=true;
+let consultaActual=0;
+const pinSolicitado=computed(()=>Boolean(reservaPendiente.value?.historial?.some(
+  (h:any)=>h.accion==='PinDepositoSolicitado'
+)));
+const pinEmitido=computed(()=>Boolean(reservaPendiente.value?.pines?.some(
+  (p:any)=>p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado)
+)));
+const pagoConfirmado=computed(()=>Boolean(reservaPendiente.value?.condiciones?.pagoConfirmado));
+const whatsappConfirmado=computed(()=>Boolean(reservaPendiente.value?.condiciones?.remitenteAutorizado));
+const siguienteAccion=computed(()=>{
+  if(!reservaPendiente.value)return '';
+  if(pinSolicitado.value)return 'Solicitud de PIN registrada';
+  if(pinEmitido.value)return 'PIN de depósito en preparación';
+  if(!whatsappConfirmado.value)return 'Completar autorización de WhatsApp';
+  return 'Solicitar PIN de depósito';
+});
+const descripcionSiguiente=computed(()=>{
+  if(pinSolicitado.value)return 'La solicitud está registrada. SYNCHRO gestionará la entrega del PIN.';
+  if(pinEmitido.value)return 'Consulta el WhatsApp autorizado para recibir tu PIN.';
+  if(!whatsappConfirmado.value)return 'Autoriza tu número antes de solicitar el PIN de depósito.';
+  return 'El pago está confirmado. Puedes solicitar el PIN para depositar tus pertenencias o encomienda.';
+});
+async function cargarSiguienteAccion(){
+  const actual=++consultaActual;
+  consultando.value=true;
+  errorReservas.value='';
+  try{
+    const respuesta=await encomiendasApi.listar({pagina:1,tamanoPagina:20});
+    if(!Array.isArray(respuesta?.encomiendas))throw new Error('No fue posible comprobar tus reservas.');
+    // Solo las operaciones cuyo pago ha sido confirmado; sin inventar estados.
+    const candidatas=respuesta.encomiendas.filter((e:any)=>
+      e.pagoEstado==='ConfirmadoManual'&&!e.depositoUtc&&!e.retiradaConfirmada&&!e.cancelacion
+      &&!['Cancelada','Vencida','Rechazada','Depositada','Retirada'].includes(e.estado));
+    let elegida:any=null;
+    for(const reserva of candidatas.slice(0,8)){
+      const detalle=await encomiendasApi.detalle(reserva.id);
+      if(!montado||actual!==consultaActual)return;
+      if(detalle?.condiciones?.pagoConfirmado&&!detalle?.depositoUtc&&!detalle?.cancelacion
+        &&!detalle?.historica&&!['Vencida','Cancelada','Rechazada'].includes(detalle?.estado)){
+        elegida=detalle;
+        break;
+      }
+    }
+    if(montado&&actual===consultaActual)reservaPendiente.value=elegida;
+  }catch(e){
+    if(montado&&actual===consultaActual)errorReservas.value=(e as Error).message||'No pudimos actualizar tus reservas.';
+  }finally{
+    if(montado&&actual===consultaActual)consultando.value=false;
+  }
+}
+onMounted(()=>{void cargarSiguienteAccion();});
+onBeforeUnmount(()=>{montado=false;consultaActual++;});
 </script>
 
 <template>
@@ -40,6 +97,21 @@ const usuario=computed(()=> (estadoSesion.cliente as {nombreUsuario?:string}|nul
       </div>
     </div>
 
+    <section v-if="reservaPendiente" class="inicio-cliente__siguiente" aria-labelledby="siguiente-paso-titulo">
+      <div class="inicio-cliente__siguiente-icono"><AppIcon nombre="casillero" :tamano="31"/></div>
+      <div class="inicio-cliente__siguiente-texto">
+        <span class="inicio-cliente__etiqueta">SIGUIENTE PASO · RESERVA #{{ reservaPendiente.id }}</span>
+        <h2 id="siguiente-paso-titulo">{{ siguienteAccion }}</h2>
+        <p>{{ descripcionSiguiente }}</p>
+      </div>
+      <RouterLink :to="{path:'/reservas/'+reservaPendiente.id,hash:'#solicitar-pin-deposito'}" class="inicio-cliente__accion inicio-cliente__accion--principal">
+        {{ pagoConfirmado&&whatsappConfirmado&&!pinSolicitado&&!pinEmitido ? 'Solicitar PIN de depósito' : 'Ver mi reserva' }}
+        <AppIcon nombre="flecha" :tamano="19"/>
+      </RouterLink>
+    </section>
+    <p v-else-if="errorReservas" class="inicio-cliente__error" role="status">
+      No fue posible comprobar tus reservas. <RouterLink to="/mis-reservas">Consultar mis reservas</RouterLink>
+    </p>
     <div class="inicio-cliente__servicios">
       <div class="inicio-cliente__encabezado">
         <h2>¿Qué puedes hacer en SYNCHRO?</h2>
@@ -110,4 +182,13 @@ const usuario=computed(()=> (estadoSesion.cliente as {nombreUsuario?:string}|nul
 @media(max-width:900px){.inicio-cliente__presentacion{grid-template-columns:minmax(0,1fr) 205px;}.inicio-cliente__rejilla{gap:10px;}}
 @media(max-width:650px){.inicio-cliente__presentacion{grid-template-columns:1fr;}.inicio-cliente__escena{display:none;}.inicio-cliente__texto{padding:23px 19px;}.inicio-cliente__acciones{width:100%;}.inicio-cliente__accion{flex:1 1 150px;}.inicio-cliente__rejilla{grid-template-columns:1fr;}.inicio-cliente__tarjeta{min-height:145px;padding:16px;}.inicio-cliente__ayuda{align-items:flex-start;}}
 @media(prefers-reduced-motion:reduce){.inicio-cliente__tarjeta,.inicio-cliente__accion{transition:none;}}
+
+.inicio-cliente__siguiente{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,22px);padding:clamp(16px,2.6vw,24px);border:1px solid #00b9c7;border-radius:18px;background:var(--surface);box-shadow:0 4px 17px rgb(0 185 199 / 8%);}
+.inicio-cliente__siguiente-icono{display:grid;place-items:center;width:58px;height:58px;border-radius:15px;background:var(--surface-accent);color:var(--accent-text);}
+.inicio-cliente__siguiente-texto{display:grid;gap:5px;min-width:0;}
+.inicio-cliente__siguiente-texto h2{font-size:clamp(19px,2.7vw,26px);color:var(--text-strong);}
+.inicio-cliente__siguiente-texto p{font-size:clamp(12px,1.5vw,14px);line-height:1.5;color:var(--text-muted);}
+.inicio-cliente__error{font-size:12px;color:var(--text-muted);padding:10px 0;}
+.inicio-cliente__error a{color:var(--accent-text);font-weight:800;}
+@media(max-width:760px){.inicio-cliente__siguiente{grid-template-columns:auto minmax(0,1fr);}.inicio-cliente__siguiente>.inicio-cliente__accion{grid-column:1/-1;width:100%;}.inicio-cliente__siguiente-icono{width:48px;height:48px;}}
 </style>
