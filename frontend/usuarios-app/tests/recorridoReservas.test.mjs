@@ -452,3 +452,14 @@ test('espera solo animacion a pantalla completa hasta PIN de deposito entregado'
   assert.match(vista,/:global\(\.app-shell:has\(\.espera-pago\) \.topbar\)\{display:none;\}/);
   assert.doesNotMatch(vista,/<h1|<button|Total solicitado|Reserva #/);
 });
+
+test('si la sesión caduca durante la animación se vuelve al acceso conservando la reserva',()=>{
+  const espera=leer('PagoPendienteView');
+  assert.match(espera,/error instanceof ErrorApi&&error\.estado===401/);
+  assert.match(espera,/clearInterval\(reloj\)/);
+  assert.match(espera,/estadoSesion\.cliente=null/);
+  assert.match(espera,/await router\.replace\(\{name:'acceso',query:\{volver:route\.fullPath\}\}\)/);
+  assert.match(espera,/if\(await gestionarSesion\(e\)\)return/);
+  assert.match(espera,/red irigiendoAcceso/.replace(' ',''));
+  assert.doesNotMatch(espera,/await router\.replace\('\/bienvenida'\)[\s\S]*?error\.estado===401/);
+});
