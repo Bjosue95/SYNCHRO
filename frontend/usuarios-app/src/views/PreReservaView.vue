@@ -11,11 +11,6 @@ const router=useRouter(),route=useRoute();
 const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),tipo=ref('Normal'),tamano=ref(''),ubicacion=ref(''),minutos=ref(0),telefono=ref('');
 const opciones=ref<any[]>([]),cargando=ref(true),actualizando=ref(false),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
 const paso=ref(0);
-const reservaEnEspera=ref<number|null>(null);
-const estadoEnEspera=ref<any>(null);
-const consultandoPago=ref(false);
-let intervaloPago: ReturnType<typeof setInterval>|undefined;
-let consultaPagoActiva=false;
 const pasosReserva=['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Forma de pago','Tarjeta'];
 const ultimoPaso=8;
 const pasosVisibles=computed(()=>pasosReserva.filter((_,indice)=>
@@ -25,12 +20,6 @@ const pasoNumero=computed(()=>pasosReserva.slice(0,paso.value+1).filter((_,indic
 const pasoActual=computed(()=>pasosReserva[paso.value]||'Confirmación');
 const saltoSiguiente=(actual:number)=>actual===4&&servicio.value==='Personal'?6:actual+1;
 const saltoAnterior=(actual:number)=>actual===6&&servicio.value==='Personal'?4:actual-1;
-const textoEstadoPago=computed(()=>{
-  if(!estadoEnEspera.value)return 'Comprobando el estado del pago con SYNCHRO…';
-  if(['Vencida','Cancelada','Rechazada'].includes(estadoEnEspera.value.estado))return 'La reserva ya no está activa. Consulta su detalle antes de intentar otra operación.';
-  if(!estadoEnEspera.value.condiciones?.remitenteAutorizado)return 'Pago solicitado. Falta comprobar el consentimiento de WhatsApp del titular.';
-  return 'Pago solicitado. Esperando la aprobación del administrador.';
-});
 function continuar(){
   error.value='';
   if(paso.value===1&&!tipo.value){error.value='Selecciona un tipo de casillero.';return;}
@@ -46,31 +35,11 @@ function continuar(){
   paso.value=Math.min(ultimoPaso,saltoSiguiente(paso.value));
 }
 function regresar(){
-  if(enviando.value||reservaEnEspera.value!==null)return;
+  if(enviando.value)return;
   error.value='';pagoError.value='';
   if(paso.value===8)limpiarTarjetaPrueba();
   if(paso.value===6)revisando.value=false;
   paso.value=Math.max(0,saltoAnterior(paso.value));
-}
-async function consultarPago(){
-  if(reservaEnEspera.value===null||consultaPagoActiva||document.hidden)return;
-  consultaPagoActiva=true;consultandoPago.value=true;
-  try{
-    const d=await encomiendasApi.detalle(reservaEnEspera.value);
-    if(reservaEnEspera.value===null||d?.id!==reservaEnEspera.value)return;
-    estadoEnEspera.value=d;
-    if(d.pago?.estado==='ConfirmadoManual'){
-      const id=reservaEnEspera.value;
-      clearInterval(intervaloPago);
-      intervaloPago=undefined;
-      reservaEnEspera.value=null;
-      await router.replace('/reservas/'+id);
-    }
-  }catch(e){error.value=(e as Error).message||'No pudimos actualizar el estado del pago.';}
-  finally{consultaPagoActiva=false;consultandoPago.value=false;}
-}
-function detenerConsultaPago(){
-  clearInterval(intervaloPago);intervaloPago=undefined;
 }
 const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado'},{id:'Caliente',nombre:'Caliente'}];
 // Campos solamente de memoria local. No se envían al backend ni se almacenan.
@@ -101,7 +70,7 @@ function limpiarTarjetaPrueba(){
   pagoError.value='';
 }
 watch(pagador,limpiarTarjetaPrueba);
-onBeforeUnmount(()=>{limpiarTarjetaPrueba();detenerConsultaPago();});
+onBeforeUnmount(limpiarTarjetaPrueba);
 // Una opción corresponde a un casillero; una duración nunca suma otro casillero.
 const contarCasilleros=(lista:any[])=>new Set(lista.map(o=>typeof o.codigo==='string'?o.codigo.trim():'').filter(Boolean)).size;
 const cantidadPorTipo=(t:string)=>contarCasilleros(opciones.value.filter(o=>o.tipo===t));
@@ -158,13 +127,13 @@ async function cargar(discreta=false){
     if(!Array.isArray(datos?.opciones))throw new Error('La disponibilidad no pudo verificarse.');
     opciones.value=datos.opciones;
     ubicacionPendiente.value=Boolean(datos.ubicacionPendiente);
-    if(!disponible.value){revisando.value=false;if(paso.value>4&&reservaEnEspera.value===null)paso.value=4;}
+    if(!disponible.value){revisando.value=false;if(paso.value>4)paso.value=4;}
   } catch(e) {
     if(actual!==versionCatalogo)return;
     opciones.value=[];
     ubicacionPendiente.value=false;
     revisando.value=false;
-    if(reservaEnEspera.value===null)paso.value=Math.min(paso.value,4);
+    paso.value=Math.min(paso.value,4);
     error.value=(e as Error).message || 'No pudimos consultar la disponibilidad.';
   } finally {
     if(actual===versionCatalogo){
@@ -182,7 +151,7 @@ watch(servicio,(nuevo)=>{
   pagador.value=null;
   limpiarTarjetaPrueba();
   revisando.value=false;
-  if(reservaEnEspera.value===null&&paso.value>0)paso.value=0;
+  if(paso.value>0)paso.value=0;
   void cargar(true);
 });
 function revisar(){
@@ -479,18 +448,6 @@ onMounted(cargar);
             </div>
           </section>
 
-      <section v-if="paso===9 && reservaEnEspera!==null" class="env-card reserva-pendiente" aria-live="polite">
-        <div class="reserva-pendiente__icono"><AppIcon nombre="reloj" :tamano="40" /></div>
-        <span class="reserva-final__etapa">SOLICITUD ENVIADA</span>
-        <h2>Esperando confirmación del pago</h2>
-        <p>La reserva #{{ reservaEnEspera }} se registró correctamente. El pago será revisado por el administrador.</p>
-        <p class="reserva-pendiente__total">Total solicitado: <strong>{{ importeTexto }}</strong></p>
-        <p role="status">{{ textoEstadoPago }}</p>
-        <p class="reserva-bloque__nota">Esta pantalla se actualiza automáticamente. No vuelvas a confirmar el pago ni crees otra reserva mientras está pendiente. No se ha realizado ningún cargo bancario.</p>
-        <button type="button" class="boton boton-secundario" :disabled="consultandoPago" @click="consultarPago">Actualizar estado</button>
-        <p class="reserva-bloque__nota">Al aprobarse el pago, se abrirá tu reserva para continuar con el PIN de depósito. El PIN será generado y entregado por el administrador mediante el procedimiento de WhatsApp autorizado.</p>
-        <button type="button" class="boton boton-secundario" @click="router.push('/reservas/'+reservaEnEspera)">Consultar seguimiento de esta reserva</button>
-      </section>
     </div>
     <footer v-if="!cargando && paso<=ultimoPaso" class="reserva-paso__navegacion">
       <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
