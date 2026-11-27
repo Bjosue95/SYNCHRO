@@ -92,7 +92,7 @@ public static class AprobacionTerminalEndpoints
                           AND solicitud.Estado = N'Pendiente'
                           AND solicitud.FechaExpiracion >
                               SYSUTCDATETIME()
-                          AND terminal.Activa = 0;
+                          AND terminal.Id IS NOT NULL;
 
                         SELECT @@ROWCOUNT;
                         """,
