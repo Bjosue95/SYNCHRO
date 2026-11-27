@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, reactive, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
 import { nombreEstadoReserva } from '../services/formatos.js';
+const route=useRoute();
+const esHistorial=computed(()=>route.name==='historial');
+const categoria=computed(()=>esHistorial.value?'Historial':'Activas');
 const items=ref<any[]>([]),cargando=ref(true),error=ref(''),pagina=ref(1),total=ref(0),totalPaginas=ref(0);
 const filtros=reactive({estado:'',desde:'',hasta:'',numero:''});
 const detalles=ref<Record<number,any>>({});
@@ -60,7 +63,7 @@ async function cancelarSeleccionada(){
       confirmada:true,version:actual.version
     });
     cerrarCancelacion();
-    aviso.value='Reserva #'+id+' cancelada. Consulta el registro desde Mis reservas.';
+    aviso.value='Reserva #'+id+' cancelada. Puedes encontrarla en Historial.';
     await cargar();
   }catch(e){
     error.value=(e as Error).message||'No fue posible cancelar la reserva.';
@@ -79,7 +82,7 @@ async function cargar(reiniciar=false){
     return;
   }
   try {
-    const datos=await encomiendasApi.listar({...filtros,pagina:pagina.value,tamanoPagina:12});
+    const datos=await encomiendasApi.listar({...filtros,categoria:categoria.value,pagina:pagina.value,tamanoPagina:12});
     if(actual!==numeroConsulta)return;
     if(!Array.isArray(datos?.encomiendas) || !Number.isInteger(datos?.total))
       throw new Error('No fue posible verificar la lista de reservas.');
@@ -128,15 +131,20 @@ onMounted(()=>{
     if(!document.hidden&&!cargando.value&&!procesandoCancelacion.value)void cargar();
   },15000);
 });
+watch(()=>route.name,()=>{cerrarCancelacion();filtros.estado='';void cargar(true);});
 onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
 </script>
 <template>
   <section class="env-page">
-    <header class="env-heading"><div><h1>Mis reservas</h1><p>Consulta las reservas, los depósitos y los retiros confirmados por SYNCHRO.</p></div><div class="env-actions"><button type="button" class="boton boton-secundario" :disabled="cargando" @click="cargar()">Actualizar</button><RouterLink to="/reservar" class="boton boton-primario">Reservar casillero</RouterLink></div></header>
+    <header class="env-heading"><div><h1>{{ esHistorial?'Historial':'Mis reservas' }}</h1><p>{{ esHistorial?'Consulta las reservas canceladas, vencidas y finalizadas.':'Consulta y gestiona únicamente tus reservas vigentes.' }}</p></div><div class="env-actions"><button type="button" class="boton boton-secundario" :disabled="cargando" @click="cargar()">Actualizar</button><RouterLink :to="esHistorial?'/mis-reservas':'/historial'" class="boton boton-primario">{{ esHistorial?'Mis reservas':'Ver historial' }}</RouterLink></div></header>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
     <p v-if="error" class="alerta" role="alert">{{ error }} <button class="boton boton-secundario" @click="cargar()">Reintentar</button></p>
     <form class="env-card filtros-reservas" @submit.prevent="cargar(true)">
-      <label class="campo"><span>Estado</span><select v-model="filtros.estado" aria-label="Estado"><option value="">Todos</option><option value="Preparacion">En preparación</option><option value="ListaParaDeposito">Lista para depósito</option><option value="Depositada">Depositada</option><option value="Retirada">Retirada</option><option value="Cancelada">Cancelada</option><option value="Vencida">Vencida</option><option value="Rechazada">Rechazada</option></select></label>
+      <label class="campo"><span>Estado</span><select v-model="filtros.estado" aria-label="Estado">
+        <option value="">Todos</option>
+        <template v-if="esHistorial"><option value="Cancelada">Cancelada</option><option value="Vencida">Vencida</option><option value="Rechazada">Rechazada</option><option value="Retirada">Finalizada</option></template>
+        <template v-else><option value="Preparacion">En preparación</option><option value="ListaParaDeposito">Lista para depósito</option><option value="PendienteConsentimiento">Pendiente de consentimiento</option><option value="Pendiente">Pendiente</option><option value="Depositada">Depositada</option><option value="Retirada">Retiro pendiente</option></template>
+      </select></label>
       <label class="campo"><span>Número de reserva</span><input v-model="filtros.numero" type="number" min="1" /></label>
       <details><summary>Filtrar por fechas</summary><label class="campo"><span>Desde</span><input v-model="filtros.desde" type="date" /></label><label class="campo"><span>Hasta</span><input v-model="filtros.hasta" type="date" /></label></details>
       <button class="boton boton-secundario" :disabled="cargando">Buscar reservas</button>
@@ -144,14 +152,14 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
     <p v-if="cargando" role="status">Consultando tus reservas…</p>
     <template v-if="!cargando && !error">
       <div class="reservas-tarjetas">
-        <article v-for="e in items" :key="e.id" class="env-card reserva-tarjeta">
+        <article v-for="e in items" :key="e.id" class="env-card reserva-tarjeta" :class="{'reserva-tarjeta--historica':esHistorial}">
           <div class="reserva-tarjeta__cabecera">
             <h2>Reserva #{{ e.id }}</h2>
             <span class="env-status">{{ estadoEtapa(detalleDe(e)) }}</span>
           </div>
           <div class="reserva-tarjeta__acciones">
-            <RouterLink :to="accionDe(detalleDe(e))" class="boton boton-primario">{{ accionTexto(detalleDe(e)) }}</RouterLink>
-            <button v-if="detalles[Number(e.id)] && cancelable(detalleDe(e))" type="button" class="boton boton-secundario"
+            <RouterLink :to="esHistorial?'/reservas/'+e.id:accionDe(detalleDe(e))" class="boton boton-primario">{{ esHistorial?'Ver detalle':accionTexto(detalleDe(e)) }}</RouterLink>
+            <button v-if="!esHistorial && detalles[Number(e.id)] && cancelable(detalleDe(e))" type="button" class="boton boton-secundario"
               :disabled="procesandoCancelacion" @click="cerrarCancelacion();cancelandoId=Number(e.id)">Cancelar reserva</button>
           </div>
           <form v-if="cancelandoId===e.id" class="reserva-tarjeta__cancelacion" @submit.prevent="cancelarSeleccionada">
@@ -181,7 +189,7 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
           </form>
         </article>
       </div>
-      <p v-if="!items.length" class="env-empty">No hay reservas con estos filtros.</p>
+      <p v-if="!items.length" class="env-empty">{{ esHistorial?'No tienes operaciones finalizadas con estos filtros.':'No tienes reservas activas con estos filtros.' }}</p>
       <nav v-if="totalPaginas>1" class="env-card-heading" aria-label="Paginación de mis reservas"><button class="boton boton-secundario" :disabled="pagina<=1" @click="cambiarPagina(-1)">Anterior</button><span>Página {{ pagina }} de {{ totalPaginas||1 }} · {{ total }} reservas</span><button class="boton boton-secundario" :disabled="pagina>=totalPaginas" @click="cambiarPagina(1)">Siguiente</button></nav>
     </template>
   </section>
