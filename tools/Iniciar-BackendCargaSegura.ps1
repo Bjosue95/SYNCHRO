@@ -51,6 +51,8 @@ try {
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:ConnectionStrings__SynchroDB = 'Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
     $env:CargaDispositivos__RegistroHabilitado = 'true'
+    $env:EncomiendasOperacion__Habilitado = 'true'
+    $env:ReservasPrototipo__AccesoLibrePruebas = 'true'
     $env:ProteccionDatos__DirectorioClaves = $directorioClaves
     $env:CargaDispositivos__ClaveHmac = $claveBase64
 
@@ -58,6 +60,7 @@ try {
     Write-Host '[OK] Clave HMAC original recuperada (32 bytes; valor oculto).'
     Write-Host '[OK] DataProtectionKeys originales disponibles.'
     Write-Host '[OK] Configuracion aislada: SynchroDB_Pruebas.'
+    Write-Host '[OK] Reservas de prueba accesibles desde cualquier tablet (sin vincular).'
     Write-Host 'Iniciando https://localhost:7278 ...'
     Write-Host 'Deja abierta esta terminal durante la prueba.'
     & dotnet run --project $proyecto --launch-profile https
