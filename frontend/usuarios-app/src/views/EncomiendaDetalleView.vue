@@ -1,139 +1,62 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
-import { RouterLink, useRoute } from "vue-router";
-import { encomiendasApi } from "../services/encomiendasApi.js";
-import { fechaHonduras, nombreEstadoReserva } from "../services/formatos.js";
-const route = useRoute(),
-  detalle = ref<any>(null),
-  error = ref(""),
-  aviso = ref(""),
-  cargando = ref(false),
-  procesando = ref(false),
-  cancelando=ref(route.query.cancelar==='1'),motivoCancelacion=ref(""),detalleCancelacion=ref(""),confirmarCancelacion=ref(false);
-let reloj: ReturnType<typeof setInterval> | undefined,
-  montada = true;
-let consultaActual = 0;
-const pinEntregado = computed(() =>
-  detalle.value?.pines?.some(
-    (p: any) => p.finalidad === "Deposito" && ["Entregado","Consumido"].includes(p.estado),
-  ),
-);
-const puedeCancelar=computed(()=>detalle.value&&['Preparacion','ListaParaDeposito','Vencida','PendienteConsentimiento','Pendiente'].includes(detalle.value.estado)&&!detalle.value.depositoUtc);
-const esPersonal = computed(() => detalle.value?.reserva?.servicio === 'Personal');
-const depositoDisponible=computed(()=>
-  Boolean(detalle.value?.condiciones?.remitenteAutorizado)&&
-  (Boolean(detalle.value?.condiciones?.pagoConfirmado)||
-   detalle.value?.reserva?.servicio==='Encomienda'&&
-   detalle.value?.reserva?.pagador==='Destinatario'&&
-   detalle.value?.reserva?.modalidadPago==='Tablet')
-);
-const pinRetiroEntregado=computed(()=>detalle.value?.pines?.some(
-  (p:any)=>p.finalidad==='Retiro'&&['Entregado','Consumido'].includes(p.estado)
-));
-const etapaActual=computed(()=>{
-  if(!detalle.value)return 0;
-  if(detalle.value?.retiradaConfirmada)return 4;
-  if(depositoConfirmado.value)return 3;
-  if(pinEntregado.value)return 2;
-  if(depositoDisponible.value)return 1;
-  return 0;
-});
-const depositoConfirmado = computed(() =>
-  Boolean(detalle.value?.depositoUtc) ||
-  ['Depositada','Retirada'].includes(detalle.value?.estado)
-);
-const solicitudPinRegistrada=computed(()=>Boolean(detalle.value?.historial?.some(
-  (h:any)=>h.accion==='PinDepositoSolicitado'
-)));
-const pinDepositoEmitido=computed(()=>Boolean(detalle.value?.pines?.some(
-  (p:any)=>p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado)
-)));
-const puedeSolicitarPin=computed(()=>Boolean(detalle.value?.condiciones?.pagoConfirmado)
-  &&Boolean(detalle.value?.condiciones?.remitenteAutorizado)
-  &&!depositoConfirmado.value&&!pinDepositoEmitido.value
-  &&!solicitudPinRegistrada.value
-  &&!detalle.value?.historica&&!detalle.value?.cancelacion
-  &&['Preparacion','ListaParaDeposito','Pendiente'].includes(detalle.value?.estado));
-async function solicitarPinDeposito(){
-  if(procesando.value||!puedeSolicitarPin.value)return;
-  procesando.value=true;error.value='';aviso.value='';
-  try {
-    await encomiendasApi.solicitarPinDeposito(detalle.value.id);
-    await cargar();
-    aviso.value='Solicitud de PIN de depósito registrada. El equipo de SYNCHRO continuará con su emisión y entrega por WhatsApp.';
-  } catch(e){
-    error.value=(e as Error).message||'No fue posible registrar la solicitud del PIN.';
-    await cargar();
-  } finally{procesando.value=false;}
-}
-async function cancelar() {
-  if(procesando.value||!confirmarCancelacion.value||!motivoCancelacion.value)return;
-  procesando.value=true;error.value="";
-  try {
-    await encomiendasApi.cancelar(detalle.value.id,{motivo:motivoCancelacion.value,detalle:detalleCancelacion.value,confirmada:true,version:detalle.value.version});
-    cancelando.value=false;confirmarCancelacion.value=false;
-    aviso.value="Reserva cancelada. Se conserva en tu historial. Tu autorización general de WhatsApp permanece vigente.";
-    await cargar();
-  } catch(e){
-    const mensaje=(e as Error).message || 'No se pudo cancelar la reserva.';
-    await cargar();
-    error.value=mensaje;
-  } finally{procesando.value=false;}
-}
-async function cargar() {
-  const numeroReserva = String(route.params.id);
-  const turno = ++consultaActual;
-  cargando.value = true;
-  try {
-    const d = await encomiendasApi.detalle(numeroReserva);
-    if (montada && turno === consultaActual && String(route.params.id) === numeroReserva) {
-      detalle.value = d;
-      error.value = "";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
+import { encomiendasApi } from '../services/encomiendasApi.js';
+
+const route=useRoute();
+const detalle=ref<any>(null);
+const error=ref('');
+const aviso=ref('');
+const cargando=ref(false);
+let montada=true;
+let consultaActual=0;
+let reloj:ReturnType<typeof setInterval>|undefined;
+
+const esPersonal=computed(()=>detalle.value?.reserva?.servicio==='Personal');
+const depositoConfirmado=computed(()=>Boolean(detalle.value?.depositoUtc)
+  ||['Depositada','Retirada'].includes(detalle.value?.estado));
+const pinRetiroEntregado=computed(()=>Boolean(detalle.value?.pines?.some(
+  (p:any)=>p.finalidad==='Retiro'&&['Entregado','Consumido'].includes(p.estado))));
+
+async function cargar(){
+  const id=String(route.params.id);
+  const actual=++consultaActual;
+  cargando.value=true;
+  try{
+    const resultado=await encomiendasApi.detalle(id);
+    if(montada&&actual===consultaActual&&id===String(route.params.id)){
+      detalle.value=resultado;
+      error.value='';
     }
-  } catch (e) {
-    if (montada && turno === consultaActual)
-      error.value = (e as Error).message || "No se pudo consultar tu reserva.";
-  } finally {
-    if (turno === consultaActual) cargando.value = false;
+  }catch(e){
+    if(montada&&actual===consultaActual)error.value=(e as Error).message||'No se pudo consultar tu reserva.';
+  }finally{
+    if(montada&&actual===consultaActual)cargando.value=false;
   }
 }
-function enlaceValido(valor: unknown): valor is string {
-  return (
-    typeof valor === "string" &&
-    /^https:\/\/wa\.me\/[1-9][0-9]{7,14}\?text=/.test(valor)
-  );
+function enlaceValido(valor:unknown):valor is string{
+  return typeof valor==='string'&&/^https:\/\/wa\.me\/[1-9][0-9]{7,14}\?text=/.test(valor);
 }
-async function copiarMensaje() {
-  try {
-    await navigator.clipboard.writeText(
-      detalle.value.compartir.mensaje,
-    );
-    aviso.value =
-      "Mensaje copiado. Envíalo al destinatario para que acepte desde su propio WhatsApp. Compartirlo no registra consentimiento.";
-  } catch {
-    error.value =
-      "No se pudo copiar. Selecciona el mensaje de invitación y cópialo manualmente.";
+async function copiarMensaje(){
+  try{
+    await navigator.clipboard.writeText(detalle.value.compartir.mensaje);
+    aviso.value='Invitación copiada. Envíala al destinatario para que autorice los mensajes desde su teléfono.';
+  }catch{
+    error.value='No fue posible copiar la invitación.';
   }
 }
-watch(() => route.params.id, () => {
-  detalle.value = null;
-  aviso.value = "";
-  error.value = "";
-  cancelando.value = route.query.cancelar === '1';
+watch(()=>route.params.id,()=>{
+  detalle.value=null;error.value='';aviso.value='';
   void cargar();
 });
-onMounted(async () => {
+onMounted(async()=>{
   await cargar();
   if(!montada)return;
-  reloj = setInterval(() => {
-    if (!document.hidden && !procesando.value && !cargando.value) void cargar();
-  }, 15000);
+  reloj=setInterval(()=>{
+    if(!document.hidden&&!cargando.value)void cargar();
+  },15000);
 });
-onBeforeUnmount(() => {
-  montada = false;
-  consultaActual++;
-  clearInterval(reloj);
-});
+onBeforeUnmount(()=>{montada=false;consultaActual++;clearInterval(reloj);});
 </script>
 <template>
   <section class="env-page reserva-detalle-simple">
