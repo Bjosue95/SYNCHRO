@@ -88,10 +88,10 @@ test('bienvenida presenta el paso correcto con PIN entregado, deposito y autoriz
   assert.match(vista,/Autorizar al destinatario/);
   assert.match(vista,/Esperando retiro del destinatario/);
   assert.match(vista,/Operación completada/);
-  assert.match(vista,/https:\\\/\\\/wa\\\.me/);
+  assert.match(vista,/enlaceWhatsApp/);
   assert.match(vista,/Enviar invitación por WhatsApp/);
   assert.match(vista,/enlaceInvitacionValido/);
-  assert.match(vista,/hash/);
+  assert.match(vista,/#destinatario-autorizacion/);
   assert.match(detalle,/id="personas-autorizaciones"/);
   assert.match(detalle,/:id="rol==='destinatario'\?'destinatario-autorizacion':undefined"/);
   assert.match(detalle,/v-if="pinEntregado"/);
