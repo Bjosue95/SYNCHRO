@@ -150,8 +150,6 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
             <h2>Reserva #{{ e.id }}</h2>
             <span class="env-status">{{ estadoEtapa(detalleDe(e)) }}</span>
           </div>
-          <p class="reserva-tarjeta__servicio">{{ servicio(e) }}</p>
-          <p class="reserva-tarjeta__ubicacion">{{ e.reserva?.ubicacion||'Estación pendiente' }}</p>
           <div class="reserva-tarjeta__acciones">
             <RouterLink :to="accionDe(detalleDe(e))" class="boton boton-primario">{{ accionTexto(detalleDe(e)) }}</RouterLink>
             <button v-if="cancelable(detalleDe(e))" type="button" class="boton boton-secundario"
