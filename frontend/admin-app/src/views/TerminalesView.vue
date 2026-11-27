@@ -76,7 +76,7 @@ onMounted(listar);
         <label>Código de aprobación
           <input v-model.trim="codigoVisual" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="8 dígitos" required />
         </label>
-        <SynButton :disabled="aprobando||!/^[1-9][0-9]*$/.test(solicitudId)||!/^[0-9]{8}$/.test(codigoVisual)" type="submit">
+        <SynButton :disabled="aprobando||!/^[1-9][0-9]*$/.test(solicitudId)||!/^[0-9]{8}$/.test(codigoVisual)" tipo="submit">
           {{ aprobando?'Aprobando…':'Aprobar estación' }}
         </SynButton>
       </form>
