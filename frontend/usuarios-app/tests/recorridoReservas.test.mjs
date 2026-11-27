@@ -227,7 +227,7 @@ test('dos tarjetas usan una sola fila sin estirarse hasta el fondo', () => {
   assert.match(vista, /grid-auto-rows:auto;/);
   assert.match(vista, /flex:0 0 auto;\s*align-content:start;/);
   assert.match(vista, /\.reserva-vista > \.env-card:has\(\.reserva-opciones\) \{\s*flex:0 0 auto;/);
-  assert.match(vista, /height:clamp\(145px,23dvh,190px\)/);
+  assert.match(vista, /height:clamp\(185px,28dvh,220px\)/);
   assert.doesNotMatch(vista, /grid-auto-rows:minmax\(0,1fr\)/);
 });
 
@@ -249,4 +249,13 @@ test('navegacion inferior integrada y con margenes reales en pantalla', () => {
   assert.match(vista, /width:calc\(100% - 2 \* clamp\(16px,2\.4vw,30px\)\)/);
   assert.doesNotMatch(vista, /\.reserva-paso__navegacion\{flex-direction:column-reverse\}/);
   assert.doesNotMatch(vista, /\.reserva-paso__navegacion \{display:flex;gap:12px;justify-content:space-between;\}/);
+});
+
+test('dos tarjetas conservan altura de las de tipo y botones regresan al mismo lado', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /height:clamp\(185px,28dvh,225px\)/);
+  assert.match(vista, /height:clamp\(185px,28dvh,220px\)/);
+  assert.match(vista, /\.env-page--asistente > \.reserva-paso__navegacion > :first-child \{margin-left:auto;\}/);
+  assert.match(vista, /\.env-page--asistente > \.reserva-paso__navegacion > :last-child \{margin-left:0;\}/);
+  assert.match(vista, /justify-content:flex-end;/);
 });
