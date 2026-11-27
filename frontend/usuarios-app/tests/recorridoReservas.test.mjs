@@ -240,3 +240,10 @@ test('escritorio ajusta tres opciones al alto disponible y no repite titulo de d
   assert.match(vista, /min-height:0;\s*overflow:hidden;/);
   assert.match(vista, /\.reserva-vista \.reserva-opciones:has\(> :nth-child\(3\)\) :deep\(\.seleccion-reserva\) \{/);
 });
+
+test('navegacion inferior sin bloque blanco y con margen lateral consistente', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /\.reserva-paso__navegacion \{flex:0 0 auto;[^\n]*background:transparent;padding:10px clamp\(12px,2\.2vw,24px\) 10px;/);
+  assert.match(vista, /\.reserva-paso__navegacion \{flex-direction:row;padding-inline:12px;\}/);
+  assert.doesNotMatch(vista, /\.reserva-paso__navegacion \{flex:0 0 auto;[^\n]*background:var\(--surface\)/);
+});
