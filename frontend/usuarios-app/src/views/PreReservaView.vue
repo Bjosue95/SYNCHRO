@@ -370,16 +370,16 @@ onMounted(cargar);
               <div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div>
               <div><dt>Casillero</dt><dd>{{ tipo }} · {{ tamano }}</dd></div>
               <div><dt>Tiempo</dt><dd>{{ minutos ? nombreDuracion(minutos) : 'Por seleccionar' }}</dd></div>
-              <div><dt>Estación</dt><dd>{{ ubicacionNombre }}</dd></div>
+              <div class="reserva-revision__ubicacion"><dt>Estación</dt><dd>{{ ubicacionNombre }}</dd></div>
             </dl>
           </div>
 
         </form>
 
       </template>
-      <section v-if="paso===6 || paso===7" class="env-card reserva-revision">
+      <section v-if="paso===6 || paso===7" class="env-card reserva-revision" :class="{'reserva-revision--resumen':paso===6}">
         <div class="reserva-final__intro">
-          <span class="reserva-final__etapa">{{ paso===6 ? 'REVISIÓN DE LA RESERVA' : 'CONFIRMACIÓN DEL PAGO' }}</span>
+          <span v-if="paso===7" class="reserva-final__etapa">CONFIRMACIÓN DEL PAGO</span>
           <h2>{{ paso===6 ? 'Revisa tu reserva' : 'Selecciona cómo pagar' }}</h2>
           <p>{{ paso===6 ? 'Confirma los datos, la duración y el total antes de pasar al pago.' : 'Selecciona quién pagará y completa la solicitud de confirmación.' }}</p>
         </div>
@@ -392,7 +392,7 @@ onMounted(cargar);
           <div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div>
         </dl>
         <p v-if="importeReserva===null" class="reserva-revision__tarifa-aviso">Esta selección aún no tiene una tarifa configurada. El administrador deberá establecer el importe antes de confirmar el cobro.</p>
-        <p v-else class="reserva-revision__tarifa-aviso">Importe de la reserva: <strong>{{ importeTexto }}</strong>. La confirmación del pago queda sujeta a revisión administrativa.</p>
+        <p v-else-if="paso===7" class="reserva-revision__tarifa-aviso">El importe indicado quedará sujeto a confirmación administrativa.</p>
         <div v-if="paso===7" class="reserva-pago__seccion">
           <div class="reserva-final__intro">
             <h3>¿Cómo deseas realizar el pago?</h3>
@@ -1134,5 +1134,34 @@ onMounted(cargar);
    flex:0 0 auto;
    padding-inline:12px;
  }
+}
+
+/* Resumen compacto: dirección legible, total claro y navegación siempre visible. */
+.reserva-vista > .reserva-revision--resumen {
+  flex:0 0 auto;
+  justify-content:flex-start;
+  align-content:start;
+  gap:clamp(10px,1.6vh,16px);
+  padding:clamp(12px,2vh,22px);
+}
+.reserva-revision--resumen .reserva-final__intro {gap:4px;}
+.reserva-revision--resumen .reserva-final__intro h2 {font-size:clamp(20px,2.8vw,25px);}
+.reserva-revision--resumen .reserva-final__intro p {font-size:clamp(12px,1.4vw,14px);line-height:1.4;}
+.reserva-revision--resumen .reserva-revision__datos {
+  gap:clamp(9px,1.5vh,14px);
+  padding:clamp(10px,2vw,16px);
+}
+.reserva-revision--resumen .reserva-revision__datos > div {gap:3px;}
+.reserva-revision--resumen .reserva-revision__datos dt {font-size:11px;}
+.reserva-revision--resumen .reserva-revision__datos dd {font-size:clamp(12px,1.6vw,15px);line-height:1.32;}
+.reserva-revision--resumen .reserva-revision__ubicacion {grid-column:1/-1;}
+.reserva-revision--resumen .reserva-revision__importe {
+  padding:clamp(10px,1.6vh,14px);
+}
+.reserva-revision--resumen .reserva-revision__datos .reserva-revision__importe dd {font-size:clamp(20px,3vw,26px);}
+@media(max-width:600px){
+  .reserva-vista > .reserva-revision--resumen {padding:12px;gap:10px;}
+  .reserva-revision--resumen .reserva-revision__datos {padding:12px;gap:10px;}
+  .reserva-revision--resumen .reserva-revision__datos dd {font-size:13px;}
 }
 </style>
