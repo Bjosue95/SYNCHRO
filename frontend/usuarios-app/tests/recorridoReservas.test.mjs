@@ -259,3 +259,19 @@ test('dos tarjetas conservan altura de las de tipo y botones regresan al mismo l
   assert.match(vista, /\.env-page--asistente > \.reserva-paso__navegacion > :last-child \{margin-left:0;\}/);
   assert.match(vista, /justify-content:flex-end;/);
 });
+
+test('las tarjetas y acciones usan la paleta de tablet con SVG visibles en claro y oscuro', () => {
+  const vista=leer('PreReservaView');
+  const tarjeta=readFileSync(new URL('../src/components/ui/SeleccionReservaCard.vue',import.meta.url),'utf8');
+  const icono=readFileSync(new URL('../src/components/ui/IconoTablet.vue',import.meta.url),'utf8');
+  assert.match(tarjeta,/background:#103956;/);
+  assert.match(tarjeta,/border-color:#315573;/);
+  assert.match(tarjeta,/background:#174b65;/);
+  assert.match(tarjeta,/color:#5ec6e8;/);
+  assert.match(vista,/background:#f4feff;/);
+  assert.match(vista,/background:#123d5b;/);
+  assert.match(vista,/background:#204766;/);
+  assert.match(vista,/filter:none;/);
+  assert.doesNotMatch(vista,/\.reserva-final__continuar :deep\(\.icono-tablet\) \{ filter: var\(--action-icon-filter\); \}/);
+  assert.match(icono,/tema\.value === 'oscuro' \? '-oscuro' : ''/);
+});
