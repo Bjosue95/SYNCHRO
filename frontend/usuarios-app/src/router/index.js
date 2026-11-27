@@ -21,6 +21,11 @@ const rutas = [
     component: () => import("../views/EncomiendaDetalleView.vue")
   },
   {
+    path: "/reservas/:id(\\d+)/pago-pendiente", name: "pago-pendiente",
+    meta: { privada: true, titulo: "Confirmación del pago" },
+    component: () => import("../views/PagoPendienteView.vue")
+  },
+  {
     path: "/reservar", alias: "/reservar/encomienda", name: "encomienda",
     meta: { privada: true, titulo: "Reservar casillero" },
     component: () => import("../views/PreReservaView.vue")
