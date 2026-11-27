@@ -85,7 +85,6 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
       <p class="espera-pago__nota">El pago es demostrativo: no se efectuó ningún cargo bancario. No necesitas crear otra reserva.</p>
       <div class="espera-pago__acciones">
         <button type="button" class="boton boton-primario" :disabled="cargando" @click="consultar">
-          <AppIcon nombre="actualizar" :tamano="18" />
           Actualizar estado
         </button>
         <RouterLink class="boton boton-secundario" :to="'/reservas/'+reservaId">Ver mi reserva</RouterLink>
