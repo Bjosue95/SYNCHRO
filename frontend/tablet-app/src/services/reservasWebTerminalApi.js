@@ -1,118 +1,41 @@
-﻿/*
- * SYNCHRO - Reservas web desde la tablet.
- * No modifica los servicios de uso presencial.
+/*
+ * Reservas web de SYNCHRO en prototipo aislado.
+ * Accede desde cualquier tablet: sin cookie de dispositivo ni comprobación
+ * de estación. Solo usa PIN de la reserva, antiforgery y la evidencia exigida
+ * por el servidor de pruebas. No conserva datos de pago en el navegador.
  */
-
 const BASE = "/api/terminales/reservas";
-export class SesionTerminalNoAutorizada extends Error {
-  constructor() {
-    super("Esta estación necesita autorización. Solicita al administrador que verifique la vinculación de la terminal.");
-    this.name = "SesionTerminalNoAutorizada";
-    this.codigo = "TerminalNoAutorizada";
-  }
-}
-
-// Una renovación concurrente se comparte; nunca se pide otra autorización
-// para una sesión corta vencida si la tablet ya tiene su vínculo aprobado.
-let renovacionEnCurso = null;
-export async function renovarSesionTerminalReservaWeb() {
-  if (!renovacionEnCurso) {
-    renovacionEnCurso = (async () => {
-      const seguridad = await leer(await fetch("/api/terminales/dispositivo/csrf-token", {
-        credentials: "same-origin", cache: "no-store"
-      }));
-      if (!seguridad?.csrfToken) throw new Error("No se recibió el token de seguridad.");
-
-      return leer(await fetch("/api/terminales/sesion/renovar", {
-        method: "POST", credentials: "same-origin", cache: "no-store",
-        headers: { "X-CSRF-TOKEN": seguridad.csrfToken, "Content-Type": "application/json" },
-        body: "{}"
-      }));
-    })().finally(() => { renovacionEnCurso = null; });
-  }
-  return renovacionEnCurso;
-}
-
-export async function comprobarSesionTerminalReservaWeb() {
-  const consultar = () => fetch("/api/terminales/mi-sesion", {
-    credentials: "same-origin", cache: "no-store"
-  });
-  let respuesta = await consultar();
-  if (respuesta.status === 401) {
-    await renovarSesionTerminalReservaWeb();
-    respuesta = await consultar();
-  }
-  return leer(respuesta);
-}
-
-export async function comprobarAsignacionTerminalReservasWeb() {
-  const consultar = () => fetch(`${BASE}/estacion`, {
-    credentials: "same-origin", cache: "no-store"
-  });
-  let respuesta = await consultar();
-  if (respuesta.status === 401) {
-    await renovarSesionTerminalReservaWeb();
-    respuesta = await consultar();
-  }
-  const datos = await leer(respuesta);
-  if (datos?.autorizada !== true) {
-    throw new Error("No se pudo confirmar que esta estación atienda reservas web.");
-  }
-  return datos;
-}
-
 
 async function leer(respuesta) {
   const datos = await respuesta.json().catch(() => null);
-
-  // Un 403 con código de dominio puede significar PIN incorrecto, no cookie vencida.
-  if (respuesta.status === 401 || (respuesta.status === 403 && !datos?.codigo && !datos?.mensaje)) {
-    throw new SesionTerminalNoAutorizada();
-  }
-
   if (!respuesta.ok) {
-    throw new Error(
-      datos?.mensaje ||
-      datos?.title ||
+    const error = new Error(
+      datos?.mensaje || datos?.title ||
       `No se pudo completar la operación (${respuesta.status}).`
     );
+    error.status = respuesta.status;
+    error.codigo = datos?.codigo;
+    throw error;
   }
-
   return datos;
 }
 
 async function enviar(ruta, cuerpo, consentimiento = false) {
-  const enviarConSesion = async () => {
-    const { csrfToken } = await leer(
-      await fetch(`${BASE}/csrf-token`, {
-        credentials: "same-origin",
-        cache: "no-store",
-      })
-    );
-    if (!csrfToken) throw new Error("No se recibió el token de seguridad.");
+  const { csrfToken } = await leer(await fetch(`${BASE}/csrf-token`, {
+    credentials: "same-origin", cache: "no-store"
+  }));
+  if (!csrfToken) throw new Error("No se recibió el token de seguridad.");
 
-    const headers = {
-      "Content-Type": "application/json",
-      "X-CSRF-TOKEN": csrfToken,
-    };
-    if (consentimiento) headers["X-SYNCHRO-CONSENTIMIENTO"] = "ACEPTO";
-    return leer(await fetch(`${BASE}${ruta}`, {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store",
-      headers,
-      body: JSON.stringify(cuerpo),
-    }));
+  const headers = {
+    "Content-Type": "application/json",
+    "X-CSRF-TOKEN": csrfToken
   };
+  if (consentimiento) headers["X-SYNCHRO-CONSENTIMIENTO"] = "ACEPTO";
 
-  try {
-    return await enviarConSesion();
-  } catch (error) {
-    if (!(error instanceof SesionTerminalNoAutorizada)) throw error;
-    await renovarSesionTerminalReservaWeb();
-    // Un solo reintento; nunca duplicar un depósito por una respuesta ambigua.
-    return enviarConSesion();
-  }
+  return leer(await fetch(`${BASE}${ruta}`, {
+    method: "POST", credentials: "same-origin", cache: "no-store",
+    headers, body: JSON.stringify(cuerpo)
+  }));
 }
 
 function validarId(id) {
@@ -194,13 +117,7 @@ export async function solicitarPagoReservaWebTablet(id, pin, metodo) {
 
 export async function consultarPagoReservaWebTablet(id) {
   validarId(id);
-  const consulta = () => fetch(`${BASE}/${id}/pago/estado`, {
+  return leer(await fetch(`${BASE}/${id}/pago/estado`, {
     credentials: "same-origin", cache: "no-store"
-  });
-  let respuesta = await consulta();
-  if (respuesta.status === 401) {
-    await renovarSesionTerminalReservaWeb();
-    respuesta = await consulta();
-  }
-  return leer(respuesta);
+  }));
 }
