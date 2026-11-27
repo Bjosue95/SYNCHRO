@@ -737,7 +737,7 @@ internal static class RetiroFacialManualEndpoints
                         .Protect(
                             usoSeleccionado.ToString(
                                 CultureInfo.InvariantCulture),
-                            TimeSpan.FromMinutes(5));
+                            TimeSpan.FromMinutes(10));
 
                     // No permitir reutilizar esta captura facial.
                     if (Interlocked.CompareExchange(
@@ -752,6 +752,7 @@ internal static class RetiroFacialManualEndpoints
                         minutosUtilizados = minutos,
                         estadoCasillero = "Ocupado",
                         autorizacionPago,
+                        vigenciaSegundos = 600,
                         pagoConfirmado = false,
                         retiroConfirmado = false
                     });

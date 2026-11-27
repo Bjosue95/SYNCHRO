@@ -26,6 +26,7 @@ const etiquetaRecogida = tipoRecogida==="carga"?"Ya retiré mi dispositivo":tipo
 function limpiarRecogida(){recogida.value?.limpiar?.();recogida.value=null;intento=null;}
 const puertaAbierta = ref(false);
 const limiteRecogida = ref(0);
+const segundosAgregados = ref(60);
 let animacionPuerta = null;
 
 const propsVistaPrevia = defineProps({
@@ -211,8 +212,11 @@ function agregarMinuto() {
 
   const ahora = Date.now();
 
+  const anterior = Math.max(limiteMs, ahora);
   limiteMs = extenderLimiteDeposito(limiteMs, ahora);
   if(esRecogida.value){limiteMs=Math.min(limiteMs,recogida.value.vence);limiteRecogida.value=limiteMs;}
+  segundosAgregados.value = Math.max(0, Math.ceil((limiteMs - anterior) / 1000));
+  if (segundosAgregados.value === 0) return;
 
   ventanaSegundos.value = segundosRestantesDeposito(
     limiteMs,
@@ -478,7 +482,7 @@ onBeforeUnmount(() => {
 <template>
   <main
     class="deposito-pantalla"
-    :class="{ 'reserva-web': esReservaWeb || esRecogida, 'retiro-web': esRecogida, 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo', 'deposito-finalizado': estado === 'confirmado' }"
+    :class="{ 'reserva-web': esReservaWeb, 'retiro-web': esRecogida, 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo', 'deposito-finalizado': estado === 'confirmado' }"
   >
     <div class="deposito-contenedor">
 
@@ -598,7 +602,7 @@ onBeforeUnmount(() => {
                 class="deposito-aviso-minuto"
                 role="status"
               >
-                +1:00
+                +{{ formatearTiempoDeposito(segundosAgregados) }}
               </span>
             </Transition>
 
@@ -643,11 +647,12 @@ onBeforeUnmount(() => {
               :disabled="confirmando || (esRecogida && recogida && limiteRecogida >= recogida.vence)"
               @click="agregarMinuto"
             >
-              Agregar 1 minuto más
+              {{ esRecogida && recogida && limiteRecogida >= recogida.vence ? 'Tiempo máximo disponible' : 'Agregar 1 minuto más' }}
             </button>
 
             <span class="deposito-ayuda">
               {{ esRecogida ? "Confirma solamente cuando hayas recogido "+objetoRetiro+" y cerrado la puerta." : "Confirma solamente cuando ya hayas depositado." }}
+              <template v-if="esRecogida && recogida && limiteRecogida >= recogida.vence"> Has alcanzado el tiempo máximo de esta autorización.</template>
             </span>
           </div>
         </template>
@@ -1473,12 +1478,86 @@ and (max-width: 599px) {
 .tema-oscuro .retiro-puerta__interior{background:#163d58;color:#fff;border-color:#5ec6e8}
 .tema-oscuro .retiro-puerta__hoja{background:#1e5b7b;border-color:#5ec6e8}
 .tema-oscuro .retiro-puerta__hoja span{background:#5ec6e8}
-/* Mantener la jerarquía, los botones y el contador de depósito; acomodar la apertura en tablet horizontal. */
-.retiro-web.reserva-web{overflow-y:auto}
-.retiro-web .deposito-tarjeta.en-deposito{gap:clamp(6px,1dvh,12px);min-height:0}
-.retiro-web .deposito-reloj{width:clamp(110px,min(23dvh,42vw),220px);flex-shrink:0}
-.retiro-web .deposito-instruccion{gap:4px}
-.retiro-web .deposito-instruccion h2{font-size:clamp(18px,2.8vw,29px)}
-@media(max-height:570px){.retiro-web .deposito-contenedor{height:auto;min-height:100%}.retiro-web .deposito-tarjeta.en-deposito{height:auto;min-height:0}.retiro-web .retiro-puerta{height:46px;width:41px}.retiro-web .deposito-reloj{width:120px}}
+/* RECOGIDA: el titulo tiene su fila propia y la tarjeta crece con su contenido. */
+.deposito-pantalla.retiro-web {
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: clamp(12px, 1.7dvh, 20px) clamp(12px, 2.4vw, 28px);
+}
+.deposito-pantalla.retiro-web::before { display: none; }
+.deposito-pantalla.retiro-web .deposito-contenedor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: min(100%, 1060px);
+  height: auto;
+  min-height: 100%;
+  gap: clamp(12px, 1.8dvh, 22px);
+  margin: 0 auto;
+}
+.retiro-web .deposito-encabezado { flex: 0 0 auto; gap: 8px; }
+.retiro-web .deposito-tarjeta,
+.retiro-web .deposito-tarjeta.en-deposito,
+.retiro-web .deposito-tarjeta:not(.en-deposito) {
+  flex: 1 0 auto;
+  height: auto;
+  min-height: min-content;
+  padding: clamp(16px, 2.5vw, 30px);
+  gap: clamp(14px, 2dvh, 24px);
+}
+.retiro-web .deposito-tarjeta.en-deposito {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  align-content: center;
+}
+.retiro-web .deposito-instruccion { min-width: 0; gap: clamp(8px, 1.4dvh, 16px); }
+.retiro-web .deposito-instruccion h2 {
+  max-width: 100%; font-size: clamp(19px, 2.4vw, 30px);
+  line-height: 1.2; overflow-wrap: anywhere;
+}
+.retiro-web .retiro-puerta {
+  width: clamp(64px, 13dvh, 118px);
+  height: clamp(78px, 16dvh, 144px); margin: 2px auto;
+}
+.retiro-web .retiro-indicacion {
+  max-width: 420px; margin: 0; color: #526b7c;
+  font-size: clamp(14px, 1.5vw, 18px); line-height: 1.4;
+}
+.tema-oscuro.retiro-web .retiro-indicacion { color: #d4e1e8; }
+.retiro-web .deposito-reloj {
+  width: clamp(160px, min(30dvh, 45vw), 270px);
+  max-width: 100%; flex-shrink: 0;
+}
+.retiro-web .deposito-acciones { width: min(100%, 620px); min-width: 0; gap: 12px; }
+.retiro-web .deposito-acciones button { min-height: 54px; white-space: normal; overflow-wrap: anywhere; }
+.retiro-web .deposito-ayuda { max-width: 100%; }
+.retiro-web .deposito-mensaje-error { width: 100%; overflow-wrap: anywhere; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .retiro-web .deposito-tarjeta.en-deposito {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    column-gap: clamp(20px, 4vw, 48px);
+    row-gap: clamp(14px, 2dvh, 24px);
+  }
+  .retiro-web .deposito-instruccion { grid-column: 1; }
+  .retiro-web .deposito-reloj { grid-column: 2; width: clamp(160px, min(33dvh, 30vw), 280px); }
+  .retiro-web .deposito-acciones {
+    grid-column: 1 / -1; display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 820px); align-items: stretch; gap: 12px;
+  }
+  .retiro-web .deposito-ayuda, .retiro-web .deposito-mensaje-error { grid-column: 1 / -1; }
+}
+@media (orientation: landscape) and (max-height: 650px) {
+  .deposito-pantalla.retiro-web { padding: 10px clamp(12px, 2.4vw, 28px); }
+  .deposito-pantalla.retiro-web .deposito-contenedor { gap: 10px; }
+  .retiro-web .deposito-tarjeta.en-deposito { padding: 14px; gap: 12px; }
+  .retiro-web .deposito-reloj { width: clamp(140px, 28dvh, 190px); }
+  .retiro-web .retiro-puerta { width: 62px; height: 78px; }
+  .retiro-web .deposito-encabezado h1 { font-size: clamp(23px, 3vw, 32px); }
+}
 @media(prefers-reduced-motion:reduce){.retiro-puerta__hoja{transition:none}}
 </style>

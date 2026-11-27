@@ -41,6 +41,7 @@ const terminado = ref(false);
 // Autorizacion de cobro temporal: solo memoria, nunca URL o storage.
 const autorizacionPagoPendiente = ref(null);
 let autorizacionGeneradaEn = 0;
+let venceAutorizacionPago = 0;
 
 // Referencias para medir la cabecera real y alimentar --alto-cabecera.
 const pantallaRef = ref(null);
@@ -146,11 +147,10 @@ async function verificar() {
     return;
   }
 
-  // El servidor autoriza este pago durante cinco minutos.
-  // Usamos un margen local de cuatro minutos para reintentos.
+  // La duración procede del servidor; reservar un pequeño margen para reintentos.
   if (
     autorizacionPagoPendiente.value &&
-    Date.now() - autorizacionGeneradaEn >= 4 * 60 * 1000
+    Date.now() >= venceAutorizacionPago - 10_000
   ) {
     autorizacionPagoPendiente.value = null;
     autorizacionGeneradaEn = 0;
@@ -209,6 +209,7 @@ async function verificar() {
         autorizacionPago = respuesta.autorizacionPago;
         autorizacionPagoPendiente.value = autorizacionPago;
         autorizacionGeneradaEn = Date.now();
+        venceAutorizacionPago = autorizacionGeneradaEn + Math.min(600, Math.max(1, Number(respuesta.vigenciaSegundos) || 300)) * 1000;
       }
 
       try {
@@ -219,7 +220,7 @@ async function verificar() {
         registrarOrdenRetiroPagado(
           autorizacionPago,
           orden,
-          autorizacionGeneradaEn+5*60*1000
+          venceAutorizacionPago
         );
 
         // No borrar la autorización de reintento hasta completar la transición.
