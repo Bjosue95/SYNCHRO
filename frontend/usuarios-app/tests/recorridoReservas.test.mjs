@@ -131,16 +131,14 @@ test('el historial utiliza solo datos reales y descarta respuestas antiguas', ()
   assert.match(panel, /v-if="totalPaginas>1"/);
 });
 
-test('el detalle no ofrece la autorizacion del destinatario antes del deposito', () => {
-  const detalle = leer('EncomiendaDetalleView');
-  assert.match(detalle, /const depositoConfirmado = computed/);
-  assert.match(detalle, /rol === 'remitente' \|\| depositoConfirmado/);
-  assert.match(detalle, /rol === 'destinatario' && depositoConfirmado/);
-  assert.match(detalle, /detalle\.condiciones\.remitenteAutorizado/);
-  assert.match(detalle, /\["Entregado","Consumido"\]\.includes\(p\.estado\)/);
-  assert.match(detalle, /watch\(\(\) => route\.params\.id/);
-  assert.match(detalle, /Tu solicitud de pago fue enviada a revisión/);
-  assert.match(detalle, /No se ha efectuado ningún cargo bancario/);
+test('el detalle solo muestra el resumen hasta confirmar deposito',()=>{
+ const detalle=leer('EncomiendaDetalleView');
+ assert.match(detalle,/const depositoConfirmado=computed/);
+ assert.match(detalle,/v-if="depositoConfirmado && !detalle.cancelacion"/);
+ assert.match(detalle,/v-else-if="detalle.destinatario\?\.aceptaEncomienda/);
+ assert.match(detalle,/enlaceValido\(detalle.compartir\?\.enlaceWhatsApp\)/);
+ assert.match(detalle,/watch\(\(\)=>route.params.id/);
+ assert.doesNotMatch(detalle,/Tu PIN de depósito|Progreso de tu operación|Historial de movimientos/);
 });
 
 test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos bancarios', () => {
@@ -188,11 +186,12 @@ test('reserva en pasos adaptables conserva selecciones y espera aprobacion del p
   assert.match(espera, /d\.pago\?\.estado==='ConfirmadoManual'/);
   assert.match(espera, /await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
 });
-test('PIN destinatario permanece condicionado al deposito confirmado', () => {
-  const detalle=leer('EncomiendaDetalleView');
-  assert.match(detalle, /Depósito confirmado\. Ya puedes compartir la invitación de WhatsApp/);
-  assert.match(detalle, /permanecen deshabilitados hasta que la tablet confirme el depósito/);
-  assert.match(detalle, /pinRetiroEntregado/);
+test('el destinatario se autoriza despues del deposito real',()=>{
+ const detalle=leer('EncomiendaDetalleView');
+ assert.match(detalle,/v-if="depositoConfirmado && !detalle.cancelacion"/);
+ assert.match(detalle,/Enviar invitación por WhatsApp/);
+ assert.match(detalle,/pinRetiroEntregado/);
+ assert.match(detalle,/compartir el mensaje no confirma/i);
 });
 
 test('tarifa visible ocupa todo el ancho del resumen en pantallas pequeñas', () => {
@@ -409,21 +408,18 @@ test('la espera de pago usa animación automatica sin botones ni textos redundan
   assert.doesNotMatch(vista,/RouterLink/);
 });
 
-test('detalle presenta estado y resumen antes de informacion secundaria plegable', () => {
-  const detalle=leer('EncomiendaDetalleView');
-  const primero=detalle.indexOf('class="env-card reserva-seguimiento"');
-  const resumen=detalle.indexOf('class="env-card reserva-resumen"');
-  const autorizaciones=detalle.indexOf('<details id="personas-autorizaciones" class="reserva-acordeon"');
-  assert.ok(primero>=0&&resumen>primero&&autorizaciones>resumen);
-  assert.match(detalle,/class="reserva-seguimiento__contador"/);
-  assert.match(detalle,/class="reserva-resumen__datos"/);
-  assert.match(detalle,/<summary><span>Personas y autorizaciones<\/span>/);
-  assert.match(detalle,/<summary><span>Pago de la reserva<\/span>/);
-  assert.match(detalle,/<summary><span>Depósito y retiro<\/span>/);
-  assert.match(detalle,/<summary><span>Historial de movimientos<\/span>/);
-  assert.match(detalle,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
-  assert.match(detalle,/detalle\.condiciones\?\.remitenteAutorizado/);
-  assert.match(detalle,/rol === 'destinatario' && depositoConfirmado/);
+test('el resumen tiene unicamente numero importe servicio y estacion antes de deposito',()=>{
+ const detalle=leer('EncomiendaDetalleView');
+ const resumen=detalle.indexOf('class="env-card reserva-ficha"');
+ const operacion=detalle.indexOf('v-if="depositoConfirmado && !detalle.cancelacion"');
+ assert.ok(resumen>=0&&operacion>resumen);
+ assert.match(detalle,/Reserva #\{\{ detalle.id \}\}/);
+ assert.match(detalle,/>Servicio<\/span>/);
+ assert.match(detalle,/>Importe<\/span>/);
+ assert.match(detalle,/>Estación<\/span>/);
+ assert.match(detalle,/Pertenencias están resguardadas|pertenencias están resguardadas/);
+ assert.match(detalle,/Autorizar al destinatario/);
+ assert.doesNotMatch(detalle,/reserva-seguimiento__pasos|reserva-acordeon|reserva-pin__accion/);
 });
 
 test('pantalla de tarjeta en escritorio centra el contenido y no recorta titular', () => {
