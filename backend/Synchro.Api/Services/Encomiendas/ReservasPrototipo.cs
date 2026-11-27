@@ -19,7 +19,7 @@ internal sealed partial class EncomiendasOperativasSql
     private const string AccionReservaPrototipo="ReservaPrototipoCreada";
     private string UbicacionPrototipo=>config["ReservasPrototipo:Ubicacion"]?.Trim() is {Length:>0 and <=100} nombre?nombre:"Estación del prototipo · ubicación por configurar";
     private int[] DuracionesPrototipo=>config.GetSection("ReservasPrototipo:DuracionesMinutos").Get<int[]>() is {Length:>0} minutos
-        ?minutos.Where(m=>m is >0 and <=1440).Distinct().Order().ToArray():[30,60,120];
+        ?minutos.Where(m=>m is >0 and <=240).Distinct().Order().ToArray():[30,60,120,180,240];
     // La ausencia de una lista configurada NO autoriza a ofrecer todos los fixtures SQL.
     // Por defecto, solo se reservan los 10 compartimentos visibles en la tablet.
     // La lista explícita permite usar una estación de pruebas aislada en los tests.
@@ -72,7 +72,7 @@ internal sealed partial class EncomiendasOperativasSql
             var tipo=TipoReserva(InventarioEstacionPrototipo.TipoReal(r.GetString(0),r.GetString(1)));if(tipo is null)continue;
             var configuracion=ConfiguracionCompartimento(r.IsDBNull(3)?null:r.GetString(3),tipo);
             if((tipo!="Normal"||!r.IsDBNull(3))&&configuracion is null)continue;
-            var duraciones=configuracion?.Tarifas.Where(t=>t.Value>0).Select(t=>t.Key).Order().ToArray()??DuracionesPrototipo;
+            var duraciones=configuracion?.Tarifas.Where(t=>t.Value>0 && t.Key<=240).Select(t=>t.Key).Order().ToArray()??DuracionesPrototipo;
             if(duraciones.Length==0)continue;
             var tamano=r.GetString(2)=="Pequeño"?"Pequeno":r.GetString(2);
             var normales=duraciones.Select(d=>(Minutos:d,Importe:TarifaReservaNormal(tamano,d)))
@@ -117,7 +117,7 @@ internal sealed partial class EncomiendasOperativasSql
         while(await r.ReadAsync(ct)) {
             var configuracion=ConfiguracionCompartimento(r.IsDBNull(2)?null:r.GetString(2),d.TipoCasillero);
             if((d.TipoCasillero!="Normal"||!r.IsDBNull(2))&&configuracion is null)continue;
-            if(!(configuracion is null?DuracionesPrototipo.Contains(d.Minutos):configuracion.Tarifas.TryGetValue(d.Minutos,out var importe)&&importe>0))continue;
+            if(d.Minutos>240 || !(configuracion is null?DuracionesPrototipo.Contains(d.Minutos):configuracion.Tarifas.TryGetValue(d.Minutos,out var importe)&&importe>0))continue;
             decimal? importeReserva=configuracion is null
                 ?TarifaReservaNormal(d.TamanoSolicitado,d.Minutos)
                 :configuracion.Tarifas[d.Minutos];
