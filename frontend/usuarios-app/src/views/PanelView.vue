@@ -2,8 +2,7 @@
 import { onMounted, onBeforeUnmount, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
-import { fechaHonduras,nombreEstadoReserva } from '../services/formatos.js';
-import AppIcon from '../components/ui/AppIcon.vue';
+import { nombreEstadoReserva } from '../services/formatos.js';
 const items=ref<any[]>([]),cargando=ref(true),error=ref(''),pagina=ref(1),total=ref(0),totalPaginas=ref(0);
 const filtros=reactive({estado:'',desde:'',hasta:'',numero:''});
 const detalles=ref<Record<number,any>>({});
@@ -49,7 +48,7 @@ function accionTexto(d:any){
 function cerrarCancelacion(){cancelandoId.value=null;motivoCancelacion.value='';detalleCancelacion.value='';confirmarCancelacion.value=false;}
 async function cancelarSeleccionada(){
   const id=cancelandoId.value;
-  const d=items.value.find((e:any)=>e.id===id);
+  const d=items.value.find((e:any)=>Number(e.id)===id);
   const actual=d&&detalleDe(d);
   if(!actual||!cancelable(actual)||!confirmarCancelacion.value||!motivoCancelacion.value
     ||(motivoCancelacion.value==='Otro motivo'&&!detalleCancelacion.value.trim())||procesandoCancelacion.value)return;
@@ -152,8 +151,8 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
           </div>
           <div class="reserva-tarjeta__acciones">
             <RouterLink :to="accionDe(detalleDe(e))" class="boton boton-primario">{{ accionTexto(detalleDe(e)) }}</RouterLink>
-            <button v-if="cancelable(detalleDe(e))" type="button" class="boton boton-secundario"
-              :disabled="procesandoCancelacion" @click="cerrarCancelacion();cancelandoId=e.id">Cancelar reserva</button>
+            <button v-if="detalles[Number(e.id)] && cancelable(detalleDe(e))" type="button" class="boton boton-secundario"
+              :disabled="procesandoCancelacion" @click="cerrarCancelacion();cancelandoId=Number(e.id)">Cancelar reserva</button>
           </div>
           <form v-if="cancelandoId===e.id" class="reserva-tarjeta__cancelacion" @submit.prevent="cancelarSeleccionada">
             <strong>Confirmar cancelación</strong>
