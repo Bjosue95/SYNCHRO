@@ -36,6 +36,10 @@ public static class WhatsAppManualEndpoints
         public override string ToString() =>
             "Confirmacion protegida de pago simulado";
     }
+    public sealed record SeleccionarMetodoCobroPersonalPeticion(Guid CobroId, string? AutorizacionPago, string? MetodoPago)
+    {
+        public override string ToString() => "Seleccion protegida de metodo de cobro";
+    }
     public sealed record PrepararCobroPersonalPeticion(string? AutorizacionPago)
     {
         public override string ToString() => "Solicitud protegida de cobro";
@@ -286,6 +290,77 @@ public static class WhatsAppManualEndpoints
         })
         .AllowAnonymous()
         .RequireRateLimiting("LoginLimitado");
+        // Registrar la elección antes de mostrar la orden al operador; no confirmar el pago.
+        terminal.MapPost("/retiro/cobro/metodo", async (
+            SeleccionarMetodoCobroPersonalPeticion datos, HttpContext http,
+            IAntiforgery csrf, IDataProtectionProvider proteccion,
+            IConfiguration configuracion) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http))
+                return Results.StatusCode(403);
+            if (!configuracion.GetValue<bool>("CobroRetiroPersonal:Obligatorio"))
+                return Results.Conflict(new { mensaje = "Cobro no habilitado." });
+            if (datos.CobroId == Guid.Empty || datos.AutorizacionPago is null ||
+                datos.AutorizacionPago.Length is < 32 or > 4096)
+                return Results.BadRequest(new { mensaje = "Autorizacion de pago invalida." });
+            int usoId;
+            string metodo;
+            try
+            {
+                string valor = proteccion.CreateProtector("SYNCHRO.RostroManual.PagoPendiente.v1")
+                    .ToTimeLimitedDataProtector().Unprotect(datos.AutorizacionPago);
+                if (!int.TryParse(valor, NumberStyles.None, CultureInfo.InvariantCulture, out usoId) || usoId <= 0)
+                    return Results.BadRequest(new { mensaje = "Autorizacion de pago invalida." });
+                metodo = ModalidadesPagoSimulado.ParaRetiroPersonal(datos.MetodoPago);
+            }
+            catch (CryptographicException)
+            {
+                return Results.BadRequest(new { mensaje = "Autorizacion vencida. Verifica nuevamente tu PIN." });
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest(new { mensaje = "Metodo o autorizacion no valido." });
+            }
+            catch (FormatException)
+            {
+                return Results.BadRequest(new { mensaje = "Autorizacion invalida." });
+            }
+            try
+            {
+                await using var db = new SqlConnection(cadena);
+                await db.OpenAsync(http.RequestAborted);
+                await using var q = new SqlCommand("""
+                    UPDATE c SET MetodoPago=@Metodo
+                    FROM dbo.CobrosRetiroPersonal c WITH (UPDLOCK,HOLDLOCK)
+                    JOIN dbo.UsosCasillero u ON u.Id=c.UsoId
+                    JOIN dbo.Casilleros cas ON cas.Codigo=u.CodigoCasillero
+                    WHERE c.CobroId=@CobroId AND c.UsoId=@UsoId
+                      AND c.Estado=N'Pendiente' AND c.ConfirmadoUtc IS NULL
+                      AND c.FinalizadoUtc IS NULL AND c.ImporteHnl>0
+                      AND (c.MetodoPago IS NULL OR c.MetodoPago=@Metodo)
+                      AND u.TipoServicio=N'ResguardoPersonal' AND u.OrigenReserva=N'Terminal'
+                      AND u.Estado=N'Ocupado' AND u.FechaRetiro IS NULL AND cas.Estado=N'Ocupado'
+                      AND EXISTS (SELECT 1 FROM dbo.CodigosRetiroPersonal p
+                          WHERE p.UsoId=u.Id AND p.FechaUso IS NULL AND p.IntentosFallidos<5
+                            AND (p.FechaVencimiento IS NULL OR p.FechaVencimiento>SYSUTCDATETIME()))
+                      AND EXISTS (SELECT 1 FROM dbo.AutorizacionesWhatsAppManuales a
+                          WHERE a.UsoId=u.Id AND a.Estado=N'Confirmado');
+                    """, db);
+                q.Parameters.Add("@CobroId",SqlDbType.UniqueIdentifier).Value=datos.CobroId;
+                q.Parameters.Add("@UsoId",SqlDbType.Int).Value=usoId;
+                q.Parameters.Add("@Metodo",SqlDbType.NVarChar,24).Value=metodo;
+                if (await q.ExecuteNonQueryAsync(http.RequestAborted) != 1)
+                    return Results.Conflict(new { mensaje = "Orden no disponible o metodo ya seleccionado. Solicita ayuda al operador." });
+                return Results.Ok(new { cobroId=datos.CobroId, metodoPago=datos.MetodoPago,
+                    estadoPago="Pendiente", pagoConfirmado=false, retiroConfirmado=false });
+            }
+            catch (SqlException)
+            {
+                return Results.Problem(statusCode:503,title:"No se pudo registrar el metodo de pago.");
+            }
+        }).AllowAnonymous().RequireRateLimiting("LoginLimitado");
+
         // SYNCHRO-ESTADO-PAGO-TABLET-V1
         // Consulta protegida, sin confirmar pagos ni liberar casilleros.
         terminal.MapPost("/retiro/cobro/estado", async (
@@ -889,13 +964,15 @@ public static class WhatsAppManualEndpoints
                         c.MinutosUtilizados,
                         c.ImporteHnl,
                         c.DescripcionTarifa,
-                        c.CreadoUtc
+                        c.CreadoUtc,
+                        c.MetodoPago
                     FROM dbo.CobrosRetiroPersonal c
                     INNER JOIN dbo.UsosCasillero u
                         ON u.Id = c.UsoId
                     INNER JOIN dbo.Casilleros cas
                         ON cas.Codigo = u.CodigoCasillero
                     WHERE c.Estado = N'Pendiente'
+                      AND c.MetodoPago IN (N'EfectivoSimulado',N'TarjetaSimulada',N'NfcSimulado')
                       AND u.TipoServicio = N'ResguardoPersonal'
                       AND u.OrigenReserva = N'Terminal'
                       AND u.Estado = N'Ocupado'
@@ -921,7 +998,13 @@ public static class WhatsAppManualEndpoints
                         descripcionTarifa = lector.GetString(4),
                         creadoUtc = DateTime.SpecifyKind(
                             lector.GetDateTime(5),
-                            DateTimeKind.Utc)
+                            DateTimeKind.Utc),
+                        metodoPago = lector.GetString(6) switch {
+                            "EfectivoSimulado" => "Efectivo",
+                            "TarjetaSimulada" => "Tarjeta",
+                            "NfcSimulado" => "NFC",
+                            _ => ""
+                        }
                     });
                 }
 
@@ -976,6 +1059,17 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
 
+                // El metodo pendiente es inmutable una vez seleccionado por el cliente.
+                await using (var verificar = new SqlCommand("""
+                    SELECT COUNT(*) FROM dbo.CobrosRetiroPersonal
+                    WHERE CobroId=@CobroId AND Estado=N'Pendiente' AND MetodoPago=@Metodo
+                    """, db))
+                {
+                    verificar.Parameters.Add("@CobroId",SqlDbType.UniqueIdentifier).Value=datos.CobroId;
+                    verificar.Parameters.Add("@Metodo",SqlDbType.NVarChar,24).Value=metodo;
+                    if (Convert.ToInt32(await verificar.ExecuteScalarAsync(http.RequestAborted)) != 1)
+                        return Results.Conflict(new { mensaje = "El metodo no coincide con la seleccion del cliente o el cobro no esta pendiente." });
+                }
                 // Una sola modificacion atomica:
                 // no se aceptan pagos de usos finalizados.
                 await using var comando = new SqlCommand(

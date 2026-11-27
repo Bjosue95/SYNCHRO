@@ -176,6 +176,21 @@ export async function prepararCobroRetiroPersonal(autorizacionPago) {
   return datos;
 }
 
+export async function seleccionarMetodoCobroRetiroPersonal(cobroId, autorizacionPago, metodoPago) {
+  if (!cobroId || !autorizacionPago || !["Efectivo","Tarjeta","NFC"].includes(metodoPago))
+    throw new Error("Orden o metodo de pago invalido.");
+  const csrfToken = await solicitarCsrf();
+  const respuesta = await fetch("/api/terminales/guardar/whatsapp/retiro/cobro/metodo", {
+    method:"POST", credentials:"same-origin", cache:"no-store",
+    headers:{"Content-Type":"application/json","X-CSRF-TOKEN":csrfToken},
+    body:JSON.stringify({cobroId,autorizacionPago,metodoPago})
+  });
+  const datos=await respuestaSegura(respuesta);
+  if(datos?.cobroId!==cobroId||datos.metodoPago!==metodoPago||datos.estadoPago!=="Pendiente"||datos.pagoConfirmado!==false||datos.retiroConfirmado!==false)
+    throw new Error("No se pudo registrar la seleccion del pago.");
+  return datos;
+}
+
 // Solo se invocara despues de comprobar en el servidor
 // que el operador confirmo el pago simulado.
 export async function finalizarRetiroPersonalPagado(

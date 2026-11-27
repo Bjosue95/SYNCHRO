@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import ServiceCard from "../components/ServiceCard.vue";
+import { seleccionarMetodoCobroRetiroPersonal } from "../services/retiroFacialManualApi.js";
 import { obtenerOrdenRetiroEncomienda, elegirPagoEncomienda, prepararRecogidaEncomienda } from "../services/retiroEncomiendaSesion.js";
 import { useTema } from "../composables/useTema";
 import {
@@ -65,7 +66,7 @@ onMounted(() => {
 });
 
 function seleccionar(codigo) {
-  if (!orden) return;
+  if (!orden || procesandoEncomienda.value) return;
   seleccion.value = codigo;
 }
 
@@ -96,8 +97,14 @@ async function continuar() {
     guardarMetodoPagoRetiroCarga(seleccion.value);
     await router.push("/retirar/dispositivo/pago/resumen");
   } else {
-    registrarMetodoPagoRetiro(seleccion.value);
-    await router.push("/retirar/pago/resumen");
+    procesandoEncomienda.value=true;mensajeEncomienda.value="";
+    try {
+      const metodo=seleccion.value;
+      await seleccionarMetodoCobroRetiroPersonal(orden.cobroId,orden.autorizacionPago,metodo);
+      registrarMetodoPagoRetiro(metodo);
+      await router.push("/retirar/pago/resumen");
+    } catch(e) { mensajeEncomienda.value=e?.message||"No se pudo registrar el metodo."; }
+    finally { procesandoEncomienda.value=false; }
   }
 }
 </script>

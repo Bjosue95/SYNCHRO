@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { apiAdmin } from "../services/adminApi";
 import AdminIcon from "../components/AdminIcon.vue";
@@ -9,7 +9,8 @@ const cargando = ref(false);
 const procesando = ref("");
 const error = ref("");
 const aviso = ref("");
-const metodos = ref({});
+const categoria = ref("personal");
+let relojCobros;
 const comprobados = ref({});
 const cobrosCarga = ref([]);
 const cargandoCarga = ref(false);
@@ -22,8 +23,16 @@ const comprobadosReservas=ref({});
 const importesReservas=ref({});
 const justificacionesReservas=ref({});
 const reservaConfirmada=ref(null);
+const categorias=computed(()=>[
+ {id:"personal",nombre:"Resguardo personal",total:cobros.value.length},
+ {id:"carga",nombre:"Carga de dispositivos",total:cobrosCarga.value.length},
+ {id:"reservas",nombre:"Reservas web y encomiendas",total:cobrosReservas.value.length}
+]);
+const metodoValido=valor=>["Efectivo","Tarjeta","NFC"].includes(valor);
+const metodoVisible=valor=>metodoValido(valor)?valor:"Por definir";
 
 function dinero(valor) {
+  if(valor==null||valor==="")return "—";
   const numero = Number(valor);
   if (!Number.isFinite(numero)) return "—";
   return new Intl.NumberFormat("es-HN", {
@@ -66,10 +75,10 @@ async function cargar() {
 
 async function confirmar(item) {
   const id = item?.cobroId;
-  const metodo = metodos.value[id];
+  const metodo = item?.metodoPago;
 
   if (!["Efectivo", "Tarjeta", "NFC"].includes(metodo)) {
-    error.value = "Selecciona un método de pago válido.";
+    error.value = "El cliente todavía no ha seleccionado un método válido.";
     return;
   }
 
@@ -120,7 +129,6 @@ async function confirmar(item) {
     }
 
     delete comprobados.value[id];
-    delete metodos.value[id];
 
     aviso.value =
       `Pago simulado confirmado para ${item.codigoCasillero}. ` +
@@ -181,6 +189,7 @@ async function cargarReservas() {
 async function confirmarReserva(item) {
   const id=item?.reservaId;
   const monto=Number(importesReservas.value[id]);
+  if(!metodoValido(item?.metodoPago)){error.value="El cobro no tiene un método válido.";return;}
   if(!Number.isInteger(id)||id<=0||!Number.isFinite(monto)||monto<=0||monto>100000 ||
     Math.round(monto*100)!==monto*100){
     error.value="Introduce un importe válido para la reserva.";
@@ -199,7 +208,7 @@ async function confirmarReserva(item) {
     return;
   }
   if(!window.confirm("¿Confirmas el pago de prueba de L "+dinero(monto)+" para la reserva #"+id+
-    " desde "+item.origen+"? No se ha recibido dinero real."))return;
+    " · "+item.codigoCasillero+" · "+metodoVisible(item.metodoPago)+" desde "+item.origen+"? No se ha recibido dinero real."))return;
   procesandoReserva.value=id;
   error.value="";aviso.value="";reservaConfirmada.value=null;
   try{
@@ -216,13 +225,14 @@ async function confirmarReserva(item) {
     });
     if(resultado?.estado!=="ConfirmadoManual")throw new Error("El servidor no confirmó la reserva.");
     delete comprobadosReservas.value[id];
-    reservaConfirmada.value=id;
+    reservaConfirmada.value=item.origen==="Web"?id:null;
     aviso.value="Pago de prueba confirmado para la reserva #"+id+". Origen: "+item.origen+
       ". No se procesó dinero real.";
   }catch(e){error.value=e?.message||"No se pudo confirmar el cobro de reserva.";}
   finally{procesandoReserva.value=null;await cargarReservas();}
 }
 async function actualizarTodo() {
+  if(cargando.value||cargandoCarga.value||cargandoReservas.value||procesando.value||procesandoCarga.value||procesandoReserva.value)return;
   await Promise.all([cargar(), cargarCarga(), cargarReservas()]);
 }
 function actualizarAlVolver(){
@@ -292,8 +302,10 @@ onMounted(()=>{
   void actualizarTodo();
   document.addEventListener("visibilitychange",actualizarAlVolver);
   window.addEventListener("focus",actualizarAlVolver);
+  relojCobros=window.setInterval(actualizarAlVolver,5000);
 });
 onBeforeUnmount(()=>{
+  window.clearInterval(relojCobros);
   document.removeEventListener("visibilitychange",actualizarAlVolver);
   window.removeEventListener("focus",actualizarAlVolver);
 });
@@ -306,8 +318,7 @@ onBeforeUnmount(()=>{
         <p class="eyebrow">OPERACIONES · SYNCHRO</p>
         <h1>Cobros pendientes</h1>
         <p>
-          Comprueba los pagos simulados de resguardo personal y carga
-          de dispositivos. El retiro se completa desde la tablet.
+          Gestiona los cobros pendientes de cada servicio. Comprueba el importe y la modalidad elegida por el cliente.
         </p>
       </div>
 
@@ -334,11 +345,17 @@ onBeforeUnmount(()=>{
       <RouterLink :to="{path:'/admin/encomiendas',query:{encomienda:reservaConfirmada}}" class="cobro-boton">Abrir reserva #{{ reservaConfirmada }} y gestionar PIN</RouterLink>
     </div>
 
-    <section class="panel cobros-panel">
+    <nav class="cobros-tabs" aria-label="Tipo de cobro">
+      <button v-for="cat in categorias" :key="cat.id" type="button" :class="{activo:categoria===cat.id}"
+        :aria-current="categoria===cat.id?'page':undefined" @click="categoria=cat.id">
+        {{ cat.nombre }} <span class="cobros-tab-contador" :class="{'con-pendientes':cat.total>0}">{{ cat.total }}</span>
+      </button>
+    </nav>
+    <section v-if="categoria==='personal'" class="panel cobros-panel">
       <div class="cobros-encabezado">
         <div>
           <h2>Resguardo personal</h2>
-          <p>Solamente operaciones pendientes del backend.</p>
+          <p>Pagos solicitados desde la tablet.</p>
         </div>
         <strong class="cobros-total">{{ cobros.length }}</strong>
       </div>
@@ -365,12 +382,8 @@ onBeforeUnmount(()=>{
         </div>
 
         <div class="cobro-datos">
-          <div>
-            <small>Importe por comprobar</small>
-            <strong class="cobro-importe">
-              L {{ dinero(item.importeHnl) }}
-            </strong>
-          </div>
+          <div class="cobro-dato-principal"><small>Importe a cobrar</small><strong class="cobro-importe">L {{ dinero(item.importeHnl) }}</strong></div>
+          <div class="cobro-dato-principal"><small>Método de pago</small><strong class="cobro-metodo">{{ metodoVisible(item.metodoPago) }}</strong></div>
           <div>
             <small>Tiempo utilizado</small>
             <strong>{{ item.minutosUtilizados }} min</strong>
@@ -386,21 +399,6 @@ onBeforeUnmount(()=>{
         </p>
 
         <div class="cobro-confirmacion">
-          <label :for="'metodo-' + item.cobroId">
-            Método de pago comprobado
-          </label>
-
-          <select
-            :id="'metodo-' + item.cobroId"
-            v-model="metodos[item.cobroId]"
-            :disabled="!!procesando"
-          >
-            <option value="">Seleccionar método</option>
-            <option value="Efectivo">Efectivo (simulado)</option>
-            <option value="Tarjeta">Tarjeta (simulado)</option>
-            <option value="NFC">NFC del celular (simulado)</option>
-          </select>
-
           <label class="cobro-check">
             <input
               v-model="comprobados[item.cobroId]"
@@ -419,7 +417,7 @@ onBeforeUnmount(()=>{
             :disabled="
               !!procesando ||
               cargando ||
-              !metodos[item.cobroId] ||
+              !metodoValido(item.metodoPago) ||
               comprobados[item.cobroId] !== true
             "
             @click="confirmar(item)"
@@ -435,11 +433,11 @@ onBeforeUnmount(()=>{
       </article>
     </section>
 
-    <section class="panel cobros-panel cobros-carga-panel">
+    <section v-else-if="categoria==='carga'" class="panel cobros-panel cobros-carga-panel">
       <div class="cobros-encabezado">
         <div>
           <h2>Carga de dispositivos</h2>
-          <p>W1/W2 inalámbrico, cable y laptop. Solo pagos simulados pendientes de aprobación.</p>
+          <p>Pagos solicitados por carga inalámbrica, cable o laptop.</p>
         </div>
         <strong class="cobros-total">{{ cobrosCarga.length }}</strong>
       </div>
@@ -465,12 +463,8 @@ onBeforeUnmount(()=>{
         </div>
 
         <div class="cobro-datos">
-          <div>
-            <small>Importe por comprobar</small>
-            <strong class="cobro-importe">
-              L {{ dinero(item.importeHnl) }}
-            </strong>
-          </div>
+          <div class="cobro-dato-principal"><small>Importe a cobrar</small><strong class="cobro-importe">L {{ dinero(item.importeHnl) }}</strong></div>
+          <div class="cobro-dato-principal"><small>Método de pago</small><strong class="cobro-metodo">{{ metodoVisible(item.metodoPago) }}</strong></div>
           <div>
             <small>Tiempo utilizado</small>
             <strong>{{ item.minutosUtilizados }} min</strong>
@@ -488,12 +482,6 @@ onBeforeUnmount(()=>{
         <p class="cobro-tarifa">{{ item.descripcionTarifa }}</p>
 
         <div class="cobro-confirmacion">
-          <label>Método elegido en la tablet</label>
-          <strong class="cobro-metodo-carga">
-            {{ item.metodoPago === "NFC" ? "NFC del celular" : item.metodoPago }}
-            (simulado)
-          </strong>
-
           <label class="cobro-check">
             <input
               v-model="comprobadosCarga[item.sesionId]"
@@ -513,6 +501,7 @@ onBeforeUnmount(()=>{
               !!procesandoCarga ||
               !!procesando ||
               cargandoCarga ||
+              !metodoValido(item.metodoPago) ||
               comprobadosCarga[item.sesionId] !== true
             "
             @click="confirmarCarga(item)"
@@ -528,11 +517,11 @@ onBeforeUnmount(()=>{
       </article>
     </section>
 
-    <section class="panel cobros-panel cobros-carga-panel" aria-labelledby="cobros-reservas-titulo">
+    <section v-else class="panel cobros-panel cobros-carga-panel" aria-labelledby="cobros-reservas-titulo">
       <div class="cobros-encabezado">
         <div>
           <h2 id="cobros-reservas-titulo">Reservas web y encomiendas</h2>
-          <p>Solicitudes del cliente web o del destinatario en Tablet. Confirma primero el consentimiento de WhatsApp del remitente en Gestión de encomiendas. No se realizan movimientos bancarios reales.</p>
+          <p>Pagos de reservas solicitados desde la web o por el destinatario en la tablet.</p>
         </div>
         <strong class="cobros-total">{{ cobrosReservas.length }}</strong>
       </div>
@@ -549,11 +538,12 @@ onBeforeUnmount(()=>{
           <span class="cobro-estado">Pendiente</span>
         </div>
         <div class="cobro-datos">
-          <div><small>Total por confirmar (HNL)</small>
+          <div class="cobro-dato-principal"><small>Importe a cobrar</small>
             <strong class="cobro-importe">{{ item.importeHnl==null?'Por definir':'L '+dinero(item.importeHnl) }}</strong>
           </div>
           <div><small>Quién solicita el pago</small><strong>{{ item.pagador==='Remitente'?'Remitente':'Destinatario' }}</strong></div>
-          <div><small>Origen y modalidad</small><strong>{{ item.origen }} · {{ item.metodoPago }}</strong></div>
+          <div class="cobro-dato-principal"><small>Método de pago</small><strong class="cobro-metodo">{{ metodoVisible(item.metodoPago) }}</strong></div>
+          <div><small>Origen</small><strong>{{ item.origen }}</strong></div>
           <div><small>Registro</small><strong>{{ fechaLocal(item.creadoUtc) }}</strong></div>
         </div>
         <div class="cobro-confirmacion">
@@ -575,9 +565,9 @@ onBeforeUnmount(()=>{
               :disabled="!!procesandoReserva" />
             <span>Confirmo que revisé esta operación de pago de prueba. No representa un cobro bancario real.</span>
           </label>
-          <RouterLink :to="{path:'/admin/encomiendas',query:{encomienda:item.reservaId}}" class="cobro-enlace-reserva">Abrir ficha y comprobar consentimiento</RouterLink>
+          <RouterLink v-if="item.origen==='Web'" :to="{path:'/admin/encomiendas',query:{encomienda:item.reservaId}}" class="cobro-enlace-reserva">Abrir ficha y comprobar consentimiento</RouterLink>
           <button type="button" class="cobro-boton"
-            :disabled="!!procesandoReserva || comprobadosReservas[item.reservaId]!==true || cargandoReservas"
+            :disabled="!!procesandoReserva || !metodoValido(item.metodoPago) || comprobadosReservas[item.reservaId]!==true || cargandoReservas"
             @click="confirmarReserva(item)">
             <AdminIcon name="check" :size="18" />
             {{ procesandoReserva===item.reservaId?'Confirmando...':'Confirmar pago de reserva' }}
@@ -594,7 +584,7 @@ onBeforeUnmount(()=>{
 .cobros-siguiente .cobro-boton {text-decoration:none;justify-self:start;}
 .cobro-enlace-reserva {display:inline-block;padding:10px 0;color:#006f87;font-size:14px;font-weight:750;text-decoration:underline;text-underline-offset:3px;}
 
-.cobros-carga-panel { margin-top: 24px; }
+.cobros-carga-panel { margin-top: 0; }
 .cobros-carga-panel input[type="number"],
 .cobros-carga-panel input[type="text"] {
   display: block;
@@ -816,4 +806,21 @@ onBeforeUnmount(()=>{
     width: 100%;
   }
 }
+/* Navegación por servicio e indicadores destacados. */
+.cobros-tabs {display:flex;gap:10px;flex-wrap:wrap;width:fit-content;max-width:100%;margin:0 0 19px;padding:6px;background:var(--white);border:1px solid var(--border);border-radius:16px;}
+.cobros-tabs button {display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:45px;padding:10px 22px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--ink);font:inherit;font-size:14px;font-weight:750;cursor:pointer;}
+.cobros-tabs button:hover:not(.activo){background:var(--canvas);}
+.cobros-tabs button.activo {background:#00b9c7;color:#01305c;}
+.cobros-tab-contador {display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;padding:0 6px;border-radius:999px;background:var(--canvas);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;}
+.cobros-tab-contador.con-pendientes {background:#01305c;color:#fff;border-color:#01305c;}
+.cobro-dato-principal {padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--canvas);}
+.cobro-datos .cobro-metodo {font-size:26px;font-weight:800;color:var(--ink);}
+.cobro-cabecera h3 {font-size:30px;font-variant-numeric:tabular-nums;}
+.cobros-view {color:var(--ink);}
+.cobro-tarjeta {background:var(--white);border-color:var(--border);}
+.cobros-encabezado,.cobro-cabecera {border-color:var(--border);}
+.cobros-encabezado p,.cobro-datos small,.cobro-etiqueta {color:var(--muted);}
+.cobro-tarifa,.cobro-check {background:var(--canvas);color:var(--ink);}
+.cobros-carga-panel input[type="number"],.cobros-carga-panel input[type="text"] {background:var(--white);color:var(--ink);border-color:var(--border);}
+@media(max-width:590px){.cobros-tabs{width:100%;}.cobros-tabs button{flex:1;padding:9px 8px;}}
 </style>

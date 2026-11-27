@@ -869,6 +869,13 @@ public sealed class WhatsAppManualSqlHttpTests
                 codigo));
 
                         // SYNCHRO-ADMIN-LISTADO-COBROS-V1
+            // Antes de elegir el metodo la orden no debe aparecer como cobro listo.
+            using var antesMetodo = await admin.GetAsync("/api/admin/whatsapp-manual/cobros/retiro/pendientes");
+            Assert.True(antesMetodo.IsSuccessStatusCode);
+            using var listaAntes = JsonDocument.Parse(await antesMetodo.Content.ReadAsStringAsync());
+            Assert.DoesNotContain(listaAntes.RootElement.GetProperty("cobros").EnumerateArray(), x => x.GetProperty("cobroId").GetGuid()==cobroId);
+            using var elegirMetodo = await terminal.PostAsJsonAsync("/api/terminales/guardar/whatsapp/retiro/cobro/metodo", new { cobroId, autorizacionPago, metodoPago="Efectivo" });
+            Assert.True(elegirMetodo.IsSuccessStatusCode, await elegirMetodo.Content.ReadAsStringAsync());
             // El operador autenticado debe ver la orden pendiente.
             using var listadoCobros = await admin.GetAsync(
                 "/api/admin/whatsapp-manual/cobros/retiro/pendientes");
@@ -887,7 +894,7 @@ public sealed class WhatsAppManualSqlHttpTests
                     .GetProperty("cobros")
                     .EnumerateArray()
                     .Any(x =>
-                        x.GetProperty("cobroId").GetGuid() == cobroId),
+                        x.GetProperty("cobroId").GetGuid() == cobroId && x.GetProperty("metodoPago").GetString()=="Efectivo"),
                 "La orden pendiente debe estar visible al operador.");
 // Pago sin comprobacion: rechazado.
             using var noComprobado = await admin.PostAsJsonAsync(
@@ -903,6 +910,8 @@ public sealed class WhatsAppManualSqlHttpTests
                 HttpStatusCode.BadRequest,
                 noComprobado.StatusCode);
 
+            using var otroMetodo = await admin.PostAsJsonAsync("/api/admin/whatsapp-manual/cobros/retiro/confirmar", new { cobroId, metodoPago="NFC", pagoComprobado=true });
+            Assert.Equal(HttpStatusCode.Conflict,otroMetodo.StatusCode);
             // Confirmacion por el operador autorizado.
             using var pago = await admin.PostAsJsonAsync(
                 "/api/admin/whatsapp-manual/cobros/retiro/confirmar",
