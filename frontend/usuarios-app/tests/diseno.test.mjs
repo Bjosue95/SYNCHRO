@@ -66,9 +66,11 @@ test("no se inventan metricas ni historial de reservas en el panel", () => {
   assert.match(panel, /items\.value\s*=\s*datos\.encomiendas/);
   assert.doesNotMatch(panel, /reservas activas\s*\d|pr[oó]ximos vencimientos\s*\d/i);
   assert.match(panel, /v-for="e in items"/);
-  assert.match(panel, /fechaHonduras\(e\.creadaUtc\)/);
-  assert.match(panel, /v-if="e\.retiradaConfirmada"/);
-  assert.match(panel, /fechaHonduras\(e\.entregaUtc\)/);
+  assert.match(panel, /Reserva #\{\{ e\.id \}\}/);
+  assert.match(panel, /estadoEtapa\(detalleDe\(e\)\)/);
+  assert.match(panel, /encomiendasApi\.detalle\(e\.id\)/);
+  assert.match(panel, /const puedeCancelar|function cancelable\(e:any\)/);
+  assert.doesNotMatch(panel, /fechaHonduras\(e\.creadaUtc\)|fechaHonduras\(e\.entregaUtc\)/);
   assert.match(panel, /!cargando\s*&&\s*!error/);
   assert.match(panel, /Reservar casillero/);
   assert.match(panel, /reservas-tarjetas/);
