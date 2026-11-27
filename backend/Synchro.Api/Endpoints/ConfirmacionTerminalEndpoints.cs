@@ -88,6 +88,7 @@ public static class ConfirmacionTerminalEndpoints
                     // Sin la aprobación del administrador NO se emite cookie.
                     await using var comando = new SqlCommand(
                         """
+                        SET NOCOUNT ON;
                         SET XACT_ABORT ON;
                         BEGIN TRY
                           BEGIN TRANSACTION;
