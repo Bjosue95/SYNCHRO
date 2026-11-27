@@ -55,9 +55,9 @@ test('la bienvenida consulta reservas reales y ofrece siguiente paso de PIN solo
 });
 
 test('solicitar PIN solo registra evento en API con cuenta propia y dos autorizaciones',()=>{
-  const endpoint=leer('../../../backend/Synchro.Api/Endpoints/EncomiendasOperativasEndpoints.cs');
-  const servicio=leer('../../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasSolicitudPin.cs');
-  const seguimiento=leer('../../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasHistorial.cs');
+  const endpoint=leer('../../backend/Synchro.Api/Endpoints/EncomiendasOperativasEndpoints.cs');
+  const servicio=leer('../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasSolicitudPin.cs');
+  const seguimiento=leer('../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasHistorial.cs');
   const admin=leer('src/../../admin-app/src/views/EncomiendasView.vue');
   assert.match(endpoint,/reservas\.MapPost\("\/\{id:int\}\/pin-deposito\/solicitar"/);
   assert.match(endpoint,/s\.SolicitarPinDeposito\(id,Identidad\(h\),h\.RequestAborted\)/);
