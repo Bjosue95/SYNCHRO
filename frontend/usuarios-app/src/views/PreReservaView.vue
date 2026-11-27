@@ -506,7 +506,20 @@ onMounted(cargar);
 .reserva-vista .reserva-opciones:not(.reserva-tres) {grid-template-columns:repeat(2,minmax(0,1fr));}
 .reserva-vista .reserva-final__grid {grid-template-columns:minmax(0,1fr);}
 .reserva-vista .reserva-final__resumen {display:none;}
-.reserva-paso__navegacion {flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;box-sizing:border-box;background:transparent;padding:10px clamp(12px,2.2vw,24px) 10px;border:0;}
+.env-page--asistente > .reserva-paso__navegacion {
+  flex:0 0 auto;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  box-sizing:border-box;
+  width:calc(100% - 2 * clamp(16px,2.4vw,30px));
+  margin-inline:clamp(16px,2.4vw,30px);
+  padding:8px 0;
+  background:var(--bg);
+  border:0;
+  box-shadow:none;
+}
 .reserva-paso__navegacion .boton,.reserva-paso__navegacion .syn-button {display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:49px;padding:10px 18px;max-width:100%;box-sizing:border-box;}
 .reserva-paso__navegacion .boton:last-child,.reserva-paso__navegacion .syn-button:last-child {margin-left:auto;}
 @media(max-width:800px){
@@ -518,7 +531,7 @@ onMounted(cargar);
 }
 @media(max-width:390px) {
   .reserva-vista .reserva-opciones {grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
-   .reserva-paso__navegacion {flex-direction:row;padding-inline:12px;}
+  .env-page--asistente > .reserva-paso__navegacion {width:calc(100% - 28px);margin-inline:14px;}
   .reserva-paso__navegacion .boton,.reserva-paso__navegacion .syn-button {width:auto;flex:1 1 0;margin-left:0;}
 }
 @media(max-height:640px) {.env-page--asistente .env-heading p {display:none;}.reserva-vista > .env-card {justify-content:flex-start;}}
@@ -529,14 +542,12 @@ onMounted(cargar);
 .reserva-pasos__barra {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;}
 .reserva-pasos__barra span {height:6px;border-radius:99px;background:var(--border-strong);transition:background 180ms ease;}
 .reserva-pasos__barra span.activo {background:var(--brand-accent);}
-.reserva-paso__navegacion {display:flex;gap:12px;justify-content:space-between;}
-.reserva-paso__navegacion .boton {min-height:54px;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:12px 20px;}
-.reserva-paso__navegacion .boton:last-child {margin-left:auto;}
+
 .reserva-pendiente {display:grid;justify-items:start;gap:16px;padding:clamp(22px,4vw,42px);}
 .reserva-pendiente__icono {display:grid;place-items:center;width:72px;height:72px;border-radius:20px;color:var(--text-strong);background:var(--surface-accent);}
 .reserva-pendiente__total {padding:16px 20px;background:var(--surface-accent);border:1px solid var(--border);border-radius:13px;}
 .reserva-pendiente__total strong {font-size:21px;}
-@media(max-width:600px){.reserva-paso__navegacion{flex-direction:column-reverse}.reserva-paso__navegacion .boton{width:100%;margin-left:0!important}}
+
 @media(prefers-reduced-motion:reduce){.reserva-pasos__barra span{transition:none}}
 .reserva-opciones {
   --reserva-gap: 14px;
