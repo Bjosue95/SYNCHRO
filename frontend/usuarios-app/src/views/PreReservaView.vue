@@ -16,11 +16,12 @@ const estadoEnEspera=ref<any>(null);
 const consultandoPago=ref(false);
 let intervaloPago: ReturnType<typeof setInterval>|undefined;
 let consultaPagoActiva=false;
-const pasosReserva=['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Pago'];
-const ultimoPaso=7;
-const pasosVisibles=computed(()=>servicio.value==='Personal'
-  ?pasosReserva.filter((_,indice)=>indice!==5):pasosReserva);
-const pasoNumero=computed(()=>paso.value>=6&&servicio.value==='Personal'?paso.value:paso.value+1);
+const pasosReserva=['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Forma de pago','Tarjeta'];
+const ultimoPaso=8;
+const pasosVisibles=computed(()=>pasosReserva.filter((_,indice)=>
+  !(indice===5&&servicio.value==='Personal')&&!(indice===8&&pagador.value==='Destinatario')));
+const pasoNumero=computed(()=>pasosReserva.slice(0,paso.value+1).filter((_,indice)=>
+  !(indice===5&&servicio.value==='Personal')&&!(indice===8&&pagador.value==='Destinatario')).length);
 const pasoActual=computed(()=>pasosReserva[paso.value]||'Confirmación');
 const saltoSiguiente=(actual:number)=>actual===4&&servicio.value==='Personal'?6:actual+1;
 const saltoAnterior=(actual:number)=>actual===6&&servicio.value==='Personal'?4:actual-1;
@@ -40,12 +41,13 @@ function continuar(){
   if(paso.value===5||paso.value===4&&servicio.value==='Personal'){
     revisar();return;
   }
+  if(paso.value===7&&pagador.value==='Destinatario'){void crear();return;}
   paso.value=Math.min(ultimoPaso,saltoSiguiente(paso.value));
 }
 function regresar(){
   if(enviando.value||reservaEnEspera.value!==null)return;
   error.value='';pagoError.value='';
-  if(paso.value===7)limpiarTarjetaPrueba();
+  if(paso.value===8)limpiarTarjetaPrueba();
   if(paso.value===6)revisando.value=false;
   paso.value=Math.max(0,saltoAnterior(paso.value));
 }
@@ -72,16 +74,14 @@ function detenerConsultaPago(){
 const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado'},{id:'Caliente',nombre:'Caliente'}];
 // Campos solamente de memoria local. No se envían al backend ni se almacenan.
 const pagador=ref<'Remitente'|'Destinatario'>('Remitente');
-const numeroTarjetaPrueba=ref(''),venceTarjetaPrueba=ref(''),codigoTarjetaPrueba=ref('');
-const tarjetaPruebaValida=computed(()=>numeroTarjetaPrueba.value.replace(/\D/g,'')==='4242424242424242'
+const titularTarjeta=ref(''),numeroTarjetaPrueba=ref(''),venceTarjetaPrueba=ref(''),codigoTarjetaPrueba=ref('');
+const tarjetaPruebaValida=computed(()=>titularTarjeta.value.trim().length>=3&&titularTarjeta.value.trim().length<=60
+  &&numeroTarjetaPrueba.value.replace(/\D/g,'')==='4242424242424242'
   &&venceTarjetaPrueba.value.replace(/\s/g,'')==='12/30'&&codigoTarjetaPrueba.value.trim()==='123');
+const numeroTarjetaVisual=computed(()=>numeroTarjetaPrueba.value.replace(/\D/g,'').length===16
+  ?'•••• •••• •••• '+numeroTarjetaPrueba.value.slice(-4)
+  :'•••• •••• •••• ••••');
 const pagoError=ref('');
-function usarDatosPrueba(){
-  numeroTarjetaPrueba.value='4242 4242 4242 4242';
-  venceTarjetaPrueba.value='12/30';
-  codigoTarjetaPrueba.value='123';
-  pagoError.value='';
-}
 function cambiarNumeroTarjeta(valor:string){
   const digitos=valor.replace(/\D/g,'').slice(0,16);
   numeroTarjetaPrueba.value=digitos.replace(/(.{4})/g,'$1 ').trim();
@@ -93,6 +93,7 @@ function cambiarVencimiento(valor:string){
   pagoError.value='';
 }
 function limpiarTarjetaPrueba(){
+  titularTarjeta.value='';
   numeroTarjetaPrueba.value='';
   venceTarjetaPrueba.value='';
   codigoTarjetaPrueba.value='';
@@ -203,9 +204,9 @@ async function crear(){
     error.value='Verifica la selección antes de crear tu reserva.';
     return;
   }
-  if(pagador.value==='Remitente'&&!tarjetaPruebaValida.value){
-    pagoError.value='Los valores no coinciden con los datos habilitados. Utiliza «Usar datos de prueba» y vuelve a confirmar.';
-    error.value='Verifica los datos de pago antes de continuar.';
+  if(pagador.value==='Remitente'&&(paso.value!==8||!tarjetaPruebaValida.value)){
+    pagoError.value='Introduce un titular ficticio y utiliza únicamente los valores de demostración indicados en los campos.';
+    error.value='Revisa los datos de demostración para continuar.';
     return;
   }
   enviando.value=true;
@@ -228,7 +229,7 @@ async function crear(){
     if(pagador.value==='Remitente'){
       reservaEnEspera.value=Number(d.id);
       estadoEnEspera.value=null;
-      paso.value=8;
+      paso.value=9;
       detenerConsultaPago();
       void consultarPago();
       intervaloPago=setInterval(()=>{void consultarPago();},5000);
@@ -377,11 +378,10 @@ onMounted(cargar);
         </form>
 
       </template>
-      <section v-if="paso===6 || paso===7" class="env-card reserva-revision" :class="{'reserva-revision--resumen':paso===6}">
+      <section v-if="paso===6" class="env-card reserva-revision reserva-revision--resumen">
         <div class="reserva-final__intro">
-          <span v-if="paso===7" class="reserva-final__etapa">CONFIRMACIÓN DEL PAGO</span>
-          <h2>{{ paso===6 ? 'Revisa tu reserva' : 'Selecciona cómo pagar' }}</h2>
-          <p>{{ paso===6 ? 'Confirma los datos, la duración y el total antes de pasar al pago.' : 'Selecciona quién pagará y completa la solicitud de confirmación.' }}</p>
+          <h2>Revisa tu reserva</h2>
+          <p>Confirma los datos, la duración y el total antes de pasar al pago.</p>
         </div>
         <dl class="reserva-revision__datos">
           <div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div>
@@ -392,8 +392,9 @@ onMounted(cargar);
           <div v-if="servicio==='Encomienda'"><dt>Destinatario</dt><dd>{{ normalizarTelefono(telefono) }}</dd></div>
         </dl>
         <p v-if="importeReserva===null" class="reserva-revision__tarifa-aviso">Esta selección aún no tiene una tarifa configurada. El administrador deberá establecer el importe antes de confirmar el cobro.</p>
-        <p v-else-if="paso===7" class="reserva-revision__tarifa-aviso">El importe indicado quedará sujeto a confirmación administrativa.</p>
-        <div v-if="paso===7" class="reserva-pago__seccion">
+        
+      </section>
+              <section v-if="paso===7" class="env-card reserva-pago__eleccion">
           <div class="reserva-final__intro">
             <h3>¿Cómo deseas realizar el pago?</h3>
             <p>Elige cómo deseas gestionar el pago de esta reserva.</p>
@@ -416,15 +417,19 @@ onMounted(cargar);
               <small>{{ servicio==='Encomienda' ? 'Después del depósito, antes del retiro.' : 'Gestionar el pago presencial con el procedimiento de la tablet.' }}</small>
             </button>
           </div>
-
-          <section v-if="pagador==='Remitente'" class="reserva-prueba" aria-labelledby="reserva-prueba-titulo">
+        <p class="reserva-pago__total">Total de la reserva <strong>{{ importeTexto }}</strong></p>
+                  <p v-if="pagador==='Destinatario'" class="reserva-bloque__nota">
+            {{ servicio==='Encomienda' ? 'El destinatario solicitará el pago en la tablet después del depósito. El administrador deberá confirmarlo antes de permitir el retiro.' : 'El pago presencial se realizará mediante el proceso habitual de la tablet, con comprobación administrativa cuando corresponda.' }}
+          </p>
+        </section>
+          <section v-if="paso===8 && pagador==='Remitente'" class="env-card reserva-prueba" aria-labelledby="reserva-prueba-titulo">
             <div class="reserva-pago__encabezado">
               <div class="reserva-final__intro">
-                <span class="reserva-final__etapa">PAGO EN LÍNEA</span>
-                <h3 id="reserva-prueba-titulo">Pago con tarjeta</h3>
-                <p>Revisa los datos de pago y confirma tu solicitud.</p>
+                
+                <h2 id="reserva-prueba-titulo">Datos de la tarjeta</h2>
+                <p>Completa esta operación de demostración. No ingreses datos bancarios reales.</p>
               </div>
-              <span class="reserva-pago__seguridad"><AppIcon nombre="seguridad" :tamano="18" /> Conexión segura</span>
+              <span class="reserva-pago__seguridad"><AppIcon nombre="seguridad" :tamano="18" /> Demostración</span>
             </div>
             <div class="reserva-pago__contenido">
               <div class="reserva-pago__tarjeta" aria-label="Tarjeta habilitada para el recorrido de pago">
@@ -432,36 +437,42 @@ onMounted(cargar);
                   <span>SYNCHRO</span>
                   <span class="reserva-pago__chip" aria-hidden="true"></span>
                 </div>
-                <span class="reserva-pago__numero-visual">4242  ••••  ••••  4242</span>
+                <span class="reserva-pago__numero-visual">{{ numeroTarjetaVisual }}</span>
                 <div class="reserva-pago__tarjeta-inferior">
-                  <span><small>TITULAR</small> CLIENTE SYNCHRO</span>
-                  <span><small>VENCE</small> 12/30</span>
+                  <span><small>TITULAR</small> {{ titularTarjeta.trim() || 'CLIENTE SYNCHRO' }}</span>
+                  <span><small>VENCE</small> {{ venceTarjetaPrueba || 'MM/AA' }}</span>
                 </div>
               </div>
               <div class="reserva-pago__formulario">
-                <div class="reserva-pago__datos-prueba"><span>Para continuar, utiliza los datos habilitados para esta operación.</span><button type="button" class="reserva-pago__aplicar" :disabled="enviando" @click="usarDatosPrueba">Usar datos de prueba</button></div>
+                
                 <div class="reserva-prueba__campos">
+                  <label class="campo reserva-prueba__titular">
+                    <span>Nombre del titular</span>
+                    <input v-model="titularTarjeta" type="text" maxlength="60" autocomplete="off"
+                      placeholder="CLIENTE SYNCHRO" :disabled="enviando" @input="pagoError=''" />
+                    <small>Escribe un nombre ficticio; no ingreses información bancaria personal.</small>
+                  </label>
                   <label class="campo reserva-prueba__numero">
                     <span>Número de tarjeta</span>
                     <input :value="numeroTarjetaPrueba" @input="cambiarNumeroTarjeta(($event.target as HTMLInputElement).value)" type="text" inputmode="numeric" autocomplete="off"
                       maxlength="23" placeholder="4242 4242 4242 4242" :disabled="enviando" />
-                    <small>Número habilitado: 4242 4242 4242 4242</small>
+                    
                   </label>
                   <label class="campo">
                     <span>Fecha de vencimiento</span>
                     <input :value="venceTarjetaPrueba" @input="cambiarVencimiento(($event.target as HTMLInputElement).value)" type="text" inputmode="numeric" autocomplete="off"
-                      maxlength="5" placeholder="MM/AA" :disabled="enviando" />
-                    <small>Usa 12/30</small>
+                      maxlength="5" placeholder="12/30" :disabled="enviando" />
+                    
                   </label>
                   <label class="campo">
                     <span>Código de seguridad</span>
                     <input v-model="codigoTarjetaPrueba" type="password" inputmode="numeric" autocomplete="off"
-                      maxlength="3" placeholder="•••" :disabled="enviando" @input="pagoError=''" />
-                    <small>Usa 123 · no es un PIN bancario.</small>
+                      maxlength="3" placeholder="123" :disabled="enviando" @input="pagoError=''" />
+                    
                   </label>
                 </div>
                 <p v-if="pagoError" class="reserva-pago__error" role="alert">{{ pagoError }}</p>
-                <p class="reserva-pago__aviso">Utiliza únicamente los valores habilitados en esta pantalla; no ingreses una tarjeta real. Los datos no se almacenan ni se envían al servidor. No se efectuarán cargos bancarios.</p>
+                <p class="reserva-pago__aviso">Usa exclusivamente los valores ficticios de los ejemplos (4242 4242 4242 4242, 12/30 y 123). Nunca ingreses una tarjeta real. Ningún dato de esta tarjeta se envía al servidor ni se realiza un cargo bancario.</p>
               </div>
             </div>
             <div class="reserva-pago__pie">
@@ -469,14 +480,8 @@ onMounted(cargar);
               <span>La solicitud quedará pendiente de confirmación administrativa.</span>
             </div>
           </section>
-          <p v-else class="reserva-bloque__nota">
-            {{ servicio==='Encomienda' ? 'El destinatario solicitará el pago en la tablet después del depósito. El administrador deberá confirmarlo antes de permitir el retiro.' : 'El pago presencial se realizará mediante el proceso habitual de la tablet, con comprobación administrativa cuando corresponda.' }}
-          </p>
-        </div>
 
-
-      </section>
-      <section v-if="paso===8 && reservaEnEspera!==null" class="env-card reserva-pendiente" aria-live="polite">
+      <section v-if="paso===9 && reservaEnEspera!==null" class="env-card reserva-pendiente" aria-live="polite">
         <div class="reserva-pendiente__icono"><AppIcon nombre="reloj" :tamano="40" /></div>
         <span class="reserva-final__etapa">SOLICITUD ENVIADA</span>
         <h2>Esperando confirmación del pago</h2>
@@ -491,14 +496,14 @@ onMounted(cargar);
     </div>
     <footer v-if="!cargando && paso<=ultimoPaso" class="reserva-paso__navegacion">
       <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
-      <button v-if="paso<7" type="button" class="boton boton-primario reserva-paso__continuar"
+      <button v-if="paso<8" type="button" class="boton boton-primario reserva-paso__continuar"
         :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible)"
         @click="continuar">
-        <span class="reserva-paso__continuar-texto">{{ paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
+        <span class="reserva-paso__continuar-texto">{{ paso===7 ? (pagador==='Remitente'?'Continuar a tarjeta':'Confirmar reserva') : paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
         <IconoTablet nombre="continuar" :tamano="21" />
       </button>
       <SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear">
-        {{ pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}
+        Confirmar solicitud de pago
       </SynButton>
     </footer>
   </section>
@@ -1163,5 +1168,43 @@ onMounted(cargar);
   .reserva-vista > .reserva-revision--resumen {padding:12px;gap:10px;}
   .reserva-revision--resumen .reserva-revision__datos {padding:12px;gap:10px;}
   .reserva-revision--resumen .reserva-revision__datos dd {font-size:13px;}
+}
+
+/* Elección del pagador y datos bancarios viven en pantallas independientes. */
+.reserva-vista > .reserva-pago__eleccion {
+  flex:0 0 auto;
+  display:grid;
+  align-content:start;
+  gap:clamp(14px,2.2vh,22px);
+  padding:clamp(14px,2vw,24px);
+}
+.reserva-pago__eleccion .reserva-final__intro {gap:5px;}
+.reserva-pago__eleccion .reserva-final__intro h3 {font-size:clamp(19px,2.3vw,24px);}
+.reserva-pago__eleccion .reserva-pagadores {gap:10px;}
+.reserva-pago__eleccion .reserva-pagador {min-height:125px;padding:clamp(10px,1.5vw,17px);gap:8px;}
+.reserva-pago__total {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;background:var(--surface-accent);border-radius:12px;color:var(--text-strong);}
+.reserva-pago__total strong {white-space:nowrap;font-size:clamp(19px,3vw,24px);}
+.reserva-vista > .reserva-prueba {flex:0 0 auto;align-content:start;padding:clamp(12px,2vw,24px);gap:12px;}
+.reserva-prueba__titular {grid-column:1/-1;}
+.reserva-prueba__numero {grid-column:1/-1;}
+.reserva-vista > .reserva-prueba .reserva-pago__contenido {gap:clamp(12px,2vw,22px);}
+.reserva-vista > .reserva-prueba .reserva-pago__tarjeta {min-height:150px;max-height:220px;aspect-ratio:1.7;padding:clamp(14px,2vw,22px);margin-inline:auto;}
+.reserva-vista > .reserva-prueba .reserva-pago__formulario {gap:9px;}
+.reserva-vista > .reserva-prueba .reserva-prueba__campos {gap:10px;}
+.reserva-vista > .reserva-prueba .reserva-pago__tarjeta-inferior {overflow-wrap:anywhere;}
+@media(max-width:850px){
+  .reserva-vista > .reserva-prueba .reserva-pago__contenido {grid-template-columns:minmax(0,1fr);}
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta {width:min(100%,340px);min-height:130px;max-height:185px;}
+}
+@media(max-width:470px){
+  .reserva-pago__eleccion .reserva-pagadores {grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+  .reserva-pago__eleccion .reserva-pagador {min-height:140px;padding:9px;gap:5px;}
+  .reserva-pago__eleccion .reserva-pagador strong {font-size:12px;line-height:1.2;}
+  .reserva-pago__eleccion .reserva-pagador small {font-size:10px;line-height:1.3;}
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta {width:min(100%,285px);min-height:122px;max-height:150px;}
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta-superior {font-size:12px;}
+  .reserva-vista > .reserva-prueba .reserva-pago__numero-visual {font-size:14px;}
+  .reserva-vista > .reserva-prueba .reserva-prueba__campos {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .reserva-vista > .reserva-prueba .reserva-prueba__titular,.reserva-vista > .reserva-prueba .reserva-prueba__numero {grid-column:1/-1;}
 }
 </style>
