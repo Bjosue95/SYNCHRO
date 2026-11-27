@@ -16,8 +16,14 @@ const estadoEnEspera=ref<any>(null);
 const consultandoPago=ref(false);
 let intervaloPago: ReturnType<typeof setInterval>|undefined;
 let consultaPagoActiva=false;
-const pasosReserva=['Servicio','Casillero','Detalles','Resumen','Pago'];
-const ultimoPaso=4;
+const pasosReserva=['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Pago'];
+const ultimoPaso=7;
+const pasosVisibles=computed(()=>servicio.value==='Personal'
+  ?pasosReserva.filter((_,indice)=>indice!==5):pasosReserva);
+const pasoNumero=computed(()=>paso.value>=6&&servicio.value==='Personal'?paso.value:paso.value+1);
+const pasoActual=computed(()=>pasosReserva[paso.value]||'Confirmación');
+const saltoSiguiente=(actual:number)=>actual===4&&servicio.value==='Personal'?6:actual+1;
+const saltoAnterior=(actual:number)=>actual===6&&servicio.value==='Personal'?4:actual-1;
 const textoEstadoPago=computed(()=>{
   if(!estadoEnEspera.value)return 'Comprobando el estado del pago con SYNCHRO…';
   if(['Vencida','Cancelada','Rechazada'].includes(estadoEnEspera.value.estado))return 'La reserva ya no está activa. Consulta su detalle antes de intentar otra operación.';
@@ -26,20 +32,22 @@ const textoEstadoPago=computed(()=>{
 });
 function continuar(){
   error.value='';
-  if(paso.value===0){paso.value=1;return;}
-  if(paso.value===1){
-    if(!tipo.value||!tamano.value||!porTamano.value.length){error.value='Selecciona el tipo y tamaño del casillero.';return;}
-    paso.value=2;return;
+  if(paso.value===1&&!tipo.value){error.value='Selecciona un tipo de casillero.';return;}
+  if(paso.value===2&&(!tamano.value||!porTamano.value.length)){error.value='Selecciona un tamaño disponible.';return;}
+  if(paso.value===3&&!ubicacion.value){error.value='Selecciona una estación.';return;}
+  if(paso.value===4&&!disponible.value){error.value='Selecciona una duración disponible.';return;}
+  if(paso.value===5&&!normalizarTelefono(telefono.value)){error.value='Introduce el WhatsApp del destinatario con código de país.';return;}
+  if(paso.value===5||paso.value===4&&servicio.value==='Personal'){
+    revisar();return;
   }
-  if(paso.value===2){revisar();return;}
-  if(paso.value===3){paso.value=4;return;}
+  paso.value=Math.min(ultimoPaso,saltoSiguiente(paso.value));
 }
 function regresar(){
   if(enviando.value||reservaEnEspera.value!==null)return;
   error.value='';pagoError.value='';
-  if(paso.value===4){limpiarTarjetaPrueba();paso.value=3;return;}
-  if(paso.value===3){revisando.value=false;paso.value=2;return;}
-  paso.value=Math.max(0,paso.value-1);
+  if(paso.value===7)limpiarTarjetaPrueba();
+  if(paso.value===6)revisando.value=false;
+  paso.value=Math.max(0,saltoAnterior(paso.value));
 }
 async function consultarPago(){
   if(reservaEnEspera.value===null||consultaPagoActiva||document.hidden)return;
@@ -142,13 +150,13 @@ async function cargar(discreta=false){
     if(!Array.isArray(datos?.opciones))throw new Error('La disponibilidad no pudo verificarse.');
     opciones.value=datos.opciones;
     ubicacionPendiente.value=Boolean(datos.ubicacionPendiente);
-    if(!disponible.value){revisando.value=false;if(paso.value>2&&reservaEnEspera.value===null)paso.value=2;}
+    if(!disponible.value){revisando.value=false;if(paso.value>4&&reservaEnEspera.value===null)paso.value=4;}
   } catch(e) {
     if(actual!==versionCatalogo)return;
     opciones.value=[];
     ubicacionPendiente.value=false;
     revisando.value=false;
-    if(reservaEnEspera.value===null)paso.value=Math.min(paso.value,2);
+    if(reservaEnEspera.value===null)paso.value=Math.min(paso.value,4);
     error.value=(e as Error).message || 'No pudimos consultar la disponibilidad.';
   } finally {
     if(actual===versionCatalogo){
@@ -166,7 +174,7 @@ watch(servicio,(nuevo)=>{
   pagador.value='Remitente';
   limpiarTarjetaPrueba();
   revisando.value=false;
-  if(reservaEnEspera.value===null&&paso.value>1)paso.value=1;
+  if(reservaEnEspera.value===null&&paso.value>0)paso.value=0;
   void cargar(true);
 });
 function revisar(){
@@ -180,7 +188,7 @@ function revisar(){
     return;
   }
   revisando.value=true;
-  paso.value=3;
+  paso.value=6;
 }
 async function crear(){
   if(enviando.value)return;
@@ -214,7 +222,7 @@ async function crear(){
     if(pagador.value==='Remitente'){
       reservaEnEspera.value=Number(d.id);
       estadoEnEspera.value=null;
-      paso.value=5;
+      paso.value=8;
       detenerConsultaPago();
       void consultarPago();
       intervaloPago=setInterval(()=>{void consultarPago();},5000);
@@ -230,18 +238,18 @@ async function crear(){
 onMounted(cargar);
 </script>
 <template>
-  <section class="env-page">
+  <section class="env-page env-page--asistente">
     <header class="env-heading"><div><h1>Reservar casillero</h1><p>Elige qué vas a guardar y encuentra un casillero disponible.</p></div></header>
     <p v-if="error" class="alerta" role="alert">{{ error }}</p><p v-if="cargando" role="status">Consultando disponibilidad…</p>
     <span v-if="actualizando" class="reserva-sr-only" role="status">Actualizando disponibilidad</span>
     <nav v-if="paso<=ultimoPaso" class="reserva-pasos" aria-label="Progreso de la reserva">
-      <div class="reserva-pasos__texto"><span>Paso {{ paso+1 }} de {{ pasosReserva.length }}</span><strong>{{ pasosReserva[paso] }}</strong></div>
-      <div class="reserva-pasos__barra" role="progressbar" :aria-valuenow="paso+1" :aria-valuemin="1" :aria-valuemax="pasosReserva.length" :aria-valuetext="pasosReserva[paso]">
-        <span v-for="(_,indice) in pasosReserva" :key="indice" :class="{ 'activo':indice<=paso }"></span>
+      <div class="reserva-pasos__texto"><span>Paso {{ pasoNumero }} de {{ pasosVisibles.length }}</span><strong>{{ pasoActual }}</strong></div>
+      <div class="reserva-pasos__barra" role="progressbar" :aria-valuenow="pasoNumero" :aria-valuemin="1" :aria-valuemax="pasosVisibles.length" :aria-valuetext="pasoActual">
+        <span v-for="(_,indice) in pasosVisibles" :key="indice" :class="{ 'activo':indice<pasoNumero }"></span>
       </div>
     </nav>
-    <template v-if="!cargando">
-      <template v-if="paso<=2">
+    <div v-if="!cargando" class="reserva-vista" :key="paso">
+      <template v-if="paso<=5">
         <section v-if="paso===0" class="env-card"><h2>¿Qué vas a guardar?</h2><div class="reserva-opciones">
           <SeleccionReservaCard titulo="Pertenencias personales" descripcion="Guardarlas y retirarlas con tus PIN" icono-tablet="guardar" :seleccionado="servicio==='Personal'" @seleccionar="servicio='Personal'" />
           <SeleccionReservaCard titulo="Una encomienda" descripcion="El destinatario retira con su PIN" icono-tablet="encomienda" :seleccionado="servicio==='Encomienda'" @seleccionar="servicio='Encomienda'" />
@@ -254,18 +262,18 @@ onMounted(cargar);
             :disabled="servicio==='Personal' && t.id!=='Normal'"
             @seleccionar="tipo=t.id" />
         </div><p v-if="!opciones.length">No hay casilleros compatibles disponibles. <button class="boton boton-secundario" @click="cargar(true)">Actualizar disponibilidad</button></p></section>
-        <section v-if="paso===1 && porTipo.length" id="reserva-seleccion-tamano" class="env-card"><h2>Tamaño</h2><div class="reserva-opciones reserva-tres">
+        <section v-if="paso===2 && porTipo.length" id="reserva-seleccion-tamano" class="env-card"><h2>Tamaño</h2><div class="reserva-opciones reserva-tres">
           <SeleccionReservaCard v-for="t in TAMANOS_ENCOMIENDA" :key="t.valor" :titulo="t.nombre" :descripcion="t.detalle" :icono-tablet="t.valor" :seleccionado="tamano===t.valor" :disponibles="cantidadPorTamano(t.valor)" @seleccionar="tamano=t.valor" />
         </div></section>
-        <form v-if="paso===2 && tamano" class="env-card formulario reserva-final" @submit.prevent="revisar">
+        <form v-if="paso>=3 && paso<=5 && tamano" class="env-card formulario reserva-final" @submit.prevent="revisar">
           <div class="reserva-final__intro">
             <span class="reserva-final__etapa">DETALLES DE LA RESERVA</span>
-            <h2>Ubicación, tiempo y entrega</h2>
-            <p>Completa los últimos datos para revisar tu selección.</p>
+            <h2>{{ paso===3 ? "Selecciona la estación" : paso===4 ? "¿Por cuánto tiempo?" : "Destinatario de la encomienda" }}</h2>
+            <p>Selecciona una opción para continuar al siguiente paso.</p>
           </div>
 
           <div class="reserva-final__grid">
-            <section class="reserva-bloque" aria-labelledby="reserva-titulo-ubicacion">
+            <section v-if="paso===3" class="reserva-bloque" aria-labelledby="reserva-titulo-ubicacion">
               <div class="reserva-bloque__cabecera">
                 <span class="reserva-bloque__icono"><IconoTablet nombre="ubicacion" :tamano="30" /></span>
                 <div>
@@ -295,7 +303,7 @@ onMounted(cargar);
               </p>
             </section>
 
-            <section class="reserva-bloque" aria-labelledby="reserva-titulo-duracion">
+            <section v-if="paso===4" class="reserva-bloque" aria-labelledby="reserva-titulo-duracion">
               <div class="reserva-bloque__cabecera">
                 <span class="reserva-bloque__icono"><IconoTablet nombre="tiempo" :tamano="30" /></span>
                 <div>
@@ -316,7 +324,7 @@ onMounted(cargar);
             </section>
           </div>
 
-          <section v-if="servicio==='Encomienda'" class="reserva-bloque reserva-bloque--destinatario" aria-labelledby="reserva-titulo-whatsapp">
+          <section v-if="paso===5 && servicio==='Encomienda'" class="reserva-bloque reserva-bloque--destinatario" aria-labelledby="reserva-titulo-whatsapp">
             <div class="reserva-bloque__cabecera">
               <span class="reserva-bloque__icono"><IconoTablet nombre="whatsapp" :tamano="30" /></span>
               <div>
@@ -336,7 +344,7 @@ onMounted(cargar);
             </p>
           </section>
 
-          <div class="reserva-final__resumen">
+          <div v-if="false" class="reserva-final__resumen">
             <span class="reserva-final__resumen-titulo">Tu selección</span>
             <dl>
               <div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div>
@@ -345,23 +353,15 @@ onMounted(cargar);
               <div><dt>Estación</dt><dd>{{ ubicacionNombre }}</dd></div>
             </dl>
           </div>
-          <div class="reserva-final__acciones">
-            <button type="submit" class="boton boton-primario reserva-final__continuar" :disabled="!disponible || actualizando">
-              Revisar reserva
-              <IconoTablet nombre="continuar" :tamano="21" />
-            </button>
-          </div>
+
         </form>
-        <div class="reserva-paso__navegacion">
-          <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
-          <button v-if="paso<2" type="button" class="boton boton-primario" @click="continuar" :disabled="paso===1 && (!tipo || !tamano)">Continuar <IconoTablet nombre="continuar" :tamano="21" /></button>
-        </div>
+
       </template>
-      <section v-if="paso===3 || paso===4" class="env-card reserva-revision">
+      <section v-if="paso===6 || paso===7" class="env-card reserva-revision">
         <div class="reserva-final__intro">
-          <span class="reserva-final__etapa">{{ paso===3 ? 'REVISIÓN DE LA RESERVA' : 'CONFIRMACIÓN DEL PAGO' }}</span>
-          <h2>{{ paso===3 ? 'Revisa tu reserva' : 'Selecciona cómo pagar' }}</h2>
-          <p>{{ paso===3 ? 'Confirma los datos, la duración y el total antes de pasar al pago.' : 'Selecciona quién pagará y completa la solicitud de confirmación.' }}</p>
+          <span class="reserva-final__etapa">{{ paso===6 ? 'REVISIÓN DE LA RESERVA' : 'CONFIRMACIÓN DEL PAGO' }}</span>
+          <h2>{{ paso===6 ? 'Revisa tu reserva' : 'Selecciona cómo pagar' }}</h2>
+          <p>{{ paso===6 ? 'Confirma los datos, la duración y el total antes de pasar al pago.' : 'Selecciona quién pagará y completa la solicitud de confirmación.' }}</p>
         </div>
         <dl class="reserva-revision__datos">
           <div><dt>Servicio</dt><dd>{{ servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</dd></div>
@@ -373,7 +373,7 @@ onMounted(cargar);
         </dl>
         <p v-if="importeReserva===null" class="reserva-revision__tarifa-aviso">Esta selección aún no tiene una tarifa configurada. El administrador deberá establecer el importe antes de confirmar el cobro.</p>
         <p v-else class="reserva-revision__tarifa-aviso">Importe de la reserva: <strong>{{ importeTexto }}</strong>. La confirmación del pago queda sujeta a revisión administrativa.</p>
-        <div v-if="paso===4" class="reserva-pago__seccion">
+        <div v-if="paso===7" class="reserva-pago__seccion">
           <div class="reserva-final__intro">
             <h3>¿Cómo deseas realizar el pago?</h3>
             <p>Elige cómo deseas gestionar el pago de esta reserva.</p>
@@ -454,19 +454,9 @@ onMounted(cargar);
           </p>
         </div>
 
-        <div v-if="paso===3" class="reserva-revision__acciones">
-          <button type="button" class="boton boton-secundario" @click="regresar">Regresar</button>
-          <SynButton tipo="button" @click="continuar">Continuar al pago</SynButton>
-        </div>
-        <div v-else class="reserva-revision__acciones">
-          <button type="button" class="boton boton-secundario" :disabled="enviando"
-            @click="regresar">Regresar</button>
-          <SynButton tipo="button" :cargando="enviando"
-            :disabled="enviando"
-            @click="crear">{{ pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}</SynButton>
-        </div>
+
       </section>
-      <section v-if="paso===5 && reservaEnEspera!==null" class="env-card reserva-pendiente" aria-live="polite">
+      <section v-if="paso===8 && reservaEnEspera!==null" class="env-card reserva-pendiente" aria-live="polite">
         <div class="reserva-pendiente__icono"><AppIcon nombre="reloj" :tamano="40" /></div>
         <span class="reserva-final__etapa">SOLICITUD ENVIADA</span>
         <h2>Esperando confirmación del pago</h2>
@@ -478,10 +468,59 @@ onMounted(cargar);
         <p class="reserva-bloque__nota">Al aprobarse el pago, se abrirá tu reserva para continuar con el PIN de depósito. El PIN será generado y entregado por el administrador mediante el procedimiento de WhatsApp autorizado.</p>
         <button type="button" class="boton boton-secundario" @click="router.push('/reservas/'+reservaEnEspera)">Consultar seguimiento de esta reserva</button>
       </section>
-    </template>
+    </div>
+    <footer v-if="!cargando && paso<=ultimoPaso" class="reserva-paso__navegacion">
+      <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
+      <button v-if="paso<7" type="button" class="boton boton-primario"
+        :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible)"
+        @click="continuar">
+        {{ paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}
+        <IconoTablet nombre="continuar" :tamano="21" />
+      </button>
+      <SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear">
+        {{ pagador==='Remitente' ? 'Confirmar pago' : 'Confirmar reserva' }}
+      </SynButton>
+    </footer>
   </section>
 </template>
 <style scoped>
+/* Un solo paso por pantalla: cabecera y acciones permanecen visibles. */
+:global(.panel-contenido:has(.env-page--asistente)) {
+  height: calc(100dvh - 78px);
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: clamp(8px,1.4vh,18px) clamp(10px,2.2vw,28px);
+}
+:global(.contenido-limite:has(.env-page--asistente)) {height:100%;min-height:0;}
+.env-page--asistente {height:100%;min-height:0;padding:0;display:flex;flex-direction:column;gap:clamp(7px,1.4vh,14px);overflow:hidden;}
+.env-page--asistente .env-heading {flex:0 0 auto;}
+.env-page--asistente .env-heading h1 {font-size:clamp(20px,3vw,32px);}
+.env-page--asistente .env-heading p {font-size:12px;}
+.reserva-pasos {flex:0 0 auto;}
+.reserva-vista {flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;display:flex;flex-direction:column;gap:12px;align-items:stretch;}
+.reserva-vista > .env-card {margin:0;flex:1 0 auto;padding:clamp(12px,1.7vh,24px);display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,1.7vh,20px);}
+.reserva-vista .reserva-opciones {width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(7px,1.5vw,14px);}
+.reserva-vista .reserva-opciones:not(.reserva-tres) {grid-template-columns:repeat(2,minmax(0,1fr));}
+.reserva-vista .reserva-final__grid {grid-template-columns:minmax(0,1fr);}
+.reserva-vista .reserva-final__resumen {display:none;}
+.reserva-paso__navegacion {flex:0 0 auto;display:flex;justify-content:space-between;gap:12px;background:var(--surface);padding:10px 0 2px;}
+.reserva-paso__navegacion .boton,.reserva-paso__navegacion .syn-button {display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:49px;padding:10px 18px;}
+.reserva-paso__navegacion .boton:last-child,.reserva-paso__navegacion .syn-button:last-child {margin-left:auto;}
+@media(max-width:800px){
+  :global(.panel-contenido:has(.env-page--asistente)){height:calc(100dvh - 70px);padding:8px 10px;}
+  .env-page--asistente .env-heading p {display:none;}
+  .env-page--asistente .reserva-pasos {padding:9px 12px;gap:6px;}
+  .reserva-vista > .env-card {padding:12px;}
+  .reserva-vista .reserva-opciones {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+}
+@media(max-width:390px) {
+  .reserva-vista .reserva-opciones {grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+  .reserva-paso__navegacion {flex-direction:row;}
+  .reserva-paso__navegacion .boton,.reserva-paso__navegacion .syn-button {width:auto;flex:1 1 0;margin-left:0;}
+}
+@media(max-height:640px) {.env-page--asistente .env-heading p {display:none;}.reserva-vista > .env-card {justify-content:flex-start;}}
+
 .reserva-pasos {display:grid;gap:10px;padding:16px 18px;background:var(--surface-soft);border:1px solid var(--border);border-radius:16px;}
 .reserva-pasos__texto {display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--text-strong);font-size:13px;}
 .reserva-pasos__texto span {color:var(--text-muted);}
@@ -514,11 +553,7 @@ onMounted(cargar);
 @media (max-width: 600px) {
   .reserva-opciones { grid-template-columns: 1fr; }
   .reserva-tres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .reserva-tres > :last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-    justify-self: center;
-    width: calc((100% - var(--reserva-gap)) / 2);
-  }
+  
 }
 
 /* Los detalles continúan las tarjetas de selección, sin controles nativos sueltos. */
