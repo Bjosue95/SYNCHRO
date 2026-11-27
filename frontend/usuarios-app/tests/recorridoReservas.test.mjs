@@ -298,13 +298,22 @@ test('duraciones fijas del backend llegan hasta cuatro horas sin incrementadores
   const vista=leer('PreReservaView');
   const config=JSON.parse(readFileSync(new URL('../../../backend/Synchro.Api/appsettings.json',import.meta.url),'utf8'));
   const backend=readFileSync(new URL('../../../backend/Synchro.Api/Services/Encomiendas/ReservasPrototipo.cs',import.meta.url),'utf8');
-  assert.deepEqual(config.ReservasPrototipo.DuracionesMinutos,[30,60,120,180,240]);
+  assert.deepEqual(config.ReservasPrototipo.DuracionesMinutos,[60,120,180,240]);
   for(const tarifa of Object.values(config.ReservasPrototipo.TarifasNormales)){
-    for(const minutos of [30,60,120,180,240])assert.ok(tarifa[minutos]>0);
+    for(const minutos of [60,120,180,240])assert.ok(tarifa[minutos]>0);
   }
-  assert.match(backend,/m is >0 and <=240/);
-  assert.match(backend,/t\.Key<=240/);
-  assert.match(backend,/if\(d\.Minutos>240/);
+  assert.match(backend,/m is >=60 and <=240/);
+  assert.match(backend,/t\.Key>=60 && t\.Key<=240/);
+  assert.match(backend,/if\(d\.Minutos<60 \|\| d\.Minutos>240/);
   assert.match(vista,/v-for="m in duraciones"/);
   assert.doesNotMatch(vista,/@click="aumentarDuracion"/);
+});
+
+test('revisar reserva comparte el estilo del boton continuar sin desbordarse', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /class="boton boton-primario reserva-paso__continuar"/);
+  assert.match(vista, /class="reserva-paso__continuar-texto"/);
+  assert.match(vista, /min-width:clamp\(160px,18vw,210px\)/);
+  assert.match(vista, /white-space:nowrap;/);
+  assert.match(vista, /@media\(max-width:390px\)/);
 });
