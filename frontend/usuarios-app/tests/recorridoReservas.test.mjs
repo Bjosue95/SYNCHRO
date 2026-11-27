@@ -341,7 +341,7 @@ test('el pago web usa pantalla independiente con titular y sin autocompletado', 
   assert.match(vista,/const titularTarjeta=ref\(''\)/);
   assert.match(vista,/v-model="titularTarjeta"/);
   assert.match(vista,/titularTarjeta\.trim\(\) \|\| 'CLIENTE SYNCHRO'/);
-  assert.match(vista,/paso\.value=9/);
+  assert.match(vista,/await router\.replace\('\/reservas\/'\+d\.id\+'\/pago-pendiente'\)/);
   assert.doesNotMatch(vista,/Usar datos de prueba/);
   assert.doesNotMatch(api,/titularTarjeta|numeroTarjetaPrueba|venceTarjetaPrueba|codigoTarjetaPrueba/);
 });
