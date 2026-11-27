@@ -791,20 +791,20 @@ onBeforeUnmount(() => {
         <div class="retroalimentacion" role="status" aria-live="polite">
           <p v-if="error" class="error">{{ error }}</p>
           <p v-else>{{ estado }}</p>
+          <details v-if="!encendida && !tomada && !depositoConfirmado" class="privacidad-facial">
+            <summary data-preview-permitido>Privacidad</summary>
+            <p id="aviso-facial" class="privacidad-facial__texto">
+            {{ usarDescriptor
+              ? (retirando ? "Al iniciar el escaneo, autorizas comparar tu rostro con la referencia del depósito. También necesitas tu PIN."
+                : "Al iniciar el escaneo, autorizas registrar tu referencia facial cifrada para verificar el retiro. Se elimina al cerrar el servicio o vencer la reserva." + (reservaPersonal ? " La fotografía de evidencia se conserva hasta 30 días." : ""))
+              : "Al iniciar el escaneo, autorizas tomar una fotografía como evidencia de la encomienda, sin comparación biométrica. Se conserva hasta 30 días tras completar la operación." }}
+          </p>
+          </details>
         </div>
       </div>
     </section>
 
     <footer class="pie-facial">
-      <details v-if="!encendida && !tomada && !depositoConfirmado" class="privacidad-facial">
-        <summary data-preview-permitido>Privacidad</summary>
-        <p id="aviso-facial" class="privacidad-facial__texto">
-        {{ usarDescriptor
-          ? (retirando ? "Al iniciar el escaneo, autorizas comparar tu rostro con la referencia del depósito. También necesitas tu PIN."
-            : "Al iniciar el escaneo, autorizas registrar tu referencia facial cifrada para verificar el retiro. Se elimina al cerrar el servicio o vencer la reserva." + (reservaPersonal ? " La fotografía de evidencia se conserva hasta 30 días." : ""))
-          : "Al iniciar el escaneo, autorizas tomar una fotografía como evidencia de la encomienda, sin comparación biométrica. Se conserva hasta 30 días tras completar la operación." }}
-      </p>
-      </details>
       <button
         v-if="!tomada && !encendida && !iniciando && !depositoConfirmado"
         type="button"
@@ -1381,18 +1381,29 @@ onBeforeUnmount(() => {
   background: #103956; color: #fff; border-color: #315573;
 }
 
-/* Separar privacidad del botón sin cambiar la posición de las acciones posteriores. */
-.pie-facial:has(.privacidad-facial) {
-  box-sizing: border-box;
-  height: 144px;
-  justify-content: flex-end;
-  gap: 20px;
-  padding-bottom: 16px;
+/* Privacidad pertenece al grupo de instrucciones; el botón queda próximo. */
+.retroalimentacion:has(.privacidad-facial) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+.privacidad-facial summary {
+  padding: 3px 6px;
+  min-height: 28px;
 }
 .pantalla-rostro:has(.privacidad-facial) .panel-facial {
-  padding-bottom: 152px;
+  padding-bottom: 104px;
 }
-.pie-facial:has(.privacidad-facial) .continuar {
+.pantalla-rostro:has(.privacidad-facial) .pie-facial {
+  box-sizing: border-box;
+  height: 96px;
+  justify-content: flex-start;
+  padding: 6px 16px 8px;
+}
+.pantalla-rostro:has(.privacidad-facial) .pie-facial .continuar {
   flex-shrink: 0;
 }
 </style>

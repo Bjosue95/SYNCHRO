@@ -13,7 +13,10 @@ test("pantallas faciales operativas usan el mismo título y no piden activar V3"
     assert.match(s,/<summary data-preview-permitido>Privacidad<\/summary>/);
     assert.match(s,/"Iniciar escaneo"/);
     assert.doesNotMatch(s,/Autorizar e iniciar escaneo/);
-    assert.match(s,/\.pie-facial:has\(\.privacidad-facial\) \{[\s\S]*?gap: 20px;/);
+    assert.match(s,/<div class="retroalimentacion"[^>]*>[\s\S]*?<p v-else>\{\{ estado \}\}<\/p>\s*<details/);
+    assert.match(s,/\.retroalimentacion:has\(\.privacidad-facial\) \{[\s\S]*?column-gap: 8px;/);
+    assert.match(s,/\.pantalla-rostro:has\(\.privacidad-facial\) \.pie-facial \{[\s\S]*?height: 96px;/);
+    assert.doesNotMatch(s,/<footer class="pie-facial">\s*<details/);
     assert.doesNotMatch(s,/<details[^>]*\sopen(?:\s|=|>)/);
     assert.match(s,/consentimiento\.value = true/);
   }
