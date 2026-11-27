@@ -12,6 +12,9 @@ internal sealed partial class EncomiendasOperativasSql
     public const string VersionCapturaDemostrativa="SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11";
     public async Task<object> DepositarDemostrativo(int id,int terminal,DepositoDemostrativoSolicitud datos,CancellationToken ct)
     {
+        // La comprobación del PIN y la confirmación del depósito deben exigir
+        // la MISMA estación autorizada para reservas web.
+        await ExigirTerminalDeReservas(terminal,ct);
         Exigir(datos.DepositoComprobado,"DepositoNoComprobado","Confirma el depósito desde la tablet.",400);
         var captura=datos.Captura??throw new OperacionEncomiendaException("CapturaInvalida","Se requiere la captura demostrativa de depósito.",400);
         Exigir(captura.Descriptor is null&&captura.VersionConsentimiento==VersionCapturaDemostrativa,"CapturaInvalida","Solo se admite una captura demostrativa, sin descriptor ni comparación facial.",400);
