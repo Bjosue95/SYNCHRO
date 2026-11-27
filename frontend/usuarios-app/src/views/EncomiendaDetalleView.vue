@@ -221,12 +221,13 @@ onBeforeUnmount(() => {
         <h2>Registro anterior</h2><dl class="env-facts"><div><dt>Creación</dt><dd>{{ fechaHonduras(detalle.creadaUtc) }}</dd></div><div><dt>Destinatario</dt><dd>{{ detalle.telefonoDestinatario }}</dd></div><div><dt>Depósito</dt><dd>{{ detalle.depositoUtc ? fechaHonduras(detalle.depositoUtc) : 'Pendiente' }}</dd></div><div><dt>Retiro confirmado</dt><dd>{{ detalle.retiradaConfirmada ? fechaHonduras(detalle.entregaUtc) : 'Retiro no confirmado' }}</dd></div></dl>
       </section>
       <template v-if="!detalle.historica && !detalle.cancelacion">
-      <details class="reserva-acordeon" :open="!detalle.condiciones?.remitenteAutorizado">
-        <summary><span>Personas y autorizaciones</span><span class="reserva-acordeon__estado">{{ detalle.condiciones?.remitenteAutorizado ? 'Comprobadas' : 'Acción pendiente' }}</span></summary>
+      <details id="personas-autorizaciones" class="reserva-acordeon" :open="!detalle.condiciones?.remitenteAutorizado || (!esPersonal && depositoConfirmado && !detalle.destinatario?.aceptaEncomienda)">
+        <summary><span>Personas y autorizaciones</span><span class="reserva-acordeon__estado">{{ detalle.condiciones?.remitenteAutorizado && (esPersonal || !depositoConfirmado || detalle.destinatario?.aceptaEncomienda) ? 'Comprobadas' : 'Acción pendiente' }}</span></summary>
         <div class="env-two-columns">
         <section
           v-for="rol in (detalle.reserva?.servicio==='Personal'?['remitente']:['remitente','destinatario'])"
           :key="rol"
+          :id="rol==='destinatario'?'destinatario-autorizacion':undefined"
           class="env-card"
         >
           <div class="env-card-heading">
@@ -357,7 +358,11 @@ onBeforeUnmount(() => {
       <section id="solicitar-pin-deposito" class="env-card reserva-pin">
         <h2>Tu PIN de depósito</h2>
         <div v-if="!depositoConfirmado" class="reserva-pin__accion" role="status">
-          <template v-if="solicitudPinRegistrada">
+          <template v-if="pinEntregado">
+            <strong>PIN de depósito entregado</strong>
+            <p>Ya recibiste el PIN por WhatsApp. Utilízalo en la terminal SYNCHRO para realizar el depósito.</p>
+          </template>
+          <template v-else-if="solicitudPinRegistrada">
             <strong>PIN solicitado</strong>
             <p>Tu solicitud está registrada. La emisión y entrega corresponden al personal autorizado de SYNCHRO.</p>
           </template>
@@ -408,7 +413,7 @@ onBeforeUnmount(() => {
           Usa tu PIN de depósito en la terminal SYNCHRO. El estado cambiará cuando el servidor confirme que la encomienda o tus pertenencias quedaron depositadas.
         </p>
       </section>
-      <details class="reserva-acordeon" :open="depositoConfirmado && !detalle.retiradaConfirmada">
+      <details id="deposito-retiro" class="reserva-acordeon" :open="depositoConfirmado && !detalle.retiradaConfirmada">
         <summary><span>Depósito y retiro</span><span class="reserva-acordeon__estado">{{ depositoConfirmado ? 'Depósito confirmado' : 'Pendiente' }}</span></summary>
       <section class="env-card reserva-acordeon__contenido">
         <h2>Depósito y retiro</h2>
@@ -495,6 +500,7 @@ onBeforeUnmount(() => {
 .reserva-acordeon__contenido{border:0;background:var(--surface-soft);box-shadow:none;padding:15px;}
 .reserva-pin{display:grid;gap:11px;}
 .reserva-pin .env-checklist{margin:0;}
+#personas-autorizaciones,#destinatario-autorizacion,#deposito-retiro{scroll-margin-top:90px;}
 .reserva-pin__accion{display:grid;justify-items:start;gap:9px;padding:14px;border:1px solid var(--border);background:var(--surface-accent);border-radius:13px;}
 .reserva-pin__accion strong{font-size:14px;color:var(--text-strong);}
 .reserva-pin__accion p{font-size:12px;line-height:1.5;color:var(--text-muted);}
