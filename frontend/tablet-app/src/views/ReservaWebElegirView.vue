@@ -1,5 +1,5 @@
 <script setup>
-import { computed,ref,onMounted } from "vue";
+import { computed,ref,onMounted,watch } from "vue";
 import { RouterLink,useRoute,useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { elegirServicioReservaWeb,obtenerEleccionReservaWeb } from "../services/reservaWebSesion.js";
@@ -9,6 +9,7 @@ const router=useRouter();
 const {oscuro}=useTema();
 const elegirTipo=computed(()=>route.path==="/guardar/reserva/tipo");
 const seleccionado=ref("");
+watch(elegirTipo,()=>{seleccionado.value="";});
 const opciones=computed(()=>elegirTipo.value?[
   {id:"Normal",nombre:"Normal",icono:"/iconos/01_guardar_depositar"},
   {id:"Refrigerado",nombre:"Frío",icono:"/iconos/07_frio"},
