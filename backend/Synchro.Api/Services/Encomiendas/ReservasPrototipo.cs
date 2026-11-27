@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using System.Text.Encodings.Web;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Services.Temporales;
@@ -33,6 +34,17 @@ internal sealed partial class EncomiendasOperativasSql
         return await q.ExecuteScalarAsync(ct) is string json?JsonSerializer.Deserialize<ReservaPrototipo>(json):null;
     }
 
+    // La tabla de tarifas por duración pertenece exclusivamente a reservas normales.
+    // Prioriza configuración operativa; las tarifas anteriores por tamaño son respaldo.
+    // En frío/calor sigue prevaleciendo la tarifa propia del compartimento SQL.
+    private decimal? TarifaReservaNormal(string tamano,int minutos)
+    {
+        var texto=config[$"ReservasPrototipo:TarifasNormales:{tamano}:{minutos}"];
+        return decimal.TryParse(texto,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out var importe)
+            && importe>0 && importe<=100000 && decimal.Round(importe,2)==importe
+            ? importe : Tarifa(tamano);
+    }
+
     private static ConfiguracionServicioTemporal? ConfiguracionCompartimento(string? json,string tipo)
     {
         if(json is null)return null;
@@ -63,8 +75,10 @@ internal sealed partial class EncomiendasOperativasSql
             var duraciones=configuracion?.Tarifas.Where(t=>t.Value>0).Select(t=>t.Key).Order().ToArray()??DuracionesPrototipo;
             if(duraciones.Length==0)continue;
             var tamano=r.GetString(2)=="Pequeño"?"Pequeno":r.GetString(2);
-            var tarifas=configuracion?.Tarifas??(Tarifa(tamano) is decimal tarifa
-                ?duraciones.ToDictionary(d=>d,_=>tarifa):null);
+            var normales=duraciones.Select(d=>(Minutos:d,Importe:TarifaReservaNormal(tamano,d)))
+                .Where(x=>x.Importe.HasValue)
+                .ToDictionary(x=>x.Minutos,x=>x.Importe!.Value);
+            var tarifas=configuracion?.Tarifas??(normales.Count>0?normales:null);
             opciones.Add(new(r.GetString(0),tipo,tamano,"prototipo",UbicacionPrototipo,duraciones,tarifas));
         }
         return new{opciones,ubicacionPendiente=string.IsNullOrWhiteSpace(config["ReservasPrototipo:Ubicacion"]),
@@ -104,8 +118,11 @@ internal sealed partial class EncomiendasOperativasSql
             var configuracion=ConfiguracionCompartimento(r.IsDBNull(2)?null:r.GetString(2),d.TipoCasillero);
             if((d.TipoCasillero!="Normal"||!r.IsDBNull(2))&&configuracion is null)continue;
             if(!(configuracion is null?DuracionesPrototipo.Contains(d.Minutos):configuracion.Tarifas.TryGetValue(d.Minutos,out var importe)&&importe>0))continue;
+            decimal? importeReserva=configuracion is null
+                ?TarifaReservaNormal(d.TamanoSolicitado,d.Minutos)
+                :configuracion.Tarifas[d.Minutos];
             return new(d.Servicio,d.TipoCasillero,r.GetString(0),"prototipo",UbicacionPrototipo,d.Minutos,
-                configuracion?.Tarifas.GetValueOrDefault(d.Minutos) is >0?configuracion.Tarifas[d.Minutos]:null,d.Pagador,d.ModalidadPago);
+                importeReserva,d.Pagador,d.ModalidadPago);
         }
         throw new OperacionEncomiendaException("SinDisponibilidad","Ya no hay un casillero compatible con esa selección. Actualiza la disponibilidad.");
     }
