@@ -31,3 +31,20 @@ test("el administrador puede entregar PIN de depósito diferido sin marcar pago 
   assert.match(vista, /v-if="enPreparacion && !pagado && !pagoDemoReserva"/);
   assert.match(vista, /El PIN de depósito se entrega antes del pago/);
 });
+
+test("la bandeja WhatsApp presenta solicitudes PIN de deposito web y pertenencias personales",()=>{
+  const wa=readFileSync(new URL("../src/views/WhatsAppView.vue",import.meta.url),"utf8");
+  const backend=readFileSync(new URL("../../../backend/Synchro.Api/Services/Encomiendas/BandejaWhatsAppPin.cs",import.meta.url),"utf8");
+  const detalle=readFileSync(new URL("../../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasSql.cs",import.meta.url),"utf8");
+  assert.match(wa,/x\.claseReserva === 'Encomienda' \|\| \(tipo === 'remitente' && x\.claseReserva === 'Personal'\)/);
+  assert.match(wa,/x\.rol === 'Titular'/);
+  assert.match(wa,/solicitudPinDeposito===true/);
+  assert.match(wa,/PIN de depósito solicitados desde la web/);
+  assert.match(wa,/atenderPinSolicitado\(item\.encomiendaId\)/);
+  assert.match(wa,/categoria\.value='remitente'/);
+  assert.match(wa,/Ya envié el PIN por WhatsApp/);
+  assert.match(backend,/a\.Accion=N'PinDepositoSolicitado'/);
+  assert.match(backend,/solicitudPinDeposito=r\.GetBoolean\(22\)/);
+  assert.match(backend,/SolicitudPinDeposito\) AS/);
+  assert.match(detalle, /!r\.IsDBNull\(6\)\?"Entregado"/);
+});
