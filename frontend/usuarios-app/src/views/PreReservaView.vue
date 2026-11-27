@@ -491,10 +491,10 @@ onMounted(cargar);
     </div>
     <footer v-if="!cargando && paso<=ultimoPaso" class="reserva-paso__navegacion">
       <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
-      <button v-if="paso<7" type="button" class="boton boton-primario"
+      <button v-if="paso<7" type="button" class="boton boton-primario reserva-paso__continuar"
         :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible)"
         @click="continuar">
-        {{ paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}
+        <span class="reserva-paso__continuar-texto">{{ paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
         <IconoTablet nombre="continuar" :tamano="21" />
       </button>
       <SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear">
@@ -1107,4 +1107,32 @@ onMounted(cargar);
   border-color:#00b9c7;
 }
 
+
+/* Navegación uniforme: el texto Revisar reserva mantiene la proporción de Continuar. */
+.env-page--asistente > .reserva-paso__navegacion .reserva-paso__continuar {
+  min-width:clamp(160px,18vw,210px);
+  min-height:54px;
+  justify-content:center;
+  gap:8px;
+  padding:10px clamp(12px,1.4vw,20px);
+  line-height:1.2;
+}
+.reserva-paso__continuar-texto {white-space:nowrap;min-width:0;}
+.env-page--asistente > .reserva-paso__navegacion .reserva-paso__continuar :deep(.icono-tablet) {
+  width:21px!important;
+  height:21px!important;
+  flex:0 0 21px;
+}
+@media(max-width:390px){
+ .env-page--asistente > .reserva-paso__navegacion .reserva-paso__continuar {
+   min-width:0;
+   flex:1 1 auto;
+   padding-inline:8px;
+   font-size:clamp(11px,3.6vw,14px);
+ }
+ .env-page--asistente > .reserva-paso__navegacion > .boton-secundario {
+   flex:0 0 auto;
+   padding-inline:12px;
+ }
+}
 </style>
