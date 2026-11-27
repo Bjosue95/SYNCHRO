@@ -9,7 +9,8 @@ test('la reserva distingue la autorizacion del remitente y la del destinatario',
   const reserva = leer('PreReservaView');
   assert.match(reserva, /normalizarTelefono\(telefono\.value\)/);
   assert.match(reserva, /La autorización de retiro del destinatario se gestiona después de confirmar el depósito/);
-  assert.match(reserva, /La solicitud quedará pendiente de confirmación administrativa/);
+  assert.match(reserva, /Al continuar, podrás consultar el estado de tu solicitud/);
+  assert.match(reserva, /await router\.replace\('\/reservas\/'\+d\.id\+'\/pago-pendiente'\)/);
   assert.match(reserva, /Number\.isSafeInteger\(Number\(d\?\.id\)\)/);
   assert.doesNotMatch(reserva, /No se comparan rostros ni necesitas registrar uno en la web/);
 });
@@ -69,7 +70,8 @@ test('detalle de reserva usa opciones de ubicación y duración, teléfono y nav
   assert.match(vista, /@submit\.prevent="revisar"/);
   assert.match(vista, /\(paso===4 && !disponible\)/);
   assert.doesNotMatch(vista, /@click="volverATamanos"/);
-  assert.match(vista, /'Revisa tu reserva' : 'Selecciona cómo pagar'/);
+  assert.match(vista, /<h2>Revisa tu reserva<\/h2>/);
+  assert.match(vista, /<h3>¿Cómo deseas realizar el pago\?<\/h3>/);
   assert.doesNotMatch(vista, /<select v-model="minutos"/);
   assert.doesNotMatch(vista, /<select v-model="ubicacion"/);
   for(const nombre of ['ubicacion','tiempo','whatsapp','volver','continuar']) {
@@ -107,7 +109,8 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.match(vista, /pagador==='Destinatario'/);
   assert.match(vista, /4242 4242 4242 4242/);
   assert.match(vista, /12\/30/);
-  assert.match(vista, /12\/30 y 123/);
+  assert.match(vista, /venceTarjetaPrueba\.value\.replace\(\/\\s\/g,''\)==='12\/30'/);
+  assert.match(vista, /codigoTarjetaPrueba\.value\.trim\(\)==='123'/);
   assert.match(vista, /limpiarTarjetaPrueba\(\)/);
   assert.match(api, /pagador:/);
   assert.match(api, /modalidadPago:/);
