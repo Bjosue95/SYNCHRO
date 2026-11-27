@@ -18,6 +18,8 @@ public sealed record RetiroManualPinSolicitud(string? Pin, string? TokenFacial)
 }
 
 internal sealed record RetiroV3Solicitud(double[]? Descriptor);
+internal sealed record ConfirmarRetiroWebSolicitud(string? AutorizacionRetiro,bool RetiroComprobado)
+{ public override string ToString()=>"Confirmación de retiro web protegida"; }
 
 // SOLO prototipo en Development + SynchroDB_Pruebas + modulo manual habilitado.
 // Human.js detecta/captura; este servidor compara PATRONES VISUALES SIMULADOS.
@@ -520,7 +522,7 @@ internal static class RetiroFacialManualEndpoints
             }
         });
         // SYNCHRO-COBRO-POSTERIOR-PREVALIDAR-V1
-        // Presencial: prepara cobro sin finalizar. Reserva web ya pagada: confirma el retiro.
+        // Presencial: prepara cobro. Reserva web ya pagada: autoriza sin liberar el casillero.
         grupo.MapPost("/pin/prevalidar", async (
             RetiroManualPinSolicitud solicitud,
             HttpContext http,
@@ -652,7 +654,7 @@ internal static class RetiroFacialManualEndpoints
                 }
 
                 var servicioWeb=http.RequestServices.GetService<EncomiendasOperativasSql>();
-                var retiroWeb=servicioWeb is null?null:await servicioWeb.IntentarRetirarPersonalWeb(candidatos,solicitud.Pin,coincidenciasPin.Count>0,http.RequestAborted);
+                var retiroWeb=servicioWeb is null?null:await servicioWeb.AutorizarRetiroPersonalWeb(candidatos,solicitud.Pin,coincidenciasPin.Count>0,http.RequestAborted);
                 if(retiroWeb is not null){Interlocked.Exchange(ref control.Consumido,1);return Results.Ok(retiroWeb);}
                 // No adivinar a que operacion corresponde el PIN.
                 if (coincidenciasPin.Count > 1)
@@ -874,7 +876,7 @@ internal static class RetiroFacialManualEndpoints
                     }
                 }
                 var servicioWeb=http.RequestServices.GetService<EncomiendasOperativasSql>();
-                var retiroWeb=servicioWeb is null?null:await servicioWeb.IntentarRetirarPersonalWeb(candidatos,solicitud.Pin,usoElegido.HasValue,http.RequestAborted);
+                var retiroWeb=servicioWeb is null?null:await servicioWeb.AutorizarRetiroPersonalWeb(candidatos,solicitud.Pin,usoElegido.HasValue,http.RequestAborted);
                 if(retiroWeb is not null){Interlocked.Exchange(ref control.Consumido,1);return Results.Ok(retiroWeb);}
                 if (!usoElegido.HasValue)
                 {
@@ -987,6 +989,16 @@ internal static class RetiroFacialManualEndpoints
                 if (salt is not null) CryptographicOperations.ZeroMemory(salt);
                 if (calculado is not null) CryptographicOperations.ZeroMemory(calculado);
             }
+        });
+        grupo.MapPost("/reserva/confirmar",async (ConfirmarRetiroWebSolicitud datos,HttpContext http,
+            IAntiforgery csrf,EncomiendasOperativasSql servicio) =>
+        {
+            http.Response.Headers.CacheControl="no-store";
+            if(!http.Request.IsHttps||!await csrf.IsRequestValidAsync(http))return Results.StatusCode(403);
+            try {return Results.Ok(await servicio.ConfirmarRetiroPersonalWeb(datos.AutorizacionRetiro,datos.RetiroComprobado,http.RequestAborted));}
+            catch(OperacionEncomiendaException ex){return Results.Json(new{mensaje=ex.Message,codigo=ex.Codigo},statusCode:ex.Estado);}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo confirmar el retiro. Reintenta la confirmación.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"Confirmación de retiro no disponible.");}
         });
     }
 }

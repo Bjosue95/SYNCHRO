@@ -92,6 +92,7 @@ export async function confirmarRetiroFacialConPin(pin, tokenFacial) {
     body: JSON.stringify({ pin, tokenFacial }),
   });
   const datos = await respuestaSegura(respuesta);
+  if(esRetiroWebAutorizado(datos))return datos;
   if (datos?.retiroConfirmado !== true) {
     throw new Error("El servidor no confirmo el retiro.");
   }
@@ -123,7 +124,7 @@ export async function prevalidarRetiroFacialConPin(pin, tokenFacial) {
 
   const datos = await respuestaSegura(respuesta);
 
-  if(datos?.retiroConfirmado===true && datos?.origenReserva==="Web" && datos?.pagoConfirmado===true && datos?.estadoCasillero==="Disponible")return datos;
+  if(esRetiroWebAutorizado(datos))return datos;
   if (datos?.pinValidado !== true ||
       datos?.pagoPendiente !== true ||
       datos?.retiroConfirmado !== false ||
@@ -285,5 +286,24 @@ export async function consultarEstadoCobroRetiroPersonal(autorizacionPago) {
     throw new Error("Estado de pago invalido.");
   }
 
+  return datos;
+}
+export function esRetiroWebAutorizado(datos) {
+  return datos?.retiroAutorizado===true && datos?.retiroConfirmado===false &&
+    datos?.origenReserva==="Web" && datos?.pagoConfirmado===true && datos?.estadoCasillero==="Ocupado" &&
+    typeof datos?.autorizacionRetiro==="string" && datos.autorizacionRetiro.length>=32 &&
+    /^[A-Za-z0-9-]{1,10}$/.test(datos.codigoCasillero||"");
+}
+export async function finalizarRetiroReservaPersonal(autorizacionRetiro) {
+  if(typeof autorizacionRetiro!=="string"||autorizacionRetiro.length<32)throw new Error("Falta autorización de retiro.");
+  const csrfToken=await solicitarCsrf();
+  const respuesta=await fetch("/api/terminales/guardar/whatsapp/retiro/reserva/confirmar",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json","X-CSRF-TOKEN":csrfToken},
+    body:JSON.stringify({autorizacionRetiro,retiroComprobado:true})
+  });
+  const datos=await respuestaSegura(respuesta);
+  if(datos?.retiroConfirmado!==true||datos?.origenReserva!=="Web"||datos?.estadoCasillero!=="Disponible")
+    throw new Error("El servidor no confirmó el retiro.");
   return datos;
 }

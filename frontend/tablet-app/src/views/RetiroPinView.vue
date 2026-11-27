@@ -12,7 +12,8 @@ import {
 import {
   obtenerRetiro,
   limpiarRetiro,
-  registrarOrdenRetiroPagado
+  registrarOrdenRetiroPagado,
+  registrarRetiroReservaPersonal
 } from "../services/retiroSesion";
 
 const router = useRouter();
@@ -179,10 +180,9 @@ async function verificar() {
           tokenFacial
         );
 
-        if(respuesta?.retiroConfirmado===true && respuesta?.origenReserva==="Web"){
-          terminado.value=true;
-          limpiarRetiro();
-          mensaje.value=`Retiro registrado correctamente. Casillero: ${respuesta.codigoCasillero}.`;
+        if(respuesta?.retiroAutorizado===true && respuesta?.origenReserva==="Web"){
+          registrarRetiroReservaPersonal(respuesta);
+          await router.replace("/retirar/reserva/recoger");
           return;
         }
         if (
@@ -233,6 +233,11 @@ async function verificar() {
       tokenFacial
     );
 
+    if(resultado?.retiroAutorizado===true && resultado?.origenReserva==="Web"){
+      registrarRetiroReservaPersonal(resultado);
+      await router.replace("/retirar/reserva/recoger");
+      return;
+    }
     terminado.value = true;
     limpiarRetiro();
 

@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import {
   prevalidarRetiroFacialConPin,
   prepararCobroRetiroPersonal,
-  finalizarRetiroPersonalPagado
+  finalizarRetiroPersonalPagado,
+  finalizarRetiroReservaPersonal
 } from "../src/services/retiroFacialManualApi.js";
 
 import {
@@ -167,8 +168,14 @@ test("Sesion de cobro permanece solo en memoria", () => {
   assert.equal(obtenerOrdenRetiroPagado(), null);
   assert.equal(obtenerRetiro().autorizacionFacial, null);
 });
-test("reserva web pagada usa el mismo teclado sin crear un segundo cobro", async () => {
-  const simulacion=simularFetch({pinValidado:true,retiroConfirmado:true,origenReserva:"Web",pagoConfirmado:true,pagoPendiente:false,codigoCasillero:"M03",estadoCasillero:"Disponible"});
-  try {const resultado=await prevalidarRetiroFacialConPin("123456","token-facial-de-pruebas");assert.equal(resultado.retiroConfirmado,true);assert.equal(resultado.pagoPendiente,false);assert.equal(simulacion.llamadas.length,2);}
+test("reserva web pagada autoriza sin liberar hasta confirmar", async () => {
+  const autorizacionRetiro="a".repeat(64);
+  const simulacion=simularFetch({pinValidado:true,retiroAutorizado:true,retiroConfirmado:false,origenReserva:"Web",pagoConfirmado:true,pagoPendiente:false,codigoCasillero:"M03",estadoCasillero:"Ocupado",autorizacionRetiro});
+  try {const resultado=await prevalidarRetiroFacialConPin("123456","token-facial-de-pruebas");assert.equal(resultado.retiroConfirmado,false);assert.equal(resultado.estadoCasillero,"Ocupado");assert.equal(simulacion.llamadas.length,2);}
   finally {simulacion.restaurar();}
+  const cierre=simularFetch({retiroConfirmado:true,codigoCasillero:"M03",estadoCasillero:"Disponible",origenReserva:"Web"});
+  try {assert.equal((await finalizarRetiroReservaPersonal(autorizacionRetiro)).retiroConfirmado,true);
+    assert.equal(cierre.llamadas[1].url,"/api/terminales/guardar/whatsapp/retiro/reserva/confirmar");
+    assert.deepEqual(JSON.parse(cierre.llamadas[1].opciones.body),{autorizacionRetiro,retiroComprobado:true});}
+  finally {cierre.restaurar();}
 });

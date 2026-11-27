@@ -2,6 +2,8 @@
 let autorizacionFacial =
   import.meta.hot?.data?.autorizacionFacial ?? null;
 
+let retiroReservaPersonal = null;
+
 // SYNCHRO-TABLET-RETIRO-PAGADO-V1
 let ordenRetiroPagado =
   import.meta.hot?.data?.ordenRetiroPagado ?? null;
@@ -21,6 +23,7 @@ if (import.meta.hot) {
 
 export function iniciarRetiro() {
   autorizacionFacial = null;
+  retiroReservaPersonal = null;
   ordenRetiroPagado = null;
   metodoPagoRetiro = null;
 }
@@ -38,6 +41,7 @@ export function obtenerRetiro() {
 
 export function limpiarRetiro() {
   autorizacionFacial = null;
+  retiroReservaPersonal = null;
   ordenRetiroPagado = null;
   metodoPagoRetiro = null;
 }
@@ -91,3 +95,14 @@ export function registrarMetodoPagoRetiro(metodo) {
 export function obtenerMetodoPagoRetiro() {
   return metodoPagoRetiro;
 }
+export function registrarRetiroReservaPersonal(datos) {
+  if(datos?.retiroAutorizado!==true||datos?.retiroConfirmado!==false||
+    datos?.origenReserva!=="Web"||datos?.pagoConfirmado!==true||
+    typeof datos.autorizacionRetiro!=="string"||datos.autorizacionRetiro.length<32||
+    !/^[A-Za-z0-9-]{1,10}$/.test(datos.codigoCasillero||""))
+    throw new Error("Autorización de retiro inválida.");
+  limpiarRetiro();
+  retiroReservaPersonal=Object.freeze({codigoCasillero:datos.codigoCasillero,
+    autorizacionRetiro:datos.autorizacionRetiro,vence:Date.now()+Math.min(600,Math.max(1,Number(datos.vigenciaSegundos)||600))*1000});
+}
+export function obtenerRetiroReservaPersonal(){return retiroReservaPersonal;}

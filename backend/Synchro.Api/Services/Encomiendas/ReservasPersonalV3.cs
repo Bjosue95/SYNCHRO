@@ -47,8 +47,11 @@ internal sealed partial class EncomiendasOperativasSql
         }
     }
 
+    private const string ContextoRetiroWeb = "SYNCHRO.ReservaPersonal.ConfirmarRetiro.v1";
+    private sealed record PermisoRetiroWeb(int ReservaId,int UsoId,Guid PinId,string Casillero);
+
     // Solo se invoca con los candidatos del token facial validado por el servidor.
-    internal async Task<object?> IntentarRetirarPersonalWeb(int[] usos,string pin,bool coincidePresencial,CancellationToken ct)
+    internal async Task<object?> AutorizarRetiroPersonalWeb(int[] usos,string pin,bool coincidePresencial,CancellationToken ct)
     {
         if(!config.GetValue<bool>("EncomiendasOperacion:Habilitado")||!config.GetValue<bool>("RostroV3:RetiroHabilitado"))return null;
         Exigir(pin is {Length:6}&&pin.All(char.IsAsciiDigit),"PinInvalido","No se pudo autorizar el retiro.",400);
@@ -119,6 +122,59 @@ internal sealed partial class EncomiendasOperativasSql
               AND u.Estado=N'Ocupado' AND u.FechaRetiro IS NULL AND v.Modelo=@modelo;
             """,("@uso",op.UsoId),("@terminal",op.TerminalId),("@version",VersionFacialPersonalWeb),("@modelo",DescriptorFacialV3.Modelo)))
             codigo=(string?)await q.ExecuteScalarAsync(ct)??throw new OperacionEncomiendaException("RostroV3Requerido","No existe un registro facial V3 vigente para esta reserva.",403);
+        var permiso=new PermisoRetiroWeb(idReserva,op.UsoId!.Value,pinId,codigo);
+        string autorizacion=proteccion.CreateProtector(ContextoRetiroWeb).ToTimeLimitedDataProtector()
+            .Protect(JsonSerializer.Serialize(permiso),TimeSpan.FromMinutes(10));
+        await Auditar(c,tx,idReserva,op.RemitenteId,"Terminal",op.TerminalId!.Value,"RetiroPersonalAutorizado","Depositada",
+            "Rostro V3 y PIN comprobados. Pendiente confirmación de retiro.",ct,pinId);
+        await tx.CommitAsync(ct);
+        return new { retiroAutorizado=true,retiroConfirmado=false,pagoPendiente=false,pagoConfirmado=true,pinValidado=true,
+            codigoCasillero=codigo,estadoCasillero="Ocupado",origenReserva="Web",autorizacionRetiro=autorizacion,
+            vigenciaSegundos=600,hardwareSimulado=true };
+    }
+
+    internal async Task<object> ConfirmarRetiroPersonalWeb(string? autorizacion,bool retiroComprobado,CancellationToken ct)
+    {
+        Exigir(config.GetValue<bool>("EncomiendasOperacion:Habilitado")&&config.GetValue<bool>("RostroV3:RetiroHabilitado"),
+            "RetiroNoDisponible","Retiro no disponible.",403);
+        Exigir(retiroComprobado,"RetiroNoComprobado","Confirma que retiraste tus pertenencias.",400);
+        Exigir(autorizacion is {Length:>=32 and <=4096},"AutorizacionInvalida","Repite la verificación facial y el PIN.",403);
+        PermisoRetiroWeb permiso;
+        try {
+            var texto=proteccion.CreateProtector(ContextoRetiroWeb).ToTimeLimitedDataProtector().Unprotect(autorizacion!);
+            permiso=JsonSerializer.Deserialize<PermisoRetiroWeb>(texto)??throw new JsonException();
+        } catch(Exception ex) when(ex is CryptographicException or JsonException or FormatException) {
+            throw new OperacionEncomiendaException("AutorizacionVencida","La autorización venció o no es válida. Repite la verificación facial y el PIN.",403);
+        }
+        int idReserva=permiso.ReservaId;
+        Guid pinId=permiso.PinId;
+        string codigo=permiso.Casillero;
+        await using var c=await Abrir(ct);
+        await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);
+        var op=await Leer(c,tx,idReserva,null,ct);
+        Exigir(op.UsoId==permiso.UsoId&&op.TerminalId.HasValue&&op.Pago=="ConfirmadoManual"&&op.RemitenteId==op.DestinatarioId&&
+            (await LeerReserva(c,tx,idReserva,ct))?.Servicio=="Personal","RetiroNoDisponible","La reserva no permite este retiro.",403);
+        if(op.Estado=="Retirada") {
+            await using var anterior=Comando(c,tx,"SELECT COUNT(*) FROM dbo.AuditoriaEncomiendaOperativa WHERE ReservaId=@id AND Accion=N'EntregaConfirmada' AND PinId=@pin",("@id",idReserva),("@pin",pinId));
+            Exigir(Convert.ToInt32(await anterior.ExecuteScalarAsync(ct))==1,"RetiroNoDisponible","La operación ya fue cerrada.",409);
+            await tx.CommitAsync(ct);
+            return new { retiroConfirmado=true,codigoCasillero=codigo,estadoCasillero="Disponible",origenReserva="Web",idempotente=true };
+        }
+        Exigir(op.Estado=="Depositada","RetiroNoDisponible","La reserva no está depositada.",409);
+        await using(var q=Comando(c,tx,"""
+            SELECT COUNT(*) FROM dbo.PinesEncomiendaOperativa p WITH(UPDLOCK,HOLDLOCK)
+            JOIN dbo.UsosCasillero u WITH(UPDLOCK,HOLDLOCK) ON u.Id=@uso
+            JOIN dbo.RostrosRetiroPersonalV3 v ON v.UsoId=u.Id AND v.Modelo=@modelo
+            JOIN dbo.ConsentimientosRostroPersonalV3 cv ON cv.UsoId=u.Id AND cv.VersionTexto=@version
+            JOIN dbo.Terminales t ON t.Id=@terminal AND t.Activa=1
+            WHERE p.Id=@pin AND p.ReservaId=@id AND p.Finalidad=N'Deposito'
+              AND p.Activo=1 AND p.ConsumidoUtc IS NULL AND p.RevocadoUtc IS NULL
+              AND p.EntregadoUtc IS NOT NULL AND p.IntentosFallidos<5
+              AND u.Estado=N'Ocupado' AND u.FechaRetiro IS NULL AND u.CodigoCasillero=@codigo
+              AND u.OrigenReserva=N'Web' AND u.TipoServicio=N'ResguardoPersonal';
+            """,("@pin",pinId),("@id",idReserva),("@uso",permiso.UsoId),("@codigo",codigo),("@terminal",op.TerminalId),
+              ("@modelo",DescriptorFacialV3.Modelo),("@version",VersionFacialPersonalWeb)))
+            Exigir(Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1,"RetiroNoDisponible","La autorización ya no corresponde a una reserva activa.",403);
         await using(var q=Comando(c,tx,"""
             UPDATE dbo.Casilleros SET Estado=N'Disponible' WHERE Codigo=@codigo AND Estado=N'Ocupado'
               AND NOT EXISTS(SELECT 1 FROM dbo.UsosCasillero WITH(UPDLOCK,HOLDLOCK)
@@ -136,7 +192,6 @@ internal sealed partial class EncomiendasOperativasSql
         await Auditar(c,tx,idReserva,op.RemitenteId,"Terminal",op.TerminalId!.Value,"EntregaConfirmada","Retirada",
             "Retiro web con coincidencia V3 y PIN original; pago previo. Referencia V3 eliminada.",ct,pinId);
         await tx.CommitAsync(ct);
-        return new { retiroConfirmado=true,pagoPendiente=false,pagoConfirmado=true,pinValidado=true,
-            codigoCasillero=codigo,estadoCasillero="Disponible",origenReserva="Web",hardwareSimulado=true };
+        return new { retiroConfirmado=true,codigoCasillero=codigo,estadoCasillero="Disponible",origenReserva="Web",hardwareSimulado=true };
     }
 }
