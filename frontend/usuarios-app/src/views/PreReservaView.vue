@@ -826,11 +826,11 @@ onMounted(cargar);
 .reserva-vista .reserva-opciones.reserva-tres {
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  grid-auto-rows:minmax(0,1fr);
+  grid-auto-rows:auto;
   gap:clamp(8px,1.4vw,14px);
   width:100%;
-  flex:1 1 auto;
-  align-content:stretch;
+  flex:0 0 auto;
+  align-content:start;
 }
 /* Tres opciones ocupan tres celdas: la cuarta queda libre para conservar la proporción. */
 .reserva-vista .reserva-opciones > :last-child:nth-child(odd):not(:first-child) {
@@ -843,11 +843,11 @@ onMounted(cargar);
   width:min(100%,clamp(190px,45vw,330px));
   max-width:100%;
 }
-.reserva-vista .reserva-opciones :deep(.seleccion-reserva) {
-  height:100%;
-  min-height:clamp(130px,19dvh,195px);
+ .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {
+  height:clamp(155px,24dvh,205px);
+  min-height:0;
   display:grid;
-  grid-template-rows:minmax(33px,auto) auto minmax(18px,1fr) auto auto;
+  grid-template-rows:43px minmax(28px,auto) minmax(27px,1fr) auto auto;
   align-content:center;
   gap:clamp(2px,.8vh,7px);
   padding:clamp(9px,1.5vh,17px);
@@ -868,7 +868,10 @@ onMounted(cargar);
   font-size:11px;white-space:normal;
 }
 .reserva-vista > .env-card:has(.reserva-opciones) {
+  flex:0 0 auto;
   justify-content:flex-start;
+  align-content:start;
+  min-height:0;
 }
 .reserva-pasos {
   display:grid;
@@ -915,12 +918,12 @@ onMounted(cargar);
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
   }
-  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {min-height:clamp(110px,17dvh,175px);padding:8px 9px;}
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:clamp(145px,23dvh,190px);min-height:0;padding:8px 9px;}
   .reserva-vista .reserva-opciones :deep(.seleccion-reserva__icono) {width:42px;height:39px;}
   .reserva-vista .reserva-opciones :deep(.icono-tablet) {max-width:43px;max-height:43px;}
 }
 @media(max-height:580px) {
-  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {min-height:105px;}
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:135px;min-height:0;}
 }
 @media(prefers-reduced-motion:reduce) {
   .reserva-pasos__barra span {transition:none;}
