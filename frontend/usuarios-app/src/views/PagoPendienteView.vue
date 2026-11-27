@@ -34,7 +34,7 @@ async function consultar(){
     error.value='';
     if(d.pago?.estado==='ConfirmadoManual'||d.condiciones?.pagoConfirmado){
       clearInterval(reloj);
-      await router.replace('/reservas/'+id);
+      await router.replace('/bienvenida');
     }else if(d.reserva?.modalidadPago!=='WebTarjeta'||terminada.value){
       clearInterval(reloj);
     }
