@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { identificarDepositoReservaWeb } from "../services/reservasWebTerminalApi.js";
-import { iniciarReservaWebDeposito } from "../services/reservaWebSesion.js";
+import { iniciarReservaWebDeposito,hayFotoReservaWeb,obtenerEleccionReservaWeb } from "../services/reservaWebSesion.js";
 import {
   confirmarRetiroFacialConPin,
   prevalidarRetiroFacialConPin,
@@ -120,7 +120,7 @@ async function verificar() {
       }
 
       iniciarReservaWebDeposito(resultado, pin.value);
-      await router.push("/guardar/reserva/captura");
+      await router.replace("/guardar/reserva/deposito");
     } catch (error) {
       mensaje.value = error instanceof Error
         ? error.message
@@ -273,6 +273,10 @@ onMounted(() => {
   window.addEventListener("resize", actualizarAltoCabecera);
 
   if (import.meta.env.DEV && propsVistaPrevia.modoVistaPrevia) return;
+  if (propsVistaPrevia.modoReserva && (!hayFotoReservaWeb()||!obtenerEleccionReservaWeb())) {
+    router.replace("/guardar/reserva");
+    return;
+  }
   if (!propsVistaPrevia.modoReserva && !obtenerRetiro().capturaHecha) {
     router.replace("/retirar/rostro");
     return;
@@ -301,7 +305,7 @@ onBeforeUnmount(() => {
     <section class="pin-contenido">
 
       <header ref="encabezadoRef" class="pin-encabezado">
-        <h1>{{ terminado ? (propsVistaPrevia.modoReserva ? "Reserva localizada" : "Retiro completado") : (propsVistaPrevia.modoReserva ? "PIN de depósito" : "Introduce tu PIN") }}</h1>
+        <h1>{{ terminado ? (propsVistaPrevia.modoReserva ? "Reserva localizada" : "Retiro completado") : (propsVistaPrevia.modoReserva ? "Verifica tu PIN de depósito" : "Introduce tu PIN") }}</h1>
         <p v-if="!terminado">
           Ingresa los 6 d&iacute;gitos.
         </p>
