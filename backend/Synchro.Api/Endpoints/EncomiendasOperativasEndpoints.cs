@@ -92,21 +92,49 @@ public static class EncomiendasOperativasEndpoints
             Consentimiento(h);return s.CapturarDestinatario(id,Identidad(h),d,h.RequestAborted);
         }));
         terminal.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.Retirar(id,Identidad(h),d,h.RequestAborted)));
-        var prototipo=app.MapGroup("/api/terminales/reservas").RequireAuthorization("SoloTerminal")
+        // Reservas del prototipo: acceso desde cualquier tablet en modo de
+        // pruebas aisladas. PIN, CSRF, consentimiento y tarifas se validan igual.
+        // Las rutas operativas restantes conservan SoloTerminal sin cambios.
+        var libre=app.Configuration.GetValue<bool>("ReservasPrototipo:AccesoLibrePruebas");
+        var prototipo=app.MapGroup("/api/terminales/reservas")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
+        if(!libre)prototipo.RequireAuthorization("SoloTerminal");
+
         prototipo.MapGet("/csrf-token",(HttpContext h,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(h).RequestToken}));
-        prototipo.MapGet("/estacion",(HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.EstadoTerminalDeReservas(Identidad(h),h.RequestAborted)));
-        prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.DepositarDemostrativo(id,Identidad(h),d,h.RequestAborted);}));
-        prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaDeposito(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
-        prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapGet("/estacion",(HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.EstadoTerminalDeReservas(terminal,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>{Consentimiento(h);return s.DepositarDemostrativo(id,terminal,d,h.RequestAborted);},libre));
+        prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.IdentificarParaDeposito(d.Pin,terminal,h.RequestAborted),libre))
+            .RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.IdentificarParaRetiro(d.Pin,terminal,h.RequestAborted),libre))
+            .RequireRateLimiting("IdentificarRetiroEncomienda");
         prototipo.MapGet("/{id:int}/pago/estado",(int id,HttpContext h,EncomiendasOperativasSql s)=>
-            Terminal(h,s,()=>s.EstadoPagoReservaTablet(id,Identidad(h),h.RequestAborted)));
+            ReservaPrototipo(h,s,terminal=>s.EstadoPagoReservaTablet(id,terminal,h.RequestAborted),libre));
         prototipo.MapPost("/{id:int}/pago/solicitar",(int id,SolicitudPagoReservaTablet d,
             HttpContext h,EncomiendasOperativasSql s)=>
-            Terminal(h,s,()=>s.SolicitarPagoReservaTablet(id,Identidad(h),d,h.RequestAborted)));
-        prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.CapturarDestinatario(id,Identidad(h),d,h.RequestAborted);}));
-        prototipo.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.Retirar(id,Identidad(h),d,h.RequestAborted)));
+            ReservaPrototipo(h,s,terminal=>s.SolicitarPagoReservaTablet(id,terminal,d,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>{Consentimiento(h);return s.CapturarDestinatario(id,terminal,d,h.RequestAborted);},libre));
+        prototipo.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.Retirar(id,terminal,d,h.RequestAborted),libre));
     }
+    // La sesión del navegador no determina a qué estación pertenece una
+    // reserva simulada. El servidor resuelve un ID estable dentro de SQL pruebas.
+    private static Task<IResult> ReservaPrototipo(HttpContext h,EncomiendasOperativasSql s,
+        Func<int,Task<object>> accion,bool libre)=>Ejecutar(async()=>{
+        if(libre)
+        {
+            var interna=await s.TerminalInternaReservasPruebas(h.RequestAborted);
+            return await accion(interna);
+        }
+        var terminal=Identidad(h);
+        await s.ValidarTerminal(terminal,h.RequestAborted);
+        return await accion(terminal);
+    },h);
+
     private static int Identidad(HttpContext h)=>int.TryParse(h.User.FindFirstValue(ClaimTypes.NameIdentifier),out int id)&&id>0?id:throw new OperacionEncomiendaException("SesionRequerida","Sesión requerida.",401);
     private static void Consentimiento(HttpContext h)
     {if(h.Request.Headers["X-SYNCHRO-CONSENTIMIENTO"]!="ACEPTO")throw new OperacionEncomiendaException("ConsentimientoRequerido","Debes declarar el consentimiento informado de captura.",400);}
