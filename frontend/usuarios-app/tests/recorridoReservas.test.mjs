@@ -107,7 +107,7 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.match(vista, /pagador==='Destinatario'/);
   assert.match(vista, /4242 4242 4242 4242/);
   assert.match(vista, /12\/30/);
-  assert.match(vista, /Usa 123/);
+  assert.match(vista, /12\/30 y 123/);
   assert.match(vista, /limpiarTarjetaPrueba\(\)/);
   assert.match(api, /pagador:/);
   assert.match(api, /modalidadPago:/);
@@ -115,7 +115,7 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.doesNotMatch(vista, /localStorage|sessionStorage/);
   assert.doesNotMatch(vista, /Volver a tamaños/);
   assert.match(vista, /El pago presencial se realizará mediante el proceso habitual de la tablet/);
-  assert.match(vista, /\? 'Confirmar pago' : 'Confirmar reserva'/);
+  assert.match(vista, /Confirmar solicitud de pago/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
 });
 
@@ -142,20 +142,20 @@ test('el detalle no ofrece la autorizacion del destinatario antes del deposito',
 
 test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos bancarios', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /<div v-if="paso===7" class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
+  assert.match(vista, /<section v-if="paso===7" class="env-card reserva-pago__eleccion">/);
   assert.match(vista, /pagador:pagador\.value==='Remitente'\?'Remitente'/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
-  assert.match(vista, /@click="usarDatosPrueba"/);
+  assert.match(vista, /@click="pagador=\'Remitente\';paso=8"/);
   assert.match(vista, /v-if="pagoError"/);
   assert.doesNotMatch(vista, /servicio==='Encomienda'&&pagador==='Remitente'&&!tarjetaPruebaValida/);
 });
 
 test('el pago muestra instrucciones y permite confirmar para ver errores', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /function usarDatosPrueba\(\)/);
-  assert.match(vista, /@click="usarDatosPrueba"/);
+  assert.doesNotMatch(vista, /function usarDatosPrueba\(\)/);
+  assert.match(vista, /@click="pagador=\'Remitente\';paso=8"/);
   assert.match(vista, /<SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear"/);
-  assert.match(vista, /pagoError\.value='Los valores no coinciden/);
+  assert.match(vista, /pagoError\.value='Introduce un titular ficticio/);
 });
 
 test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', () => {
@@ -169,12 +169,12 @@ test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', 
 
 test('reserva en pasos adaptables conserva selecciones y espera aprobacion del pago', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /const pasosReserva=\['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Pago'\]/);
+  assert.match(vista, /const pasosReserva=\['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Forma de pago','Tarjeta'\]/);
   assert.match(vista, /v-if="paso===0"/);
   assert.match(vista, /v-if="paso===1"/);
   assert.match(vista, /v-if="paso===2 && porTipo.length"/);
-  assert.match(vista, /v-if="paso===6 \|\| paso===7"/);
-  assert.match(vista, /v-if="paso===8 && reservaEnEspera!==null"/);
+  assert.match(vista, /v-if="paso===6" class="env-card reserva-revision/);
+  assert.match(vista, /v-if="paso===9 && reservaEnEspera!==null"/);
   assert.match(vista, /intervaloPago=setInterval/);
   assert.match(vista, /d\.pago\?\.estado==='ConfirmadoManual'/);
   assert.match(vista, /await router\.replace\('\/reservas\/'\+id\)/);
@@ -321,10 +321,25 @@ test('revisar reserva comparte el estilo del boton continuar sin desbordarse', (
 test('resumen sin subtitulo redundante y ajustado a una pantalla movil', () => {
   const vista=leer('PreReservaView');
   assert.doesNotMatch(vista,/REVISIÓN DE LA RESERVA/);
-  assert.match(vista,/:class="\{'reserva-revision--resumen':paso===6\}"/);
+  assert.match(vista, /class="env-card reserva-revision reserva-revision--resumen"/);
   assert.match(vista,/class="reserva-revision__ubicacion"/);
   assert.match(vista,/\.reserva-revision--resumen \.reserva-revision__ubicacion \{grid-column:1\/-1;\}/);
-  assert.match(vista,/v-else-if="paso===7" class="reserva-revision__tarifa-aviso"/);
+  assert.match(vista, /v-if="paso===7" class="env-card reserva-pago__eleccion"/);
   assert.doesNotMatch(vista,/Importe de la reserva: <strong>/);
   assert.match(vista,/\.reserva-vista > \.reserva-revision--resumen \{\s*flex:0 0 auto;/);
+});
+
+test('el pago web usa pantalla independiente con titular y sin autocompletado', () => {
+  const vista=leer('PreReservaView');
+  const api=vista.slice(vista.indexOf('encomiendasApi.reservar({'),vista.indexOf('});',vista.indexOf('encomiendasApi.reservar({')));
+  assert.match(vista,/v-if="paso===6" class="env-card reserva-revision/);
+  assert.match(vista,/v-if="paso===7" class="env-card reserva-pago__eleccion"/);
+  assert.match(vista,/v-if="paso===8 && pagador==='Remitente'"/);
+  assert.match(vista,/@click="pagador='Remitente';paso=8"/);
+  assert.match(vista,/const titularTarjeta=ref\(''\)/);
+  assert.match(vista,/v-model="titularTarjeta"/);
+  assert.match(vista,/titularTarjeta\.trim\(\) \|\| 'CLIENTE SYNCHRO'/);
+  assert.match(vista,/paso\.value=9/);
+  assert.doesNotMatch(vista,/Usar datos de prueba/);
+  assert.doesNotMatch(api,/titularTarjeta|numeroTarjetaPrueba|venceTarjetaPrueba|codigoTarjetaPrueba/);
 });
