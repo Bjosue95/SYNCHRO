@@ -413,7 +413,7 @@ test('detalle presenta estado y resumen antes de informacion secundaria plegable
   const detalle=leer('EncomiendaDetalleView');
   const primero=detalle.indexOf('class="env-card reserva-seguimiento"');
   const resumen=detalle.indexOf('class="env-card reserva-resumen"');
-  const autorizaciones=detalle.indexOf('<details class="reserva-acordeon"');
+  const autorizaciones=detalle.indexOf('<details id="personas-autorizaciones" class="reserva-acordeon"');
   assert.ok(primero>=0&&resumen>primero&&autorizaciones>resumen);
   assert.match(detalle,/class="reserva-seguimiento__contador"/);
   assert.match(detalle,/class="reserva-resumen__datos"/);
