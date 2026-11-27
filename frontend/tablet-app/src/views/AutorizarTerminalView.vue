@@ -84,7 +84,7 @@ onBeforeUnmount(()=>{viva=false;tokenTemporal=null;});
       <h1>Autorizar estación</h1>
       <div class="tarjeta">
         <template v-if="!solicitud">
-          <p>Introduce el código asignado a esta estación. Puedes consultarlo en el apartado Terminales del administrador.</p>
+          <p>Vincula esta tablet una sola vez. SYNCHRO renovará automáticamente su sesión mientras conserve la autorización del dispositivo. El código asignado aparece en Administración → Terminales.</p>
           <label for="codigo-terminal">Código de estación</label>
           <input id="codigo-terminal" v-model.trim="codigoTerminal" maxlength="30" autocomplete="off" spellcheck="false" placeholder="Código de terminal" />
           <button type="button" class="accion" :disabled="procesando||!codigoTerminal.trim()" @click="solicitar">
