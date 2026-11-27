@@ -66,7 +66,8 @@ async function continuar(){
       <h1 class="titulo">{{ elegirTipo ? 'Selecciona el tipo de casillero' : '¿Qué deseas depositar?' }}</h1>
       <div v-if="errorTerminal" class="aviso-terminal" role="alert">
         <p>{{ errorTerminal }}</p>
-        <button type="button" class="revisar-terminal" @click="comprobarTerminal">Comprobar nuevamente</button>
+        <RouterLink to="/terminal/vincular" class="revisar-terminal">Autorizar estación</RouterLink>
+        <button type="button" class="revisar-terminal revisar-terminal--secundario" @click="comprobarTerminal">Comprobar nuevamente</button>
       </div>
       <section v-else class="cuadricula" :class="{ 'dos-opciones': !elegirTipo }"
         :aria-label="elegirTipo ? 'Tipos de casillero para encomiendas' : 'Tipo de reserva'">
@@ -103,6 +104,8 @@ async function continuar(){
 .aviso-terminal{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;border:1px solid #d8a58a;border-radius:12px;padding:10px 14px;background:#fff0e9;color:#762d21;font-size:13px;line-height:1.4;}
 .aviso-terminal p{margin:0;flex:1 1 210px;}
 .revisar-terminal{border:1px solid #01305c;border-radius:10px;background:#01305c;color:#fff;padding:9px 12px;cursor:pointer;font:inherit;font-weight:750;}
+.revisar-terminal{text-decoration:none;text-align:center;}
+.revisar-terminal--secundario{background:transparent;color:inherit;border-color:currentColor;}
 .tema-oscuro .aviso-terminal{background:#543333;color:#fff0df;border-color:#ae8177;}
 
 .pantalla-guardar {
