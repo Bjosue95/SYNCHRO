@@ -10,6 +10,7 @@ export const encomiendasApi = Object.freeze({
     return solicitarCliente(consulta.size ? `${reservas}?${consulta}` : reservas);
   },
   detalle: (id) => solicitarCliente(`${reservas}/${Number(id)}`),
+  solicitarPinDeposito: (id) => solicitarCliente(`${reservas}/${Number(id)}/pin-deposito/solicitar`, { metodo: "POST" }),
   cancelar: (id, datos) => solicitarCliente(`${reservas}/${Number(id)}/cancelar`, { metodo: "POST", datos }),
   consentimientoCuenta: () => solicitarCliente(`${base}/consentimiento-cuenta`),
   revocarConsentimientoCuenta: () => solicitarCliente(`${base}/consentimiento-cuenta`, { metodo: "DELETE" }),
