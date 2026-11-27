@@ -306,7 +306,7 @@ watch(() => route.query.encomienda, valor => {
       </div>
     </section>
     <nav class="categorias wa-tabs" aria-label="Tipo de solicitud">
-      <button v-for="cat in [{id:'tablet',nombre:'Tablet'},{id:'remitente',nombre:'Remitente'},{id:'destinatario',nombre:'Destinatario'}]"
+      <button v-for="cat in [{id:'tablet',nombre:'Tablet'},{id:'remitente',nombre:'Depósito'},{id:'destinatario',nombre:'Destinatario'}]"
         :key="cat.id" type="button" :class="{activo:categoria===cat.id}"
         :aria-current="categoria===cat.id ? 'page' : undefined"
         @click="cambiarCategoria(cat.id as Categoria)">
@@ -332,7 +332,7 @@ watch(() => route.query.encomienda, valor => {
 
       <template v-if="!detalle">
         <div class="barra-solicitudes">
-          <strong>Sesión: Administrador · {{ categoria === 'remitente' ? 'Remitentes' : 'Destinatarios' }}</strong>
+          <strong>Sesión: Administrador · {{ categoria === 'remitente' ? 'Depósitos web (titulares y remitentes)' : 'Destinatarios' }}</strong>
         </div>
         <p class="ayuda">{{ categoria === 'remitente'
           ? 'Comprueba el mensaje de aceptación del remitente antes de generar su PIN de depósito.'
