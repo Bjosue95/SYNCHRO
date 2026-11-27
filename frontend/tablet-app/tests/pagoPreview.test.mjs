@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const leer = ruta =>
-  readFileSync(new URL(ruta, import.meta.url), "utf8");
+  readFileSync(new URL(ruta, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("tres metodos de pago disponibles", () => {
   const codigo = leer("../src/components/pagos/SelectorMetodoPago.vue");
