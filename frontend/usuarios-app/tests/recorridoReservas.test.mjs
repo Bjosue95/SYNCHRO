@@ -221,3 +221,12 @@ test('la cuarta celda se mantiene libre y una tarjeta sola conserva ancho propor
   assert.match(vista, /width:min\(100%,clamp\(190px,45vw,330px\)\)/);
   assert.doesNotMatch(vista, /:last-child:nth-child\(odd\):not\(:first-child\) \{\s*grid-column:1\/-1;/);
 });
+
+test('dos tarjetas usan una sola fila sin estirarse hasta el fondo', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /grid-auto-rows:auto;/);
+  assert.match(vista, /flex:0 0 auto;\s*align-content:start;/);
+  assert.match(vista, /\.reserva-vista > \.env-card:has\(\.reserva-opciones\) \{\s*flex:0 0 auto;/);
+  assert.match(vista, /height:clamp\(145px,23dvh,190px\)/);
+  assert.doesNotMatch(vista, /grid-auto-rows:minmax\(0,1fr\)/);
+});
