@@ -475,3 +475,19 @@ test('la espera no aprueba el PIN ni regresa a Bienvenida al confirmar solamente
  assert.match(solicitud,/if\(entregado\)\{/);
  assert.match(solicitud,/await router\.replace\('\/bienvenida'\)/);
 });
+
+test('solicitud PIN se abre solo tras pago confirmado y espera entrega administrativa',()=>{
+  const rutas=readFileSync(new URL('../src/router/index.js',import.meta.url),'utf8');
+  const pago=leer('PagoPendienteView');
+  const pin=leer('SolicitarPinView');
+  assert.match(rutas,/name: "solicitar-pin"/);
+  assert.match(rutas,/component: \(\) => import\("\.\.\/views\/SolicitarPinView\.vue"\)/);
+  assert.match(pago,/await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
+  assert.doesNotMatch(pago,/encomiendasApi\.solicitarPinDeposito/);
+  assert.match(pin,/const puedeSolicitar=computed/);
+  assert.match(pin,/@click="solicitar"/);
+  assert.match(pin,/await encomiendasApi\.solicitarPinDeposito\(reservaId\.value\)/);
+  assert.match(pin,/['"]Entregado['"]/);
+  assert.match(pin,/await router\.replace\('\/bienvenida'\)/);
+  assert.match(pin,/if\(await manejarSesion\(e\)\)return/);
+});
