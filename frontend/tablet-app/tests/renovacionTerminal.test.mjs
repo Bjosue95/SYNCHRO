@@ -46,3 +46,79 @@ test("renovar sesión requiere solicitud, código del admin y confirmación de u
  assert.match(pantalla,/tokenTemporal=null/);
  assert.doesNotMatch(pantalla,/localStorage|sessionStorage/);
 });
+
+test("la tablet definitiva recupera sola la sesion de trabajo mediante vínculo aprobado",async()=>{
+  const anterior=globalThis.fetch;
+  const rutas=[];
+  let autorizada=false;
+  try{
+    globalThis.fetch=async(url,opciones={})=>{
+      const ruta=String(url);rutas.push(ruta);
+      if(ruta==="/api/terminales/mi-sesion")
+        return autorizada
+          ? new Response(JSON.stringify({terminalId:"1",rol:"Terminal"}),{status:200})
+          : new Response(null,{status:401});
+      if(ruta==="/api/terminales/dispositivo/csrf-token")
+        return new Response(JSON.stringify({csrfToken:"csrf-test"}),{status:200});
+      if(ruta==="/api/terminales/sesion/renovar"){
+        assert.equal(opciones.method,"POST");
+        assert.equal(opciones.headers["X-CSRF-TOKEN"],"csrf-test");
+        autorizada=true;
+        return new Response(JSON.stringify({terminalId:1}),{status:200});
+      }
+      throw new Error("Ruta inesperada "+ruta);
+    };
+    const resultado=await comprobarSesionTerminalReservaWeb();
+    assert.equal(resultado.terminalId,"1");
+    assert.deepEqual(rutas,[
+      "/api/terminales/mi-sesion",
+      "/api/terminales/dispositivo/csrf-token",
+      "/api/terminales/sesion/renovar",
+      "/api/terminales/mi-sesion"
+    ]);
+  }finally{globalThis.fetch=anterior;}
+});
+
+test("el deposito reintenta csrf tras renovar sin duplicar peticiones de PIN",async()=>{
+  const anterior=globalThis.fetch;
+  let tokenDisponible=false,identificaciones=0;
+  try{
+    globalThis.fetch=async(url,opciones={})=>{
+      const ruta=String(url);
+      if(ruta==="/api/terminales/dispositivo/csrf-token")
+        return new Response(JSON.stringify({csrfToken:"csrf-renovacion"}),{status:200});
+      if(ruta==="/api/terminales/sesion/renovar"){
+        tokenDisponible=true;
+        return new Response(JSON.stringify({terminalId:1}),{status:200});
+      }
+      if(ruta==="/api/terminales/reservas/csrf-token")
+        return tokenDisponible
+          ? new Response(JSON.stringify({csrfToken:"csrf-operacion"}),{status:200})
+          : new Response(null,{status:401});
+      if(ruta==="/api/terminales/reservas/depositos/identificar"){
+        identificaciones++;
+        assert.equal(opciones.headers["X-CSRF-TOKEN"],"csrf-operacion");
+        return new Response(JSON.stringify({reservaId:5012,casillero:"M03"}),{status:200});
+      }
+      throw new Error("Ruta inesperada "+ruta);
+    };
+    const datos=await identificarDepositoReservaWeb("123456");
+    assert.equal(datos.reservaId,5012);
+    assert.equal(identificaciones,1);
+  }finally{globalThis.fetch=anterior;}
+});
+
+test("la credencial de dispositivo no sustituye aprobacion ni valida PIN incorrecto",()=>{
+  const backend=readFileSync(new URL("../../../backend/Synchro.Api/Endpoints/ConfirmacionTerminalEndpoints.cs",import.meta.url),"utf8");
+  const config=readFileSync(new URL("../../../backend/Synchro.Api/Program.cs",import.meta.url),"utf8");
+  assert.match(backend,/Estado=N'Aprobada'/);
+  assert.match(backend,/new Claim\("VinculoVersion", vinculoVersion\)/);
+  assert.match(backend,/SignInAsync\("TerminalDispositivo"/);
+  assert.match(backend,/\/api\/terminales\/sesion\/renovar/);
+  assert.match(backend,/IsRequestValidAsync\(contexto\)/);
+  assert.match(config,/AddPolicy\("SoloTerminalDispositivo"/);
+  assert.match(config,/\.AddCookie\("TerminalDispositivo"/);
+  assert.match(config,/ExpireTimeSpan = TimeSpan\.FromDays\(365\)/);
+  assert.match(config,/FechaAutorizacion FROM dbo\.Terminales/);
+  assert.match(config,/context\.RejectPrincipal\(\)/);
+});
