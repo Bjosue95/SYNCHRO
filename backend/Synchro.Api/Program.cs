@@ -700,6 +700,7 @@ if (app.Environment.IsDevelopment() &&
     app.MapAdminCobrosCargaEndpoints();
     app.MapAdminEspaciosCargaEndpoints();
     app.MapAdminMovimientosEndpoints();
+    app.MapAdminReportesEndpoints();
     app.MapUsuariosAdministrativosEndpoints();
     app.MapOpenApi().RequireAuthorization("SoloAdministradores");
 }

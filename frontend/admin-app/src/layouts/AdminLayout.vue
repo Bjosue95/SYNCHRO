@@ -21,7 +21,7 @@ const grupos = [
     { ruta: "/admin/operaciones", titulo: "Movimientos", icono: "activity" },
   ] },
   { titulo: "GESTIÓN", enlaces: [
-    { ruta: "/admin/reportes", titulo: "Reportes", icono: "report", pendiente: true },
+    { ruta: "/admin/reportes", titulo: "Reportes", icono: "report" },
     { ruta: "/admin/configuracion", titulo: "Configuración", icono: "settings", pendiente: true },
   ] },
 ];

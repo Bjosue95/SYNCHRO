@@ -19,7 +19,7 @@ const router = createRouter({
         { path: "casilleros", name: "casilleros", component: () => import("../views/CasillerosView.vue") },
         { path: "terminales", name: "terminales", component: () => import("../views/TerminalesView.vue") },
         { path: "operaciones", name: "operaciones", component: () => import("../views/MovimientosView.vue") },
-        { path: "reportes", name: "reportes", component: () => import("../views/ModuloPendienteView.vue"), props: { titulo: "Reportes", descripcion: "Este módulo aún no presenta reportes del backend." } },
+        { path: "reportes", name: "reportes", component: () => import("../views/ReportesView.vue") },
         { path: "configuracion", name: "configuracion", component: () => import("../views/ModuloPendienteView.vue"), props: { titulo: "Configuración", descripcion: "Las opciones administrativas se habilitarán después de conectar sus permisos y endpoints." } },
       ],
     },
