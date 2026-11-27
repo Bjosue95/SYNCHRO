@@ -430,7 +430,7 @@ onBeforeUnmount(() => {
 <template>
   <main
     class="deposito-pantalla"
-    :class="{ 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo', 'deposito-finalizado': estado === 'confirmado' }"
+    :class="{ 'reserva-web': esReservaWeb, 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo', 'deposito-finalizado': estado === 'confirmado' }"
   >
     <div class="deposito-contenedor">
 
@@ -642,11 +642,7 @@ onBeforeUnmount(() => {
           <button
             class="deposito-boton-secundario"
             type="button"
-            @click="
-              estado = 'verificando';
-              error = '';
-              verificarOperacion()
-            "
+            @click="esReservaWeb ? router.replace('/guardar/reserva') : (estado = 'verificando', error = '', verificarOperacion())"
           >
             Reintentar verificación
           </button>
@@ -1406,4 +1402,14 @@ and (max-width: 599px) {
   }
 }
 
+
+/* La reserva reutiliza el contador ya existente sin el desplazamiento adicional. */
+.deposito-pantalla.reserva-web{overflow:hidden;grid-template-rows:minmax(0,1fr);}
+.deposito-pantalla.reserva-web::before{display:none;}
+.deposito-pantalla.reserva-web .deposito-contenedor{grid-row:1;place-self:center;width:min(100%,760px);height:min(100%,630px);}
+@media(max-height:570px){
+  .deposito-pantalla.reserva-web{padding:8px;}
+  .deposito-pantalla.reserva-web .deposito-contenedor{gap:6px;}
+  .deposito-pantalla.reserva-web .deposito-tarjeta{padding:10px;}
+}
 </style>
