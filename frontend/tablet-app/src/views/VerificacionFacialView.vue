@@ -783,12 +783,8 @@ onBeforeUnmount(() => {
             {{ depositoConfirmado ? "Depósito confirmado" : tomada ? "Fotografía capturada" : "Coloca tu rostro en el óvalo" }}
           </h2>
 
-          <p>
-            {{
-              tomada
-                ? (esReservaWeb ? "Continúa para introducir el PIN de depósito recibido por WhatsApp." : retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para enviar el PIN por WhatsApp.")
-                : "La captura se realizará automáticamente."
-            }}
+          <p v-if="tomada">
+            {{ (esReservaWeb ? "Continúa para introducir el PIN de depósito recibido por WhatsApp." : retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para enviar el PIN por WhatsApp.") }}
           </p>
         </div>
 

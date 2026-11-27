@@ -809,12 +809,8 @@ onBeforeUnmount(() => {
             {{ tomada ? "Rostro capturado" : "Coloca tu rostro en el óvalo" }}
           </h2>
 
-          <p>
-            {{
-              tomada
-                ? (retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para crear tu PIN de retiro.")
-                : "La captura se realizará automáticamente."
-            }}
+          <p v-if="tomada">
+            {{ (retirando ? "Continúa para introducir el PIN de retiro." : "Continúa para crear tu PIN de retiro.") }}
           </p>
         </div>
 
