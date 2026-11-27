@@ -3,12 +3,26 @@ import { computed,ref,onMounted,watch } from "vue";
 import { RouterLink,useRoute,useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { elegirServicioReservaWeb,obtenerEleccionReservaWeb } from "../services/reservaWebSesion.js";
+import { comprobarSesionTerminalReservaWeb } from "../services/reservasWebTerminalApi.js";
 
 const route=useRoute();
 const router=useRouter();
 const {oscuro}=useTema();
 const elegirTipo=computed(()=>route.path==="/guardar/reserva/tipo");
 const seleccionado=ref("");
+const consultandoTerminal=ref(true);
+const errorTerminal=ref("");
+async function comprobarTerminal(){
+  consultandoTerminal.value=true;
+  errorTerminal.value="";
+  try{
+    await comprobarSesionTerminalReservaWeb();
+    return true;
+  }catch(e){
+    errorTerminal.value=e instanceof Error?e.message:"No fue posible comprobar la autorización de la terminal.";
+    return false;
+  }finally{consultandoTerminal.value=false;}
+}
 watch(elegirTipo,()=>{seleccionado.value="";});
 const opciones=computed(()=>elegirTipo.value?[
   {id:"Normal",nombre:"Normal",icono:"/iconos/01_guardar_depositar"},
@@ -19,12 +33,14 @@ const opciones=computed(()=>elegirTipo.value?[
   {id:"Encomienda",nombre:"Encomienda",icono:"/iconos/09_encomienda_paquete"}
 ]);
 onMounted(()=>{
+  void comprobarTerminal();
   if(elegirTipo.value&&obtenerEleccionReservaWeb()?.servicio!=="Encomienda"){
     router.replace("/guardar/reserva");
   }
 });
-function continuar(){
-  if(!opciones.value.some(x=>x.id===seleccionado.value))return;
+async function continuar(){
+  if(consultandoTerminal.value||errorTerminal.value||!opciones.value.some(x=>x.id===seleccionado.value))return;
+  if(!await comprobarTerminal())return;
   if(!elegirTipo.value&&seleccionado.value==="Encomienda"){
     elegirServicioReservaWeb("Encomienda");
     router.push("/guardar/reserva/tipo");
@@ -48,6 +64,10 @@ function continuar(){
 
     <div class="contenido-guardar">
       <h1 class="titulo">{{ elegirTipo ? 'Selecciona el tipo de casillero' : '¿Qué deseas depositar?' }}</h1>
+      <div v-if="errorTerminal" class="aviso-terminal" role="alert">
+        <p>{{ errorTerminal }}</p>
+        <button type="button" class="revisar-terminal" @click="comprobarTerminal">Comprobar nuevamente</button>
+      </div>
       <section class="cuadricula" :class="{ 'dos-opciones': !elegirTipo }"
         :aria-label="elegirTipo ? 'Tipos de casillero para encomiendas' : 'Tipo de reserva'">
         <button v-for="item in opciones" :key="item.id"
@@ -63,7 +83,7 @@ function continuar(){
       </section>
 
       <div class="accion-guardar">
-        <button type="button" class="boton-continuar" :disabled="!seleccionado" @click="continuar">
+        <button type="button" class="boton-continuar" :disabled="!seleccionado || consultandoTerminal || !!errorTerminal" @click="continuar">
           <span>Continuar</span>
           <span class="icono-continuar" aria-hidden="true">
             <img src="/iconos/complementarios/29_continuar.svg" class="continuar-claro" alt="" />
@@ -80,6 +100,11 @@ function continuar(){
 
 <style scoped>
 /* Patrón de GuardarView: regreso, título, cuadrícula y continuar, sin desplazamiento. */
+.aviso-terminal{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;border:1px solid #d8a58a;border-radius:12px;padding:10px 14px;background:#fff0e9;color:#762d21;font-size:13px;line-height:1.4;}
+.aviso-terminal p{margin:0;flex:1 1 210px;}
+.revisar-terminal{border:1px solid #01305c;border-radius:10px;background:#01305c;color:#fff;padding:9px 12px;cursor:pointer;font:inherit;font-weight:750;}
+.tema-oscuro .aviso-terminal{background:#543333;color:#fff0df;border-color:#ae8177;}
+
 .pantalla-guardar {
   display: grid;
   grid-template-columns: minmax(0,1fr);
