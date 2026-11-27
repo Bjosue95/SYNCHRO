@@ -228,6 +228,52 @@ public static class ConfirmacionTerminalEndpoints
             })
             .RequireAuthorization("SoloTerminal");
 
+        // El navegador previamente vinculado renueva la sesión de trabajo
+        // sin solicitar otro código al administrador.
+        app.MapGet("/api/terminales/dispositivo/csrf-token",
+            (HttpContext contexto, IAntiforgery antiforgery) =>
+            {
+                if (!contexto.Request.IsHttps)
+                    return Results.BadRequest(new { mensaje = "Se requiere HTTPS." });
+
+                contexto.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(new {
+                    csrfToken = antiforgery.GetAndStoreTokens(contexto).RequestToken
+                });
+            })
+            .RequireAuthorization("SoloTerminalDispositivo");
+
+        app.MapPost("/api/terminales/sesion/renovar",
+            async (HttpContext contexto, IAntiforgery antiforgery) =>
+            {
+                if (!contexto.Request.IsHttps)
+                    return Results.BadRequest(new { mensaje = "Se requiere HTTPS." });
+                if (!await antiforgery.IsRequestValidAsync(contexto))
+                    return Results.BadRequest(new { mensaje = "Token CSRF inválido." });
+
+                // La política SoloTerminalDispositivo verifica contra SQL tanto
+                // la actividad como la versión del ÚLTIMO dispositivo aprobado.
+                if (!int.TryParse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    out var terminalId) || terminalId <= 0)
+                    return Results.Unauthorized();
+
+                var sesion = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, terminalId.ToString()),
+                    new Claim(ClaimTypes.Role, "Terminal")
+                }, "Terminal"));
+
+                await contexto.SignInAsync("Terminal", sesion,
+                    new AuthenticationProperties { IsPersistent = true });
+
+                contexto.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(new {
+                    mensaje = "Sesión renovada automáticamente.",
+                    terminalId
+                });
+            })
+            .RequireAuthorization("SoloTerminalDispositivo")
+            .RequireRateLimiting("LoginLimitado");
     }
 
 }
