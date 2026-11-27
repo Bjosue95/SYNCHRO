@@ -15,7 +15,7 @@ export function obtenerEleccionReservaWeb(){
 }
 export function registrarFotoReservaWeb(foto){
   if(!obtenerEleccionReservaWeb()||typeof foto!=="string"||
-    !/^[A-Za-z0-9+/]+={0,2}$/.test(foto)||foto.length>750000)
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(foto)||foto.length>1400000)
     throw new Error("La fotografía no tiene un formato permitido.");
   actual.foto=foto;
   actual.pin=null;actual.vence=Date.now()+CINCO_MINUTOS;
