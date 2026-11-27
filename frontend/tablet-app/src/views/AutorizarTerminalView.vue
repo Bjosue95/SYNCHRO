@@ -63,6 +63,13 @@ async function confirmar(){
   }finally{if(viva)procesando.value=false;}
 }
 
+function nuevaSolicitud(){
+  if(procesando.value)return;
+  tokenTemporal=null;
+  solicitud.value=null;
+  error.value="";
+  aviso.value="";
+}
 onBeforeUnmount(()=>{viva=false;tokenTemporal=null;});
 </script>
 
@@ -92,6 +99,7 @@ onBeforeUnmount(()=>{viva=false;tokenTemporal=null;});
           <button type="button" class="accion" :disabled="procesando" @click="confirmar">
             {{ procesando?'Comprobando…':'Comprobar aprobación' }}
           </button>
+          <button type="button" class="accion-secundaria" :disabled="procesando" @click="nuevaSolicitud">Nueva solicitud si venció</button>
           <small>La autorización vence en 5 minutos. No cierres ni actualices esta pantalla mientras se aprueba.</small>
         </template>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
@@ -113,6 +121,7 @@ onBeforeUnmount(()=>{viva=false;tokenTemporal=null;});
 .tarjeta label{font-weight:750;}
 .tarjeta input{width:100%;min-width:0;height:56px;padding:12px 15px;border:2px solid #b8d9e2;border-radius:14px;background:inherit;color:inherit;font-size:19px;box-sizing:border-box;}
 .tarjeta .accion{min-height:56px;padding:10px 20px;border:2px solid #00a8b8;border-radius:14px;background:#00b9c7;color:#01305c;font:inherit;font-size:18px;font-weight:800;cursor:pointer;}
+.accion-secundaria{min-height:46px;border:1px solid #00b9c7;border-radius:12px;background:transparent;color:inherit;padding:9px 15px;font:inherit;font-weight:750;cursor:pointer;}
 .accion:disabled{opacity:.55;cursor:wait;}
 .datos{display:flex;flex-wrap:wrap;gap:15px;align-items:center;}
 .datos span{flex:1 1 200px;display:grid;gap:5px;font-size:14px;}
