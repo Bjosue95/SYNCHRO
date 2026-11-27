@@ -61,7 +61,7 @@ onMounted(listar);
       <p v-else-if="!terminales.length">No hay estaciones registradas.</p>
       <div v-else class="listado">
         <div v-for="t in terminales" :key="t.id" class="estacion">
-          <div><strong>{{ t.nombre }}</strong><small>Código: {{ t.codigo }}</small></div>
+          <div><strong>{{ t.nombre }}</strong><small>ID: {{ t.id }} · Código: {{ t.codigo }}</small></div>
           <span class="estado" :class="{activa:t.activa}">{{ t.activa?'Activa':'Sin vincular' }}</span>
         </div>
       </div>
