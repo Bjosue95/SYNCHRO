@@ -20,7 +20,6 @@ import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumir
 const route = useRoute();
 const esVistaPrevia = import.meta.env.DEV &&
   route.path.startsWith("/vista-previa/");
-const consentimientoDemo = ref(false);
 let temporizadorDemo = null;
 
 const modoCarga = computed(() => route.path === "/cargar/rostro");
@@ -45,7 +44,6 @@ const espacioCarga = computed(() =>
 );
 const router = useRouter();
 const { oscuro } = useTema();
-const pruebaDescriptorV3 = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_PRUEBA === "true";
 const propsVistaPrevia = defineProps({
   modoRetiroEjemplo: {
     type: Boolean,
@@ -53,8 +51,6 @@ const propsVistaPrevia = defineProps({
   }
 });
 
-const registroV3Habilitado = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_REGISTRO === "true";
-const retiroV3Habilitado = pruebaDescriptorV3 && import.meta.env.VITE_FACIAL_V3_RETIRO === "true";
 
 const retirando = computed(() =>
   (import.meta.env.DEV && propsVistaPrevia.modoRetiroEjemplo) ||
@@ -63,11 +59,7 @@ const retirando = computed(() =>
 
 const video = ref(null);
 const consentimiento = ref(false);
-const aceptaDescriptorV3 = ref(false);
-const aceptaRetiroV3 = ref(false);
-const usarRetiroV3 = computed(() =>
-  retirando.value && retiroV3Habilitado && aceptaRetiroV3.value
-);
+const usarRetiroV3 = computed(() => retirando.value && !esVistaPrevia);
 const encendida = ref(false);
 const iniciando = ref(false);
 const detectado = ref(false);
@@ -194,8 +186,8 @@ async function prepararMotor() {
         enabled: true,
         maxDetected: 2,
       },
-      mesh: { enabled: pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value) },
-      description: { enabled: pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value) },
+      mesh: { enabled: !esVistaPrevia },
+      description: { enabled: !esVistaPrevia },
       iris: { enabled: false },
       emotion: { enabled: false },
     },
@@ -421,8 +413,7 @@ async function analizar() {
 
     const indicacion = estadoRostro(datos);
 
-    const modoV3 = pruebaDescriptorV3 &&
-      (aceptaDescriptorV3.value || usarRetiroV3.value);
+    const modoV3 = !esVistaPrevia;
 
     const calidad = modoV3 && indicacion === "listo"
       ? revisarCalidadV3(datos)
@@ -542,26 +533,22 @@ async function analizar() {
         detenerCamara();
 
         estado.value = modoV3
-          ? "V3: mejor captura seleccionada entre tres tomas."
+          ? "Captura lista."
           : "Captura lista.";
-        if (import.meta.env.DEV && modoV3 && ultimoResumenDistanciaV3) {
-          estado.value += " Distancias internas: " +
-            ultimoResumenDistanciaV3 + ".";
-        }
 
         // Mantener la validacion V3 del deposito.
         if (modoV3 &&
             !retirando.value &&
-            aceptaDescriptorV3.value) {
+            consentimiento.value) {
 
           const temporal = copiarDescriptorV3();
 
           if (!temporal) {
             error.value =
-              "Repite la captura para probar V3.";
+              "Repite el registro facial.";
           } else {
             estado.value =
-              "Comprobando conexión V3 con SYNCHRO...";
+              "Validando registro facial...";
 
             try {
               await validarDescriptorFacialV3Temporal(
@@ -571,17 +558,17 @@ async function analizar() {
               if (montada) {
                 estado.value =
                   (modoCarga.value
-                    ? "Descriptor V3 validado por el backend (solo prueba)."
-                    : "V3 validado por backend (solo prueba).");
+                    ? "Registro facial listo."
+                    : "Registro facial listo.");
                 if (modoCarga.value) validacionCargaV3.value = true;
               }
             } catch (e) {
               if (montada) {
                 estado.value =
-                  "V3 no se validó en el backend.";
+                  "No se pudo validar el registro facial.";
 
                 error.value =
-                  e?.message || "Error de conexión V3.";
+                  e?.message || "No se pudo validar el registro facial.";
               }
             } finally {
               temporal.fill(0);
@@ -690,7 +677,7 @@ async function continuar() {
   if (!tomada.value || !fotoBase64.value ||
       validandoEnServidor.value) return;
 
-  if (!usarRetiroV3.value) {
+  if (!consentimiento.value || !usarRetiroV3.value) {
     error.value = "Debes autorizar la verificacion facial V3.";
     return;
   }
@@ -716,10 +703,7 @@ async function continuar() {
   } catch (e) {
     if (montada) {
       error.value = e?.message || "No se pudo verificar el rostro.";
-      estado.value = import.meta.env.DEV && ultimoResumenDistanciaV3
-        ? "Distancias entre las tres tomas: " +
-          ultimoResumenDistanciaV3 + "."
-        : "Repite el escaneo si es necesario.";
+      estado.value = "Repite el escaneo si es necesario.";
     }
   } finally {
     descriptor.fill(0);
@@ -729,7 +713,7 @@ async function continuar() {
 
 function comenzarEscaneo() {
   if (esVistaPrevia) {
-    if (!consentimientoDemo.value || encendida.value || tomada.value) return;
+    if (encendida.value || tomada.value) return;
     error.value = "";
     detectado.value = true;
     encendida.value = true;
@@ -743,34 +727,13 @@ function comenzarEscaneo() {
     }, 1800);
     return;
   }
-  if (modoCarga.value && (
-    !pruebaDescriptorV3 ||
-    !registroV3Habilitado ||
-    !aceptaDescriptorV3.value
-  )) {
-    error.value = "Debes habilitar V3 y aceptar el aviso facial.";
-    return;
-  }
+  // La acción explícita de iniciar el escaneo acepta el aviso mostrado.
   if (consentimiento.value) {
     iniciarCamara();
   } else {
     consentimiento.value = true;
   }
 }
-watch(aceptaDescriptorV3, () => {
-  borrarDescriptorV3();
-
-  if (!encendida.value && !iniciando.value) {
-    motor = null;
-  }
-});
-watch(aceptaRetiroV3, () => {
-  borrarDescriptorV3();
-
-  if (!encendida.value && !iniciando.value)
-    motor = null;
-});
-
 watch(consentimiento, (acepta) => {
   if (!acepta) {
     cancelar();
@@ -800,8 +763,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>Verificación facial</h1>
-      <p>Verifica tu identidad para retirar el dispositivo.</p>
+      <h1>Registro facial</h1>
     </header>
 
     <section class="zona-facial" aria-label="Registro facial">
@@ -864,48 +826,15 @@ onBeforeUnmount(() => {
     </section>
 
     <footer class="pie-facial">
-      <label
-        v-if="esVistaPrevia && !encendida && !tomada"
-        class="consentimiento-v3"
-        data-preview-permitido
-      >
-        <input
-          v-model="consentimientoDemo"
-          data-preview-permitido
-          type="checkbox"
-        />
-        <span>
-          Autorizo verificar mi identidad para retirar el dispositivo.
-        </span>
-      </label>
-      <label
-        v-if="!esVistaPrevia && retiroV3Habilitado && retirando && !encendida && !tomada"
-        class="consentimiento-v3"
-      >
-        <input v-model="aceptaRetiroV3" type="checkbox" />
-        <span>
-          Autorizo comparar mi rostro con el registrado para verificar
-          mi identidad al retirar el dispositivo. También utilizaré mi PIN.
-        </span>
-      </label>      <label
-        v-if="!esVistaPrevia && pruebaDescriptorV3 && registroV3Habilitado && !retirando && !encendida && !tomada"
-        class="consentimiento-v3"
-      >
-        <input
-          v-model="aceptaDescriptorV3"
-          type="checkbox"
-        />
-        <span>
-          Autorizo registrar mi rostro para proteger el dispositivo
-          y verificar mi identidad al retirarlo.
-        </span>
-      </label>
+      <p v-if="!encendida && !tomada" id="aviso-facial" class="consentimiento-v3">
+        {{ esVistaPrevia ? "Vista previa del registro facial, sin acceso a la cámara." : "Al iniciar el escaneo, autorizas comparar tu rostro con la referencia registrada para verificar el retiro del dispositivo. También necesitas tu PIN." }}
+      </p>
       <button
         v-if="!tomada && !encendida && !iniciando"
         type="button"
         class="continuar"
-        :disabled="esVistaPrevia && !consentimientoDemo"
         data-preview-permitido
+        aria-describedby="aviso-facial"
         @click="comenzarEscaneo"
       >
         <span>
@@ -1445,4 +1374,5 @@ onBeforeUnmount(() => {
   text-shadow: 0 1px 4px rgba(0,0,0,.65);
 }
 
+.pie-facial p.consentimiento-v3 { display: block; text-align: center; line-height: 1.45; margin: 0; }
 </style>

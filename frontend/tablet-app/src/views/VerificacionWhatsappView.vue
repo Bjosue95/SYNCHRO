@@ -219,39 +219,16 @@ async function iniciar() {
     const captura = obtenerCaptura();
     const tokenCsrf = await csrf();
 
-    let envioV3 = null;
-
-    const registroV3 =
-      import.meta.env.DEV &&
-      import.meta.env.VITE_FACIAL_V3_REGISTRO === "true";
-
-    if (registroV3) {
-      const meta = JSON.parse(
-        sessionStorage.getItem("synchroRostroMeta") || "{}"
-      );
-
-      if (meta.consentimientoV3 === true) {
-        const descriptor = consumirDescriptorV3();
-
-        if (!descriptor) {
-          throw new Error(
-            "El descriptor V3 venció. Regresa y repite la captura."
-          );
-        }
-
-        try {
-          envioV3 = construirInicioFacialV3(
-            sessionStorage.getItem("synchroRostroTemporal"),
-            descriptor,
-            true
-          );
-        } finally {
-          descriptor.fill(0);
-        }
-      }
+    const meta = JSON.parse(sessionStorage.getItem("synchroRostroMeta") || "{}");
+    if (meta.consentimientoV3 !== true) throw new Error("Regresa al registro facial e inicia el escaneo.");
+    const descriptor = consumirDescriptorV3();
+    if (!descriptor) throw new Error("La referencia facial venció. Regresa y repite la captura.");
+    let envioV3;
+    try {
+      envioV3 = construirInicioFacialV3(sessionStorage.getItem("synchroRostroTemporal"), descriptor, true);
+    } finally {
+      descriptor.fill(0);
     }
-
-    if (!envioV3) borrarDescriptorV3();
 
     const datos = await solicitar(
       "/api/terminales/guardar/whatsapp/iniciar",

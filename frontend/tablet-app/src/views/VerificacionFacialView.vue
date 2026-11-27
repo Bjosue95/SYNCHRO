@@ -3,10 +3,9 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { obtenerEleccionReservaWeb, registrarFotoReservaWeb } from "../services/reservaWebSesion.js";
-import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
 import { registrarCaptura } from "../services/retiroSesion.js";
 import { registrarFotoRetiroEncomienda } from "../services/retiroEncomiendaSesion.js";
-import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
+import { validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
 import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumirDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
 
 // SYNCHRO-FACIAL-FLUJO-LIMPIO-V5
@@ -18,10 +17,8 @@ const router = useRouter();
 const { oscuro } = useTema();
 const esReservaWeb = computed(() => route.path === "/guardar/reserva/captura");
 const esRetiroEncomienda = computed(() => route.path === "/retirar/encomienda");
-const consentimientoFotoReserva = ref(false);
 const reservaPersonal = computed(() => esReservaWeb.value && obtenerEleccionReservaWeb()?.servicio === "Personal");
 const depositoConfirmado = ref(false);
-const pruebaDescriptorV3 = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_PRUEBA === "true";
 const propsVistaPrevia = defineProps({
   modoRetiroEjemplo: {
     type: Boolean,
@@ -29,8 +26,6 @@ const propsVistaPrevia = defineProps({
   }
 });
 
-const registroV3Habilitado = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_REGISTRO === "true";
-const retiroV3Habilitado = pruebaDescriptorV3 && import.meta.env.VITE_FACIAL_V3_RETIRO === "true";
 
 const retirando = computed(() =>
   (import.meta.env.DEV && propsVistaPrevia.modoRetiroEjemplo) ||
@@ -39,12 +34,7 @@ const retirando = computed(() =>
 
 const video = ref(null);
 const consentimiento = ref(false);
-const aceptaDescriptorV3 = ref(false);
-const aceptaRetiroV3 = ref(false);
-const usarRetiroV3 = computed(() =>
-  retirando.value && !esRetiroEncomienda.value && retiroV3Habilitado && aceptaRetiroV3.value
-);
-const usarDescriptor = computed(() => !esRetiroEncomienda.value && (reservaPersonal.value || (!esReservaWeb.value && pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value))));
+const usarDescriptor = computed(() => !esRetiroEncomienda.value && (!esReservaWeb.value || reservaPersonal.value));
 const encendida = ref(false);
 const iniciando = ref(false);
 const detectado = ref(false);
@@ -480,22 +470,22 @@ async function analizar() {
         detenerCamara();
 
         estado.value = modoV3
-          ? "V3: mejor captura seleccionada entre tres tomas."
+          ? "Captura lista."
           : "Captura lista.";
 
         // Mantener la validacion V3 del deposito.
         if (modoV3 &&
-            !retirando.value &&
-            aceptaDescriptorV3.value) {
+            !retirando.value && !esReservaWeb.value &&
+            consentimiento.value) {
 
           const temporal = copiarDescriptorV3();
 
           if (!temporal) {
             error.value =
-              "Repite la captura para probar V3.";
+              "Repite el registro facial.";
           } else {
             estado.value =
-              "Comprobando conexión V3 con SYNCHRO...";
+              "Validando registro facial...";
 
             try {
               await validarDescriptorFacialV3Temporal(
@@ -504,15 +494,15 @@ async function analizar() {
 
               if (montada) {
                 estado.value =
-                  "V3 validado por backend (solo prueba).";
+                  "Registro facial listo.";
               }
             } catch (e) {
               if (montada) {
                 estado.value =
-                  "V3 no se validó en el backend.";
+                  "No se pudo validar el registro facial.";
 
                 error.value =
-                  e?.message || "Error de conexión V3.";
+                  e?.message || "No se pudo validar el registro facial.";
               }
             } finally {
               temporal.fill(0);
@@ -609,13 +599,13 @@ function cancelar() {
 }
 
 async function continuar() {
-  if (!tomada.value || !fotoBase64.value || validandoEnServidor.value) return;
+  if (!consentimiento.value || !tomada.value || !fotoBase64.value || validandoEnServidor.value) return;
   if (esReservaWeb.value) {
     if (!obtenerEleccionReservaWeb()) {
       error.value = "Vuelve a seleccionar el servicio de tu reserva.";
       return;
     }
-    if (!consentimientoFotoReserva.value) {
+    if (!consentimiento.value) {
       error.value = "Debes autorizar la captura fotográfica.";
       return;
     }
@@ -637,7 +627,7 @@ async function continuar() {
   }
 
   if (esRetiroEncomienda.value) {
-    if (!consentimientoFotoReserva.value) { error.value="Debes autorizar la captura fotográfica."; return; }
+    if (!consentimiento.value) { error.value="Debes autorizar la captura fotográfica."; return; }
     try {
       const foto=/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
       if(!foto)throw new Error("Fotografía PNG inválida.");
@@ -652,22 +642,18 @@ async function continuar() {
     error.value = "";
     estado.value = "Verificando captura con SYNCHRO...";
     try {
-      const descriptorV3 = usarRetiroV3.value
-        ? consumirDescriptorV3()
-        : null;
+      const descriptorV3 = consumirDescriptorV3();
 
       let tokenFacial;
 
       try {
-        if (usarRetiroV3.value && !descriptorV3) {
+        if (!descriptorV3) {
           throw new Error(
             "El descriptor V3 venció. Repite la captura."
           );
         }
 
-        tokenFacial = usarRetiroV3.value
-          ? await validarRostroV3Retiro(descriptorV3)
-          : await validarRostroSimuladoRetiro(fotoBase64.value);
+        tokenFacial = await validarRostroV3Retiro(descriptorV3);
       } finally {
         if (descriptorV3) descriptorV3.fill(0);
       }
@@ -677,7 +663,7 @@ async function continuar() {
       router.push("/retirar/pin");
     } catch (e) {
       if (montada) {
-        error.value = e?.message || "El servidor no pudo comparar el rostro simulado.";
+        error.value = e?.message || "El servidor no pudo verificar la referencia facial.";
         estado.value = "Repite la captura si es necesario.";
       }
     } finally {
@@ -686,6 +672,9 @@ async function continuar() {
     return;
   }
 
+  const referencia = copiarDescriptorV3();
+  if (!referencia) { error.value="La referencia facial venció. Repite el escaneo."; return; }
+  referencia.fill(0);
   sessionStorage.setItem("synchroRostroTemporal", fotoBase64.value);
   sessionStorage.setItem(
     "synchroRostroMeta",
@@ -693,7 +682,7 @@ async function continuar() {
       casillero: casillero.value,
       objeto: route.query.objeto || "",
       tamano: route.query.tamano || "",
-      consentimientoV3: pruebaDescriptorV3 && !retirando.value && aceptaDescriptorV3.value,
+      consentimientoV3: usarDescriptor.value && consentimiento.value && !retirando.value,
       fecha: new Date().toISOString(),
     }),
   );
@@ -713,30 +702,13 @@ function comenzarEscaneo() {
     error.value = "Selecciona antes el tipo de reserva.";
     return;
   }
-  if ((esReservaWeb.value || esRetiroEncomienda.value) && !consentimientoFotoReserva.value) {
-    error.value = "Autoriza la captura para continuar.";
-    return;
-  }
+  // La acción explícita de iniciar el escaneo acepta el aviso mostrado.
   if (consentimiento.value) {
     iniciarCamara();
   } else {
     consentimiento.value = true;
   }
 }
-watch(aceptaDescriptorV3, () => {
-  borrarDescriptorV3();
-
-  if (!encendida.value && !iniciando.value) {
-    motor = null;
-  }
-});
-watch(aceptaRetiroV3, () => {
-  borrarDescriptorV3();
-
-  if (!encendida.value && !iniciando.value)
-    motor = null;
-});
-
 watch(consentimiento, (acepta) => {
   if (!acepta) {
     cancelar();
@@ -764,12 +736,11 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>{{ (esRetiroEncomienda || (esReservaWeb && !reservaPersonal)) ? "Captura de fotografía" : "Registro facial" }}</h1>
-      <p v-if="esRetiroEncomienda">Retiro de encomienda</p>
-      <p v-else-if="!esReservaWeb">Casillero {{ casillero }}</p>
+      <h1>Registro facial</h1>
+      <p v-if="!retirando && !esReservaWeb && casillero !== 'Sin seleccionar'">Casillero {{ casillero }}</p>
     </header>
 
-    <section class="zona-facial" aria-label="Registro facial de demostración">
+    <section class="zona-facial" aria-label="Registro facial">
       <div class="panel-facial">
         <div class="visor">
           <video
@@ -829,45 +800,17 @@ onBeforeUnmount(() => {
     </section>
 
     <footer class="pie-facial">
-      <label
-        v-if="retiroV3Habilitado && retirando && !esRetiroEncomienda && !encendida && !tomada"
-        class="consentimiento-v3"
-      >
-        <input v-model="aceptaRetiroV3" type="checkbox" />
-        <span>
-          Autorizo comparar mi descriptor facial V3 con la
-          referencia cifrada de mi depósito. Es una prueba
-          experimental y el PIN seguirá siendo obligatorio.
-        </span>
-      </label>      <label
-        v-if="pruebaDescriptorV3 && registroV3Habilitado && !retirando && !esReservaWeb && !encendida && !tomada"
-        class="consentimiento-v3"
-      >
-        <input
-          v-model="aceptaDescriptorV3"
-          type="checkbox"
-        />
-        <span>
-          Autorizo la prueba experimental de reconocimiento facial V3.
-          Mi descriptor podrá guardarse cifrado para comprobar el retiro
-          y se eliminará al cerrar el servicio o vencer la reserva.
-          Puedo continuar sin marcar esta opción utilizando el sistema actual.
-          Versión del aviso: {{ VERSION_CONSENTIMIENTO_V3 }}.
-        </span>
-      </label>
-      <label
-        v-if="(esReservaWeb || esRetiroEncomienda) && !depositoConfirmado && !encendida && !tomada"
-        class="consentimiento-v3"
-      >
-        <input v-model="consentimientoFotoReserva" type="checkbox" />
-        <span>
-          {{ esRetiroEncomienda ? "Autorizo la fotografía como evidencia del retiro, sin comparación facial. Su eliminación está programada a los 30 días." : reservaPersonal ? "Autorizo el registro de mi descriptor facial V3 cifrado para comparar mi rostro al retirar mis pertenencias. La referencia se elimina al cerrar el servicio; la fotografía se conserva hasta 30 días." : "Autorizo la fotografía como evidencia del depósito, sin comparación facial. Su eliminación está programada a los 30 días." }}
-        </span>
-      </label>
+      <p v-if="!encendida && !tomada && !depositoConfirmado" id="aviso-facial" class="consentimiento-v3">
+        {{ usarDescriptor
+          ? (retirando ? "Al iniciar el escaneo, autorizas comparar tu rostro con la referencia del depósito. También necesitas tu PIN."
+            : "Al iniciar el escaneo, autorizas registrar tu referencia facial cifrada para verificar el retiro. Se elimina al cerrar el servicio o vencer la reserva." + (reservaPersonal ? " La fotografía de evidencia se conserva hasta 30 días." : ""))
+          : "Al iniciar el escaneo, autorizas tomar una fotografía como evidencia de la encomienda, sin comparación biométrica. Se conserva hasta 30 días tras completar la operación." }}
+      </p>
       <button
         v-if="!tomada && !encendida && !iniciando && !depositoConfirmado"
         type="button"
         class="continuar"
+        aria-describedby="aviso-facial"
         @click="comenzarEscaneo"
       >
         <span>
@@ -1414,4 +1357,5 @@ onBeforeUnmount(() => {
   text-shadow: 0 1px 4px rgba(0,0,0,.65);
 }
 
+.pie-facial p.consentimiento-v3 { display: block; text-align: center; line-height: 1.45; margin: 0; }
 </style>
