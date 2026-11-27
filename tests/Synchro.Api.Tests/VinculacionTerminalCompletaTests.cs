@@ -386,4 +386,97 @@ public class VinculacionTerminalCompletaTests : PruebaHistoricaAislada
             }
         }
     }
+    [Fact]
+    [Trait("Category", "LocalDb")]
+    public async Task TerminalActiva_PuedeRenovarSesion_SoloTrasAprobacion()
+    {
+        await using var conexion=new SqlConnection(Cadena);
+        await conexion.OpenAsync();
+        await PruebaHistoricaAislada.VerificarAsync(conexion);
+        string codigo="TST-REN-"+Guid.NewGuid().ToString("N")[..18];
+        int id=0;
+        try
+        {
+            await using(var insertar=new SqlCommand("""
+                IF DB_NAME()<>N'SynchroDB_Pruebas' THROW 55120,'Base incorrecta.',1;
+                INSERT dbo.Terminales(Codigo,Nombre,Activa)
+                OUTPUT INSERTED.Id
+                VALUES(@codigo,N'SYNCHRO_TEST_RENOVACION',1);
+                """,conexion))
+            {
+                insertar.Parameters.Add("@codigo",SqlDbType.NVarChar,30).Value=codigo;
+                id=Convert.ToInt32(await insertar.ExecuteScalarAsync());
+            }
+            using var fabrica=new FabricaTerminalCookieReal();
+            using var cliente=fabrica.CreateClient(new WebApplicationFactoryClientOptions {
+                BaseAddress=new Uri("https://localhost"), AllowAutoRedirect=false, HandleCookies=false
+            });
+            using var solicitar=await PostAsync(cliente,
+                "/api/terminales/vinculacion/solicitar",
+                new {CodigoTerminal=codigo});
+            Assert.Equal(HttpStatusCode.OK,solicitar.StatusCode);
+            using var datos=JsonDocument.Parse(await solicitar.Content.ReadAsStringAsync());
+            var solicitudId=datos.RootElement.GetProperty("solicitudId").GetInt32();
+            var visual=datos.RootElement.GetProperty("codigoVisual").GetString()!;
+            var token=datos.RootElement.GetProperty("token").GetString()!;
+
+            using(var sinAprobar=await PostAsync(cliente,
+                "/api/terminales/vinculacion/confirmar",new {Token=token}))
+                Assert.Equal(HttpStatusCode.Unauthorized,sinAprobar.StatusCode);
+
+            int admin=AdministradorFixture;
+            var adminCookie=CrearCookieAdministrador(fabrica,admin);
+            using var csrfReq=new HttpRequestMessage(HttpMethod.Get,"/api/admin/csrf-token");
+            csrfReq.Headers.Add("Cookie",adminCookie);
+            using var csrfResp=await cliente.SendAsync(csrfReq);
+            Assert.Equal(HttpStatusCode.OK,csrfResp.StatusCode);
+            using var csrfDoc=JsonDocument.Parse(await csrfResp.Content.ReadAsStringAsync());
+            var csrf=csrfDoc.RootElement.GetProperty("csrfToken").GetString()!;
+            var cookies=adminCookie+"; "+ObtenerCookie(csrfResp,".AspNetCore.Antiforgery");
+            using(var aprobar=await PostAsync(cliente,
+                "/api/admin/terminales/vinculacion/aprobar",
+                new {SolicitudId=solicitudId,CodigoVisual=visual},cookies,csrf))
+                Assert.Equal(HttpStatusCode.OK,aprobar.StatusCode);
+
+            using var confirmar=await PostAsync(cliente,
+                "/api/terminales/vinculacion/confirmar",new {Token=token});
+            Assert.Equal(HttpStatusCode.OK,confirmar.StatusCode);
+            var cookieTerminal=ObtenerCookie(confirmar,"Synchro.Terminal");
+            using var sesionReq=new HttpRequestMessage(HttpMethod.Get,"/api/terminales/mi-sesion");
+            sesionReq.Headers.Add("Cookie",cookieTerminal);
+            using var sesionResp=await cliente.SendAsync(sesionReq);
+            Assert.Equal(HttpStatusCode.OK,sesionResp.StatusCode);
+
+            using var estado=new SqlCommand("""
+                SELECT COUNT(*) FROM dbo.SolicitudesVinculacionTerminal
+                WHERE TerminalId=@id AND Id=@solicitud AND Estado=N'Consumida';
+                """,conexion);
+            estado.Parameters.AddWithValue("@id",id);
+            estado.Parameters.AddWithValue("@solicitud",solicitudId);
+            Assert.Equal(1,Convert.ToInt32(await estado.ExecuteScalarAsync()));
+
+            using var repetido=await PostAsync(cliente,
+                "/api/terminales/vinculacion/confirmar",new {Token=token});
+            Assert.Equal(HttpStatusCode.Unauthorized,repetido.StatusCode);
+        }
+        finally
+        {
+            if(id>0)
+            {
+                await using var limpiar=new SqlCommand("""
+                    IF DB_NAME()<>N'SynchroDB_Pruebas' THROW 55121,'Base incorrecta.',1;
+                    IF NOT EXISTS(SELECT 1 FROM dbo.Terminales
+                      WHERE Id=@id AND Codigo=@codigo AND Nombre=N'SYNCHRO_TEST_RENOVACION')
+                      THROW 55122,'Terminal de prueba no coincide.',1;
+                    DELETE dbo.SolicitudesVinculacionTerminal WHERE TerminalId=@id;
+                    DELETE dbo.Terminales WHERE Id=@id AND Codigo=@codigo
+                       AND Nombre=N'SYNCHRO_TEST_RENOVACION';
+                    """,conexion);
+                limpiar.Parameters.AddWithValue("@id",id);
+                limpiar.Parameters.AddWithValue("@codigo",codigo);
+                await limpiar.ExecuteNonQueryAsync();
+            }
+        }
+    }
+
 }
