@@ -44,11 +44,9 @@ test('la bienvenida consulta reservas reales y ofrece siguiente paso de PIN solo
   assert.match(vista,/Preparando PIN de depósito/);
   assert.match(vista,/return '\/reservas\/'\+id\+'\/solicitar-pin'/);
   assert.match(vista,/Solicitar PIN de depósito/);
-  assert.match(detalle,/async function solicitarPinDeposito\(\)/);
-  assert.match(detalle,/await encomiendasApi\.solicitarPinDeposito\(detalle\.value\.id\)/);
-  assert.match(detalle,/const puedeSolicitarPin=computed/);
-  assert.match(detalle,/solicitudPinRegistrada/);
-  assert.match(detalle,/pinDepositoEmitido/);
+  // La solicitud del PIN vive en su propia pantalla; el detalle queda como resumen.
+  assert.match(detalle,/class="env-card reserva-ficha"/);
+  assert.doesNotMatch(detalle,/async function solicitarPinDeposito/);
   assert.match(api,/pin-deposito\/solicitar/);
   assert.match(api,/metodo: "POST"/);
   assert.match(espera,/await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
@@ -92,9 +90,9 @@ test('bienvenida presenta el paso correcto con PIN entregado, deposito y autoriz
   assert.match(vista,/Enviar invitación por WhatsApp/);
   assert.match(vista,/enlaceInvitacionValido/);
   assert.match(vista,/#destinatario-autorizacion/);
-  assert.match(detalle,/id="personas-autorizaciones"/);
-  assert.match(detalle,/:id="rol==='destinatario'\?'destinatario-autorizacion':undefined"/);
-  assert.match(detalle,/v-if="pinEntregado"/);
+  assert.match(detalle,/id="destinatario-autorizacion"/);
+  assert.match(detalle,/v-if="depositoConfirmado && !detalle.cancelacion"/);
+  assert.match(detalle,/Enviar invitación por WhatsApp/);
 });
 test('cancelacion desde bienvenida solo antes de deposito y con confirmacion real',()=>{
   const vista=leer('src/views/BienvenidaView.vue');
