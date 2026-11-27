@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
-import AppIcon from '../components/ui/AppIcon.vue';
 
 const route=useRoute();
 const router=useRouter();
@@ -60,54 +59,126 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
 
 <template>
   <section class="env-page espera-pago">
-    <div class="env-card espera-pago__panel" aria-labelledby="espera-pago-titulo">
-      <div class="espera-pago__simbolo" aria-hidden="true">
-        <AppIcon nombre="reloj" :tamano="34" />
+    <div class="espera-pago__panel" aria-labelledby="espera-pago-titulo">
+      <div v-if="!terminada" class="espera-pago__animacion" aria-hidden="true">
+        <div class="espera-pago__circulo espera-pago__circulo--exterior"></div>
+        <div class="espera-pago__circulo espera-pago__circulo--interior"></div>
+        <div class="espera-pago__tarjeta">
+          <div class="espera-pago__chip"></div>
+          <div class="espera-pago__lineas"><span></span><span></span></div>
+          <div class="espera-pago__banda"></div>
+        </div>
+        <div class="espera-pago__destello espera-pago__destello--uno"></div>
+        <div class="espera-pago__destello espera-pago__destello--dos"></div>
       </div>
-      <div class="espera-pago__encabezado">
-        
-        <h1 id="espera-pago-titulo">Estamos verificando tu solicitud</h1>
-        <p>Tu reserva se registró correctamente. Te avisaremos en esta pantalla cuando se confirme su estado.</p>
-      </div>
+      <div v-else class="espera-pago__terminada" aria-hidden="true">!</div>
+
+      <h1 id="espera-pago-titulo">{{ terminada ? 'La reserva ya no está activa' : 'Verificando pago' }}</h1>
+      <p v-if="!terminada" class="espera-pago__subtitulo" role="status" aria-live="polite">
+        <span class="espera-pago__puntos" aria-hidden="true"><span></span><span></span><span></span></span>
+        Continuaremos automáticamente cuando se confirme
+      </p>
+      <p v-else class="espera-pago__subtitulo" role="status">Consulta el estado de esta solicitud en tus reservas.</p>
+
       <div class="espera-pago__datos">
         <div><span>Reserva</span><strong>#{{ reservaId }}</strong></div>
         <div><span>Total solicitado</span><strong>{{ importe }}</strong></div>
       </div>
-      <div v-if="terminada" class="espera-pago__estado" role="status">
-        Esta reserva ya no está activa. Revisa los detalles para conocer su estado.
-      </div>
-      <div v-else class="espera-pago__estado" role="status">
-        <span class="espera-pago__punto" aria-hidden="true"></span>
-        {{ cargando&&!detalle?'Consultando la reserva…':'Pago pendiente de confirmación' }}
-      </div>
       <p v-if="error" class="alerta" role="alert">{{ error }}</p>
-      <p class="espera-pago__nota">Este estado se actualiza automáticamente. Una vez confirmado el pago, continuaremos con tu reserva y la gestión del PIN de depósito.</p>
-      <p class="espera-pago__nota">Demostración: no se ha efectuado ningún cargo bancario. No crees otra reserva mientras esta solicitud esté pendiente.</p>
-      <div class="espera-pago__acciones">
-        <button type="button" class="boton boton-primario" :disabled="cargando" @click="consultar">
-          Actualizar estado
-        </button>
-        <RouterLink class="boton boton-secundario" :to="'/reservas/'+reservaId">Ver mi reserva</RouterLink>
-      </div>
+      <p class="espera-pago__aviso">Pago de demostración · Sin cargo bancario real</p>
     </div>
   </section>
 </template>
 
 <style scoped>
-.espera-pago {display:grid;align-content:center;justify-items:center;min-height:calc(100dvh - 150px);padding:clamp(12px,2vw,28px);}
-.espera-pago__panel {display:grid;justify-items:start;gap:clamp(13px,2.5vh,22px);width:min(100%,620px);padding:clamp(20px,4vw,38px);}
-.espera-pago__simbolo {width:64px;height:64px;display:grid;place-items:center;background:var(--surface-accent);border:1px solid var(--border);border-radius:18px;color:var(--accent-text);}
-.espera-pago__encabezado {display:grid;gap:9px;}
-.espera-pago__encabezado h1 {color:var(--text-strong);font-size:clamp(23px,4vw,32px);line-height:1.2;}
-.espera-pago__encabezado p,.espera-pago__nota {color:var(--text-muted);font-size:clamp(12px,2vw,14px);line-height:1.6;}
-.espera-pago__etiqueta {color:var(--accent-text);font-size:11px;font-weight:800;letter-spacing:.08em;}
-.espera-pago__datos {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;padding:15px;border-radius:12px;background:var(--surface-soft);border:1px solid var(--border);}
-.espera-pago__datos>div {min-width:0;display:grid;gap:5px;}
-.espera-pago__datos span {color:var(--text-muted);font-size:12px;}
-.espera-pago__datos strong {color:var(--text-strong);font-size:clamp(16px,3vw,22px);overflow-wrap:anywhere;}
-.espera-pago__estado {display:flex;align-items:center;gap:10px;color:var(--text-strong);font-weight:750;font-size:13px;padding:13px;border-radius:11px;background:var(--surface-accent);width:100%;}
-.espera-pago__punto {width:11px;height:11px;background:#00b9c7;border-radius:50%;box-shadow:0 0 0 4px rgb(0 185 199 / 15%);flex:0 0 11px;}
-.espera-pago__acciones {display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;width:100%;}
-.espera-pago__acciones .boton {display:inline-flex;justify-content:center;align-items:center;gap:8px;padding:12px 18px;min-height:48px;text-decoration:none;}
-@media(max-width:420px){.espera-pago__datos{gap:8px;padding:12px}.espera-pago__acciones .boton{flex:1 1 auto;}}
+.espera-pago {
+  display:grid;place-items:center;min-height:calc(100dvh - 135px);
+  padding:clamp(16px,3vw,32px);overflow:hidden;
+}
+.espera-pago__panel {
+  width:min(100%,500px);display:flex;flex-direction:column;align-items:center;
+  gap:clamp(15px,2.6vh,24px);text-align:center;
+  padding:clamp(18px,4vw,32px);
+}
+.espera-pago__panel h1 {
+  font-size:clamp(23px,4.6vw,32px);line-height:1.2;
+  color:var(--text-strong);font-weight:850;letter-spacing:-.02em;
+}
+.espera-pago__subtitulo {
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;
+  font-size:clamp(12px,1.8vw,14px);line-height:1.5;color:var(--text-muted);
+}
+.espera-pago__animacion {
+  position:relative;display:grid;place-items:center;
+  width:clamp(190px,45vw,260px);aspect-ratio:1;
+  isolation:isolate;
+}
+.espera-pago__circulo {
+  position:absolute;inset:7%;border-radius:50%;
+  border:2px solid rgb(0 185 199 / 18%);
+}
+.espera-pago__circulo--exterior {
+  border-top-color:#00b9c7;border-right-color:#5ec6e8;
+  animation:espera-giro 3.4s linear infinite;
+}
+.espera-pago__circulo--interior {
+  inset:17%;border:1px dashed rgb(94 198 232 / 55%);
+  animation:espera-giro 9s linear infinite reverse;
+}
+.espera-pago__tarjeta {
+  position:relative;display:flex;flex-direction:column;justify-content:space-between;
+  transform:rotate(-10deg);width:61%;height:38%;
+  border:1px solid #5ec6e8;border-radius:15px;
+  background:linear-gradient(130deg,#01305c,#075578 67%,#00a2b2);
+  box-shadow:0 17px 40px rgb(1 48 92 / 22%);
+  padding:clamp(12px,2vw,18px);overflow:hidden;
+  animation:espera-flotar 2.8s ease-in-out infinite;
+}
+.espera-pago__chip {
+  width:25px;height:19px;border-radius:5px;
+  background:linear-gradient(140deg,#a6d4db,#eaf9fa 54%,#73bbc9);
+  border:1px solid rgb(255 255 255 / 55%);
+}
+.espera-pago__lineas{display:grid;gap:6px;width:73%;}
+.espera-pago__lineas span{height:5px;border-radius:10px;background:rgb(255 255 255 / 70%);}
+.espera-pago__lineas span:last-child{width:60%;opacity:.65;}
+.espera-pago__banda {
+  position:absolute;inset:0 auto 0 -45%;width:32%;
+  background:linear-gradient(90deg,transparent,rgb(255 255 255 / 16%),transparent);
+  transform:skewX(-24deg);animation:espera-brillo 3s ease-in-out infinite;
+}
+.espera-pago__destello{position:absolute;width:10px;height:10px;border-radius:50%;background:#00b9c7;box-shadow:0 0 0 5px rgb(0 185 199 / 12%);}
+.espera-pago__destello--uno{top:17%;right:14%;animation:espera-latido 2s ease-in-out infinite;}
+.espera-pago__destello--dos{bottom:20%;left:15%;background:#5ec6e8;animation:espera-latido 2s ease-in-out 1s infinite;}
+.espera-pago__puntos{display:inline-flex;gap:4px;align-items:center;}
+.espera-pago__puntos span{width:6px;height:6px;border-radius:50%;background:#00b9c7;animation:espera-latido 1.1s ease-in-out infinite;}
+.espera-pago__puntos span:nth-child(2){animation-delay:.18s;}
+.espera-pago__puntos span:nth-child(3){animation-delay:.36s;}
+.espera-pago__datos {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+  width:100%;padding:14px;border-radius:14px;
+  border:1px solid var(--border);background:var(--surface);
+  text-align:left;
+}
+.espera-pago__datos>div{min-width:0;display:grid;gap:5px;}
+.espera-pago__datos span{font-size:12px;color:var(--text-muted);}
+.espera-pago__datos strong{font-size:clamp(16px,3vw,21px);color:var(--text-strong);overflow-wrap:anywhere;}
+.espera-pago__aviso{font-size:11px;line-height:1.4;color:var(--text-muted);}
+.espera-pago__terminada{
+  display:grid;place-items:center;width:76px;height:76px;border:2px solid var(--border-strong);
+  border-radius:50%;color:var(--text-muted);font-size:36px;font-weight:700;
+}
+@keyframes espera-giro{to{transform:rotate(360deg);}}
+@keyframes espera-flotar{0%,100%{transform:rotate(-10deg) translateY(0);}50%{transform:rotate(-7deg) translateY(-9px);}}
+@keyframes espera-brillo{0%,25%{left:-45%;}75%,100%{left:125%;}}
+@keyframes espera-latido{0%,100%{opacity:.45;transform:scale(.75);}50%{opacity:1;transform:scale(1.12);}}
+@media(max-width:420px){
+  .espera-pago{min-height:calc(100dvh - 90px);padding:14px;}
+  .espera-pago__panel{padding:10px 4px;gap:18px;}
+  .espera-pago__animacion{width:clamp(180px,54vw,235px);}
+}
+@media(prefers-reduced-motion:reduce){
+  .espera-pago__circulo,.espera-pago__tarjeta,.espera-pago__banda,
+  .espera-pago__destello,.espera-pago__puntos span{animation:none!important;}
+}
 </style>
