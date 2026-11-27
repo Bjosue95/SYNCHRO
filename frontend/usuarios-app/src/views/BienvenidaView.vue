@@ -69,6 +69,9 @@ const siguienteAccion=computed(()=>textosEtapa[etapaSiguiente.value]?.titulo||'V
 const descripcionSiguiente=computed(()=>textosEtapa[etapaSiguiente.value]?.descripcion||'Consulta los detalles de tu operación.');
 const botonSiguiente=computed(()=>textosEtapa[etapaSiguiente.value]?.boton||'Ver mi reserva');
 const iconoSiguiente=computed(()=>textosEtapa[etapaSiguiente.value]?.icono||'casillero');
+const enlaceInvitacionValido=computed(()=>etapaSiguiente.value==='autorizar-destinatario'
+  &&typeof reservaPendiente.value?.compartir?.enlaceWhatsApp==='string'
+  &&/^https:\/\/wa\.me\/[1-9][0-9]{7,14}\?text=/.test(reservaPendiente.value.compartir.enlaceWhatsApp));
 const enlaceSiguiente=computed(()=>{
   const id=reservaPendiente.value?.id;
   if(!id)return '/mis-reservas';
@@ -185,9 +188,15 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;});
           <h2 id="siguiente-paso-titulo">{{ siguienteAccion }}</h2>
           <p>{{ descripcionSiguiente }}</p>
         </div>
-        <RouterLink :to="enlaceSiguiente" class="inicio-cliente__accion inicio-cliente__accion--principal">
-          {{ botonSiguiente }} <AppIcon nombre="flecha" :tamano="19"/>
-        </RouterLink>
+        <div class="inicio-cliente__siguiente-acciones">
+          <a v-if="enlaceInvitacionValido" :href="reservaPendiente.compartir.enlaceWhatsApp"
+            class="inicio-cliente__accion inicio-cliente__accion--principal" target="_blank" rel="noopener noreferrer">
+            Enviar invitación por WhatsApp <AppIcon nombre="flecha" :tamano="19"/>
+          </a>
+          <RouterLink :to="enlaceSiguiente" class="inicio-cliente__accion" :class="enlaceInvitacionValido?'inicio-cliente__accion--secundaria':'inicio-cliente__accion--principal'">
+            {{ enlaceInvitacionValido?'Ver autorización':botonSiguiente }} <AppIcon nombre="flecha" :tamano="19"/>
+          </RouterLink>
+        </div>
       </div>
       <div v-if="puedeCancelar" class="inicio-cliente__cancelacion">
         <template v-if="!cancelando">
@@ -203,7 +212,7 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;});
           <label class="campo"><span>Motivo</span>
             <select v-model="motivoCancelacion" :disabled="procesandoCancelacion" required>
               <option value="" disabled>Selecciona un motivo</option>
-              <option v-if="!esPersonal">Número del destinatario incorrecto</option>
+              <option v-if="!esPersonal">Número de destinatario incorrecto</option>
               <option>Tamaño de casillero incorrecto</option>
               <option>Ya no desea utilizar el casillero</option>
               <option>Otro motivo</option>
@@ -299,6 +308,8 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;});
 
 .inicio-cliente__siguiente{display:grid;gap:0;border:1px solid #00b9c7;border-radius:18px;background:var(--surface);overflow:hidden;box-shadow:0 4px 17px rgb(0 185 199 / 8%);}
 .inicio-cliente__siguiente-principal{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,22px);padding:clamp(16px,2.6vw,24px);}
+.inicio-cliente__siguiente-acciones{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;}
+.inicio-cliente__siguiente-acciones .inicio-cliente__accion{white-space:normal;text-align:center;}
 .inicio-cliente__siguiente-icono{display:grid;place-items:center;width:58px;height:58px;border-radius:15px;background:var(--surface-accent);color:var(--accent-text);}
 .inicio-cliente__siguiente-texto{display:grid;gap:6px;min-width:0;}
 .inicio-cliente__siguiente-texto h2{font-size:clamp(19px,2.7vw,26px);color:var(--text-strong);}
@@ -321,5 +332,6 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;});
 .inicio-cliente__aviso{font-size:13px;color:var(--text-strong);padding:12px;background:var(--surface-accent);border-radius:12px;}
 .inicio-cliente__error{font-size:12px;color:var(--text-muted);padding:10px 0;}
 .inicio-cliente__error a{color:var(--accent-text);font-weight:800;}
-@media(max-width:760px){.inicio-cliente__siguiente-principal{grid-template-columns:auto minmax(0,1fr);}.inicio-cliente__siguiente-principal>.inicio-cliente__accion{grid-column:1/-1;width:100%;}.inicio-cliente__siguiente-icono{width:48px;height:48px;}.inicio-cliente__cancelacion-boton{width:100%;}.inicio-cliente__cancelacion-acciones .inicio-cliente__cancelacion-boton{width:auto;}}
+@media(max-width:760px){.inicio-cliente__siguiente-principal{grid-template-columns:auto minmax(0,1fr);}.inicio-cliente__siguiente-acciones{grid-column:1/-1;width:100%;flex-direction:column;}
+ .inicio-cliente__siguiente-acciones .inicio-cliente__accion{width:100%;}.inicio-cliente__siguiente-icono{width:48px;height:48px;}.inicio-cliente__cancelacion-boton{width:100%;}.inicio-cliente__cancelacion-acciones .inicio-cliente__cancelacion-boton{width:auto;}}
 </style>
