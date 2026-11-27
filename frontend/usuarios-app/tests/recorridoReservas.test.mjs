@@ -186,7 +186,7 @@ test('reserva en pasos adaptables conserva selecciones y espera aprobacion del p
   const espera=readFileSync(new URL('../src/views/PagoPendienteView.vue',import.meta.url),'utf8');
   assert.match(espera, /setInterval\(\(\)=>\{if\(!document\.hidden\)void consultar\(\);\},5000\)/);
   assert.match(espera, /d\.pago\?\.estado==='ConfirmadoManual'/);
-  assert.match(espera, /await router\.replace\('\/reservas\/'\+id\)/);
+  assert.match(espera, /await router\.replace\('\/bienvenida'\)/);
 });
 test('PIN destinatario permanece condicionado al deposito confirmado', () => {
   const detalle=leer('EncomiendaDetalleView');
@@ -404,7 +404,24 @@ test('la espera de pago usa animación automatica sin botones ni textos redundan
   assert.match(vista,/@keyframes espera-flotar/);
   assert.match(vista,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(vista,/setInterval\(\(\)=>\{if\(!document\.hidden\)void consultar\(\);\},5000\)/);
-  assert.match(vista,/await router\.replace\('\/reservas\/'\+id\)/);
+  assert.match(vista,/await router\.replace\('\/bienvenida'\)/);
   assert.doesNotMatch(vista,/Actualizar estado|Ver mi reserva|@click="consultar"/);
   assert.doesNotMatch(vista,/RouterLink/);
+});
+
+test('detalle presenta estado y resumen antes de informacion secundaria plegable', () => {
+  const detalle=leer('EncomiendaDetalleView');
+  const primero=detalle.indexOf('class="env-card reserva-seguimiento"');
+  const resumen=detalle.indexOf('class="env-card reserva-resumen"');
+  const autorizaciones=detalle.indexOf('<details class="reserva-acordeon"');
+  assert.ok(primero>=0&&resumen>primero&&autorizaciones>resumen);
+  assert.match(detalle,/class="reserva-seguimiento__contador"/);
+  assert.match(detalle,/class="reserva-resumen__datos"/);
+  assert.match(detalle,/<summary><span>Personas y autorizaciones<\/span>/);
+  assert.match(detalle,/<summary><span>Pago de la reserva<\/span>/);
+  assert.match(detalle,/<summary><span>Depósito y retiro<\/span>/);
+  assert.match(detalle,/<summary><span>Historial de movimientos<\/span>/);
+  assert.match(detalle,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(detalle,/detalle\.condiciones\?\.remitenteAutorizado/);
+  assert.match(detalle,/rol === 'destinatario' && depositoConfirmado/);
 });
