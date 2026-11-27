@@ -51,8 +51,10 @@ test("las vistas con acciones automaticas tienen salidas seguras para preview", 
 test("el contador de carga comparte los estilos con el deposito y permite minuto extra", () => {
   const personal = leer("../src/views/DepositoView.vue");
   const carga = leer("../src/views/ColocarDispositivoCargaView.vue");
-  const estilos = contenido => contenido.slice(contenido.indexOf("<style scoped>"));
-  assert.equal(estilos(personal), estilos(carga));
+  const estilos = contenido => contenido.slice(contenido.indexOf("<style scoped>"),contenido.lastIndexOf("</style>"));
+  // La reserva web añade reglas específicas al final; el contador común debe permanecer idéntico.
+  const compartidos = estilos(personal).split("/* La reserva reutiliza el contador ya existente")[0].trimEnd();
+  assert.equal(compartidos, estilos(carga).trimEnd());
   assert.match(carga, /deposito-aviso-minuto/);
   assert.match(carga, /escalaTiempo/);
   assert.match(carga, /synchro-timer-gradient-v3/);
