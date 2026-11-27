@@ -30,6 +30,7 @@ let montado = true;
 const rol = computed(() => categoria.value === 'remitente' ? 'Remitente' : 'Destinatario');
 const finalidad = computed(() => categoria.value === 'remitente' ? 'deposito' : 'retiro');
 const participante = computed(() => detalle.value?.[categoria.value] || null);
+const pagoPermitePin = computed(() => detalle.value?.pago?.estado==='ConfirmadoManual'||detalle.value?.condiciones?.pagoDiferidoDestinatario===true);
 const enPreparacion = (e: string) => e === 'Preparacion' || e === 'ListaParaDeposito';
 type RolEncomienda = 'remitente' | 'destinatario';
 function activosDe(tipo: RolEncomienda) {
@@ -53,7 +54,7 @@ const solicitudesPinDeposito=computed(()=>solicitudes.value.filter((x:any)=>
   x.servicio==='Encomiendas'&&x.solicitudPinDeposito===true
   &&x.entrega!=='EnviadoManual'
   &&['Preparacion','ListaParaDeposito'].includes(x.estado)
-  &&x.pagoEstado==='ConfirmadoManual'
+  &&(x.pagoEstado==='ConfirmadoManual'||x.pagoDiferidoDestinatario===true)
   &&(x.rol==='Remitente'||x.rol==='Titular')));
 const resumen = computed(() => ({
   pendientes: activos.value.filter(x => x.consentimiento !== 'Confirmado').length,
@@ -199,7 +200,7 @@ async function ejecutar(accion: () => Promise<void>) {
 }
 async function generarPin() {
   if (!detalle.value || participante.value?.consentimiento !== 'Confirmado') return;
-  if (detalle.value.pago.estado !== 'ConfirmadoManual')
+  if (!pagoPermitePin.value)
     throw new Error('Primero debe confirmarse el pago del remitente.');
   if (categoria.value === 'destinatario' && (detalle.value.estado !== 'Depositada' || !detalle.value.usoId))
     throw new Error('El destinatario solo puede autorizarse después del depósito.');
@@ -225,7 +226,7 @@ async function confirmarMensaje() {
     });
     await recargar();
     aviso.value = 'Confirmación manual registrada por el administrador.';
-    if (detalle.value.pago.estado === 'ConfirmadoManual') await generarPin();
+    if (pagoPermitePin.value) await generarPin();
   });
 }
 function emitir() { return ejecutar(generarPin); }
@@ -297,7 +298,7 @@ watch(() => route.query.encomienda, valor => {
 
     <section v-if="solicitudesPinDeposito.length" class="wa-solicitudes-pin" aria-label="Solicitudes de PIN de depósito desde la web">
       <h2>PIN de depósito solicitados desde la web</h2>
-      <p>Estas reservas ya tienen el pago confirmado. Gestiona la emisión y registra la entrega real por WhatsApp.</p>
+      <p>Gestiona los PIN solicitados para reservas pagadas o con pago diferido del destinatario. Registra la entrega real por WhatsApp.</p>
       <div class="wa-solicitudes-pin__lista">
         <div v-for="item in solicitudesPinDeposito" :key="item.encomiendaId" class="wa-solicitudes-pin__fila">
           <div><strong>Reserva #{{ item.encomiendaId }}</strong><small>{{ item.claseReserva==='Personal'?'Pertenencias personales':'Encomienda' }} · {{ item.telefono }}</small></div>
@@ -369,12 +370,12 @@ watch(() => route.query.encomienda, valor => {
             </label>
             <p v-if="categoria==='destinatario'" class="info">Al confirmar declaras también que el destinatario aceptó recibir la encomienda.</p>
             <button class="primario" type="submit" :disabled="!puedeConfirmar">
-              {{ detalle.pago.estado === 'ConfirmadoManual' ? 'Confirmar mensaje y generar PIN' : 'Confirmar mensaje recibido' }}
+              {{ pagoPermitePin ? 'Confirmar mensaje y generar PIN' : 'Confirmar mensaje recibido' }}
             </button>
           </form>
         </template>
         <template v-else-if="!pinActual">
-          <p v-if="detalle.pago.estado !== 'ConfirmadoManual'" class="info">
+          <p v-if="!pagoPermitePin" class="info">
             Mensaje confirmado. Primero registra el pago del remitente.
             <RouterLink :to="{path:'/admin/encomiendas',query:{encomienda:detalle.id}}">Gestionar pago</RouterLink>
           </p>

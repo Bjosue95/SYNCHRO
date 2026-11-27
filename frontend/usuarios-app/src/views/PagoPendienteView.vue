@@ -47,6 +47,11 @@ async function consultar(){
       await router.replace('/reservas/'+id);
       return;
     }
+    if(d.condiciones?.pagoDiferidoDestinatario===true){
+      clearInterval(reloj);
+      await router.replace('/reservas/'+id);
+      return;
+    }
     if(d.pago?.estado==='ConfirmadoManual'||d.condiciones?.pagoConfirmado){
       clearInterval(reloj);
       estadoAccesible.value='Pago confirmado. Continúa con la solicitud del PIN.';

@@ -12,6 +12,8 @@ let montada=true;
 let consultaActual=0;
 let reloj:ReturnType<typeof setInterval>|undefined;
 
+const pagoDiferido=computed(()=>detalle.value?.condiciones?.pagoDiferidoDestinatario===true);
+const pinDepositoEntregado=computed(()=>Boolean(detalle.value?.pines?.some((p:any)=>p.finalidad==='Deposito'&&['Entregado','Consumido'].includes(p.estado))));
 const esPersonal=computed(()=>detalle.value?.reserva?.servicio==='Personal');
 const depositoConfirmado=computed(()=>Boolean(detalle.value?.depositoUtc)
   ||['Depositada','Retirada'].includes(detalle.value?.estado));
@@ -79,7 +81,7 @@ onBeforeUnmount(()=>{montada=false;consultaActual++;clearInterval(reloj);});
           <div>
             <span>Importe</span>
             <strong>{{ detalle.pago?.importeHnl==null ? 'Por definir' : 'L '+Number(detalle.pago.importeHnl).toFixed(2) }}</strong>
-            <small v-if="detalle.pago?.estado!=='ConfirmadoManual'">Pendiente de confirmación</small>
+            <small v-if="detalle.pago?.estado!=='ConfirmadoManual'">{{ pagoDiferido?'Pago a cargo del destinatario al retirar':'Pendiente de confirmación' }}</small>
           </div>
           <div class="reserva-ficha__ubicacion">
             <span>Estación</span>
@@ -88,6 +90,14 @@ onBeforeUnmount(()=>{montada=false;consultaActual++;clearInterval(reloj);});
         </div>
       </section>
 
+      <section v-if="!depositoConfirmado && !detalle.cancelacion && !detalle.historica" class="env-card reserva-operacion">
+        <h2>{{ pinDepositoEntregado ? "Esperando depósito" : "Prepara tu depósito" }}</h2>
+        <p v-if="pagoDiferido">El destinatario pagará en la estación antes de retirar la encomienda. No necesitas pagar para depositarla.</p>
+        <p v-if="pinDepositoEntregado">Utiliza el PIN recibido por WhatsApp en la estación SYNCHRO.</p>
+        <RouterLink v-else-if="!detalle.condiciones?.remitenteAutorizado" to="/mi-perfil" class="boton boton-primario">Autorizar WhatsApp</RouterLink>
+        <RouterLink v-else-if="pagoDiferido||detalle.condiciones?.pagoConfirmado" :to="'/reservas/'+detalle.id+'/solicitar-pin'" class="boton boton-primario">Solicitar PIN de depósito</RouterLink>
+        <p v-else>Espera la confirmación del pago antes de solicitar el PIN.</p>
+      </section>
       <section v-if="depositoConfirmado && !detalle.cancelacion" id="deposito-retiro"
         class="env-card reserva-operacion" aria-labelledby="operacion-titulo">
         <span class="reserva-ficha__etiqueta">DEPÓSITO CONFIRMADO</span>

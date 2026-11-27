@@ -11,6 +11,11 @@ const router=useRouter(),route=useRoute();
 const servicio=ref(route.query.servicio==='Encomienda'?'Encomienda':'Personal'),tipo=ref('Normal'),tamano=ref(''),ubicacion=ref(''),minutos=ref(0),telefono=ref('');
 const opciones=ref<any[]>([]),cargando=ref(true),actualizando=ref(false),enviando=ref(false),error=ref(''),ubicacionPendiente=ref(false),revisando=ref(false);
 const paso=ref(0);
+const reservaCreada=ref<number|null>(null);
+let retorno:ReturnType<typeof setTimeout>|undefined;
+let montada=true;
+onBeforeUnmount(()=>{montada=false;clearTimeout(retorno);});
+function volverInicio(){clearTimeout(retorno);void router.replace('/bienvenida');}
 const pasosReserva=['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Forma de pago','Tarjeta'];
 const ultimoPaso=8;
 const pasosVisibles=computed(()=>pasosReserva.filter((_,indice)=>
@@ -174,7 +179,7 @@ function revisar(){
   paso.value=6;
 }
 async function crear(){
-  if(enviando.value)return;
+  if(enviando.value||reservaCreada.value!==null)return;
   if(!pagador.value){error.value='Selecciona cómo deseas pagar.';return;}
   if(!disponible.value || (servicio.value==='Encomienda'&&!normalizarTelefono(telefono.value))){
     revisando.value=false;
@@ -202,10 +207,14 @@ async function crear(){
     });
     if(!Number.isSafeInteger(Number(d?.id))||Number(d.id)<=0)
       throw new Error('La reserva fue recibida, pero el servidor no devolvió una referencia válida. Consulta Mis reservas antes de crear otra.');
+    if(!montada)return;
     limpiarTarjetaPrueba();
     if(pagador.value==='Remitente'){
       // La pantalla independiente consulta la reserva real; no confirma el pago localmente.
       await router.replace('/reservas/'+d.id+'/pago-pendiente');
+    }else if(servicio.value==='Encomienda'&&pagador.value==='Destinatario'){
+      reservaCreada.value=Number(d.id);
+      retorno=setTimeout(volverInicio,4000);
     }else{
       await router.replace('/reservas/'+d.id);
     }
@@ -222,7 +231,15 @@ onMounted(cargar);
     <header class="env-heading"><div><h1>Reservar casillero</h1><p>Elige qué vas a guardar y encuentra un casillero disponible.</p></div></header>
     <p v-if="error" class="alerta" role="alert">{{ error }}</p><p v-if="cargando" role="status">Consultando disponibilidad…</p>
     <span v-if="actualizando" class="reserva-sr-only" role="status">Actualizando disponibilidad</span>
-    <nav v-if="paso<=ultimoPaso" class="reserva-pasos" aria-label="Progreso de la reserva">
+    <section v-if="reservaCreada!==null" class="env-card reserva-confirmada-diferida" role="status" aria-live="polite">
+      <span class="reserva-confirmada-diferida__icono"><AppIcon nombre="check" :tamano="44" /></span>
+      <h2>¡Reserva confirmada!</h2>
+      <p>El destinatario realizará el pago en la estación antes de retirar la encomienda.</p>
+      <p>Solicita tu PIN de depósito desde Mis reservas.</p>
+      <small>Regresando a tu inicio…</small>
+      <button type="button" class="boton boton-primario" @click="volverInicio">Ir al inicio</button>
+    </section>
+    <nav v-if="reservaCreada===null && paso<=ultimoPaso" class="reserva-pasos" aria-label="Progreso de la reserva">
       <div class="reserva-pasos__texto">
         <span class="reserva-pasos__contador">{{ pasoNumero }} / {{ pasosVisibles.length }}</span>
         <strong>{{ pasoActual }}</strong>
@@ -231,7 +248,7 @@ onMounted(cargar);
         <span :style="{width:(pasoNumero/pasosVisibles.length*100)+'%'}"></span>
       </div>
     </nav>
-    <div v-if="!cargando" class="reserva-vista" :key="paso">
+    <div v-if="!cargando && reservaCreada===null" class="reserva-vista" :key="paso">
       <template v-if="paso<=5">
         <section v-if="paso===0" class="env-card"><h2>¿Qué vas a guardar?</h2><div class="reserva-opciones">
           <SeleccionReservaCard titulo="Pertenencias personales" descripcion="Guardarlas y retirarlas con tus PIN" icono-tablet="guardar" :seleccionado="servicio==='Personal'" @seleccionar="servicio='Personal'" />
@@ -457,7 +474,7 @@ onMounted(cargar);
           </section>
 
     </div>
-    <footer v-if="!cargando && paso<=ultimoPaso" class="reserva-paso__navegacion">
+    <footer v-if="!cargando && paso<=ultimoPaso && reservaCreada===null" class="reserva-paso__navegacion">
       <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
       <button v-if="paso<7 || paso===7" type="button" class="boton boton-primario reserva-paso__continuar"
         :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible) || (paso===7 && !pagador)"
@@ -1267,4 +1284,8 @@ onMounted(cargar);
     padding:8px 11px;
   }
 }
+.reserva-confirmada-diferida{width:min(100%,620px);margin:auto;display:grid;justify-items:center;text-align:center;gap:16px;padding:clamp(24px,5vw,48px);}
+.reserva-confirmada-diferida__icono{display:grid;place-items:center;width:88px;height:88px;border-radius:50%;background:#00b9c7;color:#01305c;}
+.reserva-confirmada-diferida h2{margin:0;font-size:clamp(25px,4vw,36px);color:var(--text-strong);}
+.reserva-confirmada-diferida p,.reserva-confirmada-diferida small{margin:0;color:var(--text-muted);line-height:1.5;}
 </style>

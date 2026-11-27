@@ -184,6 +184,12 @@ public sealed partial class EncomiendasOperativasSqlTests
         int id=Json(await s.Crear(f.Persona,seleccion.TelefonoDestinatario!,"Mediano",ct,seleccion))
             .GetProperty("id").GetInt32();
         await Consentir(f,id,"Remitente");
+        var condiciones=Json(await s.Detalle(id,f.Persona,ct)).GetProperty("condiciones");
+        Assert.True(condiciones.GetProperty("pagoDiferidoDestinatario").GetBoolean());
+        Assert.False(condiciones.GetProperty("pagoConfirmado").GetBoolean());
+        var solicitudPin=Json(await s.SolicitarPinDeposito(id,f.Persona,ct));
+        Assert.True(solicitudPin.GetProperty("solicitudRegistrada").GetBoolean());
+        Assert.True(Json(await s.SolicitarPinDeposito(id,f.Persona,ct)).GetProperty("yaExistia").GetBoolean());
         var deposito=Json(await s.EmitirPin(id,"Deposito",false,f.Admin,ct));
         var pinDeposito=deposito.GetProperty("pin").GetString()!;
         await s.ConfirmarEntregaPin(id,new(deposito.GetProperty("id").GetGuid(),

@@ -13,7 +13,8 @@ internal sealed partial class EncomiendasOperativasSql
         await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);
         var o=await Leer(c,tx,id,persona,ct);
         Preparacion(o,Ahora);
-        Exigir(o.Pago=="ConfirmadoManual","PagoPendiente","El pago debe estar confirmado antes de solicitar el PIN.");
+        Exigir(o.Pago=="ConfirmadoManual"||PagoDiferidoDestinatario(await LeerReserva(c,tx,id,ct)),
+            "PagoPendiente","El pago debe estar confirmado antes de solicitar el PIN, salvo pago diferido del destinatario.");
         var cuenta=await LeerConsentimientoCuenta(c,tx,persona,ct);
         Exigir(cuenta.Activa&&(cuenta.Estado=="Confirmado"||await Consentimientos(c,tx,id,ct)),
             "WhatsAppPendiente","Debes tener autorizado tu WhatsApp antes de solicitar el PIN.");

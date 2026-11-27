@@ -26,11 +26,13 @@ const pinEmitido=computed(()=>Boolean(detalle.value?.pines?.some((p:any)=>
 const pinSolicitado=computed(()=>Boolean(detalle.value?.historial?.some((h:any)=>
   h.accion==='PinDepositoSolicitado')));
 const pagoConfirmado=computed(()=>Boolean(detalle.value?.pago?.estado==='ConfirmadoManual'||detalle.value?.condiciones?.pagoConfirmado));
+const pagoDiferido=computed(()=>detalle.value?.condiciones?.pagoDiferidoDestinatario===true);
+const pagoPermiteDeposito=computed(()=>pagoConfirmado.value||pagoDiferido.value);
 const whatsappAutorizado=computed(()=>Boolean(detalle.value?.condiciones?.remitenteAutorizado));
 const terminada=computed(()=>Boolean(detalle.value?.historica||detalle.value?.cancelacion||
   ['Cancelada','Vencida','Rechazada'].includes(detalle.value?.estado)));
 const esperandoEntrega=computed(()=>pinSolicitado.value||pinEmitido.value);
-const puedeSolicitar=computed(()=>pagoConfirmado.value&&whatsappAutorizado.value
+const puedeSolicitar=computed(()=>pagoPermiteDeposito.value&&whatsappAutorizado.value
   &&!terminada.value&&!pinEntregado.value&&!esperandoEntrega.value&&!enviando.value);
 async function manejarSesion(e:unknown){
   if(!(e instanceof ErrorApi&&e.estado===401))return false;
@@ -106,12 +108,12 @@ onBeforeUnmount(()=>{activo=false;version++;clearInterval(reloj);});
         <div class="pin-page__icono" aria-hidden="true">
           <AppIcon :nombre="esperandoEntrega?'seguridad':'casillero'" :tamano="38" />
         </div>
-        <p class="pin-page__etapa">{{ esperandoEntrega ? 'SOLICITUD REGISTRADA' : 'PAGO CONFIRMADO' }}</p>
+        <p class="pin-page__etapa">{{ esperandoEntrega ? 'SOLICITUD REGISTRADA' : pagoDiferido&&!pagoConfirmado ? 'PAGO DEL DESTINATARIO' : 'PAGO CONFIRMADO' }}</p>
         <h1 id="pin-page-titulo">{{ esperandoEntrega ? 'Estamos preparando tu PIN' : 'Solicita tu PIN de depósito' }}</h1>
         <p class="pin-page__descripcion">
           {{ esperandoEntrega
             ? 'Tu solicitud ya está registrada. Cuando SYNCHRO confirme que te entregó el PIN por WhatsApp, volverás al inicio automáticamente.'
-            : detalle?.reserva?.servicio==='Personal' ? 'El pago está confirmado. Solicita el PIN que utilizarás para depositar y retirar tus pertenencias.' : 'El pago de tu reserva está confirmado. Solicita el PIN que utilizarás para depositar en la estación SYNCHRO.' }}
+            : pagoDiferido&&!pagoConfirmado ? 'El destinatario pagará al retirar. Solicita tu PIN para depositar la encomienda.' : detalle?.reserva?.servicio==='Personal' ? 'El pago está confirmado. Solicita el PIN que utilizarás para depositar y retirar tus pertenencias.' : 'El pago de tu reserva está confirmado. Solicita el PIN que utilizarás para depositar en la estación SYNCHRO.' }}
         </p>
         <div v-if="detalle" class="pin-page__reserva">
           <span>Reserva #{{ reservaId }}</span>
@@ -125,9 +127,9 @@ onBeforeUnmount(()=>{activo=false;version++;clearInterval(reloj);});
         </template>
         <template v-else-if="!whatsappAutorizado">
           <p class="pin-page__mensaje">Primero debes completar la autorización de WhatsApp asociada a tu cuenta.</p>
-          <RouterLink :to="'/reservas/'+reservaId" class="pin-page__boton">Revisar autorización</RouterLink>
+          <RouterLink to="/mi-perfil" class="pin-page__boton">Revisar autorización</RouterLink>
         </template>
-        <template v-else-if="!pagoConfirmado">
+        <template v-else-if="!pagoPermiteDeposito">
           <p class="pin-page__mensaje">El pago todavía no aparece confirmado en tu reserva.</p>
           <RouterLink :to="'/reservas/'+reservaId" class="pin-page__boton">Ver estado de la reserva</RouterLink>
         </template>

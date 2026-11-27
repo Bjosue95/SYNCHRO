@@ -55,7 +55,7 @@ function estadoEtapa(d:any){
   }
   if(pinEntregado(d,'Deposito'))return 'Esperando depósito';
   if(pinSolicitado(d)||d?.pines?.some((p:any)=>p.finalidad==='Deposito'&&p.estado==='Emitido'))return 'Preparando PIN';
-  if(d?.condiciones?.pagoConfirmado&&d?.condiciones?.remitenteAutorizado)return 'Solicitar PIN';
+  if((d?.condiciones?.pagoConfirmado||d?.condiciones?.pagoDiferidoDestinatario===true)&&d?.condiciones?.remitenteAutorizado)return 'Solicitar PIN';
   if(d?.condiciones&&!d?.condiciones?.remitenteAutorizado)return 'Autorizar WhatsApp';
   return 'En preparación';
 }
@@ -65,11 +65,13 @@ function fechaOperacion(valor: string | null | undefined){
 function accionDe(d:any){
   if(estadoEtapa(d)==='Solicitar PIN')return '/reservas/'+d.id+'/solicitar-pin';
   if(estadoEtapa(d)==='Autorizar destinatario')return '/reservas/'+d.id+'#destinatario-autorizacion';
+  if(estadoEtapa(d)==='Autorizar WhatsApp')return '/mi-perfil';
   return '/reservas/'+d.id;
 }
 function accionTexto(d:any){
   if(estadoEtapa(d)==='Solicitar PIN')return 'Solicitar PIN';
   if(estadoEtapa(d)==='Autorizar destinatario')return 'Gestionar destinatario';
+  if(estadoEtapa(d)==='Autorizar WhatsApp')return 'Autorizar WhatsApp';
   return 'Ver reserva';
 }
 function cerrarCancelacion(){cancelandoId.value=null;motivoCancelacion.value='';detalleCancelacion.value='';confirmarCancelacion.value=false;}

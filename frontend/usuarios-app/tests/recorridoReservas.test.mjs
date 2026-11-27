@@ -212,7 +212,7 @@ test('una sola seccion por paso y tarjetas sin piramide movil', () => {
   assert.match(vista, /:last-child:nth-child\(odd\):not\(:first-child\)/);
   assert.match(vista, /:only-child \{\s*grid-column:1\/-1;\s*justify-self:center;/);
   assert.match(vista, /overflow-y:auto;overscroll-behavior:contain/);
-  assert.match(vista, /<footer v-if="!cargando && paso<=ultimoPaso"/);
+  assert.match(vista, /<footer v-if="!cargando && paso<=ultimoPaso && reservaCreada===null"/);
 });
 
 test('indicador de progreso compacto y tarjetas adaptadas a la cantidad', () => {
@@ -473,7 +473,7 @@ test('la espera no aprueba el PIN ni regresa a Bienvenida al confirmar solamente
  assert.match(solicitud,/await router\.replace\('\/bienvenida'\)/);
 });
 
-test('solicitud PIN se abre solo tras pago confirmado y espera entrega administrativa',()=>{
+test('solicitud PIN respeta pago confirmado o diferido y espera entrega administrativa',()=>{
   const rutas=readFileSync(new URL('../src/router/index.js',import.meta.url),'utf8');
   const pago=leer('PagoPendienteView');
   const pin=leer('SolicitarPinView');
@@ -487,4 +487,23 @@ test('solicitud PIN se abre solo tras pago confirmado y espera entrega administr
   assert.match(pin,/['"]Entregado['"]/);
   assert.match(pin,/await router\.replace\('\/bienvenida'\)/);
   assert.match(pin,/if\(await manejarSesion\(e\)\)return/);
+});
+
+test('reserva con pago del destinatario confirma y vuelve a bienvenida sin esperar pago',()=>{
+  const reserva=leer('PreReservaView');
+  const pin=leer('SolicitarPinView');
+  const panel=leer('PanelView');
+  const detalle=leer('EncomiendaDetalleView');
+  assert.match(reserva,/reservaCreada\.value=Number\(d\.id\)/);
+  assert.match(reserva,/retorno=setTimeout\(volverInicio,4000\)/);
+  assert.match(reserva,/router\.replace\('\/bienvenida'\)/);
+  assert.match(reserva,/enviando\.value\|\|reservaCreada\.value!==null/);
+  assert.match(reserva,/clearTimeout\(retorno\)/);
+  assert.match(panel,/pagoDiferidoDestinatario===true/);
+  assert.match(pin,/pagoPermiteDeposito=computed\(\(\)=>pagoConfirmado\.value\|\|pagoDiferido\.value\)/);
+  assert.match(pin,/puedeSolicitar=computed\(\(\)=>pagoPermiteDeposito\.value&&whatsappAutorizado\.value/);
+  assert.match(detalle,/Pago a cargo del destinatario al retirar/);
+  const admin=readFileSync(new URL('../../admin-app/src/views/WhatsAppView.vue',import.meta.url),'utf8');
+  assert.match(admin,/x\.pagoEstado==='ConfirmadoManual'\|\|x\.pagoDiferidoDestinatario===true/);
+  assert.match(admin,/if \(!pagoPermitePin\.value\)/);
 });

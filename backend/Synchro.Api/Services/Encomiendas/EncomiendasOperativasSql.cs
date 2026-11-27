@@ -259,7 +259,7 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
             reserva,historica=false,creadaUtc=fila.CreadaUtc,depositoUtc=fila.DepositoUtc,entregaUtc=fila.EntregaUtc,retiradaConfirmada=fila.RetiradaConfirmada,
             cancelacion=fila.Cancelacion,pagoRequiereRevision=fila.PagoRequiereRevision,seguimiento,
             compartir=new{mensaje=invitacion,enlaceWhatsApp=invitacion is null?null:WhatsAppEncomienda.Enlace(telefonoDestinatario,invitacion)},
-            condiciones=new{consentimientosConfirmados=consentimientos,remitenteAutorizado=cuenta.Activa&&partes.ContainsKey("Remitente")&&(cuenta.Estado=="Confirmado" || !cuenta.Registrado && cuenta.Activa && await ConsentimientoRemitenteRegistrado(c,o.Id,ct)),pagoConfirmado=o.Pago=="ConfirmadoManual",tabletIntegrada=false,hardwareSimulado=true},version=o.Version};
+            condiciones=new{consentimientosConfirmados=consentimientos,remitenteAutorizado=cuenta.Activa&&partes.ContainsKey("Remitente")&&(cuenta.Estado=="Confirmado" || !cuenta.Registrado && cuenta.Activa && await ConsentimientoRemitenteRegistrado(c,o.Id,ct)),pagoConfirmado=o.Pago=="ConfirmadoManual",pagoDiferidoDestinatario=PagoDiferidoDestinatario(reserva),tabletIntegrada=false,hardwareSimulado=true},version=o.Version};
     }
 
     private static async Task<bool> ConsentimientoRemitenteRegistrado(SqlConnection c,int id,CancellationToken ct)
