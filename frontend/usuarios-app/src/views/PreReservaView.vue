@@ -741,7 +741,7 @@ onMounted(cargar);
 }
 .reserva-final__volver { flex: 0 1 auto; }
 .reserva-final__continuar { flex: 1 1 280px; max-width: 460px; }
-.reserva-final__continuar :deep(.icono-tablet) { filter: var(--action-icon-filter); }
+.reserva-final__continuar :deep(.icono-tablet) { filter:none; }
 .reserva-final__acciones .boton:disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 760px) {
   .reserva-final__grid { grid-template-columns: minmax(0, 1fr); }
@@ -986,4 +986,88 @@ onMounted(cargar);
 @media(prefers-reduced-motion:reduce) {
   .reserva-pasos__barra span {transition:none;}
 }
+
+/* Botonera y pago: mismos tonos finales de la Tablet, con SVG originales sin filtros. */
+.env-page--asistente .boton-primario,
+.env-page--asistente :deep(.syn-button:not([data-variante="secundario"])) {
+  background:#f4feff;
+  color:#01305c;
+  border:2px solid #00b9c7;
+  border-radius:15px;
+  box-shadow:0 4px 0 #00a5b2,0 7px 16px rgb(1 48 92 / 10%);
+  font-weight:800;
+}
+.env-page--asistente .boton-secundario,
+.env-page--asistente :deep(.syn-button[data-variante="secundario"]) {
+  background:#e4f2f6;
+  color:#01305c;
+  border:2px solid #86bdcb;
+  border-radius:14px;
+  box-shadow:0 4px 0 rgb(1 48 92 / 14%),0 5px 12px rgb(1 48 92 / 8%);
+  font-weight:750;
+}
+.env-page--asistente .boton-primario:hover:not(:disabled),
+.env-page--asistente :deep(.syn-button:not([data-variante="secundario"]):hover:not(:disabled)) {
+  background:#ddf7f9;
+}
+.env-page--asistente .boton-secundario:hover:not(:disabled) {background:#d4edf4;}
+.env-page--asistente .boton-primario:disabled,
+.env-page--asistente :deep(.syn-button:not([data-variante="secundario"]):disabled) {
+  background:#edf3f5;
+  color:#647784;
+  border-color:#b5cad3;
+  box-shadow:none;
+  opacity:1;
+}
+.env-page--asistente :deep(.icono-tablet),
+.env-page--asistente .boton-primario :deep(.icono-tablet) {
+  filter:none;
+}
+.env-page--asistente .reserva-pagador {
+  background:#ffffff;
+  border-color:#dfeaf0;
+  color:#01305c;
+}
+.env-page--asistente .reserva-pagador small {color:#5b7282;}
+.env-page--asistente .reserva-pagador.es-seleccionada {
+  background:#e8f9fa;
+  border-color:#00b9c7;
+}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .boton-primario,
+:global(:root[data-theme="oscuro"]) .env-page--asistente :deep(.syn-button:not([data-variante="secundario"])) {
+  background:#123d5b;
+  color:#ffffff;
+  border-color:#5ec6e8;
+  box-shadow:0 4px 0 #087d93,0 7px 16px rgb(0 0 0 / 22%);
+}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .boton-primario:hover:not(:disabled),
+:global(:root[data-theme="oscuro"]) .env-page--asistente :deep(.syn-button:not([data-variante="secundario"]):hover:not(:disabled)) {
+  background:#205674;
+}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .boton-secundario,
+:global(:root[data-theme="oscuro"]) .env-page--asistente :deep(.syn-button[data-variante="secundario"]) {
+  background:#204766;
+  color:#ffffff;
+  border-color:#5ec6e8;
+  box-shadow:0 4px 0 rgb(0 0 0 / 35%),0 5px 12px rgb(0 0 0 / 15%);
+}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .boton-secundario:hover:not(:disabled) {background:#285b7a;}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .boton-primario:disabled,
+:global(:root[data-theme="oscuro"]) .env-page--asistente :deep(.syn-button:not([data-variante="secundario"]):disabled) {
+  background:#254054;
+  color:#c0d0da;
+  border-color:#426984;
+  box-shadow:none;
+}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .reserva-pagador {
+  background:#103956;
+  border-color:#315573;
+  color:#ffffff;
+}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .reserva-pagador small {color:#c6dfea;}
+:global(:root[data-theme="oscuro"]) .env-page--asistente .reserva-pagador.es-seleccionada {
+  background:#174b65;
+  border-color:#00b9c7;
+}
+
 </style>
