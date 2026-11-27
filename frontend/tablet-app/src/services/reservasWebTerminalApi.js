@@ -24,7 +24,8 @@ export async function comprobarSesionTerminalReservaWeb() {
 async function leer(respuesta) {
   const datos = await respuesta.json().catch(() => null);
 
-  if (respuesta.status === 401 || respuesta.status === 403) {
+  // Un 403 con código de dominio puede significar PIN incorrecto, no cookie vencida.
+  if (respuesta.status === 401 || (respuesta.status === 403 && !datos?.codigo && !datos?.mensaje)) {
     throw new SesionTerminalNoAutorizada();
   }
 
