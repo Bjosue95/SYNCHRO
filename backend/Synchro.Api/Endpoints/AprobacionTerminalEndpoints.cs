@@ -16,6 +16,38 @@ public static class AprobacionTerminalEndpoints
     public static void MapAprobacionTerminalEndpoints(
         this WebApplication app)
     {
+        app.MapGet("/api/admin/terminales/vinculacion/listar", async (
+            HttpContext contexto) =>
+        {
+            if (!contexto.Request.IsHttps)
+                return Results.BadRequest(new { mensaje = "Se requiere HTTPS." });
+            var cadena=app.Configuration.GetConnectionString("SynchroDB");
+            if (string.IsNullOrWhiteSpace(cadena))
+                return Results.Problem("Base de datos no configurada.");
+            try
+            {
+                var terminales=new List<object>();
+                await using var conexion=new SqlConnection(cadena);
+                await conexion.OpenAsync(contexto.RequestAborted);
+                await using var cmd=new SqlCommand(
+                    "SELECT Id,Codigo,Nombre,Activa FROM dbo.Terminales ORDER BY Id",conexion);
+                await using var lector=await cmd.ExecuteReaderAsync(contexto.RequestAborted);
+                while(await lector.ReadAsync(contexto.RequestAborted))
+                    terminales.Add(new {
+                        id=lector.GetInt32(0),
+                        codigo=lector.GetString(1),
+                        nombre=lector.GetString(2),
+                        activa=lector.GetBoolean(3)
+                    });
+                return Results.Ok(new {terminales});
+            }
+            catch(SqlException)
+            {
+                return Results.Problem("No fue posible consultar las terminales.");
+            }
+        })
+        .RequireAuthorization("SoloAdministradores");
+
         app.MapPost(
             "/api/admin/terminales/vinculacion/aprobar",
             async (
