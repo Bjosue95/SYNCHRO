@@ -270,7 +270,6 @@ onMounted(cargar);
         </div></section>
         <form v-if="paso>=3 && paso<=5 && tamano" class="env-card formulario reserva-final" @submit.prevent="revisar">
           <div class="reserva-final__intro">
-            <span class="reserva-final__etapa">DETALLES DE LA RESERVA</span>
             <h2>{{ paso===3 ? "Selecciona la estación" : paso===4 ? "¿Por cuánto tiempo?" : "Destinatario de la encomienda" }}</h2>
             <p>Selecciona una opción para continuar al siguiente paso.</p>
           </div>
@@ -832,6 +831,33 @@ onMounted(cargar);
   flex:0 0 auto;
   align-content:start;
 }
+/* La cuadrícula 2×2 reparte el alto real del paso sin crear scroll en escritorio. */
+.reserva-vista > .env-card:has(.reserva-opciones > :nth-child(3)) {
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+}
+.reserva-vista .reserva-opciones:has(> :nth-child(3)) {
+  flex:1 1 auto;
+  min-height:0;
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  align-content:stretch;
+}
+.reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.seleccion-reserva) {
+  height:100%;
+  min-height:0;
+  grid-template-rows:minmax(28px,auto) minmax(20px,auto) minmax(0,1fr) auto auto;
+  padding:clamp(5px,1vh,12px);
+  gap:clamp(1px,.6vh,5px);
+}
+.reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.seleccion-reserva__icono) {
+  width:40px;
+  height:34px;
+}
+.reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.icono-tablet) {
+  max-width:38px;
+  max-height:38px;
+}
 /* Tres opciones ocupan tres celdas: la cuarta queda libre para conservar la proporción. */
 .reserva-vista .reserva-opciones > :last-child:nth-child(odd):not(:first-child) {
   grid-column:auto;
@@ -872,6 +898,17 @@ onMounted(cargar);
   justify-content:flex-start;
   align-content:start;
   min-height:0;
+}
+.reserva-vista > .env-card:has(.reserva-opciones > :nth-child(3)) {
+  flex:1 1 auto;
+  justify-content:flex-start;
+  min-height:0;
+  overflow:hidden;
+}
+.reserva-vista > .env-card:has(.reserva-opciones) > h2 {
+  flex:0 0 auto;
+  font-size:clamp(18px,2.2vw,23px);
+  line-height:1.2;
 }
 .reserva-pasos {
   display:grid;
@@ -919,11 +956,20 @@ onMounted(cargar);
     gap:8px;
   }
   .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:clamp(145px,23dvh,190px);min-height:0;padding:8px 9px;}
+  .reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.seleccion-reserva) {
+    height:100%;
+    min-height:0;
+    padding:6px;
+  }
   .reserva-vista .reserva-opciones :deep(.seleccion-reserva__icono) {width:42px;height:39px;}
   .reserva-vista .reserva-opciones :deep(.icono-tablet) {max-width:43px;max-height:43px;}
 }
 @media(max-height:580px) {
   .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:135px;min-height:0;}
+  .reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.seleccion-reserva) {height:100%;min-height:0;}
+  .reserva-vista > .env-card:has(.reserva-opciones) {gap:6px;padding:9px;}
+  .reserva-vista .reserva-opciones:has(> :nth-child(3)) {gap:6px;}
+
 }
 @media(prefers-reduced-motion:reduce) {
   .reserva-pasos__barra span {transition:none;}
