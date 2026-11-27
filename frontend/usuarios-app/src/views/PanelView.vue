@@ -17,7 +17,7 @@ function buscarEnHistorial(){
     return;
   }
   const numero=texto?Number(texto):null;
-  if(numero!==null&&!Number.isSafeInteger(numero)){
+  if(numero!==null&&(!Number.isSafeInteger(numero)||numero>2147483647)){
     error.value='Introduce un número de reserva válido.';
     return;
   }
