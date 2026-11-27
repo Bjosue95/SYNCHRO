@@ -101,3 +101,17 @@ test('Mis reservas e Historial son vistas privadas separadas y se filtran antes 
   assert.match(backend,/Estado=N'Retirada' AND EntregaUtc IS NOT NULL/);
   assert.match(backend,/@salto ROWS FETCH NEXT @tamano ROWS ONLY/);
 });
+
+test('mis reservas no contiene filtros e historial busca solo por numero en servidor',()=>{
+  const panel=leer('src/views/PanelView.vue');
+  assert.doesNotMatch(panel,/filtros-reservas|Filtrar por fechas|Buscar reservas|<option value="Cancelada">/);
+  assert.match(panel,/v-if="esHistorial" class="historial-busqueda"/);
+  assert.match(panel,/placeholder="Número de reserva, ej. 5012"/);
+  assert.match(panel,/function buscarEnHistorial\(\)/);
+  assert.match(panel,/function limpiarBusqueda\(\)/);
+  assert.match(panel,/numeroAplicado\.value=numero/);
+  assert.match(panel,/encomiendasApi\.listar\(\{categoria:categoria\.value/);
+  assert.match(panel,/numero:numeroAplicado\.value/);
+  assert.match(panel,/No tienes reservas activas\./);
+  assert.match(panel,/No se encontró esa reserva en tu historial\./);
+});
