@@ -78,6 +78,13 @@ internal sealed partial class EncomiendasOperativasSql
             "ReservasPrototipo:TerminalId con el ID de la estación de reservas.", 403);
     }
 
+    // La pantalla valida la asignación antes de solicitar fotografía o PIN.
+    public async Task<object> EstadoTerminalDeReservas(int terminal, CancellationToken ct)
+    {
+        await ExigirTerminalDeReservas(terminal, ct);
+        return new { autorizada = true };
+    }
+
     // Identifica una reserva web usando exclusivamente su PIN de depósito.
     // No consume el PIN ni confirma el depósito.
     public async Task<object> IdentificarParaDeposito(
