@@ -82,11 +82,43 @@ public static class ConfirmacionTerminalEndpoints
 
                     await conexion.OpenAsync();
 
+                    // Consume una sola vez una solicitud aprobada, tanto en la
+                    // primera vinculación como al renovar una terminal activa.
+                    // Sin la aprobación del administrador NO se emite cookie.
                     await using var comando = new SqlCommand(
-                        "dbo.ConfirmarVinculacionTerminalSynchro",
+                        """
+                        SET XACT_ABORT ON;
+                        BEGIN TRY
+                          BEGIN TRANSACTION;
+                          DECLARE @terminalId INT;
+                          SELECT @terminalId=s.TerminalId
+                          FROM dbo.SolicitudesVinculacionTerminal s WITH(UPDLOCK,HOLDLOCK)
+                          INNER JOIN dbo.Terminales t WITH(UPDLOCK,HOLDLOCK)
+                            ON t.Id=s.TerminalId
+                          WHERE s.TokenHash=@TokenHash
+                            AND s.Estado=N'Aprobada'
+                            AND s.FechaExpiracion>SYSUTCDATETIME();
+                          IF @terminalId IS NULL
+                            THROW 51021, 'Solicitud no aprobada o vencida.', 1;
+                          UPDATE dbo.Terminales
+                          SET Activa=1, FechaAutorizacion=COALESCE(FechaAutorizacion,SYSUTCDATETIME())
+                          WHERE Id=@terminalId AND Activa=0;
+                          UPDATE dbo.SolicitudesVinculacionTerminal
+                          SET Estado=N'Consumida',FechaConsumo=SYSUTCDATETIME()
+                          WHERE TokenHash=@TokenHash
+                            AND Estado=N'Aprobada'
+                            AND FechaExpiracion>SYSUTCDATETIME();
+                          IF @@ROWCOUNT<>1
+                            THROW 51023, 'No se pudo consumir la solicitud.', 1;
+                          COMMIT TRANSACTION;
+                          SELECT @terminalId;
+                        END TRY
+                        BEGIN CATCH
+                          IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
+                          THROW;
+                        END CATCH
+                        """,
                         conexion);
-
-                    comando.CommandType = CommandType.StoredProcedure;
 
                     comando.Parameters.Add(
                         "@TokenHash",
