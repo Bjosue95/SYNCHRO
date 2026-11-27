@@ -832,9 +832,16 @@ onMounted(cargar);
   flex:1 1 auto;
   align-content:stretch;
 }
-.reserva-vista .reserva-opciones > :only-child {grid-column:1/-1;}
+/* Tres opciones ocupan tres celdas: la cuarta queda libre para conservar la proporción. */
 .reserva-vista .reserva-opciones > :last-child:nth-child(odd):not(:first-child) {
+  grid-column:auto;
+}
+/* Una sola opción se centra, sin estirarse a todo el ancho de la pantalla. */
+.reserva-vista .reserva-opciones > :only-child {
   grid-column:1/-1;
+  justify-self:center;
+  width:min(100%,clamp(190px,45vw,330px));
+  max-width:100%;
 }
 .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {
   height:100%;
