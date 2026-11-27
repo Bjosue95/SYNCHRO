@@ -31,29 +31,21 @@ test('bienvenida explica servicios y permite reservar o consultar sin inventar o
   assert.doesNotMatch(vista,/Math\.random|reservas simuladas|total de reservas:/);
 });
 
-test('la bienvenida consulta reservas reales y ofrece siguiente paso de PIN solo tras pago confirmado',()=>{
-  const vista=leer('src/views/BienvenidaView.vue');
+test('las reservas se gestionan en Mis reservas y no en Bienvenida',()=>{
+  const bienvenida=leer('src/views/BienvenidaView.vue');
+  const panel=leer('src/views/PanelView.vue');
   const detalle=leer('src/views/EncomiendaDetalleView.vue');
   const api=leer('src/services/encomiendasApi.js');
-  const espera=leer('src/views/PagoPendienteView.vue');
-  assert.match(vista,/encomiendasApi\.listar\(\{pagina:1,tamanoPagina:30\}\)/);
-  assert.match(vista,/const etapaSiguiente=computed/);
-  assert.match(vista,/encomiendasApi\.detalle\(reserva\.id\)/);
-  assert.match(vista,/reservaPendiente\.value=elegida/);
-  assert.match(vista,/!whatsappConfirmado\.value/);
-  assert.match(vista,/Preparando PIN de depósito/);
-  assert.match(vista,/return '\/reservas\/'\+id\+'\/solicitar-pin'/);
-  assert.match(vista,/Solicitar PIN de depósito/);
-  // La solicitud del PIN vive en su propia pantalla; el detalle queda como resumen.
+  assert.doesNotMatch(bienvenida,/reservaPendiente|cancelarReserva|siguienteAccion|encomiendasApi\.listar/);
+  assert.match(bienvenida,/to="\/mis-reservas"/);
+  assert.match(panel,/encomiendasApi\.listar/);
+  assert.match(panel,/encomiendasApi\.detalle\(e\.id\)/);
+  assert.match(panel,/Reserva #\{\{ e\.id \}\}/);
+  assert.match(panel,/estadoEtapa\(detalleDe\(e\)\)/);
+  assert.match(panel,/return '\/reservas\/'\+d\.id\+'\/solicitar-pin'/);
   assert.match(detalle,/class="env-card reserva-ficha"/);
-  assert.doesNotMatch(detalle,/async function solicitarPinDeposito/);
   assert.match(api,/pin-deposito\/solicitar/);
-  assert.match(api,/metodo: "POST"/);
-  assert.match(espera,/await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
-  const solicitud=leer('src/views/SolicitarPinView.vue');
-  assert.match(solicitud,/await router\.replace\('\/bienvenida'\)/);
 });
-
 test('solicitar PIN solo registra evento en API con cuenta propia y dos autorizaciones',()=>{
   const endpoint=leer('../../backend/Synchro.Api/Endpoints/EncomiendasOperativasEndpoints.cs');
   const servicio=leer('../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasSolicitudPin.cs');
@@ -72,48 +64,19 @@ test('solicitar PIN solo registra evento en API con cuenta propia y dos autoriza
   assert.match(admin,/PIN de depósito solicitado por el titular/);
 });
 
-test('bienvenida presenta el paso correcto con PIN entregado, deposito y autorizacion destinatario',()=>{
-  const vista=leer('src/views/BienvenidaView.vue');
-  const detalle=leer('src/views/EncomiendaDetalleView.vue');
-  assert.match(vista,/if\(depositoConfirmado\.value\)\{/);
-  assert.match(vista,/if\(esPersonal\.value\)return 'personal-resguardado'/);
-  assert.match(vista,/if\(pinRetiroEntregado\.value\)return 'esperar-retiro'/);
-  assert.match(vista,/if\(destinatarioAutorizado\.value\)return 'pin-retiro'/);
-  assert.match(vista,/return 'autorizar-destinatario'/);
-  assert.match(vista,/if\(pinDepositoEntregado\.value\)return 'esperar-deposito'/);
-  assert.match(vista,/Esperando depósito en estación/);
-  assert.match(vista,/Tus pertenencias están resguardadas/);
-  assert.match(vista,/Autorizar al destinatario/);
-  assert.match(vista,/Esperando retiro del destinatario/);
-  assert.match(vista,/Operación completada/);
-  assert.match(vista,/enlaceWhatsApp/);
-  assert.match(vista,/Enviar invitación por WhatsApp/);
-  assert.match(vista,/enlaceInvitacionValido/);
-  assert.match(vista,/#destinatario-autorizacion/);
-  assert.match(detalle,/id="destinatario-autorizacion"/);
-  assert.match(detalle,/v-if="depositoConfirmado && !detalle.cancelacion"/);
-  assert.match(detalle,/Enviar invitación por WhatsApp/);
-});
-test('cancelacion desde bienvenida solo antes de deposito y con confirmacion real',()=>{
-  const vista=leer('src/views/BienvenidaView.vue');
-  assert.match(vista,/const puedeCancelar=computed/);
-  assert.match(vista,/!depositoConfirmado\.value&&!retiroConfirmado\.value/);
-  assert.match(vista,/v-if="puedeCancelar"/);
-  assert.match(vista,/v-model="motivoCancelacion"/);
-  assert.match(vista,/v-model="confirmarCancelacion"/);
-  assert.match(vista,/await encomiendasApi\.cancelar\(d\.id,\{/);
-  assert.match(vista,/confirmada:true,version:d\.version/);
-  assert.match(vista,/Ya no desea utilizar el casillero/);
-  assert.match(vista,/Número de destinatario incorrecto/);
-  assert.match(vista,/no se reembolsa automáticamente/);
-  assert.doesNotMatch(vista,/Math\.random\(/);
-});
-
-test('la tarjeta de siguiente paso mantiene acciones de altura normal en móvil',()=>{
-  const vista=leer('src/views/BienvenidaView.vue');
-  assert.match(vista,/\.inicio-cliente__siguiente-principal>\.inicio-cliente__siguiente-acciones\{grid-column:3;grid-row:1/);
-  assert.match(vista,/@media\(max-width:760px\)/);
-  assert.match(vista,/\.inicio-cliente__siguiente-principal>\.inicio-cliente__siguiente-acciones\{grid-column:1\/-1;grid-row:2/);
-  assert.match(vista,/\.inicio-cliente__siguiente-acciones \.inicio-cliente__accion\{width:100%;min-height:50px;height:auto;max-height:none;flex:0 0 auto/);
-  assert.match(vista,/\.inicio-cliente__cancelacion\{/);
+test('Mis reservas muestra etapa real y protege la cancelacion antes del deposito',()=>{
+ const panel=leer('src/views/PanelView.vue');
+ const detalle=leer('src/views/EncomiendaDetalleView.vue');
+ assert.match(panel,/if\(depositada\(d\)\)\{/);
+ assert.match(panel,/if\(esPersonal\(d\)\)return 'Pertenencias resguardadas'/);
+ assert.match(panel,/if\(pinEntregado\(d,'Retiro'\)\)return 'Esperando retiro'/);
+ assert.match(panel,/if\(pinEntregado\(d,'Deposito'\)\)return 'Esperando depósito'/);
+ assert.match(panel,/return 'Autorizar destinatario'/);
+ assert.match(panel,/!depositada\(e\)&&!e\?\.cancelacion/);
+ assert.match(panel,/await encomiendasApi\.cancelar\(id,\{/);
+ assert.match(panel,/confirmada:true,version:actual\.version/);
+ assert.match(panel,/v-model="confirmarCancelacion"/);
+ assert.match(panel,/Cancelar reserva/);
+ assert.match(panel,/setInterval\(\(\)=>\{/);
+ assert.match(detalle,/id="destinatario-autorizacion"/);
 });
