@@ -67,7 +67,7 @@ test('detalle de reserva usa opciones de ubicación y duración, teléfono y nav
   assert.match(vista, /nombreUbicacion\(nombre\)/);
   assert.match(vista, /Dirección pendiente de confirmación/);
   assert.match(vista, /@submit\.prevent="revisar"/);
-  assert.match(vista, /:disabled="!disponible \|\| actualizando"/);
+  assert.match(vista, /\(paso===4 && !disponible\)/);
   assert.doesNotMatch(vista, /@click="volverATamanos"/);
   assert.match(vista, /'Revisa tu reserva' : 'Selecciona cómo pagar'/);
   assert.doesNotMatch(vista, /<select v-model="minutos"/);
@@ -142,7 +142,7 @@ test('el detalle no ofrece la autorizacion del destinatario antes del deposito',
 
 test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos bancarios', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /<div v-if="paso===4" class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
+  assert.match(vista, /<div v-if="paso===7" class="reserva-pago__seccion">\s*<div class="reserva-final__intro">\s*<h3>¿Cómo deseas realizar el pago\?/);
   assert.match(vista, /pagador:pagador\.value==='Remitente'\?'Remitente'/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
   assert.match(vista, /@click="usarDatosPrueba"/);
@@ -154,7 +154,7 @@ test('el pago muestra instrucciones y permite confirmar para ver errores', () =>
   const vista=leer('PreReservaView');
   assert.match(vista, /function usarDatosPrueba\(\)/);
   assert.match(vista, /@click="usarDatosPrueba"/);
-  assert.match(vista, /:disabled="enviando"\s+@click="crear"/);
+  assert.match(vista, /<SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear"/);
   assert.match(vista, /pagoError\.value='Los valores no coinciden/);
 });
 
@@ -167,14 +167,14 @@ test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', 
   assert.match(vista, /Importe por definir/);
 });
 
-test('reserva en cinco pantallas conserva selecciones y espera aprobacion del pago', () => {
+test('reserva en pasos adaptables conserva selecciones y espera aprobacion del pago', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /const pasosReserva=\['Servicio','Casillero','Detalles','Resumen','Pago'\]/);
+  assert.match(vista, /const pasosReserva=\['Servicio','Tipo','Tamaño','Estación','Duración','Destinatario','Resumen','Pago'\]/);
   assert.match(vista, /v-if="paso===0"/);
   assert.match(vista, /v-if="paso===1"/);
-  assert.match(vista, /v-if="paso===2 && tamano"/);
-  assert.match(vista, /v-if="paso===3 \|\| paso===4"/);
-  assert.match(vista, /v-if="paso===5 && reservaEnEspera!==null"/);
+  assert.match(vista, /v-if="paso===2 && porTipo.length"/);
+  assert.match(vista, /v-if="paso===6 \|\| paso===7"/);
+  assert.match(vista, /v-if="paso===8 && reservaEnEspera!==null"/);
   assert.match(vista, /intervaloPago=setInterval/);
   assert.match(vista, /d\.pago\?\.estado==='ConfirmadoManual'/);
   assert.match(vista, /await router\.replace\('\/reservas\/'\+id\)/);
@@ -190,4 +190,17 @@ test('tarifa visible ocupa todo el ancho del resumen en pantallas pequeñas', ()
   const vista=leer('PreReservaView');
   assert.match(vista, /\.reserva-revision__importe \{grid-column:1\/-1;/);
   assert.match(vista, /\.reserva-revision__datos \.reserva-revision__importe dd \{font-size:clamp/);
+});
+
+test('una sola seccion por paso y tarjetas sin piramide movil', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /v-if="paso===1" class="env-card"/);
+  assert.match(vista, /v-if="paso===2 && porTipo\.length"/);
+  assert.match(vista, /v-if="paso===3" class="reserva-bloque"/);
+  assert.match(vista, /v-if="paso===4" class="reserva-bloque"/);
+  assert.match(vista, /saltoSiguiente=\(actual:number\)=>actual===4&&servicio\.value==='Personal'\?6:actual\+1/);
+  assert.match(vista, /\.reserva-vista \.reserva-opciones\.reserva-tres \{grid-template-columns:repeat\(3,minmax\(0,1fr\)\);\}/);
+  assert.doesNotMatch(vista, /:last-child:nth-child\(odd\)/);
+  assert.match(vista, /overflow-y:auto;overscroll-behavior:contain/);
+  assert.match(vista, /<footer v-if="!cargando && paso<=ultimoPaso"/);
 });
