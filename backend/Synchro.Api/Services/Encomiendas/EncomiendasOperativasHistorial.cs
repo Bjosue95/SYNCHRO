@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 namespace Synchro.Api.Services.Encomiendas;
 
 internal sealed record ConsultaHistorialEncomienda(int Pagina=1,int TamanoPagina=20,string? Estado=null,
-    DateOnly? Desde=null,DateOnly? Hasta=null,int? Numero=null);
+    DateOnly? Desde=null,DateOnly? Hasta=null,int? Numero=null,string? Categoria=null);
 internal sealed record CancelarEncomiendaSolicitud(string Motivo,string? Detalle,bool Confirmada,long Version);
 internal sealed record CancelacionEncomienda(int ReservaId,string Motivo,string? Detalle,DateTimeOffset FechaUtc,int ResponsableId,bool RevisionPago);
 internal sealed record EventoSeguimientoEncomienda(string Tipo,string Descripcion,DateTimeOffset FechaUtc);
@@ -49,6 +49,11 @@ internal sealed partial class EncomiendasOperativasSql
     private const string FiltroHistorial="""
         WHERE (@estado IS NULL OR Estado=@estado) AND (@desde IS NULL OR FechaCreacion>=@desde)
           AND (@hasta IS NULL OR FechaCreacion<@hasta) AND (@numero IS NULL OR Id=@numero)
+          AND (@categoria IS NULL OR
+            (@categoria=N'Activas' AND Estado NOT IN(N'Cancelada',N'Vencida',N'Rechazada')
+              AND NOT (Estado=N'Retirada' AND EntregaUtc IS NOT NULL)) OR
+            (@categoria=N'Historial' AND (Estado IN(N'Cancelada',N'Vencida',N'Rechazada')
+              OR (Estado=N'Retirada' AND EntregaUtc IS NOT NULL))))
         """;
 
     private static FilaHistorialEncomienda FilaHistorial(SqlDataReader r)=>new(r.GetInt32(0),r.GetString(1),r.GetString(2),Fecha(r,3),Fecha(r,4),
@@ -60,6 +65,8 @@ internal sealed partial class EncomiendasOperativasSql
     {
         Exigir(filtro.Pagina>0&&filtro.Pagina<=1000000&&filtro.TamanoPagina is >=1 and <=100,"PaginacionInvalida","Revisa la página y su tamaño (1 a 100).",400);
         var estado=string.IsNullOrWhiteSpace(filtro.Estado)?null:Texto(filtro.Estado,30,"el estado");
+        var categoria=string.IsNullOrWhiteSpace(filtro.Categoria)?null:Texto(filtro.Categoria,20,"la categoría");
+        Exigir(categoria is null or "Activas" or "Historial","CategoriaInvalida","Elige reservas activas o historial.",400);
         Exigir(filtro.Numero is null or >0,"NumeroInvalido","El número de encomienda debe ser positivo.",400);
         Exigir(filtro.Desde is null||filtro.Hasta is null||filtro.Desde<=filtro.Hasta,"FechasInvalidas","La fecha inicial debe ser anterior a la final.",400);
         Exigir(filtro.Hasta!=DateOnly.MaxValue,"FechasInvalidas","Revisa la fecha final.",400);
@@ -71,7 +78,7 @@ internal sealed partial class EncomiendasOperativasSql
             BaseHistorial+" SELECT * FROM Historial "+FiltroHistorial+" ORDER BY FechaCreacion DESC,Id DESC OFFSET @salto ROWS FETCH NEXT @tamano ROWS ONLY;"+
             BaseHistorial+" SELECT COUNT(CASE WHEN Estado IN(N'Preparacion',N'ListaParaDeposito') THEN 1 END),COUNT(CASE WHEN Estado=N'Depositada' THEN 1 END),COUNT(CASE WHEN Estado=N'Retirada' AND EntregaUtc IS NOT NULL THEN 1 END) FROM Historial;",
             ("@persona",persona),("@ahora",Ahora.UtcDateTime),("@estado",estado),("@desde",desde),("@hasta",hasta),("@numero",filtro.Numero),
-            ("@salto",(filtro.Pagina-1)*filtro.TamanoPagina),("@tamano",filtro.TamanoPagina));
+            ("@categoria",categoria),("@salto",(filtro.Pagina-1)*filtro.TamanoPagina),("@tamano",filtro.TamanoPagina));
         await using var r=await q.ExecuteReaderAsync(ct);await r.ReadAsync(ct);var total=r.GetInt32(0);
         await r.NextResultAsync(ct);var items=new List<FilaHistorialEncomienda>();while(await r.ReadAsync(ct))items.Add(FilaHistorial(r));
         await r.NextResultAsync(ct);await r.ReadAsync(ct);var resumen=new{preparacion=r.GetInt32(0),depositadas=r.GetInt32(1),entregadas=r.GetInt32(2)};
