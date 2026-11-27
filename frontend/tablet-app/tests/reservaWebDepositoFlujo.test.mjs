@@ -66,3 +66,20 @@ test("tablet reserva: dos elecciones, foto, PIN, mismo contador y confirmacion S
   assert.match(backend,/var pin=await VerificarPin/);
   assert.match(backend,/return await ConfirmarDeposito/);
 });
+
+test("la seleccion de reserva sigue el diseño de Guardar y el modo oscuro de tablet",()=>{
+ const vista=leer("views/ReservaWebElegirView.vue");
+ const guardar=leer("views/GuardarView.vue");
+ for(const clase of ["pantalla-guardar","regresar","contenido-guardar","cuadricula","tarjeta","contenedor-icono","nombre-tarjeta","accion-guardar","boton-continuar"]){
+   assert.match(vista,new RegExp(clase));
+   assert.match(guardar,new RegExp(clase));
+ }
+ assert.match(vista,/28_regresar-oscuro\.svg/);
+ assert.match(vista,/29_continuar-oscuro\.svg/);
+ assert.match(vista,/\.tarjeta\.seleccionada::after/);
+ assert.match(vista,/class="espacio-vacio"/);
+ assert.match(vista,/\.cuadricula\.dos-opciones/);
+ assert.match(vista,/watch\(elegirTipo/);
+ assert.match(vista,/@media \(orientation:portrait\)/);
+ assert.match(vista,/@media \(min-width:600px\) and \(min-height:700px\)/);
+});
