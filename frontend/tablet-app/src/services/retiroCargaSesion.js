@@ -98,3 +98,4 @@ export function obtenerMetodoPagoRetiroCarga() {
 export function limpiarRetiroCarga() {
   sesion = null;
 }
+export function obtenerVencimientoCobroRetiroCarga(){return obtenerTokenCobroRetiroCarga()?sesion.venceCobro:0;}

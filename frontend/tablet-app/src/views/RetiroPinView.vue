@@ -7,15 +7,17 @@ import { iniciarReservaWebDeposito,hayFotoReservaWeb,obtenerEleccionReservaWeb }
 import {
   confirmarRetiroFacialConPin,
   prevalidarRetiroFacialConPin,
-  prepararCobroRetiroPersonal
+  prepararCobroRetiroPersonal,
+  finalizarRetiroReservaPersonal,
+  finalizarRetiroDirectoPersonal
 } from "../services/retiroFacialManualApi";
 import {
   obtenerRetiro,
   limpiarRetiro,
-  registrarOrdenRetiroPagado,
-  registrarRetiroReservaPersonal
+  registrarOrdenRetiroPagado
 } from "../services/retiroSesion";
 
+import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router = useRouter();
 const { oscuro } = useTema();
 
@@ -103,6 +105,15 @@ function tecladoFisico(evento) {
   }
 }
 
+async function abrirRecogida(datos){
+  const autorizacion=datos.autorizacionRetiro;
+  const web=datos.origenReserva==="Web";
+  registrarRecogidaRetiro({codigo:datos.codigoCasillero,tipo:"personal",vence:Date.now()+Math.min(web?600:300,Number(datos.vigenciaSegundos)||(web?600:300))*1000,
+    volver:"/retirar/rostro",confirmar:()=>web?finalizarRetiroReservaPersonal(autorizacion):finalizarRetiroDirectoPersonal(autorizacion),limpiar:limpiarRetiro});
+  limpiarRetiro();
+  await router.replace("/retirar/recoger");
+}
+
 async function verificar() {
   if (!completo.value || procesando.value || terminado.value) return;
 
@@ -181,8 +192,7 @@ async function verificar() {
         );
 
         if(respuesta?.retiroAutorizado===true && respuesta?.origenReserva==="Web"){
-          registrarRetiroReservaPersonal(respuesta);
-          await router.replace("/retirar/reserva/recoger");
+          await abrirRecogida(respuesta);
           return;
         }
         if (
@@ -206,7 +216,8 @@ async function verificar() {
 
         registrarOrdenRetiroPagado(
           autorizacionPago,
-          orden
+          orden,
+          autorizacionGeneradaEn+5*60*1000
         );
 
         autorizacionPagoPendiente.value = null;
@@ -233,9 +244,8 @@ async function verificar() {
       tokenFacial
     );
 
-    if(resultado?.retiroAutorizado===true && resultado?.origenReserva==="Web"){
-      registrarRetiroReservaPersonal(resultado);
-      await router.replace("/retirar/reserva/recoger");
+    if(resultado?.retiroAutorizado===true && ["Web","Terminal"].includes(resultado?.origenReserva)){
+      await abrirRecogida(resultado);
       return;
     }
     terminado.value = true;

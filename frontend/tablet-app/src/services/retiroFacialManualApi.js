@@ -92,7 +92,7 @@ export async function confirmarRetiroFacialConPin(pin, tokenFacial) {
     body: JSON.stringify({ pin, tokenFacial }),
   });
   const datos = await respuestaSegura(respuesta);
-  if(esRetiroWebAutorizado(datos))return datos;
+  if(esRetiroWebAutorizado(datos)||esRetiroDirectoAutorizado(datos))return datos;
   if (datos?.retiroConfirmado !== true) {
     throw new Error("El servidor no confirmo el retiro.");
   }
@@ -305,5 +305,21 @@ export async function finalizarRetiroReservaPersonal(autorizacionRetiro) {
   const datos=await respuestaSegura(respuesta);
   if(datos?.retiroConfirmado!==true||datos?.origenReserva!=="Web"||datos?.estadoCasillero!=="Disponible")
     throw new Error("El servidor no confirmó el retiro.");
+  return datos;
+}
+
+export function esRetiroDirectoAutorizado(datos){
+  return datos?.retiroAutorizado===true&&datos?.retiroConfirmado===false&&datos?.origenReserva==="Terminal"&&
+    datos?.estadoCasillero==="Ocupado"&&typeof datos.autorizacionRetiro==="string"&&datos.autorizacionRetiro.length>=32&&
+    /^[A-Za-z0-9-]{1,10}$/.test(datos.codigoCasillero||"");
+}
+export async function finalizarRetiroDirectoPersonal(autorizacionRetiro){
+  if(typeof autorizacionRetiro!=="string"||autorizacionRetiro.length<32)throw new Error("Falta autorización de retiro.");
+  const csrfToken=await solicitarCsrf();
+  const datos=await respuestaSegura(await fetch("/api/terminales/guardar/whatsapp/retiro/directo/confirmar",{
+    method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","X-CSRF-TOKEN":csrfToken},
+    body:JSON.stringify({autorizacionRetiro,retiroComprobado:true})
+  }));
+  if(datos?.retiroConfirmado!==true||datos.estadoCasillero!=="Disponible")throw new Error("El servidor no confirmó el retiro.");
   return datos;
 }

@@ -47,7 +47,7 @@ export function limpiarRetiro() {
 }
 // Almacenar unicamente en memoria, nunca en URL ni storage.
 export function registrarOrdenRetiroPagado(
-  autorizacionPago, orden
+  autorizacionPago, orden, venceAutorizacion=Date.now()+5*60*1000
 ) {
   if (typeof autorizacionPago !== "string" ||
       !autorizacionPago ||
@@ -68,6 +68,7 @@ export function registrarOrdenRetiroPagado(
     importeHnl: orden.importeHnl,
     minutosUtilizados: orden.minutosUtilizados,
     descripcionTarifa: orden.descripcionTarifa,
+    venceAutorizacion,
     autorizacionPago
   });
 

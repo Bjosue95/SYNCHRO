@@ -118,6 +118,10 @@ public static class EncomiendasOperativasEndpoints
             ReservaPrototipo(h,s,terminal=>s.SolicitarPagoReservaTablet(id,terminal,d,h.RequestAborted),libre));
         prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
             ReservaPrototipo(h,s,terminal=>{Consentimiento(h);return s.CapturarDestinatario(id,terminal,d,h.RequestAborted);},libre));
+        prototipo.MapPost("/{id:int}/autorizar-recogida",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.AutorizarRecogidaEncomienda(id,terminal,d,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/confirmar-recogida",(int id,ConfirmarRecogidaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.ConfirmarRecogidaEncomienda(id,terminal,d.AutorizacionRetiro,d.RetiroComprobado,h.RequestAborted),libre));
         prototipo.MapPost("/{id:int}/retirar",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
             ReservaPrototipo(h,s,terminal=>s.Retirar(id,terminal,d,h.RequestAborted),libre));
     }
@@ -156,3 +160,6 @@ public static class EncomiendasOperativasEndpoints
     }
 }
 
+
+internal sealed record ConfirmarRecogidaEncomiendaSolicitud(string? AutorizacionRetiro,bool RetiroComprobado)
+{ public override string ToString()=>"Confirmación de recogida protegida"; }

@@ -6,6 +6,7 @@ import {
   obtenerTokenCobroRetiroCarga,
   obtenerOrdenCobroRetiroCarga,
   obtenerMetodoPagoRetiroCarga,
+  obtenerVencimientoCobroRetiroCarga,
   limpiarRetiroCarga
 } from "../services/retiroCargaSesion.js";
 import {
@@ -14,6 +15,7 @@ import {
   confirmarRecogidaRetiroCarga
 } from "../services/retiroCargaApi.js";
 
+import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router = useRouter();
 const { oscuro } = useTema();
 const propsVistaPrevia = defineProps({
@@ -163,12 +165,11 @@ async function finalizarRetiro() {
   mensaje.value = "";
   procesando.value = true;
   try {
-    const resultado = await confirmarRecogidaRetiroCarga();
-    if (resultado?.codigoEspacio !== orden.value?.codigoEspacio) {
-      throw new Error("La respuesta no coincide con el espacio de carga.");
-    }
-    codigoFinal.value = resultado.codigoEspacio;
-    fase.value = "completado";
+    const codigo=orden.value.codigoEspacio;
+    registrarRecogidaRetiro({codigo,tipo:"carga",vence:obtenerVencimientoCobroRetiroCarga(),volver:"/retirar/dispositivo",
+      confirmar:async()=>{const resultado=await confirmarRecogidaRetiroCarga();return {...resultado,codigoCasillero:resultado.codigoEspacio};},
+      limpiar:limpiarRetiroCarga});
+    await router.replace("/retirar/recoger");
   } catch (error) {
     mensaje.value = error?.message || "No se pudo finalizar la recogida.";
   } finally {
@@ -415,7 +416,7 @@ function finalizar() {
         data-preview-permitido
         @click="finalizarRetiro"
       >
-        <span>{{ procesando ? "Comprobando..." : "Finalizar retiro" }}</span>
+        <span>{{ procesando ? "Comprobando..." : esVistaPrevia ? "Finalizar retiro" : "Continuar" }}</span>
         <span class="icono-continuar" aria-hidden="true">
           <img
             src="/iconos/complementarios/29_continuar.svg"
@@ -429,8 +430,7 @@ function finalizar() {
       </button>
 
       <p class="nota">
-        Retira tu dispositivo antes de pulsar «Finalizar retiro».
-        Al pulsarlo confirmas la recogida y SYNCHRO libera el espacio.
+        {{ esVistaPrevia ? "Retira tu dispositivo antes de finalizar." : "Continúa para recoger tu dispositivo en el espacio asignado." }}
       </p>
     </section>
   </main>

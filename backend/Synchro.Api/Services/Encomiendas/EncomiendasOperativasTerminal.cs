@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using System.Security.Cryptography;
+using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace Synchro.Api.Services.Encomiendas;
 
@@ -389,19 +391,55 @@ internal sealed partial class EncomiendasOperativasSql
         await tx.CommitAsync(ct);return new{depositoConfirmado=true,usoId=uso,casillero=codigo,hardwareSimulado=true};
     }
 
-    public async Task<object> Retirar(int id,int terminal,RetiroOperativoSolicitud datos,CancellationToken ct)
+    private const string ContextoRecogidaEncomienda="SYNCHRO.Encomienda.Recogida.v1";
+    private sealed record PermisoRecogidaEncomienda(int Id,int Terminal,Guid Pin,Guid Evidencia,string Casillero);
+
+    public Task<object> AutorizarRecogidaEncomienda(int id,int terminal,RetiroOperativoSolicitud datos,CancellationToken ct)
+        => Retirar(id,terminal,datos,ct,soloAutorizar:true);
+
+    public async Task<object> ConfirmarRecogidaEncomienda(int id,int terminal,string? autorizacion,bool recogidaComprobada,CancellationToken ct)
     {
-        Exigir(datos.EntregaComprobada,"EntregaNoComprobada","La terminal debe confirmar expresamente la entrega.",400);
+        Exigir(recogidaComprobada,"EntregaNoComprobada","Confirma la recogida de la encomienda.",400);
+        Exigir(autorizacion is {Length:>=32 and <=4096},"AutorizacionInvalida","Repite la verificación de retiro.",403);
+        PermisoRecogidaEncomienda permiso;
+        try { permiso=JsonSerializer.Deserialize<PermisoRecogidaEncomienda>(proteccion.CreateProtector(ContextoRecogidaEncomienda).ToTimeLimitedDataProtector().Unprotect(autorizacion!))??throw new JsonException(); }
+        catch(Exception ex) when(ex is CryptographicException or JsonException or FormatException) { throw new OperacionEncomiendaException("AutorizacionVencida","La autorización venció o no es válida. Repite la verificación.",403); }
+        Exigir(permiso.Id==id&&permiso.Terminal==terminal,"AutorizacionInvalida","La autorización no corresponde a esta operación.",403);
+        return await Retirar(id,terminal,new(permiso.Evidencia,"",true),ct,permiso:permiso);
+    }
+
+    public Task<object> Retirar(int id,int terminal,RetiroOperativoSolicitud datos,CancellationToken ct)
+        => Retirar(id,terminal,datos,ct,false,null);
+
+    private async Task<object> Retirar(int id,int terminal,RetiroOperativoSolicitud datos,CancellationToken ct,bool soloAutorizar=false,PermisoRecogidaEncomienda? permiso=null)
+    {
+        Exigir(soloAutorizar||datos.EntregaComprobada,"EntregaNoComprobada","La terminal debe confirmar expresamente la entrega.",400);
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
+        if(permiso is not null&&o.Estado=="Retirada"&&o.TerminalId==terminal) {
+            await using var anterior=Comando(c,tx,"SELECT COUNT(*) FROM dbo.AuditoriaEncomiendaOperativa WHERE ReservaId=@id AND Accion=N'EntregaConfirmada' AND PinId=@pin AND EvidenciaId=@ev",("@id",id),("@pin",permiso.Pin),("@ev",permiso.Evidencia));
+            Exigir(Convert.ToInt32(await anterior.ExecuteScalarAsync(ct))==1,"RetiroNoDisponible","La operación ya fue cerrada.",409);
+            await tx.CommitAsync(ct);return new{retiroConfirmado=true,casillero=permiso.Casillero,hardwareSimulado=true,idempotente=true};
+        }
         Exigir(o.Estado=="Depositada"&&o.TerminalId==terminal&&o.UsoId.HasValue,"RetiroNoDisponible","Retiro no disponible para esta terminal.");
         Exigir((await LeerReserva(c,tx,id,ct))?.Servicio!="Personal","RostroV3Requerido","Usa Mis pertenencias y la verificación facial V3.",403);
-        var pin=await VerificarPin(c,tx,o,FinalidadPinEncomienda.Retiro,datos.Pin,terminal,ct);
+        var pin=permiso?.Pin??await VerificarPin(c,tx,o,FinalidadPinEncomienda.Retiro,datos.Pin,terminal,ct);
         bool activa;await using(var q=Comando(c,tx,"SELECT COUNT(*) FROM dbo.Terminales WHERE Id=@id AND Activa=1",("@id",terminal)))activa=Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1;
-        var decision=PoliticaEncomiendaOperativa.Retirar(await Condiciones(c,tx,o,ct),await CondicionesPin(c,tx,id,pin,FinalidadPinEncomienda.Retiro,ct),await Evidencia(c,tx,datos.EvidenciaId,ct),terminal,activa,true,Ahora);
+        var condicionesPin=await CondicionesPin(c,tx,id,pin,FinalidadPinEncomienda.Retiro,ct);
+        var evidencia=await Evidencia(c,tx,datos.EvidenciaId,ct);
+        var decision=PoliticaEncomiendaOperativa.Retirar(await Condiciones(c,tx,o,ct),condicionesPin,evidencia,terminal,activa,true,Ahora);
         Exigir(decision.Permitida,decision.Codigo,"No se cumplen las condiciones para retirar.");
         var reserva=await LeerReserva(c,tx,id,ct);
         string codigo;await using(var q=Comando(c,tx,"SELECT CodigoCasillero FROM dbo.UsosCasillero WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id AND TipoServicio=@servicio AND Estado=N'Ocupado' AND FechaRetiro IS NULL",("@id",o.UsoId),("@servicio",reserva?.Servicio=="Personal"?"ResguardoPersonal":"Encomienda")))
             codigo=(string?)await q.ExecuteScalarAsync(ct)??throw new OperacionEncomiendaException("UsoNoDisponible","El casillero no tiene una entrega pendiente.");
+        if(permiso is not null)Exigir(permiso.Casillero==codigo,"RetiroNoDisponible","El casillero no coincide con la autorización.",403);
+        if(soloAutorizar) {
+            var vence=evidencia.VenceUtc<condicionesPin.VenceUtc?evidencia.VenceUtc:condicionesPin.VenceUtc;
+            Exigir(vence>Ahora,"AutorizacionVencida","Repite la captura y el PIN.",403);
+            var token=proteccion.CreateProtector(ContextoRecogidaEncomienda).ToTimeLimitedDataProtector().Protect(JsonSerializer.Serialize(new PermisoRecogidaEncomienda(id,terminal,pin,datos.EvidenciaId,codigo)),vence);
+            await Auditar(c,tx,id,o.DestinatarioId,"Terminal",terminal,"RecogidaEncomiendaAutorizada","Depositada","PIN y evidencia comprobados; pendiente recogida.",ct,pin,datos.EvidenciaId);
+            await tx.CommitAsync(ct);
+            return new{retiroAutorizado=true,retiroConfirmado=false,casillero=codigo,estadoCasillero="Ocupado",autorizacionRetiro=token,venceUtc=vence,hardwareSimulado=true};
+        }
         await using(var q=Comando(c,tx,"""
             UPDATE dbo.FotografiasEncomiendaOperativa SET EntregaUtc=@ahora,EliminarUtc=@eliminar
              WHERE EvidenciaId=@ev AND EliminarUtc>@ahora;

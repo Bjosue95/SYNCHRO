@@ -5,7 +5,9 @@ import {
   prevalidarRetiroFacialConPin,
   prepararCobroRetiroPersonal,
   finalizarRetiroPersonalPagado,
-  finalizarRetiroReservaPersonal
+  finalizarRetiroReservaPersonal,
+  confirmarRetiroFacialConPin,
+  finalizarRetiroDirectoPersonal
 } from "../src/services/retiroFacialManualApi.js";
 
 import {
@@ -176,6 +178,18 @@ test("reserva web pagada autoriza sin liberar hasta confirmar", async () => {
   const cierre=simularFetch({retiroConfirmado:true,codigoCasillero:"M03",estadoCasillero:"Disponible",origenReserva:"Web"});
   try {assert.equal((await finalizarRetiroReservaPersonal(autorizacionRetiro)).retiroConfirmado,true);
     assert.equal(cierre.llamadas[1].url,"/api/terminales/guardar/whatsapp/retiro/reserva/confirmar");
+    assert.deepEqual(JSON.parse(cierre.llamadas[1].opciones.body),{autorizacionRetiro,retiroComprobado:true});}
+  finally {cierre.restaurar();}
+});
+
+test("retiro directo autoriza antes de cerrar", async () => {
+  const autorizacionRetiro="b".repeat(64);
+  const autorizacion=simularFetch({retiroAutorizado:true,retiroConfirmado:false,origenReserva:"Terminal",codigoCasillero:"M01",estadoCasillero:"Ocupado",autorizacionRetiro});
+  try {assert.equal((await confirmarRetiroFacialConPin("123456","token-facial-prueba")).retiroConfirmado,false);}
+  finally {autorizacion.restaurar();}
+  const cierre=simularFetch({retiroConfirmado:true,codigoCasillero:"M01",estadoCasillero:"Disponible"});
+  try {assert.equal((await finalizarRetiroDirectoPersonal(autorizacionRetiro)).retiroConfirmado,true);
+    assert.equal(cierre.llamadas[1].url,"/api/terminales/guardar/whatsapp/retiro/directo/confirmar");
     assert.deepEqual(JSON.parse(cierre.llamadas[1].opciones.body),{autorizacionRetiro,retiroComprobado:true});}
   finally {cierre.restaurar();}
 });

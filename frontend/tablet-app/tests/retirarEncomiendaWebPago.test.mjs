@@ -23,7 +23,9 @@ test("pago del destinatario usa componente original de la Tablet y necesita apro
   assert.match(selector, /"NFC"/);
   assert.match(vista, /fase\.value="espera"/);
   assert.match(vista, /pagoConfirmado===true/);
-  assert.match(vista, /confirmarRetiroReservaWeb\(/);
+  assert.match(vista, /autorizarRecogidaEncomienda\(/);
+  assert.match(vista, /finalizarRecogidaEncomienda\(/);
+  assert.match(vista, /router\.replace\("\/retirar\/recoger"\)/);
   assert.match(vista, /consentimiento\.value/);
   assert.match(vista, /detenerCamara\(\)/);
   assert.doesNotMatch(vista, /sessionStorage|localStorage/);

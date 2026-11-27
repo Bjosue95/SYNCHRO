@@ -121,3 +121,19 @@ export async function consultarPagoReservaWebTablet(id) {
     credentials: "same-origin", cache: "no-store"
   }));
 }
+
+export async function autorizarRecogidaEncomienda(id,pin,evidenciaId){
+  validarId(id);validarPin(pin);
+  if(!evidenciaId)throw new Error("Falta la evidencia del destinatario.");
+  const datos=await enviar(`/${id}/autorizar-recogida`,{pin,evidenciaId,entregaComprobada:false});
+  if(datos?.retiroAutorizado!==true||datos.retiroConfirmado!==false||datos.estadoCasillero!=="Ocupado"||
+    typeof datos.autorizacionRetiro!=="string"||!Number.isFinite(Date.parse(datos.venceUtc)))throw new Error("No se autorizó la recogida.");
+  return datos;
+}
+export async function finalizarRecogidaEncomienda(id,autorizacionRetiro){
+  validarId(id);
+  if(typeof autorizacionRetiro!=="string"||autorizacionRetiro.length<32)throw new Error("Falta autorización de recogida.");
+  const datos=await enviar(`/${id}/confirmar-recogida`,{autorizacionRetiro,retiroComprobado:true});
+  if(datos?.retiroConfirmado!==true)throw new Error("La entrega no fue confirmada.");
+  return {...datos,codigoCasillero:datos.casillero};
+}

@@ -4,8 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { obtenerReservaWebDeposito,limpiarReservaWebDeposito } from "../services/reservaWebSesion.js";
 import { depositarReservaWeb } from "../services/reservasWebTerminalApi.js";
-import { obtenerRetiroReservaPersonal,limpiarRetiro } from "../services/retiroSesion.js";
-import { finalizarRetiroReservaPersonal } from "../services/retiroFacialManualApi.js";
+import { tomarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 import {
   MINUTO_DEPOSITO_MS,
   segundosRestantesDeposito,
@@ -17,9 +16,16 @@ const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
 const esReservaWeb = computed(()=>route.path==="/guardar/reserva/deposito");
-const esRetiroWeb = ref(route.path==="/retirar/reserva/recoger");
-const retiroWeb = ref(esRetiroWeb.value ? obtenerRetiroReservaPersonal() : null);
+const esRecogida = ref(route.path==="/retirar/recoger");
+const recogida = ref(esRecogida.value ? tomarRecogidaRetiro() : null);
+const tipoRecogida = recogida.value?.tipo || "personal";
+const volverRecogida = recogida.value?.volver || "/retirar/rostro";
+const objetoRetiro = tipoRecogida==="carga"?"tu dispositivo":tipoRecogida==="encomienda"?"tu encomienda":"tus pertenencias";
+const nombreEspacio = tipoRecogida==="carga"?"Espacio":"Casillero";
+const etiquetaRecogida = tipoRecogida==="carga"?"Ya retiré mi dispositivo":tipoRecogida==="encomienda"?"Ya retiré mi encomienda":"Ya retiré mis pertenencias";
+function limpiarRecogida(){recogida.value?.limpiar?.();recogida.value=null;intento=null;}
 const puertaAbierta = ref(false);
+const limiteRecogida = ref(0);
 let animacionPuerta = null;
 
 const propsVistaPrevia = defineProps({
@@ -33,7 +39,7 @@ const claveIntento = "synchroWhatsappManualActivoV1";
 const claveTiempo = "synchroDepositoInicioV1";
 
 const casillero = computed(() => {
-  const valor = esRetiroWeb.value ? retiroWeb.value?.codigoCasillero : esReservaWeb.value ? obtenerReservaWebDeposito()?.casillero : route.query.casillero;
+  const valor = esRecogida.value ? recogida.value?.codigoCasillero : esReservaWeb.value ? obtenerReservaWebDeposito()?.casillero : route.query.casillero;
   return typeof valor === "string" &&
     /^[A-Za-z0-9-]{1,10}$/.test(valor)
     ? valor
@@ -88,7 +94,7 @@ function limpiarRelojes() {
 }
 
 function limpiarSesion() {
-  if(esRetiroWeb.value){limpiarRetiro();return;}
+  if(esRecogida.value){recogida.value?.limpiar?.();return;}
   if(esReservaWeb.value){limpiarReservaWebDeposito();return;}
   sessionStorage.removeItem(claveIntento);
   sessionStorage.removeItem(claveTiempo);
@@ -129,13 +135,11 @@ async function consultarEstado() {
 
 function comprobarTiempo() {
   if (estado.value !== "listo") return;
-  if(esRetiroWeb.value && Date.now()>=retiroWeb.value.vence && !confirmando.value){
+  if(esRecogida.value && Date.now()>=recogida.value.vence && !confirmando.value){
     limpiarRelojes();
     estado.value="error";
-    error.value="La autorización venció. Verifica nuevamente tu rostro y PIN; el casillero sigue ocupado hasta confirmar el retiro.";
-    limpiarRetiro();
-    retiroWeb.value=null;
-    intento=null;
+    error.value="La autorización venció. Repite la verificación; el espacio sigue ocupado hasta confirmar el retiro.";
+    limpiarRecogida();
     return;
   }
 
@@ -146,9 +150,10 @@ function comprobarTiempo() {
 }
 
 function comenzarReloj() {
-  if(esReservaWeb.value||esRetiroWeb.value){
+  if(esReservaWeb.value||esRecogida.value){
     limiteMs=Date.now()+MINUTO_DEPOSITO_MS;
-    ventanaSegundos.value=60;segundos.value=60;
+    if(esRecogida.value){limiteMs=Math.min(limiteMs,recogida.value.vence);limiteRecogida.value=limiteMs;}
+    ventanaSegundos.value=60;segundos.value=segundosRestantesDeposito(limiteMs,Date.now());
     clearInterval(reloj);
     reloj=setInterval(comprobarTiempo,250);
     return;
@@ -207,14 +212,14 @@ function agregarMinuto() {
   const ahora = Date.now();
 
   limiteMs = extenderLimiteDeposito(limiteMs, ahora);
-  if(esRetiroWeb.value)limiteMs=Math.min(limiteMs,retiroWeb.value.vence);
+  if(esRecogida.value){limiteMs=Math.min(limiteMs,recogida.value.vence);limiteRecogida.value=limiteMs;}
 
   ventanaSegundos.value = segundosRestantesDeposito(
     limiteMs,
     ahora
   );
 
-  if(!esReservaWeb.value&&!esRetiroWeb.value)sessionStorage.setItem(claveTiempo, JSON.stringify({
+  if(!esReservaWeb.value&&!esRecogida.value)sessionStorage.setItem(claveTiempo, JSON.stringify({
     intentoId: intento.intentoId,
     limiteMs
   }));
@@ -241,9 +246,9 @@ function finalizar() {
 
   redireccion = setTimeout(() => {
     if (!vivo) return;
-    if(esRetiroWeb.value)router.replace("/");
+    if(esRecogida.value)router.replace("/");
     else router.replace("/menu");
-  }, esRetiroWeb.value?4000:2200);
+  }, esRecogida.value?4000:2200);
 }
 
 async function verificarOperacion() {
@@ -363,11 +368,14 @@ async function confirmarDeposito() {
   error.value = "";
 
   try {
-    if(esRetiroWeb.value){
-      if(!retiroWeb.value||Date.now()>=retiroWeb.value.vence)throw new Error("Verifica nuevamente tu rostro y PIN.");
-      const datos=await finalizarRetiroReservaPersonal(retiroWeb.value.autorizacionRetiro);
-      if(datos.codigoCasillero!==casillero.value)throw new Error("La confirmación no corresponde al casillero.");
-      retiroWeb.value={codigoCasillero:datos.codigoCasillero};
+    if(esRecogida.value){
+      if(!recogida.value||Date.now()>=recogida.value.vence)throw new Error("Verifica nuevamente tu rostro y PIN.");
+      const actual=recogida.value;
+      const datos=await actual.confirmar();
+      if(datos?.retiroConfirmado!==true||datos.codigoCasillero!==actual.codigoCasillero)throw new Error("El servidor no confirmó la recogida correspondiente.");
+      if(!vivo)return;
+      actual.limpiar();
+      recogida.value={codigoCasillero:datos.codigoCasillero};
       intento=null;
       finalizar();
       return;
@@ -423,7 +431,7 @@ async function confirmarDeposito() {
   } catch (e) {
     if (vivo) {
       error.value =
-        e?.message || (esRetiroWeb.value?"No se pudo confirmar el retiro.":"No se pudo confirmar el depósito.");
+        e?.message || (esRecogida.value?"No se pudo confirmar el retiro.":"No se pudo confirmar el depósito.");
     }
   } finally {
     confirmando.value = false;
@@ -441,9 +449,9 @@ onMounted(() => {
     return;
   }
 
-  if(esRetiroWeb.value){
-    intento=retiroWeb.value;
-    if(!intento||Date.now()>=intento.vence){estado.value="error";error.value="Verifica nuevamente tu rostro y PIN.";return;}
+  if(esRecogida.value){
+    intento=recogida.value;
+    if(!intento||Date.now()>=intento.vence){estado.value="error";error.value="Repite la verificación para continuar.";limpiarRecogida();return;}
     estado.value="listo";
     comenzarReloj();
     animacionPuerta=setTimeout(()=>{if(vivo)puertaAbierta.value=true;},250);
@@ -462,7 +470,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   vivo = false;
   if(esReservaWeb.value&&estado.value!=="confirmado")limpiarReservaWebDeposito();
-  if(esRetiroWeb.value){limpiarRetiro();retiroWeb.value=null;intento=null;}
+  if(esRecogida.value)limpiarRecogida();
   limpiarRelojes();
 });
 </script>
@@ -470,7 +478,7 @@ onBeforeUnmount(() => {
 <template>
   <main
     class="deposito-pantalla"
-    :class="{ 'reserva-web': esReservaWeb || esRetiroWeb, 'retiro-web': esRetiroWeb, 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo', 'deposito-finalizado': estado === 'confirmado' }"
+    :class="{ 'reserva-web': esReservaWeb || esRecogida, 'retiro-web': esRecogida, 'tema-oscuro': oscuro, 'deposito-en-curso': estado === 'listo', 'deposito-finalizado': estado === 'confirmado' }"
   >
     <div class="deposito-contenedor">
 
@@ -479,14 +487,14 @@ onBeforeUnmount(() => {
         <h1>
           {{
             estado === "confirmado"
-              ? (esRetiroWeb ? "¡Retiro completado!" : "¡Depósito completado!")
-              : (esRetiroWeb ? "Retira tus pertenencias" : "Coloca tus objetos")
+              ? (esRecogida ? "¡Retiro completado!" : "¡Depósito completado!")
+              : (esRecogida ? "Retira "+objetoRetiro : "Coloca tus objetos")
           }}
         </h1>
 
         <div class="deposito-identificador">
           <span class="deposito-punto"></span>
-          Casillero {{ casillero || "—" }}
+          {{ esRecogida ? nombreEspacio : "Casillero" }} {{ casillero || "—" }}
         </div>
       </header>
 
@@ -505,11 +513,11 @@ onBeforeUnmount(() => {
 
         <template v-else-if="estado === 'listo'">
           <div class="deposito-instruccion">
-            <h2>{{ esRetiroWeb ? "Retira tus pertenencias y cierra la puerta" : "Guarda tus objetos y cierra la puerta" }}</h2>
-            <div v-if="esRetiroWeb" class="retiro-puerta" :class="{abierta:puertaAbierta}" aria-hidden="true">
+            <h2>{{ esRecogida ? "Retira "+objetoRetiro+" y cierra la puerta" : "Guarda tus objetos y cierra la puerta" }}</h2>
+            <div v-if="esRecogida" class="retiro-puerta" :class="{abierta:puertaAbierta}" aria-hidden="true">
               <div class="retiro-puerta__interior"><span>{{ casillero }}</span></div><div class="retiro-puerta__hoja"><span></span></div>
             </div>
-            <p v-if="esRetiroWeb" class="retiro-indicacion">Casillero {{ casillero }} listo para recoger tus objetos.</p>
+            <p v-if="esRecogida" class="retiro-indicacion">{{ nombreEspacio }} {{ casillero }} listo para recoger {{ objetoRetiro }}.</p>
           </div>
 
           <div class="deposito-reloj">
@@ -624,22 +632,22 @@ onBeforeUnmount(() => {
             >
               {{
                 confirmando
-                  ? (esRetiroWeb ? "Confirmando retiro..." : "Confirmando depósito...")
-                  : (esRetiroWeb ? "Ya retiré mis pertenencias" : "Ya deposité")
+                  ? (esRecogida ? "Confirmando retiro..." : "Confirmando depósito...")
+                  : (esRecogida ? etiquetaRecogida : "Ya deposité")
               }}
             </button>
 
             <button
               class="deposito-boton-secundario"
               type="button"
-              :disabled="confirmando || (esRetiroWeb && ventanaSegundos >= 540)"
+              :disabled="confirmando || (esRecogida && recogida && limiteRecogida >= recogida.vence)"
               @click="agregarMinuto"
             >
               Agregar 1 minuto más
             </button>
 
             <span class="deposito-ayuda">
-              {{ esRetiroWeb ? "Confirma solamente cuando hayas retirado todos tus objetos y cerrado la puerta." : "Confirma solamente cuando ya hayas depositado." }}
+              {{ esRecogida ? "Confirma solamente cuando hayas recogido "+objetoRetiro+" y cerrado la puerta." : "Confirma solamente cuando ya hayas depositado." }}
             </span>
           </div>
         </template>
@@ -660,14 +668,14 @@ onBeforeUnmount(() => {
             </svg>
           </div>
 
-          <h2>{{ esRetiroWeb ? "¡Gracias por utilizar SYNCHRO!" : "¡Todo listo!" }}</h2>
+          <h2>{{ esRecogida ? "¡Gracias por utilizar SYNCHRO!" : "¡Todo listo!" }}</h2>
 
           <p class="deposito-descripcion">
-            {{ esRetiroWeb ? "Tu retiro se registró correctamente. El casillero quedó disponible." : "Tu depósito se registró correctamente." }}
+            {{ esRecogida ? "Tu retiro se registró correctamente. El "+nombreEspacio.toLowerCase()+" quedó disponible." : "Tu depósito se registró correctamente." }}
           </p>
 
           <p class="deposito-retorno" role="status">
-            {{ esRetiroWeb ? "Regresando a la pantalla de bienvenida..." : "Regresando al menú principal..." }}
+            {{ esRecogida ? "Regresando a la pantalla de bienvenida..." : "Regresando al menú principal..." }}
           </p>
         </template>
 
@@ -680,13 +688,13 @@ onBeforeUnmount(() => {
 
           <p class="deposito-descripcion">
             No se pudo comprobar la autorización.
-            {{ esRetiroWeb ? "Tu retiro no ha sido confirmado." : "Tu depósito no ha sido confirmado." }}
+            {{ esRecogida ? "Tu retiro no ha sido confirmado." : "Tu depósito no ha sido confirmado." }}
           </p>
 
           <button
             class="deposito-boton-secundario"
             type="button"
-            @click="esRetiroWeb ? router.replace('/retirar/rostro') : esReservaWeb ? router.replace('/guardar/reserva') : (estado = 'verificando', error = '', verificarOperacion())"
+            @click="esRecogida ? router.replace(volverRecogida) : esReservaWeb ? router.replace('/guardar/reserva') : (estado = 'verificando', error = '', verificarOperacion())"
           >
             Reintentar verificación
           </button>

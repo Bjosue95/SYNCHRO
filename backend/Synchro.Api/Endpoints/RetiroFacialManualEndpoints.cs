@@ -31,6 +31,8 @@ internal static class RetiroFacialManualEndpoints
     private const int MaxCoincidencias = 12;
     private const string ContextoPatron = "SYNCHRO.RostroManual.Uso.v1";
     private const string ContextoAutorizacion = "SYNCHRO.RostroManual.RetiroAutorizado.v1";
+    private const string ContextoRecogidaDirecta="SYNCHRO.RostroManual.RecogidaDirecta.v1";
+    private sealed record PermisoRecogidaDirecta(int UsoId,string Codigo,byte[] Salt,byte[] Hash);
     private const string MensajeRechazo = "No fue posible autorizar el retiro con los datos proporcionados.";
 
     // SYNCHRO-RETO-PIN-V1: control exclusivo del prototipo local.
@@ -951,32 +953,27 @@ internal static class RetiroFacialManualEndpoints
                     return Results.BadRequest(new { mensaje = MensajeRechazo });
                 }
 
-                // La operacion SQL controla estado, atomicidad, consumo unico del PIN y liberacion.
-                // Tras encontrar el PIN se lee de nuevo el salt: el SP verifica que no haya cambiado.
-                await using var buscarFinal = new SqlCommand("""
-                    SELECT PinSalt FROM dbo.CodigosRetiroPersonal WHERE UsoId=@Uso
-                    """, db);
-                buscarFinal.Parameters.Add("@Uso", SqlDbType.Int).Value = usoElegido.Value;
-                salt = await buscarFinal.ExecuteScalarAsync(http.RequestAborted) as byte[];
-                if (salt is not { Length: 32 }) return Results.BadRequest(new { mensaje = MensajeRechazo });
-                calculado = CodigoPinRetiroPersonal.CalcularHash(solicitud.Pin, usoElegido.Value, salt, config);
-                await using var retirar = new SqlCommand("dbo.RegistrarRetiroPersonalSynchro", db)
-                { CommandType = CommandType.StoredProcedure };
-                retirar.Parameters.Add("@UsoId", SqlDbType.Int).Value = usoElegido.Value;
-                retirar.Parameters.Add("@PinHashCandidato", SqlDbType.VarBinary, 32).Value = calculado;
-                retirar.Parameters.Add("@PinSaltLeido", SqlDbType.VarBinary, 32).Value = salt;
-                await using var resultado = await retirar.ExecuteReaderAsync(http.RequestAborted);
-                if (!await resultado.ReadAsync(http.RequestAborted) ||
-                    !resultado.GetBoolean(resultado.GetOrdinal("RetiroConfirmado")))
-                    return Results.BadRequest(new { mensaje = MensajeRechazo });
-                string casillero = resultado.GetString(resultado.GetOrdinal("CodigoCasillero"));
-                await resultado.DisposeAsync();
-                await using var limpiar = new SqlCommand("DELETE dbo.RostrosRetiroPersonalManual WHERE UsoId=@Uso", db);
-                limpiar.Parameters.Add("@Uso", SqlDbType.Int).Value = usoElegido.Value;
-                await limpiar.ExecuteNonQueryAsync(http.RequestAborted);
-                Interlocked.Exchange(ref control.Consumido, 1);
-
-                return Results.Ok(new { retiroConfirmado = true, codigoCasillero = casillero, estadoCasillero = "Disponible", hardwareSimulado = true });
+                // Verificar el PIN con el mismo procedimiento de prevalidación; no liberar aún.
+                await using var buscarFinal = new SqlCommand("SELECT PinSalt FROM dbo.CodigosRetiroPersonal WHERE UsoId=@Uso", db);
+                buscarFinal.Parameters.Add("@Uso", SqlDbType.Int).Value=usoElegido.Value;
+                salt=await buscarFinal.ExecuteScalarAsync(http.RequestAborted) as byte[];
+                if(salt is not {Length:32})return Results.BadRequest(new{mensaje=MensajeRechazo});
+                calculado=CodigoPinRetiroPersonal.CalcularHash(solicitud.Pin,usoElegido.Value,salt,config);
+                await using var validar=new SqlCommand("dbo.PrevalidarRetiroPersonalSynchro",db){CommandType=CommandType.StoredProcedure};
+                validar.Parameters.Add("@UsoId",SqlDbType.Int).Value=usoElegido.Value;
+                validar.Parameters.Add("@PinHashCandidato",SqlDbType.VarBinary,32).Value=calculado;
+                validar.Parameters.Add("@PinSaltLeido",SqlDbType.VarBinary,32).Value=salt;
+                await using var resultado=await validar.ExecuteReaderAsync(http.RequestAborted);
+                if(!await resultado.ReadAsync(http.RequestAborted)||!resultado.GetBoolean(resultado.GetOrdinal("PinValido")))
+                    return Results.BadRequest(new{mensaje=MensajeRechazo});
+                var codigo=resultado.GetString(resultado.GetOrdinal("CodigoCasillero"));
+                var permiso=new PermisoRecogidaDirecta(usoElegido.Value,codigo,salt,calculado);
+                byte[] plano=JsonSerializer.SerializeToUtf8Bytes(permiso);
+                string token;
+                try {token=Convert.ToBase64String(proveedor.CreateProtector(ContextoRecogidaDirecta).ToTimeLimitedDataProtector().Protect(plano,TimeSpan.FromMinutes(5)));}
+                finally {CryptographicOperations.ZeroMemory(plano);}
+                Interlocked.Exchange(ref control.Consumido,1);
+                return Results.Ok(new{retiroAutorizado=true,retiroConfirmado=false,codigoCasillero=codigo,estadoCasillero="Ocupado",origenReserva="Terminal",autorizacionRetiro=token,vigenciaSegundos=300,hardwareSimulado=true});
             }
             catch (SqlException) { return Results.Problem(statusCode: 503, title: "No se pudo confirmar el retiro."); }
             catch (InvalidOperationException) { return Results.Problem(statusCode: 503, title: "PIN no disponible."); }
@@ -989,6 +986,32 @@ internal static class RetiroFacialManualEndpoints
                 if (salt is not null) CryptographicOperations.ZeroMemory(salt);
                 if (calculado is not null) CryptographicOperations.ZeroMemory(calculado);
             }
+        });
+        grupo.MapPost("/directo/confirmar",async (ConfirmarRetiroWebSolicitud datos,HttpContext http,IAntiforgery csrf,IDataProtectionProvider proveedor,IConfiguration config) =>
+        {
+            http.Response.Headers.CacheControl="no-store";
+            if(!http.Request.IsHttps||!await csrf.IsRequestValidAsync(http))return Results.StatusCode(403);
+            if(config.GetValue<bool>("CobroRetiroPersonal:Obligatorio"))return Results.Conflict(new{mensaje="Se requiere pago antes del retiro."});
+            if(!datos.RetiroComprobado||datos.AutorizacionRetiro is not {Length:>=32 and <=4096})return Results.BadRequest(new{mensaje="Confirma la recogida con una autorización válida."});
+            PermisoRecogidaDirecta? permiso=null;byte[]? plano=null;
+            try {
+                plano=proveedor.CreateProtector(ContextoRecogidaDirecta).ToTimeLimitedDataProtector().Unprotect(Convert.FromBase64String(datos.AutorizacionRetiro),out _);
+                permiso=JsonSerializer.Deserialize<PermisoRecogidaDirecta>(plano);
+                if(permiso is null||permiso.UsoId<=0||permiso.Salt is not {Length:32}||permiso.Hash is not {Length:32})return Results.BadRequest(new{mensaje=MensajeRechazo});
+                await using var db=new SqlConnection(cadena);await db.OpenAsync(http.RequestAborted);
+                await using var retirar=new SqlCommand("dbo.RegistrarRetiroPersonalSynchro",db){CommandType=CommandType.StoredProcedure};
+                retirar.Parameters.Add("@UsoId",SqlDbType.Int).Value=permiso.UsoId;
+                retirar.Parameters.Add("@PinHashCandidato",SqlDbType.VarBinary,32).Value=permiso.Hash;
+                retirar.Parameters.Add("@PinSaltLeido",SqlDbType.VarBinary,32).Value=permiso.Salt;
+                await using var resultado=await retirar.ExecuteReaderAsync(http.RequestAborted);
+                if(!await resultado.ReadAsync(http.RequestAborted)||!resultado.GetBoolean(resultado.GetOrdinal("RetiroConfirmado")))return Results.BadRequest(new{mensaje=MensajeRechazo});
+                var codigo=resultado.GetString(resultado.GetOrdinal("CodigoCasillero"));await resultado.DisposeAsync();
+                await using var limpiar=new SqlCommand("DELETE dbo.RostrosRetiroPersonalManual WHERE UsoId=@Uso",db);limpiar.Parameters.Add("@Uso",SqlDbType.Int).Value=permiso.UsoId;await limpiar.ExecuteNonQueryAsync(http.RequestAborted);
+                return Results.Ok(new{retiroConfirmado=true,codigoCasillero=codigo,estadoCasillero="Disponible",hardwareSimulado=true});
+            }
+            catch(Exception ex) when(ex is CryptographicException or FormatException or JsonException){return Results.BadRequest(new{mensaje="La autorización venció o no es válida. Repite rostro y PIN."});}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo confirmar el retiro.");}
+            finally {if(plano is not null)CryptographicOperations.ZeroMemory(plano);if(permiso?.Hash is not null)CryptographicOperations.ZeroMemory(permiso.Hash);if(permiso?.Salt is not null)CryptographicOperations.ZeroMemory(permiso.Salt);}
         });
         grupo.MapPost("/reserva/confirmar",async (ConfirmarRetiroWebSolicitud datos,HttpContext http,
             IAntiforgery csrf,EncomiendasOperativasSql servicio) =>

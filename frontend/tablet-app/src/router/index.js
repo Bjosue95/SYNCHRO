@@ -1,4 +1,5 @@
 ﻿import { createRouter, createWebHistory } from "vue-router";
+import { limpiarRecogidaPendiente } from "../services/recogidaRetiroSesion.js";
 import { iniciarRetiroCarga } from "../services/retiroCargaSesion.js";
 import { registrarRutasVistaPrevia } from "../preview/rutas.js";
 
@@ -85,7 +86,8 @@ const router = createRouter({
     { path: "/retirar/pertenencias", name: "retirar-pertenencias", redirect: "/retirar/rostro" },
     { path: "/retirar/rostro", name: "retirar-rostro", component: VerificacionFacialView },
     { path: "/retirar/pin", name: "retirar-pin", component: () => import("../views/RetiroPinView.vue") },
-    { path: "/retirar/reserva/recoger", name: "retirar-reserva-recoger", component: DepositoView },
+    { path: "/retirar/recoger", name: "retirar-recoger", component: DepositoView },
+    { path: "/retirar/reserva/recoger", redirect: "/retirar/recoger" },
     { path: "/retirar/pago", name: "retirar-pago", component: () => import("../views/SeleccionMetodoPagoView.vue") },
     { path: "/retirar/pago/resumen", name: "retirar-pago-resumen", component: () => import("../views/RetiroPagoView.vue") },
     { path: "/cargar", name: "cargar-dispositivo", component: () => import("../views/CargaDispositivoView.vue") },
@@ -102,6 +104,7 @@ const router = createRouter({
 
 // SYNCHRO-RETIRO-AUTO-GUARD-V1: el usuario no elige espacio.
 router.beforeEach((to) => {
+  if(to.path!=="/retirar/recoger"&&to.path!=="/retirar/reserva/recoger")limpiarRecogidaPendiente();
   if (to.path === "/retirar/dispositivo") {
     iniciarRetiroCarga();
     return "/retirar/dispositivo/rostro";

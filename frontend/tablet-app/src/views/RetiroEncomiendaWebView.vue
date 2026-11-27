@@ -8,9 +8,11 @@ import {
   solicitarPagoReservaWebTablet,
   consultarPagoReservaWebTablet,
   capturarRetiroReservaWeb,
-  confirmarRetiroReservaWeb
+  autorizarRecogidaEncomienda,
+  finalizarRecogidaEncomienda
 } from "../services/reservasWebTerminalApi.js";
 
+import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router=useRouter();
 const { oscuro }=useTema();
 const fase=ref("pin");
@@ -126,14 +128,14 @@ async function confirmarEntrega(){
       versionConsentimiento:"SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11"
     });
     if(!evidencia?.evidenciaId)throw new Error("El servidor no devolvió la evidencia.");
-    const resultado=await confirmarRetiroReservaWeb(reservaId.value,{
-      evidenciaId:evidencia.evidenciaId,pin:pin.value,entregaComprobada:true
-    });
-    if(resultado?.retiroConfirmado!==true)throw new Error("El retiro no fue confirmado.");
+    const id=reservaId.value;
+    const resultado=await autorizarRecogidaEncomienda(id,pin.value,evidencia.evidenciaId);
+    if(resultado.casillero!==casillero.value)throw new Error("La autorización no corresponde al casillero.");
+    const autorizacion=resultado.autorizacionRetiro;
+    registrarRecogidaRetiro({codigo:resultado.casillero,tipo:"encomienda",vence:Date.parse(resultado.venceUtc),volver:"/retirar/encomienda",confirmar:()=>finalizarRecogidaEncomienda(id,autorizacion)});
     detenerCamara();
     pin.value="";
-    fase.value="completado";
-    aviso.value="Retiro de encomienda confirmado.";
+    await router.replace("/retirar/recoger");
   }catch(e){error.value=e?.message||"No se pudo confirmar el retiro. Revisa el PIN y la captura.";}
   finally{imagenPng="";procesando.value=false;}
 }
@@ -195,7 +197,7 @@ onBeforeUnmount(()=>{desmontada=true;detenerIntervalo();detenerCamara();pin.valu
         <video ref="video" autoplay playsinline muted aria-label="Vista previa de la cámara"></video>
         <button type="button" :disabled="!consentimiento||procesando" @click="activarCamara">Activar cámara</button>
         <button type="button" :disabled="!consentimiento||!stream||procesando" @click="confirmarEntrega">
-          {{ procesando?'Registrando retiro…':'Confirmar retiro con PIN e imagen' }}
+          {{ procesando?'Verificando…':'Verificar y continuar' }}
         </button>
       </section>
 

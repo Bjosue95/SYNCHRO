@@ -93,7 +93,17 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.Equal(EncomiendasOperativasSql.VersionCapturaDemostrativa,identificada.GetProperty("versionConsentimientoRetiro").GetString());
         var evidencia=Json(await s.CapturarDestinatario(id,f.Terminal,CapturaDemostrativa(retiro:true),ct)).GetProperty("evidenciaId").GetGuid();
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.Retirar(id,f.Terminal,new(evidencia,pinDeposito,true),ct));
-        await s.Retirar(id,f.Terminal,new(evidencia,retiro.GetProperty("pin").GetString()!,true),ct);
+        var autorizada=Json(await s.AutorizarRecogidaEncomienda(id,f.Terminal,new(evidencia,retiro.GetProperty("pin").GetString()!,false),ct));
+        Assert.True(autorizada.GetProperty("retiroAutorizado").GetBoolean());
+        Assert.False(autorizada.GetProperty("retiroConfirmado").GetBoolean());
+        Assert.Equal("Ocupado",autorizada.GetProperty("estadoCasillero").GetString());
+        Assert.Equal("Depositada",Json(await s.Detalle(id,f.Persona,ct)).GetProperty("estado").GetString());
+        string permiso=autorizada.GetProperty("autorizacionRetiro").GetString()!;
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarRecogidaEncomienda(id,f.Terminal,permiso,false,ct));
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarRecogidaEncomienda(id,f.Terminal,new string('X',64),true,ct));
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarRecogidaEncomienda(id,f.Terminal+10000,permiso,true,ct));
+        Assert.True(Json(await s.ConfirmarRecogidaEncomienda(id,f.Terminal,permiso,true,ct)).GetProperty("retiroConfirmado").GetBoolean());
+        Assert.True(Json(await s.ConfirmarRecogidaEncomienda(id,f.Terminal,permiso,true,ct)).GetProperty("idempotente").GetBoolean());
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.Retirar(id,f.Terminal,new(evidencia,retiro.GetProperty("pin").GetString()!,true),ct));
         var detalle=Json(await s.Detalle(id,f.Persona,ct));Assert.True(detalle.GetProperty("retiradaConfirmada").GetBoolean());
         Assert.All(detalle.GetProperty("evidencias").EnumerateArray(),e=>Assert.NotEqual(JsonValueKind.True,e.GetProperty("coincidenciaBiometrica").ValueKind));
@@ -193,7 +203,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         var foto=Json(await s.CapturarDestinatario(id,f.Terminal,CapturaDemostrativa(true),ct))
             .GetProperty("evidenciaId").GetGuid();
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
-            s.Retirar(id,f.Terminal,new(foto,pinRetiro,true),ct));
+            s.AutorizarRecogidaEncomienda(id,f.Terminal,new(foto,pinRetiro,false),ct));
         Assert.DoesNotContain(Json(await s.CobrosReservaPendientes(ct)).GetProperty("cobros").EnumerateArray(),
             x=>x.GetProperty("reservaId").GetInt32()==id);
         var solicitud=Json(await s.SolicitarPagoReservaTablet(id,f.Terminal,
@@ -206,7 +216,9 @@ public sealed partial class EncomiendasOperativasSqlTests
         await s.ConfirmarPagoReservaDemo(id,new(22,null,true),f.Admin,ct);
         var estado=Json(await s.EstadoPagoReservaTablet(id,f.Terminal,ct));
         Assert.True(estado.GetProperty("pagoConfirmado").GetBoolean());
-        await s.Retirar(id,f.Terminal,new(foto,pinRetiro,true),ct);
+        var autorizada=Json(await s.AutorizarRecogidaEncomienda(id,f.Terminal,new(foto,pinRetiro,false),ct));
+        Assert.False(autorizada.GetProperty("retiroConfirmado").GetBoolean());
+        await s.ConfirmarRecogidaEncomienda(id,f.Terminal,autorizada.GetProperty("autorizacionRetiro").GetString(),true,ct);
         Assert.True(Json(await s.Detalle(id,f.Persona,ct)).GetProperty("retiradaConfirmada").GetBoolean());
     }
 

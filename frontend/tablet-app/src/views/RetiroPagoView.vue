@@ -18,6 +18,7 @@ import {
   consultarEstadoCobroRetiroPersonal
 } from "../services/retiroFacialManualApi";
 
+import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router = useRouter();
 const { oscuro } = useTema();
 
@@ -194,21 +195,10 @@ async function comprobarPago() {
   mensaje.value = "";
 
   try {
-    // El servidor exige un pago previamente confirmado
-    // por un operador autorizado.
-    const resultado = await finalizarRetiroPersonalPagado(
-      orden.value.cobroId,
-      orden.value.autorizacionPago
-    );
-
-    casilleroFinal.value = resultado.codigoCasillero;
-    metodoConfirmado.value = resultado.metodoPago;
-    importeConfirmado.value = resultado.importeHnl;
-    completado.value = true;
-
-    limpiarRetiro();
-
-    mensaje.value = "Retiro completado correctamente.";
+    const {cobroId,autorizacionPago,codigoCasillero,venceAutorizacion}=orden.value;
+    registrarRecogidaRetiro({codigo:codigoCasillero,tipo:"personal",vence:venceAutorizacion,
+      volver:"/retirar/rostro",confirmar:()=>finalizarRetiroPersonalPagado(cobroId,autorizacionPago),limpiar:limpiarRetiro});
+    await router.replace("/retirar/recoger");
   } catch (error) {
     const detalle = error instanceof Error
       ? error.message
@@ -436,7 +426,7 @@ function finalizar() {
         <h1>Resumen de tu consumo</h1>
         <p v-if="!esVistaPrevia">
           El pago fue confirmado.
-          Revisa tu consumo antes de finalizar el retiro.
+          Revisa tu consumo antes de recoger tus pertenencias.
         </p>
         <p v-else>
           Vista previa: el pago y el retiro son únicamente demostrativos.
@@ -514,7 +504,7 @@ function finalizar() {
                   : "Finalizar retiro (demo)")
               : verificando
                   ? "Comprobando..."
-                  : "Finalizar retiro"
+                  : "Continuar"
           }}
         </span>
 
@@ -533,7 +523,7 @@ function finalizar() {
       </button>
 
       <p v-if="!esVistaPrevia" class="nota">
-        Revisa el detalle y pulsa «Finalizar retiro».
+        Revisa el detalle y pulsa «Continuar» para recoger tus pertenencias.
       </p>
       <p v-else class="nota">
         Ningún cobro ni retiro real se ejecuta en esta demostración.
