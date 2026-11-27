@@ -370,7 +370,8 @@ onMounted(cargar);
             <button type="button" class="reserva-pagador"
               :class="{'es-seleccionada':pagador==='Remitente'}"
               :aria-pressed="pagador==='Remitente'" :disabled="enviando"
-              @click="pagador='Remitente';paso=8">
+              @click="pagador='Remitente'">
+              <span v-if="pagador==='Remitente'" class="reserva-pagador__check" aria-hidden="true"><AppIcon nombre="check" :tamano="18" /></span>
               <IconoTablet nombre="pago" :tamano="32" />
               <strong>Pagar desde la web</strong>
               <small>Pago con tarjeta · sujeto a confirmación.</small>
@@ -379,6 +380,7 @@ onMounted(cargar);
               :class="{'es-seleccionada':pagador==='Destinatario'}"
               :aria-pressed="pagador==='Destinatario'" :disabled="enviando"
               @click="pagador='Destinatario'">
+              <span v-if="pagador==='Destinatario'" class="reserva-pagador__check" aria-hidden="true"><AppIcon nombre="check" :tamano="18" /></span>
               <IconoTablet nombre="encomienda" :tamano="32" />
               <strong>{{ servicio==='Encomienda' ? 'Pagará el destinatario en la tablet' : 'Pagar en la estación' }}</strong>
               <small>{{ servicio==='Encomienda' ? 'Después del depósito, antes del retiro.' : 'Gestionar el pago presencial con el procedimiento de la tablet.' }}</small>
@@ -454,7 +456,7 @@ onMounted(cargar);
       <button v-if="paso<7 || paso===7" type="button" class="boton boton-primario reserva-paso__continuar"
         :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible) || (paso===7 && !pagador)"
         @click="continuar">
-        <span class="reserva-paso__continuar-texto">{{ paso===7 ? 'Confirmar reserva' : paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
+        <span class="reserva-paso__continuar-texto">{{ paso===7 ? (pagador==='Remitente' ? 'Continuar a tarjeta' : 'Confirmar reserva') : paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
         <IconoTablet nombre="continuar" :tamano="21" />
       </button>
       <SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear">
@@ -779,7 +781,8 @@ onMounted(cargar);
 .reserva-revision__datos dt { font-size:12px; color:var(--text-muted); font-weight:700; }
 .reserva-revision__datos dd { margin:0; color:var(--text-strong); font-weight:800; overflow-wrap:anywhere; }
 .reserva-pagadores { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
-.reserva-pagador {
+ .reserva-pagador {
+  position:relative;
   display:grid; justify-items:start; align-content:start; gap:12px;
   text-align:left; padding:18px; min-height:158px;
   font:inherit; color:var(--text-strong); background:var(--surface-soft);
@@ -789,6 +792,20 @@ onMounted(cargar);
 .reserva-pagador strong { font-size:15px; line-height:1.45; }
 .reserva-pagador small { color:var(--text-muted);font-size:12px;line-height:1.55; }
 .reserva-pagador.es-seleccionada { border-color:var(--brand-accent);background:var(--surface-accent); }
+.reserva-pagador__check {
+  position:absolute;
+  top:9px;
+  right:9px;
+  display:grid;
+  place-items:center;
+  width:27px;
+  height:27px;
+  border-radius:50%;
+  background:#00b9c7;
+  color:#01305c;
+  box-shadow:0 1px 5px rgb(1 48 92 / 15%);
+}
+.reserva-pagador__check :deep(svg) {width:17px;height:17px;}
 .reserva-pagador:disabled { opacity:.6;cursor:wait; }
 .reserva-prueba {
   display:grid;gap:16px;padding:20px;
