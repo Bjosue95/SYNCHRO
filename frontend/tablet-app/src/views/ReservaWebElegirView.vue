@@ -62,13 +62,13 @@ async function continuar(){
       <span>{{ elegirTipo ? 'Volver' : 'Volver al menú' }}</span>
     </RouterLink>
 
-    <div class="contenido-guardar">
+    <div class="contenido-guardar" :class="{ 'sin-terminal': !!errorTerminal }">
       <h1 class="titulo">{{ elegirTipo ? 'Selecciona el tipo de casillero' : '¿Qué deseas depositar?' }}</h1>
       <div v-if="errorTerminal" class="aviso-terminal" role="alert">
         <p>{{ errorTerminal }}</p>
         <button type="button" class="revisar-terminal" @click="comprobarTerminal">Comprobar nuevamente</button>
       </div>
-      <section class="cuadricula" :class="{ 'dos-opciones': !elegirTipo }"
+      <section v-else class="cuadricula" :class="{ 'dos-opciones': !elegirTipo }"
         :aria-label="elegirTipo ? 'Tipos de casillero para encomiendas' : 'Tipo de reserva'">
         <button v-for="item in opciones" :key="item.id"
           type="button" class="tarjeta" :class="{ seleccionada: seleccionado===item.id }"
@@ -134,6 +134,8 @@ async function continuar(){
   grid-template-rows:auto minmax(0,1fr) auto; gap:clamp(9px,1.4vh,16px);
   width:min(100%,760px); height:min(100%,630px); min-width:0; min-height:0; place-self:center;
 }
+.contenido-guardar.sin-terminal { grid-template-rows:auto minmax(0,1fr) auto; }
+.aviso-terminal { grid-row:2; align-self:center; }
 .titulo { margin:0; font-size:clamp(21px,2.8vw,32px); font-weight:700; line-height:1.18; text-align:center; }
 .cuadricula {
   display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
