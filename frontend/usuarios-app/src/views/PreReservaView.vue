@@ -45,9 +45,15 @@ const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado
 // Campos solamente de memoria local. No se envían al backend ni se almacenan.
 const pagador=ref<'Remitente'|'Destinatario'|null>(null);
 const titularTarjeta=ref(''),numeroTarjetaPrueba=ref(''),venceTarjetaPrueba=ref(''),codigoTarjetaPrueba=ref('');
-const tarjetaPruebaValida=computed(()=>titularTarjeta.value.trim().length>=3&&titularTarjeta.value.trim().length<=60
-  &&numeroTarjetaPrueba.value.replace(/\D/g,'')==='4242424242424242'
-  &&venceTarjetaPrueba.value.replace(/\s/g,'')==='12/30'&&codigoTarjetaPrueba.value.trim()==='123');
+// Pago exclusivamente de demostración. Validamos formato, nunca datos bancarios.
+const tarjetaPruebaValida=computed(()=>{
+  const vencimiento=venceTarjetaPrueba.value.match(/^(\d{2})\/(\d{2})$/);
+  const mes=vencimiento?Number(vencimiento[1]):0;
+  return titularTarjeta.value.trim().length>=3&&titularTarjeta.value.trim().length<=60
+    &&/^\d{16}$/.test(numeroTarjetaPrueba.value.replace(/\D/g,''))
+    &&mes>=1&&mes<=12
+    &&/^\d{3}$/.test(codigoTarjetaPrueba.value);
+});
 const numeroTarjetaVisual=computed(()=>numeroTarjetaPrueba.value.replace(/\D/g,'').length===16
   ?'•••• •••• •••• '+numeroTarjetaPrueba.value.slice(-4)
   :'•••• •••• •••• ••••');
@@ -176,7 +182,7 @@ async function crear(){
     return;
   }
   if(pagador.value==='Remitente'&&(paso.value!==8||!tarjetaPruebaValida.value)){
-    pagoError.value='Completa todos los campos con los valores de ejemplo indicados. El nombre debe tener al menos 3 caracteres.';
+    pagoError.value='Revisa el formato: nombre de 3 caracteres como mínimo, 16 dígitos, fecha MM/AA y código de 3 dígitos.';
     error.value='';
     return;
   }
@@ -441,7 +447,7 @@ onMounted(cargar);
                   </label>
                 </div>
                 <p v-if="pagoError" class="reserva-pago__error" role="alert">{{ pagoError }}</p>
-                <p class="reserva-pago__aviso">Pago de demostración. Usa los valores de ejemplo que aparecen en los campos; no ingreses datos de una tarjeta real. No se realiza ningún cargo bancario.</p>
+                <p class="reserva-pago__aviso">Pago de demostración. Puedes usar datos inventados con el formato indicado. No ingreses una tarjeta real. No se guardan los datos ni se realizan cargos bancarios.</p>
               </div>
             </div>
             <div class="reserva-pago__pie">
