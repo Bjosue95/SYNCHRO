@@ -17,6 +17,7 @@ const confirmarCancelacion=ref(false);
 const avisoReserva=ref('');
 let montado=true;
 let consultaActual=0;
+let reloj:ReturnType<typeof setInterval>|undefined;
 const esPersonal=computed(()=>reservaPendiente.value?.reserva?.servicio==='Personal');
 const depositoConfirmado=computed(()=>Boolean(reservaPendiente.value?.depositoUtc)
   ||['Depositada','Retirada'].includes(reservaPendiente.value?.estado));
@@ -143,8 +144,14 @@ async function cargarSiguienteAccion(limpiarError=true){
     if(montado&&actual===consultaActual)consultando.value=false;
   }
 }
-onMounted(()=>{void cargarSiguienteAccion();});
-onBeforeUnmount(()=>{montado=false;consultaActual++;});
+onMounted(()=>{
+  void cargarSiguienteAccion();
+  // Mantiene el siguiente paso sincronizado con depósitos y entregas registrados en la terminal.
+  reloj=setInterval(()=>{
+    if(!document.hidden&&!consultando.value&&!procesandoCancelacion.value)void cargarSiguienteAccion();
+  },15000);
+});
+onBeforeUnmount(()=>{montado=false;consultaActual++;clearInterval(reloj);});
 </script>
 
 <template>
