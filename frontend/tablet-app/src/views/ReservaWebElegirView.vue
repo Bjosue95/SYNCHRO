@@ -3,7 +3,7 @@ import { computed,ref,onMounted,watch } from "vue";
 import { RouterLink,useRoute,useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { elegirServicioReservaWeb,obtenerEleccionReservaWeb } from "../services/reservaWebSesion.js";
-import { comprobarSesionTerminalReservaWeb } from "../services/reservasWebTerminalApi.js";
+import { comprobarSesionTerminalReservaWeb, comprobarAsignacionTerminalReservasWeb } from "../services/reservasWebTerminalApi.js";
 
 const route=useRoute();
 const router=useRouter();
@@ -17,6 +17,7 @@ async function comprobarTerminal(){
   errorTerminal.value="";
   try{
     await comprobarSesionTerminalReservaWeb();
+    await comprobarAsignacionTerminalReservasWeb();
     return true;
   }catch(e){
     errorTerminal.value=e instanceof Error?e.message:"No fue posible comprobar la autorización de la terminal.";
