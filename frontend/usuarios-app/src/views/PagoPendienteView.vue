@@ -2,6 +2,8 @@
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
+import { ErrorApi } from '../services/clientesApi.js';
+import { estadoSesion } from '../services/sesion.js';
 
 const route=useRoute();
 const router=useRouter();
@@ -13,6 +15,17 @@ let consultaActiva=false;
 let montada=true;
 let version=0;
 let ultimoIntentoSolicitud=0;
+let redirigiendoAcceso=false;
+async function gestionarSesion(error:unknown){
+  if(!(error instanceof ErrorApi&&error.estado===401))return false;
+  if(redirigiendoAcceso)return true;
+  redirigiendoAcceso=true;
+  clearInterval(reloj);
+  estadoSesion.cliente=null;
+  estadoAccesible.value='La sesión terminó. Vuelve a ingresar para continuar con la reserva.';
+  await router.replace({name:'acceso',query:{volver:route.fullPath}});
+  return true;
+}
 const finalizada=(d:any)=>Boolean(d?.historica||d?.cancelacion||
   ['Cancelada','Vencida','Rechazada'].includes(d?.estado));
 const pinEntregado=(d:any)=>Boolean(d?.pines?.some((p:any)=>
@@ -57,6 +70,7 @@ async function consultar(){
           await encomiendasApi.solicitarPinDeposito(id);
           if(montada&&actual===version)estadoAccesible.value='PIN solicitado. Esperando la entrega.';
         }catch(e){
+          if(await gestionarSesion(e))return;
           if(montada&&actual===version)error.value=(e as Error).message||'No se pudo registrar la solicitud del PIN.';
         }
       }else if(pinSolicitado(d)||pinEmitido(d)){
@@ -66,6 +80,7 @@ async function consultar(){
       estadoAccesible.value='Esperando la confirmación del pago.';
     }
   }catch(e){
+    if(await gestionarSesion(e))return;
     if(montada&&actual===version)error.value=(e as Error).message||'No se pudo consultar la operación.';
   }finally{
     consultaActiva=false;
@@ -75,6 +90,7 @@ function iniciar(){
   clearInterval(reloj);
   error.value='';
   ultimoIntentoSolicitud=0;
+  redirigiendoAcceso=false;
   void consultar();
   reloj=setInterval(()=>{if(!document.hidden)void consultar();},5000);
 }
