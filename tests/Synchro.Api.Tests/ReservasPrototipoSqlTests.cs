@@ -34,7 +34,6 @@ public sealed partial class EncomiendasOperativasSqlTests
         "SYNCHRO-CAPTURA-DEMOSTRATIVA-v1",EncomiendasOperativasSql.VersionCapturaDemostrativa);
 
     [Theory]
-    [InlineData("Personal","Normal")]
     [InlineData("Encomienda","Normal")]
     [InlineData("Encomienda","Refrigerado")]
     [InlineData("Encomienda","Caliente")]
@@ -247,7 +246,7 @@ public sealed partial class EncomiendasOperativasSqlTests
     [Fact]
     public async Task PrototipoHttpExigeSesionPropiedadCsrfYTerminalParaCapturas()
     {
-        var f=await Preparar();using var fabrica=new FabricaEncomiendas(ConfiguracionReserva(f));var ct=CancellationToken.None;
+        var f=await Preparar();var cfg=new ConfigurationBuilder().AddConfiguration(ConfiguracionReserva(f)).AddInMemoryCollection(new Dictionary<string,string?>{["RostroV3:RetiroHabilitado"]="true"}).Build();using var fabrica=new FabricaEncomiendas(cfg,manual:true);var ct=CancellationToken.None;
         using var cliente=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});
         Assert.Equal(HttpStatusCode.Unauthorized,(await cliente.GetAsync("/api/web/reservas/disponibilidad",ct)).StatusCode);
         cliente.DefaultRequestHeaders.Add("X-Test-Rol","Cliente");cliente.DefaultRequestHeaders.Add("X-Test-Id",f.Persona.ToString());
@@ -265,18 +264,42 @@ public sealed partial class EncomiendasOperativasSqlTests
         await f.Servicio.ConfirmarEntregaPin(id,new(deposito.GetProperty("id").GetGuid(),"+999123456701","WA-HTTP-DEPOSITO",true),f.Admin,ct);
         using var terminal=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});
         terminal.DefaultRequestHeaders.Add("X-Test-Rol","Terminal");terminal.DefaultRequestHeaders.Add("X-Test-Id",f.Terminal.ToString());
-        var peticion=new DepositoDemostrativoSolicitud(deposito.GetProperty("pin").GetString()!,CapturaDemostrativa(),true);
+        var descriptor=Enumerable.Range(0,1024).Select(i=>Math.Sin(i*.173)).ToArray();
+        var peticion=new DepositoDemostrativoSolicitud(deposito.GetProperty("pin").GetString()!,new(Convert.ToBase64String(RostroSimuladoTests.Png()),descriptor,"SYNCHRO-HUMANJS-EMBEDDING-1024-v3",EncomiendasOperativasSql.VersionFacialPersonalWeb),true);
         Assert.Equal(HttpStatusCode.BadRequest,(await terminal.PostAsJsonAsync($"/api/terminales/reservas/{id}/depositar",peticion,ct)).StatusCode);
         var token=await terminal.GetFromJsonAsync<JsonElement>("/api/terminales/reservas/csrf-token",ct);terminal.DefaultRequestHeaders.Add("X-CSRF-TOKEN",token.GetProperty("csrfToken").GetString());
         Assert.Equal(HttpStatusCode.BadRequest,(await terminal.PostAsJsonAsync($"/api/terminales/reservas/{id}/depositar",peticion,ct)).StatusCode);
         terminal.DefaultRequestHeaders.Add("X-SYNCHRO-CONSENTIMIENTO","ACEPTO");
         Assert.Equal(HttpStatusCode.OK,(await terminal.PostAsJsonAsync($"/api/terminales/reservas/{id}/depositar",peticion,ct)).StatusCode);
-        var retiro=Json(await f.Servicio.EmitirPin(id,"Retiro",false,f.Admin,ct));
-        await f.Servicio.ConfirmarEntregaPin(id,new(retiro.GetProperty("id").GetGuid(),"+999123456701","WA-HTTP-RETIRO",true),f.Admin,ct);
-        var identificada=await terminal.PostAsJsonAsync("/api/terminales/reservas/retiros/identificar",new{pin=retiro.GetProperty("pin").GetString()},ct);
-        Assert.Equal(HttpStatusCode.OK,identificada.StatusCode);Assert.Equal(id,(await identificada.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("encomiendaId").GetInt32());
-        var captura=await terminal.PostAsJsonAsync($"/api/terminales/reservas/{id}/captura-retiro",CapturaDemostrativa(true),ct);Assert.Equal(HttpStatusCode.OK,captura.StatusCode);
-        var evidencia=(await captura.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("evidenciaId").GetGuid();
-        Assert.Equal(HttpStatusCode.OK,(await terminal.PostAsJsonAsync($"/api/terminales/reservas/{id}/retirar",new RetiroOperativoSolicitud(evidencia,retiro.GetProperty("pin").GetString()!,true),ct)).StatusCode);
+        var original=deposito.GetProperty("pin").GetString()!;
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>f.Servicio.EmitirPin(id,"Retiro",false,f.Admin,ct));
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>f.Servicio.IdentificarParaDeposito(original,f.Terminal,ct));
+        var detalle=Json(await f.Servicio.Detalle(id,f.Persona,ct));
+        Assert.Equal("Depositada",detalle.GetProperty("estado").GetString());
+        Assert.Single(detalle.GetProperty("pines").EnumerateArray());
+        Assert.Equal("Entregado",detalle.GetProperty("pines")[0].GetProperty("estado").GetString());
+
+        // El mismo endpoint de "Mis pertenencias" compara V3 y valida el PIN original.
+        var csrfManual=await terminal.GetFromJsonAsync<JsonElement>("/api/terminales/guardar/whatsapp/csrf-token",ct);
+        terminal.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
+        terminal.DefaultRequestHeaders.Add("X-CSRF-TOKEN",csrfManual.GetProperty("csrfToken").GetString());
+        const string ruta="/api/terminales/guardar/whatsapp/retiro";
+        var rostro=await terminal.PostAsJsonAsync(ruta+"/rostro-v3",new{descriptor},ct);
+        Assert.Equal(HttpStatusCode.OK,rostro.StatusCode);
+        var tokenFacial=(await rostro.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("tokenFacial").GetString()!;
+        var falso=original=="000000"?"000001":"000000";
+        var rechazo=await terminal.PostAsJsonAsync(ruta+"/pin/prevalidar",new{pin=falso,tokenFacial},ct);
+        Assert.False(rechazo.IsSuccessStatusCode);
+        var resultado=await terminal.PostAsJsonAsync(ruta+"/pin/prevalidar",new{pin=original,tokenFacial},ct);
+        Assert.Equal(HttpStatusCode.OK,resultado.StatusCode);
+        var cerrado=await resultado.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.True(cerrado.GetProperty("retiroConfirmado").GetBoolean());
+        Assert.False(cerrado.GetProperty("pagoPendiente").GetBoolean());
+        Assert.False((await terminal.PostAsJsonAsync(ruta+"/pin/prevalidar",new{pin=original,tokenFacial},ct)).IsSuccessStatusCode);
+        detalle=Json(await f.Servicio.Detalle(id,f.Persona,ct));
+        Assert.True(detalle.GetProperty("retiradaConfirmada").GetBoolean());
+        Assert.Equal("Consumido",detalle.GetProperty("pines")[0].GetProperty("estado").GetString());
+        Assert.NotEqual(JsonValueKind.Null,detalle.GetProperty("depositoUtc").ValueKind);
+        Assert.NotEqual(JsonValueKind.Null,detalle.GetProperty("entregaUtc").ValueKind);
     }
 }

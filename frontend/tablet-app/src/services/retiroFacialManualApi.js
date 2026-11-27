@@ -123,6 +123,7 @@ export async function prevalidarRetiroFacialConPin(pin, tokenFacial) {
 
   const datos = await respuestaSegura(respuesta);
 
+  if(datos?.retiroConfirmado===true && datos?.origenReserva==="Web" && datos?.pagoConfirmado===true && datos?.estadoCasillero==="Disponible")return datos;
   if (datos?.pinValidado !== true ||
       datos?.pagoPendiente !== true ||
       datos?.retiroConfirmado !== false ||

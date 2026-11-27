@@ -53,6 +53,7 @@ try {
     $env:CargaDispositivos__RegistroHabilitado = 'true'
     $env:EncomiendasOperacion__Habilitado = 'true'
     $env:ReservasPrototipo__AccesoLibrePruebas = 'true'
+    $env:RostroV3__RetiroHabilitado = 'true'
     $env:ProteccionDatos__DirectorioClaves = $directorioClaves
     $env:CargaDispositivos__ClaveHmac = $claveBase64
 

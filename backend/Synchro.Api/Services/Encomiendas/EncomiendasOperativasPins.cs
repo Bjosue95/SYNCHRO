@@ -21,6 +21,7 @@ internal sealed partial class EncomiendasOperativasSql
         }
         string telefono;
         var personal=(await LeerReserva(c,tx,id,ct))?.Servicio=="Personal";
+        Exigir(!personal||finalidad==FinalidadPinEncomienda.Deposito,"PinPersonalUnico","El PIN personal de depósito se conserva para el retiro.",409);
         if(finalidad==FinalidadPinEncomienda.Deposito||personal) {
             var cuenta=await LeerConsentimientoCuenta(c,tx,o.RemitenteId,ct);
             Exigir(cuenta.Estado=="Confirmado"||!personal&&finalidad==FinalidadPinEncomienda.Deposito&&await Consentimientos(c,tx,id,ct),"NumeroNoAutorizado","Falta la autorización de WhatsApp del remitente.");
@@ -54,7 +55,7 @@ internal sealed partial class EncomiendasOperativasSql
             byte[] hash=CodigoPinRetiro.CalcularHashEncomienda(pin,id,finalidad==FinalidadPinEncomienda.Deposito?o.RemitenteId:o.DestinatarioId,salt,config,finalidad);
             try {
                 int minutos=config.GetValue("EncomiendasOperacion:PinVigenciaMinutos",30);Exigir(minutos is >=1 and <=1440,"ConfiguracionPin","Vigencia de PIN no válida.",503);
-                var vence=Ahora.AddMinutes(minutos);var pinId=Guid.NewGuid();
+                var vence=personal?o.Vence:Ahora.AddMinutes(minutos);var pinId=Guid.NewGuid();
                 await using(var q=Comando(c,tx,"""
                     UPDATE dbo.PinesEncomiendaOperativa SET Activo=0,RevocadoUtc=@ahora WHERE ReservaId=@id AND Finalidad=@fin AND Activo=1;
                     INSERT dbo.PinesEncomiendaOperativa(Id,ReservaId,Finalidad,PinHash,PinSalt,CreadoUtc,VenceUtc,AdminEmisionId)
@@ -103,7 +104,7 @@ internal sealed partial class EncomiendasOperativasSql
         await Versionar(c,tx,id,ct);await tx.CommitAsync(ct);return new{entregaManualConfirmada=true};
     }
 
-    private async Task<Guid> VerificarPin(SqlConnection c,SqlTransaction tx,Operacion o,FinalidadPinEncomienda finalidad,string valor,int terminal,CancellationToken ct)
+    private async Task<Guid> VerificarPin(SqlConnection c,SqlTransaction tx,Operacion o,FinalidadPinEncomienda finalidad,string valor,int terminal,CancellationToken ct,bool conservarTrasDeposito=false)
     {
         Exigir(valor is {Length:6}&&valor.All(char.IsAsciiDigit),"PinInvalido","El PIN debe contener seis dígitos.",400);
         Guid id;byte[] hash,salt;int intentos;DateTimeOffset vence;bool entregado;
@@ -112,7 +113,7 @@ internal sealed partial class EncomiendasOperativasSql
             id=r.GetGuid(0);hash=(byte[])r[1];salt=(byte[])r[2];intentos=r.GetInt32(3);vence=Fecha(r,4);entregado=!r.IsDBNull(5);
         }
         try {
-            Exigir(intentos<5&&vence>Ahora&&entregado,"PinNoDisponible","El PIN está vencido, bloqueado o no consta como entregado.");
+            Exigir(intentos<5&&(vence>Ahora||conservarTrasDeposito&&o.Estado=="Depositada")&&entregado,"PinNoDisponible","El PIN está vencido, bloqueado o no consta como entregado.");
             byte[] calculado=CodigoPinRetiro.CalcularHashEncomienda(valor,o.Id,finalidad==FinalidadPinEncomienda.Deposito?o.RemitenteId:o.DestinatarioId,salt,config,finalidad);
             bool correcto;try{correcto=CodigoPinRetiro.VerificarHash(calculado,hash);}finally{CryptographicOperations.ZeroMemory(calculado);}
             if(!correcto) {

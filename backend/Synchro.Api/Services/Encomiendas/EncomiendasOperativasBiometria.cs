@@ -122,6 +122,7 @@ internal sealed partial class EncomiendasOperativasSql
         try {
             await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
             Exigir(o.Estado=="Depositada"&&o.TerminalId==terminal,"RetiroNoDisponible","La reserva no está depositada en esta terminal.");
+            Exigir((await LeerReserva(c,tx,id,ct))?.Servicio!="Personal","RostroV3Requerido","Usa Mis pertenencias y la verificación facial V3.",403);
             var idEv=Guid.NewGuid();var vence=Ahora.AddMinutes(2);cifrado=ProtectorFoto(idEv).Protect(png);
             await using(var q=Comando(c,tx,"""
                 INSERT dbo.EvidenciasEncomiendaOperativa(Id,ReservaId,TerminalId,PersonaId,Tipo,VersionConsentimiento,EmitidaUtc,VenceUtc,ComparacionRemitenteAprobada)

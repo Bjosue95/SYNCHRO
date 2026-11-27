@@ -179,6 +179,12 @@ async function verificar() {
           tokenFacial
         );
 
+        if(respuesta?.retiroConfirmado===true && respuesta?.origenReserva==="Web"){
+          terminado.value=true;
+          limpiarRetiro();
+          mensaje.value=`Retiro registrado correctamente. Casillero: ${respuesta.codigoCasillero}.`;
+          return;
+        }
         if (
           typeof respuesta?.autorizacionPago !== "string" ||
           !respuesta.autorizacionPago

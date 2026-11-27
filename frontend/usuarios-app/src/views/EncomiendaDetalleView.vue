@@ -18,6 +18,9 @@ const depositoConfirmado=computed(()=>Boolean(detalle.value?.depositoUtc)
 const pinRetiroEntregado=computed(()=>Boolean(detalle.value?.pines?.some(
   (p:any)=>p.finalidad==='Retiro'&&['Entregado','Consumido'].includes(p.estado))));
 
+function fechaOperacion(valor: string | null | undefined){
+  return valor ? new Date(valor).toLocaleString('es-HN',{timeZone:'America/Tegucigalpa',dateStyle:'medium',timeStyle:'short'}) : 'Sin registro';
+}
 async function cargar(){
   const id=String(route.params.id);
   const actual=++consultaActual;
@@ -92,7 +95,7 @@ onBeforeUnmount(()=>{montada=false;consultaActual++;clearInterval(reloj);});
           <h2 id="operacion-titulo">{{ detalle.retiradaConfirmada ? 'Retiro completado' : 'Tus pertenencias están resguardadas' }}</h2>
           <p>{{ detalle.retiradaConfirmada
             ? 'El retiro de tus pertenencias quedó registrado correctamente.'
-            : 'Tus pertenencias ya están depositadas. Cuando desees retirarlas, sigue el procedimiento de verificación en la estación SYNCHRO.' }}</p>
+            : 'Tus pertenencias ya están depositadas. En la estación selecciona Retirar, Mis pertenencias, verifica tu rostro y utiliza el mismo PIN que recibiste por WhatsApp.' }}</p>
         </template>
         <template v-else>
           <h2 id="operacion-titulo">{{ detalle.retiradaConfirmada ? 'Encomienda entregada'
@@ -118,6 +121,14 @@ onBeforeUnmount(()=>{montada=false;consultaActual++;clearInterval(reloj);});
             <p class="env-help">El destinatario debe aceptar desde su teléfono. Compartir el mensaje no confirma su autorización.</p>
           </template>
         </template>
+      </section>
+
+      <section v-if="detalle.retiradaConfirmada" class="env-card reserva-operacion" aria-label="Registro de depósito y retiro">
+        <h2>Registro de la operación</h2>
+        <div class="reserva-ficha__datos">
+          <div><span>Fecha y hora del depósito</span><strong>{{ fechaOperacion(detalle.depositoUtc) }}</strong></div>
+          <div><span>Fecha y hora del retiro</span><strong>{{ fechaOperacion(detalle.entregaUtc) }}</strong></div>
+        </div>
       </section>
 
       <section v-if="detalle.cancelacion" class="env-card reserva-operacion" aria-label="Reserva cancelada">

@@ -350,7 +350,9 @@ async function confirmarDeposito() {
         pin:sesion.pin,
         codigoCasillero:sesion.casillero,
         depositoComprobado:true,
-        captura:{imagenPng:sesion.foto,descriptor:null,modelo:"SYNCHRO-CAPTURA-DEMOSTRATIVA",versionConsentimiento:"SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11"}
+        captura:{imagenPng:sesion.foto,descriptor:sesion.descriptor,
+           modelo:sesion.servicio==="Personal"?"SYNCHRO-HUMANJS-EMBEDDING-1024-v3":"SYNCHRO-CAPTURA-DEMOSTRATIVA",
+           versionConsentimiento:sesion.servicio==="Personal"?"SYNCHRO-FACIAL-V3-2026-11":"SYNCHRO-CAPTURA-DEMOSTRATIVA-2026-11"}
       });
       if(datos?.depositoConfirmado!==true)throw new Error("El servidor no confirmó el depósito.");
       finalizar();

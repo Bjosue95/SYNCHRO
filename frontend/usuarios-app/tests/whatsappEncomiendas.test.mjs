@@ -25,11 +25,12 @@ test('bloquea PIN intercambiados, contactos equivocados, retiro anticipado y aut
   assert.equal(mensajePinEncomienda({ ...deposito, pin: '' }, detalle, 'fecha'), '');
 });
 
-test('la reserva personal entrega ambos PIN al titular y conserva sus finalidades y estados',()=>{
+test('la reserva personal utiliza un solo PIN para ambas etapas',()=>{
   const personal={...detalle,reserva:{servicio:'Personal'}};
   assert.equal(chatPinEncomienda(deposito,personal),'https://wa.me/999123456701');
   assert.equal(chatPinEncomienda({...retiro,telefono:telefonoTitular()},personal),'');
-  assert.equal(chatPinEncomienda({...retiro,telefono:telefonoTitular()},{...personal,estado:'Depositada'}),'https://wa.me/999123456701');
+  assert.equal(chatPinEncomienda({...retiro,telefono:telefonoTitular()},{...personal,estado:'Depositada'}),'');
+  assert.match(mensajePinEncomienda(deposito,personal,'fecha de prueba'),/PIN de depósito y retiro: 123456/);
   assert.equal(chatPinEncomienda(retiro,{...personal,estado:'Depositada'}),'');
   function telefonoTitular(){return personal.remitente.telefono;}
 });

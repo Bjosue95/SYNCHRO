@@ -167,3 +167,8 @@ test("Sesion de cobro permanece solo en memoria", () => {
   assert.equal(obtenerOrdenRetiroPagado(), null);
   assert.equal(obtenerRetiro().autorizacionFacial, null);
 });
+test("reserva web pagada usa el mismo teclado sin crear un segundo cobro", async () => {
+  const simulacion=simularFetch({pinValidado:true,retiroConfirmado:true,origenReserva:"Web",pagoConfirmado:true,pagoPendiente:false,codigoCasillero:"M03",estadoCasillero:"Disponible"});
+  try {const resultado=await prevalidarRetiroFacialConPin("123456","token-facial-de-pruebas");assert.equal(resultado.retiroConfirmado,true);assert.equal(resultado.pagoPendiente,false);assert.equal(simulacion.llamadas.length,2);}
+  finally {simulacion.restaurar();}
+});

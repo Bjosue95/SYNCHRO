@@ -59,6 +59,9 @@ function estadoEtapa(d:any){
   if(d?.condiciones&&!d?.condiciones?.remitenteAutorizado)return 'Autorizar WhatsApp';
   return 'En preparación';
 }
+function fechaOperacion(valor: string | null | undefined){
+  return valor ? new Date(valor).toLocaleString('es-HN',{timeZone:'America/Tegucigalpa',dateStyle:'medium',timeStyle:'short'}) : 'Sin registro';
+}
 function accionDe(d:any){
   if(estadoEtapa(d)==='Solicitar PIN')return '/reservas/'+d.id+'/solicitar-pin';
   if(estadoEtapa(d)==='Autorizar destinatario')return '/reservas/'+d.id+'#destinatario-autorizacion';
@@ -173,6 +176,10 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
             <h2>Reserva #{{ e.id }}</h2>
             <span class="env-status">{{ estadoEtapa(detalleDe(e)) }}</span>
           </div>
+          <div v-if="esHistorial && e.retiradaConfirmada" class="reserva-tarjeta__fechas">
+            <span><strong>Depósito:</strong> {{ fechaOperacion(e.depositoUtc) }}</span>
+            <span><strong>Retiro:</strong> {{ fechaOperacion(e.entregaUtc) }}</span>
+          </div>
           <div class="reserva-tarjeta__acciones">
             <RouterLink :to="esHistorial?'/reservas/'+e.id:accionDe(detalleDe(e))" class="boton boton-primario">{{ esHistorial?'Ver detalle':accionTexto(detalleDe(e)) }}</RouterLink>
             <button v-if="!esHistorial && detalles[Number(e.id)] && cancelable(detalleDe(e))" type="button" class="boton boton-secundario"
@@ -230,4 +237,5 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
 .reserva-tarjeta__confirmacion{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--text-strong);}
 .reserva-tarjeta__cancelacion textarea{width:100%;min-height:70px;}
 @media(max-width:650px){.reservas-tarjetas{grid-template-columns:1fr;}.reserva-tarjeta__acciones .boton{flex:1 1 125px;}.historial-busqueda__controles input{flex-basis:100%;}.historial-busqueda__controles button{flex:1 1 120px;}}
+.reserva-tarjeta__fechas{display:grid;gap:7px;font-size:13px;color:var(--text-muted);line-height:1.5;}
 </style>

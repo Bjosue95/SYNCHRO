@@ -214,7 +214,7 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
         }
         var pines=new List<object>(); await using(var q=Comando(c,null,"SELECT Id,Finalidad,Activo,IntentosFallidos,VenceUtc,ConsumidoUtc,EntregadoUtc FROM dbo.PinesEncomiendaOperativa WHERE ReservaId=@id ORDER BY CreadoUtc DESC",("@id",id))) {
             await using var r=await q.ExecuteReaderAsync(ct);while(await r.ReadAsync(ct))pines.Add(new{id=r.GetGuid(0),finalidad=r.GetString(1),
-                estado=!r.IsDBNull(5)?"Consumido":!r.GetBoolean(2)?"Revocado":!r.IsDBNull(6)?"Entregado":r.GetInt32(3)>=5?"Bloqueado":Fecha(r,4)<=Ahora?"Vencido":"Emitido",venceUtc=Fecha(r,4)});
+                estado=!r.IsDBNull(5)?"Consumido":!r.GetBoolean(2)?"Revocado":r.GetInt32(3)>=5?"Bloqueado":Fecha(r,4)<=Ahora&&!(reserva?.Servicio=="Personal"&&o.Estado=="Depositada"&&r.GetString(1)=="Deposito")?"Vencido":!r.IsDBNull(6)?"Entregado":"Emitido",venceUtc=Fecha(r,4)});
         }
         var historial=new List<object>(); await using(var q=Comando(c,null,"""
             SELECT TOP(300) h.Id,h.Accion,h.Estado,h.FechaUtc,h.Detalle,h.ActorTipo,h.ActorId,a.NombreUsuario

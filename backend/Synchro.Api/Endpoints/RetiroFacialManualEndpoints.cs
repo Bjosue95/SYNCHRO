@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Services;
 using Synchro.Api.Services.RostroSimulado;
+using Synchro.Api.Services.Encomiendas;
 
 namespace Synchro.Api.Endpoints;
 
@@ -35,6 +36,7 @@ internal static class RetiroFacialManualEndpoints
     {
         internal int Intentos;
         internal int Consumido;
+        internal int EnCurso;
         internal DateTimeOffset VenceUtc;
 
         internal ControlRetiro(DateTimeOffset venceUtc)
@@ -350,7 +352,7 @@ internal static class RetiroFacialManualEndpoints
                         u.Id,
                         v.PatronProtegido
                     FROM dbo.UsosCasillero AS u
-                    INNER JOIN dbo.AutorizacionesWhatsAppManuales AS a
+                    LEFT JOIN dbo.AutorizacionesWhatsAppManuales AS a
                         ON a.UsoId = u.Id
                        AND a.Estado = N'Confirmado'
                     INNER JOIN dbo.RostrosRetiroPersonalV3 AS v
@@ -362,10 +364,12 @@ internal static class RetiroFacialManualEndpoints
                     WHERE u.Estado = N'Ocupado'
                       AND u.FechaRetiro IS NULL
                       AND u.TipoServicio = N'ResguardoPersonal'
-                      AND u.OrigenReserva = N'Terminal'
+                      AND ((u.OrigenReserva = N'Terminal' AND a.UsoId IS NOT NULL)
+                        OR (u.OrigenReserva = N'Web' AND @IncluirWeb=1 AND c.Canal=N'ReservaWeb'))
                     ORDER BY u.Id DESC
                     """, db);
 
+                consulta.Parameters.Add("@IncluirWeb", SqlDbType.Bit).Value = config.GetValue<bool>("EncomiendasOperacion:Habilitado");
                 consulta.Parameters.Add(
                     "@Modelo", SqlDbType.NVarChar, 60
                 ).Value = DescriptorFacialV3.Modelo;
@@ -516,7 +520,7 @@ internal static class RetiroFacialManualEndpoints
             }
         });
         // SYNCHRO-COBRO-POSTERIOR-PREVALIDAR-V1
-        // No registra retiro, no consume PIN y no confirma pagos.
+        // Presencial: prepara cobro sin finalizar. Reserva web ya pagada: confirma el retiro.
         grupo.MapPost("/pin/prevalidar", async (
             RetiroManualPinSolicitud solicitud,
             HttpContext http,
@@ -572,8 +576,11 @@ internal static class RetiroFacialManualEndpoints
             if (Interlocked.Increment(ref control.Intentos) > 5)
                 return Results.StatusCode(429);
 
+            if (Interlocked.CompareExchange(ref control.EnCurso,1,0)!=0)
+                return Results.Conflict(new { mensaje = "Ya se está verificando el retiro." });
             try
             {
+                if (Volatile.Read(ref control.Consumido)!=0) return Results.BadRequest(new { mensaje=MensajeRechazo });
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
 
@@ -644,6 +651,9 @@ internal static class RetiroFacialManualEndpoints
                     }
                 }
 
+                var servicioWeb=http.RequestServices.GetService<EncomiendasOperativasSql>();
+                var retiroWeb=servicioWeb is null?null:await servicioWeb.IntentarRetirarPersonalWeb(candidatos,solicitud.Pin,coincidenciasPin.Count>0,http.RequestAborted);
+                if(retiroWeb is not null){Interlocked.Exchange(ref control.Consumido,1);return Results.Ok(retiroWeb);}
                 // No adivinar a que operacion corresponde el PIN.
                 if (coincidenciasPin.Count > 1)
                     return Results.BadRequest(new { mensaje = MensajeRechazo });
@@ -769,6 +779,9 @@ internal static class RetiroFacialManualEndpoints
                     statusCode: 503,
                     title: "Configuracion del PIN no disponible.");
             }
+            catch(OperacionEncomiendaException ex)
+            { return Results.Json(new { mensaje=ex.Message,codigo=ex.Codigo },statusCode:ex.Estado); }
+            finally { Interlocked.Exchange(ref control.EnCurso,0); }
         });
 
         grupo.MapPost("/pin", async (RetiroManualPinSolicitud solicitud, HttpContext http,
@@ -812,10 +825,13 @@ internal static class RetiroFacialManualEndpoints
             if (Interlocked.Increment(ref control.Intentos) > 5)
                 return Results.StatusCode(429);
 
+            if (Interlocked.CompareExchange(ref control.EnCurso,1,0)!=0)
+                return Results.Conflict(new { mensaje = "Ya se está verificando el retiro." });
             byte[]? salt = null;
             byte[]? calculado = null;
             try
             {
+                if (Volatile.Read(ref control.Consumido)!=0) return Results.BadRequest(new { mensaje=MensajeRechazo });
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
                 int? usoElegido = null;
@@ -857,6 +873,9 @@ internal static class RetiroFacialManualEndpoints
                         salt = null; calculado = null;
                     }
                 }
+                var servicioWeb=http.RequestServices.GetService<EncomiendasOperativasSql>();
+                var retiroWeb=servicioWeb is null?null:await servicioWeb.IntentarRetirarPersonalWeb(candidatos,solicitud.Pin,usoElegido.HasValue,http.RequestAborted);
+                if(retiroWeb is not null){Interlocked.Exchange(ref control.Consumido,1);return Results.Ok(retiroWeb);}
                 if (!usoElegido.HasValue)
                 {
                     // No bloquear operaciones ajenas cuando varias
@@ -960,8 +979,11 @@ internal static class RetiroFacialManualEndpoints
             catch (SqlException) { return Results.Problem(statusCode: 503, title: "No se pudo confirmar el retiro."); }
             catch (InvalidOperationException) { return Results.Problem(statusCode: 503, title: "PIN no disponible."); }
             catch (FormatException) { return Results.Problem(statusCode: 503, title: "PIN no configurado."); }
+            catch(OperacionEncomiendaException ex)
+            { return Results.Json(new { mensaje=ex.Message,codigo=ex.Codigo },statusCode:ex.Estado); }
             finally
             {
+                Interlocked.Exchange(ref control.EnCurso,0);
                 if (salt is not null) CryptographicOperations.ZeroMemory(salt);
                 if (calculado is not null) CryptographicOperations.ZeroMemory(calculado);
             }

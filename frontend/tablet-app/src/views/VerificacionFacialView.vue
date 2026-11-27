@@ -17,6 +17,7 @@ const router = useRouter();
 const { oscuro } = useTema();
 const esReservaWeb = computed(() => route.path === "/guardar/reserva/captura");
 const consentimientoFotoReserva = ref(false);
+const reservaPersonal = computed(() => esReservaWeb.value && obtenerEleccionReservaWeb()?.servicio === "Personal");
 const depositoConfirmado = ref(false);
 const pruebaDescriptorV3 = import.meta.env.DEV && import.meta.env.VITE_FACIAL_V3_PRUEBA === "true";
 const propsVistaPrevia = defineProps({
@@ -41,6 +42,7 @@ const aceptaRetiroV3 = ref(false);
 const usarRetiroV3 = computed(() =>
   retirando.value && retiroV3Habilitado && aceptaRetiroV3.value
 );
+const usarDescriptor = computed(() => reservaPersonal.value || (!esReservaWeb.value && pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value)));
 const encendida = ref(false);
 const iniciando = ref(false);
 const detectado = ref(false);
@@ -145,8 +147,8 @@ async function prepararMotor() {
         enabled: true,
         maxDetected: 2,
       },
-      mesh: { enabled: !esReservaWeb.value && pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value) },
-      description: { enabled: !esReservaWeb.value && pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value) },
+      mesh: { enabled: usarDescriptor.value },
+      description: { enabled: usarDescriptor.value },
       iris: { enabled: false },
       emotion: { enabled: false },
     },
@@ -372,8 +374,7 @@ async function analizar() {
 
     const indicacion = estadoRostro(datos);
 
-    const modoV3 = !esReservaWeb.value && pruebaDescriptorV3 &&
-      (aceptaDescriptorV3.value || usarRetiroV3.value);
+    const modoV3 = usarDescriptor.value;
 
     const calidad = modoV3 && indicacion === "listo"
       ? revisarCalidadV3(datos)
@@ -619,8 +620,11 @@ async function continuar() {
     try {
       const coincidencia=/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
       if (!coincidencia) throw new Error("La fotografía no tiene un formato PNG válido.");
-      // Fotografía temporal: no se crea un descriptor ni se compara un rostro.
-      registrarFotoReservaWeb(coincidencia[1]);
+      const descriptor = reservaPersonal.value ? consumirDescriptorV3() : null;
+      try {
+        if(reservaPersonal.value && !descriptor)throw new Error("Repite el registro facial V3.");
+        registrarFotoReservaWeb(coincidencia[1],descriptor);
+      } finally { if(descriptor)descriptor.fill(0); }
       limpiarCaptura();
       detenerCamara();
       await router.push("/guardar/reserva/pin");
@@ -697,7 +701,7 @@ function comenzarEscaneo() {
     return;
   }
   if (esReservaWeb.value && !consentimientoFotoReserva.value) {
-    error.value = "Autoriza la captura fotográfica para continuar.";
+    error.value = "Autoriza la captura para continuar.";
     return;
   }
   if (consentimiento.value) {
@@ -747,7 +751,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>{{ esReservaWeb ? "Captura de fotografía" : "Registro facial" }}</h1>
+      <h1>{{ esReservaWeb && !reservaPersonal ? "Captura de fotografía" : "Registro facial" }}</h1>
       <p v-if="!esReservaWeb">Casillero {{ casillero }}</p>
     </header>
 
@@ -843,9 +847,7 @@ onBeforeUnmount(() => {
       >
         <input v-model="consentimientoFotoReserva" type="checkbox" />
         <span>
-          Autorizo la fotografía como evidencia del depósito,
-          sin comparación facial. Su eliminación está programada
-          a los 30 días.
+          {{ reservaPersonal ? "Autorizo el registro de mi descriptor facial V3 cifrado para comparar mi rostro al retirar mis pertenencias. La referencia se elimina al cerrar el servicio; la fotografía se conserva hasta 30 días." : "Autorizo la fotografía como evidencia del depósito, sin comparación facial. Su eliminación está programada a los 30 días." }}
         </span>
       </label>
       <button

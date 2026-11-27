@@ -111,7 +111,7 @@ onBeforeUnmount(()=>{activo=false;version++;clearInterval(reloj);});
         <p class="pin-page__descripcion">
           {{ esperandoEntrega
             ? 'Tu solicitud ya está registrada. Cuando SYNCHRO confirme que te entregó el PIN por WhatsApp, volverás al inicio automáticamente.'
-            : 'El pago de tu reserva está confirmado. Solicita el PIN que utilizarás para depositar en la estación SYNCHRO.' }}
+            : detalle?.reserva?.servicio==='Personal' ? 'El pago está confirmado. Solicita el PIN que utilizarás para depositar y retirar tus pertenencias.' : 'El pago de tu reserva está confirmado. Solicita el PIN que utilizarás para depositar en la estación SYNCHRO.' }}
         </p>
         <div v-if="detalle" class="pin-page__reserva">
           <span>Reserva #{{ reservaId }}</span>

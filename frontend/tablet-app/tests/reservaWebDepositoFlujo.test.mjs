@@ -26,13 +26,18 @@ test("PIN real se valida tras fotografía, y ambos solo viven en memoria",()=>{
   elegirServicioReservaWeb("Personal");
   assert.equal(hayFotoReservaWeb(),false);
   assert.throws(()=>iniciarReservaWebDeposito({reservaId:5012,casillero:"M03",servicio:"Personal",tipoCasillero:"Normal"},"123456"));
-  registrarFotoReservaWeb("QUJD");
+  assert.throws(()=>registrarFotoReservaWeb("QUJD"));
+  const descriptor=Array.from({length:1024},(_,i)=>i===0?1:0);
+  registrarFotoReservaWeb("QUJD",descriptor);
   assert.equal(hayFotoReservaWeb(),true);
   assert.throws(()=>iniciarReservaWebDeposito({reservaId:5012,casillero:"M03",servicio:"Encomienda",tipoCasillero:"Normal"},"123456"));
   iniciarReservaWebDeposito({reservaId:5012,casillero:"M03",servicio:"Personal",tipoCasillero:"Normal"},"123456");
   assert.equal(obtenerReservaWebDeposito()?.reservaId,5012);
   assert.equal(obtenerReservaWebDeposito()?.foto,"QUJD");
+  const copia=obtenerReservaWebDeposito().descriptor;
+  assert.equal(copia[0],1);
   limpiarReservaWebDeposito();
+  assert.equal(copia.every(v=>v===0),true);
   assert.equal(obtenerReservaWebDeposito(),null);
 });
 
@@ -50,9 +55,9 @@ test("tablet reserva: dos elecciones, foto, PIN, mismo contador y confirmacion S
   assert.match(elegir,/Pertenencias personales/);
   assert.match(elegir,/Encomienda/);
   for(const tipo of ["Normal","Refrigerado","Caliente"])assert.match(elegir,new RegExp(tipo));
-  assert.match(foto,/registrarFotoReservaWeb\(coincidencia\[1\]\)/);
+  assert.match(foto,/registrarFotoReservaWeb\(coincidencia\[1\],descriptor\)/);
   assert.match(foto,/router.push\("\/guardar\/reserva\/pin"\)/);
-  assert.match(foto,/const modoV3 = !esReservaWeb\.value && pruebaDescriptorV3/);
+  assert.match(foto,/const modoV3 = usarDescriptor\.value/);
   assert.doesNotMatch(foto,/await depositarReservaWeb/);
   assert.match(pin,/identificarDepositoReservaWeb\(pin\.value\)/);
   assert.match(pin,/router.replace\("\/guardar\/reserva\/deposito"\)/);

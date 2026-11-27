@@ -334,7 +334,7 @@ internal sealed partial class EncomiendasOperativasSql
         return new(r.GetGuid(0),r.GetInt32(1),r.GetInt32(2),r.GetInt32(3),tipo,Fecha(r,5),Fecha(r,6),!r.IsDBNull(7),r.GetString(8)==VersionCapturaDemostrativa||r.GetString(8)==(tipo==TipoEvidenciaEncomienda.VerificacionRemitente?VersionConsentimiento:VersionConsentimientoRetiro),r.GetBoolean(9));
     }
 
-    public async Task<object> ConfirmarDeposito(Guid solicitud,int terminal,bool comprobado,CancellationToken ct)
+    public async Task<object> ConfirmarDeposito(Guid solicitud,int terminal,bool comprobado,CancellationToken ct,double[]? descriptorPersonal=null)
     {
         Exigir(comprobado,"DepositoNoComprobado","La terminal debe confirmar expresamente el depósito.",400);
         await using var c=await Abrir(ct);
@@ -354,6 +354,8 @@ internal sealed partial class EncomiendasOperativasSql
         Exigir(estado=="Autorizada"&&vence>Ahora,"SolicitudVencida","La autorización de depósito no está vigente.");
         bool activa,disponible;
         var reserva=await LeerReserva(c,tx,id,ct);
+        var personal=reserva?.Servicio=="Personal";
+        Exigir(!personal||descriptorPersonal is not null,"RostroV3Requerido","La reserva personal necesita el registro facial V3.",400);
         await using(var q=Comando(c,tx,"SELECT COUNT(*) FROM dbo.Terminales WHERE Id=@id AND Activa=1",("@id",terminal)))activa=Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1;
         await ExigirCompartimento(c,tx,reserva,codigo,o.Tamano,ct);
         await using(var q=Comando(c,tx,"""
@@ -378,10 +380,11 @@ internal sealed partial class EncomiendasOperativasSql
             UPDATE dbo.Casilleros SET Estado=N'Ocupado' WHERE Codigo=@codigo;
             UPDATE dbo.EncomiendasOperativas SET UsoId=@uso,TerminalId=@terminal,Estado=N'Depositada',FechaDepositoUtc=@ahora,Version=Version+1 WHERE ReservaId=@id;
             UPDATE dbo.PreReservasEncomiendasWeb SET Estado=N'Convertida' WHERE Id=@id;
-            UPDATE dbo.PinesEncomiendaOperativa SET Activo=0,ConsumidoUtc=@ahora WHERE Id=@pin;
+            UPDATE dbo.PinesEncomiendaOperativa SET Activo=0,ConsumidoUtc=@ahora WHERE Id=@pin AND @personal=0;
             UPDATE dbo.EvidenciasEncomiendaOperativa SET ConsumidaUtc=@ahora WHERE Id=@ev;
             UPDATE dbo.SolicitudesDepositoEncomiendaOperativa SET Estado=N'Depositada' WHERE Id=@solicitud;
-            """,("@uso",uso),("@remitente",o.RemitenteId),("@destinatario",o.DestinatarioId),("@codigo",codigo),("@terminal",terminal),("@ahora",Ahora.UtcDateTime),("@id",id),("@pin",pinId),("@ev",evidenciaId),("@solicitud",solicitud)))await q.ExecuteNonQueryAsync(ct);
+            """,("@uso",uso),("@remitente",o.RemitenteId),("@destinatario",o.DestinatarioId),("@codigo",codigo),("@terminal",terminal),("@ahora",Ahora.UtcDateTime),("@id",id),("@pin",pinId),("@ev",evidenciaId),("@solicitud",solicitud),("@personal",personal)))await q.ExecuteNonQueryAsync(ct);
+        if(personal)await RegistrarRostroPersonalWeb(c,tx,o,uso,descriptorPersonal!,terminal,ct);
         await Auditar(c,tx,id,null,"Terminal",terminal,"DepositoConfirmado","Depositada","Depósito confirmado en terminal; apertura física simulada.",ct,pinId,evidenciaId);
         await tx.CommitAsync(ct);return new{depositoConfirmado=true,usoId=uso,casillero=codigo,hardwareSimulado=true};
     }
@@ -391,6 +394,7 @@ internal sealed partial class EncomiendasOperativasSql
         Exigir(datos.EntregaComprobada,"EntregaNoComprobada","La terminal debe confirmar expresamente la entrega.",400);
         await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);var o=await Leer(c,tx,id,null,ct);
         Exigir(o.Estado=="Depositada"&&o.TerminalId==terminal&&o.UsoId.HasValue,"RetiroNoDisponible","Retiro no disponible para esta terminal.");
+        Exigir((await LeerReserva(c,tx,id,ct))?.Servicio!="Personal","RostroV3Requerido","Usa Mis pertenencias y la verificación facial V3.",403);
         var pin=await VerificarPin(c,tx,o,FinalidadPinEncomienda.Retiro,datos.Pin,terminal,ct);
         bool activa;await using(var q=Comando(c,tx,"SELECT COUNT(*) FROM dbo.Terminales WHERE Id=@id AND Activa=1",("@id",terminal)))activa=Convert.ToInt32(await q.ExecuteScalarAsync(ct))==1;
         var decision=PoliticaEncomiendaOperativa.Retirar(await Condiciones(c,tx,o,ct),await CondicionesPin(c,tx,id,pin,FinalidadPinEncomienda.Retiro,ct),await Evidencia(c,tx,datos.EvidenciaId,ct),terminal,activa,true,Ahora);

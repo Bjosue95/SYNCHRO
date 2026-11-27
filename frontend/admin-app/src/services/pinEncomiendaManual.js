@@ -1,6 +1,7 @@
 export function chatPinEncomienda(pin, detalle) {
   if (!pin || !detalle || !["Deposito", "Retiro"].includes(pin.finalidad)) return "";
-  const participante = detalle[pin.finalidad === "Deposito" || detalle.reserva?.servicio === "Personal" ? "remitente" : "destinatario"];
+  if(detalle.reserva?.servicio==="Personal"&&pin.finalidad==="Retiro")return "";
+  const participante = detalle[pin.finalidad === "Deposito" ? "remitente" : "destinatario"];
   if (!/^\+[1-9][0-9]{7,14}$/.test(pin.telefono) || pin.telefono !== participante?.telefono || participante.consentimiento !== "Confirmado") return "";
   if (pin.finalidad === "Retiro" && detalle.estado !== "Depositada") return "";
   if (pin.finalidad === "Deposito" && !["Preparacion", "ListaParaDeposito"].includes(detalle.estado)) return "";
@@ -10,5 +11,6 @@ export function chatPinEncomienda(pin, detalle) {
 
 export function mensajePinEncomienda(pin, detalle, vencimiento) {
   if (!chatPinEncomienda(pin, detalle) || !/^[0-9]{6}$/.test(pin.pin)) return "";
+  if(detalle.reserva?.servicio==="Personal"&&pin.finalidad==="Deposito")return `SYNCHRO · El punto donde todo se conecta.\nTu PIN de depósito y retiro: ${pin.pin}.\nDeposita antes de: ${vencimiento}. Conserva este PIN hasta retirar tus pertenencias.\nNo lo compartas.`;
   return `SYNCHRO · El punto donde todo se conecta.\nPIN exclusivo de ${pin.finalidad === "Deposito" ? "depósito" : "retiro"}: ${pin.pin}.\nVence: ${vencimiento}.\nNo lo compartas. Este código es personal y de un solo uso.`;
 }

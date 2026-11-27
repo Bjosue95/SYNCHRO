@@ -17,8 +17,7 @@ internal sealed partial class EncomiendasOperativasSql
         await ExigirTerminalDeReservas(terminal,ct);
         Exigir(datos.DepositoComprobado,"DepositoNoComprobado","Confirma el depósito desde la tablet.",400);
         var captura=datos.Captura??throw new OperacionEncomiendaException("CapturaInvalida","Se requiere la captura demostrativa de depósito.",400);
-        Exigir(captura.Descriptor is null&&captura.VersionConsentimiento==VersionCapturaDemostrativa,"CapturaInvalida","Solo se admite una captura demostrativa, sin descriptor ni comparación facial.",400);
-        byte[] png=LeerPng(captura,false);Guid solicitud;
+        byte[]? png=null;Guid solicitud;
         try {
             await using var c=await Abrir(ct);await using var tx=(SqlTransaction)await c.BeginTransactionAsync(ct);
             var o=await Leer(c,tx,id,null,ct);Preparacion(o,Ahora);
@@ -26,6 +25,13 @@ internal sealed partial class EncomiendasOperativasSql
                 &&await Consentimientos(c,tx,id,ct),
                 "CondicionesPendientes","Faltan pago o consentimientos comprobados.");
             var reserva=await LeerReserva(c,tx,id,ct);var codigo=reserva?.CodigoCasillero??Texto(datos.CodigoCasillero,10,"el casillero");
+            if(reserva?.Servicio=="Personal") {
+                ValidarCapturaPersonalWeb(captura);
+                png=LeerPng(captura with { VersionConsentimiento=VersionConsentimiento },true);
+            } else {
+                Exigir(captura.Descriptor is null&&captura.VersionConsentimiento==VersionCapturaDemostrativa,"CapturaInvalida","La encomienda requiere fotografía sin descriptor facial.",400);
+                png=LeerPng(captura,false);
+            }
             await ExigirCompartimento(c,tx,reserva,codigo,o.Tamano,ct);
             var pin=await VerificarPin(c,tx,o,FinalidadPinEncomienda.Deposito,datos.Pin,terminal,ct);
             var evidencia=Guid.NewGuid();solicitud=Guid.NewGuid();var vence=Ahora.AddMinutes(2);
@@ -43,7 +49,7 @@ internal sealed partial class EncomiendasOperativasSql
             } finally {CryptographicOperations.ZeroMemory(protegida);}
             await Auditar(c,tx,id,o.RemitenteId,"Terminal",terminal,"CapturaDepositoDemostrativa","PendienteDeposito","Captura demostrativa vinculada a un PIN válido. No se compararon rostros.",ct,pin,evidencia);
             await tx.CommitAsync(ct);
-        } finally {CryptographicOperations.ZeroMemory(png);}
-        return await ConfirmarDeposito(solicitud,terminal,true,ct);
+            return await ConfirmarDeposito(solicitud,terminal,true,ct,captura.Descriptor);
+        } finally { if(png is not null)CryptographicOperations.ZeroMemory(png);if(captura.Descriptor is not null)Array.Clear(captura.Descriptor); }
     }
 }
