@@ -155,7 +155,7 @@ test('el pago muestra instrucciones y permite confirmar para ver errores', () =>
   assert.doesNotMatch(vista, /function usarDatosPrueba\(\)/);
   assert.match(vista, /@click="pagador=\'Remitente\';paso=8"/);
   assert.match(vista, /<SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear"/);
-  assert.match(vista, /pagoError\.value='Introduce un titular ficticio/);
+  assert.match(vista, /pagoError\.value='Completa todos los campos/);
 });
 
 test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', () => {
@@ -360,4 +360,15 @@ test('la solicitud aprobada abre una ruta independiente y privada de espera', ()
   assert.match(vista,/clearInterval\(reloj\)/);
   assert.match(vista,/onBeforeUnmount/);
   assert.doesNotMatch(vista,/localStorage|sessionStorage|numeroTarjetaPrueba|codigoTarjetaPrueba|titularTarjeta/);
+});
+
+test('el pago conserva un aviso breve de demostracion sin repetirlo en cada campo', () => {
+  const vista=leer('PreReservaView');
+  const espera=leer('PagoPendienteView');
+  assert.match(vista,/Pago de demostración\. Usa los valores de ejemplo/);
+  assert.doesNotMatch(vista,/Escribe un nombre ficticio/);
+  assert.doesNotMatch(vista,/Revisa los datos de demostración para continuar/);
+  assert.doesNotMatch(vista,/confirmación administrativa\.<\/span>/);
+  assert.match(espera,/Pago pendiente de confirmación/);
+  assert.match(espera,/no se ha efectuado ningún cargo bancario/);
 });
