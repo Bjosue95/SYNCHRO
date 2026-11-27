@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   comprobarSesionTerminalReservaWeb,
+  comprobarAsignacionTerminalReservasWeb,
   identificarDepositoReservaWeb,
   SesionTerminalNoAutorizada
 } from "../src/services/reservasWebTerminalApi.js";
@@ -121,4 +122,46 @@ test("la credencial de dispositivo no sustituye aprobacion ni valida PIN incorre
   assert.match(config,/ExpireTimeSpan = TimeSpan\.FromDays\(365\)/);
   assert.match(config,/FechaAutorizacion FROM dbo\.Terminales/);
   assert.match(config,/context\.RejectPrincipal\(\)/);
+});
+
+test("la tablet consulta antes de la foto si es la estación de reservas",async()=>{
+  const anterior=globalThis.fetch;
+  const ruta="/api/terminales/reservas/estacion";
+  try{
+    globalThis.fetch=async(url)=>{
+      assert.equal(url,ruta);
+      return new Response(JSON.stringify({autorizada:true}),{
+        status:200,headers:{"Content-Type":"application/json"}
+      });
+    };
+    assert.equal((await comprobarAsignacionTerminalReservasWeb()).autorizada,true);
+    globalThis.fetch=async()=>new Response(JSON.stringify({
+      codigo:"TerminalReservasSinAsignar",
+      mensaje:"Hay varias estaciones activas. El administrador debe definir la estación de reservas."
+    }),{status:403,headers:{"Content-Type":"application/json"}});
+    await assert.rejects(comprobarAsignacionTerminalReservasWeb(), e=>
+      e.message.includes("Hay varias estaciones activas.") &&
+      !(e instanceof SesionTerminalNoAutorizada));
+  }finally{globalThis.fetch=anterior;}
+});
+
+test("PIN y depósito exigen la misma estación de reservas; no basta una cookie activa",()=>{
+  const backend=readFileSync(new URL(
+    "../../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasTerminal.cs",
+    import.meta.url),"utf8");
+  const deposito=readFileSync(new URL(
+    "../../../backend/Synchro.Api/Services/Encomiendas/ReservasCapturaDemostrativa.cs",
+    import.meta.url),"utf8");
+  const endpoint=readFileSync(new URL(
+    "../../../backend/Synchro.Api/Endpoints/EncomiendasOperativasEndpoints.cs",
+    import.meta.url),"utf8");
+  const elegir=leer("views/ReservaWebElegirView.vue");
+  assert.match(backend,/private async Task ExigirTerminalDeReservas/);
+  assert.match(backend,/ReservasPrototipo:TerminalId/);
+  assert.match(backend,/activas == 1/);
+  assert.match(backend,/var coincide = lector.GetInt32\(1\)/);
+  assert.match(backend,/EstadoTerminalDeReservas/);
+  assert.match(deposito,/await ExigirTerminalDeReservas\(terminal,ct\)/);
+  assert.match(endpoint,/prototipo.MapGet\("\/estacion"/);
+  assert.match(elegir,/await comprobarAsignacionTerminalReservasWeb\(\)/);
 });
