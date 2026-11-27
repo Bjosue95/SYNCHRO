@@ -42,6 +42,30 @@ const depositoConfirmado = computed(() =>
   Boolean(detalle.value?.depositoUtc) ||
   ['Depositada','Retirada'].includes(detalle.value?.estado)
 );
+const solicitudPinRegistrada=computed(()=>Boolean(detalle.value?.historial?.some(
+  (h:any)=>h.accion==='PinDepositoSolicitado'
+)));
+const pinDepositoEmitido=computed(()=>Boolean(detalle.value?.pines?.some(
+  (p:any)=>p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado)
+)));
+const puedeSolicitarPin=computed(()=>Boolean(detalle.value?.condiciones?.pagoConfirmado)
+  &&Boolean(detalle.value?.condiciones?.remitenteAutorizado)
+  &&!depositoConfirmado.value&&!pinDepositoEmitido.value
+  &&!solicitudPinRegistrada.value
+  &&!detalle.value?.historica&&!detalle.value?.cancelacion
+  &&['Preparacion','ListaParaDeposito','Pendiente'].includes(detalle.value?.estado));
+async function solicitarPinDeposito(){
+  if(procesando.value||!puedeSolicitarPin.value)return;
+  procesando.value=true;error.value='';aviso.value='';
+  try {
+    await encomiendasApi.solicitarPinDeposito(detalle.value.id);
+    await cargar();
+    aviso.value='Solicitud de PIN de depósito registrada. El equipo de SYNCHRO continuará con su emisión y entrega por WhatsApp.';
+  } catch(e){
+    error.value=(e as Error).message||'No fue posible registrar la solicitud del PIN.';
+    await cargar();
+  } finally{procesando.value=false;}
+}
 async function cancelar() {
   if(procesando.value||!confirmarCancelacion.value||!motivoCancelacion.value)return;
   procesando.value=true;error.value="";
@@ -330,8 +354,33 @@ onBeforeUnmount(() => {
         </p>
       </section>
       </details>
-      <section class="env-card reserva-pin">
+      <section id="solicitar-pin-deposito" class="env-card reserva-pin">
         <h2>Tu PIN de depósito</h2>
+        <div v-if="!depositoConfirmado" class="reserva-pin__accion" role="status">
+          <template v-if="solicitudPinRegistrada">
+            <strong>PIN solicitado</strong>
+            <p>Tu solicitud está registrada. La emisión y entrega corresponden al personal autorizado de SYNCHRO.</p>
+          </template>
+          <template v-else-if="pinDepositoEmitido">
+            <strong>PIN en preparación</strong>
+            <p>Consulta tu WhatsApp autorizado para recibir el PIN de depósito.</p>
+          </template>
+          <template v-else-if="puedeSolicitarPin">
+            <strong>Pago y WhatsApp confirmados</strong>
+            <p>Ya puedes solicitar tu PIN para depositar en la estación.</p>
+            <button type="button" class="boton boton-primario" :disabled="procesando" @click="solicitarPinDeposito">
+              {{ procesando?'Registrando solicitud…':'Solicitar PIN de depósito' }}
+            </button>
+          </template>
+          <template v-else-if="detalle.condiciones?.pagoConfirmado&&!detalle.condiciones?.remitenteAutorizado">
+            <strong>Autoriza tu WhatsApp</strong>
+            <p>Antes de solicitar el PIN, debe comprobarse tu autorización para recibir mensajes.</p>
+          </template>
+          <template v-else>
+            <strong>Solicitud aún no disponible</strong>
+            <p>Se habilitará cuando se cumplan las condiciones de tu reserva.</p>
+          </template>
+        </div>
         <ol class="env-checklist">
           <li>
             {{
@@ -446,6 +495,11 @@ onBeforeUnmount(() => {
 .reserva-acordeon__contenido{border:0;background:var(--surface-soft);box-shadow:none;padding:15px;}
 .reserva-pin{display:grid;gap:11px;}
 .reserva-pin .env-checklist{margin:0;}
+.reserva-pin__accion{display:grid;justify-items:start;gap:9px;padding:14px;border:1px solid var(--border);background:var(--surface-accent);border-radius:13px;}
+.reserva-pin__accion strong{font-size:14px;color:var(--text-strong);}
+.reserva-pin__accion p{font-size:12px;line-height:1.5;color:var(--text-muted);}
+.reserva-pin__accion button{min-height:48px;padding:11px 18px;font-weight:800;}
+#solicitar-pin-deposito{scroll-margin-top:80px;}
 @media(max-width:600px){
  .reserva-seguimiento__pasos{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;}
  .reserva-seguimiento__pasos li{font-size:9px;}
