@@ -115,15 +115,18 @@ async function cargarSiguienteAccion(limpiarError=true){
   try{
     const respuesta=await encomiendasApi.listar({pagina:1,tamanoPagina:30});
     if(!Array.isArray(respuesta?.encomiendas))throw new Error('No fue posible comprobar tus reservas.');
-    const candidatas=respuesta.encomiendas.filter((e:any)=>
+    const activas=respuesta.encomiendas.filter((e:any)=>
       !e.cancelacion&&!e.historica&&!e.retiradaConfirmada
       &&!['Cancelada','Rechazada','Vencida'].includes(e.estado));
+    const finalizadas=respuesta.encomiendas.filter((e:any)=>
+      !e.cancelacion&&!e.historica&&e.retiradaConfirmada);
+    const candidatas=[...activas,...finalizadas];
     let elegida:any=null;
     for(const reserva of candidatas.slice(0,12)){
       const d=await encomiendasApi.detalle(reserva.id);
       if(!montado||actual!==consultaActual)return;
-      if(!d?.cancelacion&&!d?.historica&&!d?.retiradaConfirmada
-        &&!['Cancelada','Rechazada','Vencida'].includes(d?.estado)){
+      if(!d?.cancelacion&&!d?.historica
+        &&(d?.retiradaConfirmada||!['Cancelada','Rechazada','Vencida'].includes(d?.estado))){
         elegida=d;break;
       }
     }
@@ -202,7 +205,7 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;});
               <option value="" disabled>Selecciona un motivo</option>
               <option v-if="!esPersonal">Número del destinatario incorrecto</option>
               <option>Tamaño de casillero incorrecto</option>
-              <option>Ya no deseo utilizar el casillero</option>
+              <option>Ya no desea utilizar el casillero</option>
               <option>Otro motivo</option>
             </select>
           </label>
