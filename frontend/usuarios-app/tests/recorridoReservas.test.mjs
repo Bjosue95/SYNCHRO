@@ -174,10 +174,12 @@ test('reserva en pasos adaptables conserva selecciones y espera aprobacion del p
   assert.match(vista, /v-if="paso===1"/);
   assert.match(vista, /v-if="paso===2 && porTipo.length"/);
   assert.match(vista, /v-if="paso===6" class="env-card reserva-revision/);
-  assert.match(vista, /v-if="paso===9 && reservaEnEspera!==null"/);
-  assert.match(vista, /intervaloPago=setInterval/);
-  assert.match(vista, /d\.pago\?\.estado==='ConfirmadoManual'/);
-  assert.match(vista, /await router\.replace\('\/reservas\/'\+id\)/);
+  assert.match(vista, /await router\.replace\('\/reservas\/'\+d\.id\+'\/pago-pendiente'\)/);
+  assert.doesNotMatch(vista, /intervaloPago=setInterval/);
+  const espera=readFileSync(new URL('../src/views/PagoPendienteView.vue',import.meta.url),'utf8');
+  assert.match(espera, /setInterval\(\(\)=>\{if\(!document\.hidden\)void consultar\(\);\},5000\)/);
+  assert.match(espera, /d\.pago\?\.estado==='ConfirmadoManual'/);
+  assert.match(espera, /await router\.replace\('\/reservas\/'\+id\)/);
 });
 test('PIN destinatario permanece condicionado al deposito confirmado', () => {
   const detalle=leer('EncomiendaDetalleView');
@@ -342,4 +344,20 @@ test('el pago web usa pantalla independiente con titular y sin autocompletado', 
   assert.match(vista,/paso\.value=9/);
   assert.doesNotMatch(vista,/Usar datos de prueba/);
   assert.doesNotMatch(api,/titularTarjeta|numeroTarjetaPrueba|venceTarjetaPrueba|codigoTarjetaPrueba/);
+});
+
+test('la solicitud aprobada abre una ruta independiente y privada de espera', () => {
+  const reserva=leer('PreReservaView');
+  const vista=leer('PagoPendienteView');
+  const router=readFileSync(new URL('../src/router/index.js',import.meta.url),'utf8');
+  assert.match(router,/path: "\/reservas\/:id\(\\\\d\+\)\/pago-pendiente"/);
+  assert.match(router,/name: "pago-pendiente"/);
+  assert.match(router,/meta: \{ privada: true, titulo: "Confirmación del pago" \}/);
+  assert.match(reserva,/await router\.replace\('\/reservas\/'\+d\.id\+'\/pago-pendiente'\)/);
+  assert.match(vista,/encomiendasApi\.detalle\(id\)/);
+  assert.match(vista,/d\.condiciones\?\.pagoConfirmado/);
+  assert.match(vista,/if\(d\.pago\?\.estado==='ConfirmadoManual'/);
+  assert.match(vista,/clearInterval\(reloj\)/);
+  assert.match(vista,/onBeforeUnmount/);
+  assert.doesNotMatch(vista,/localStorage|sessionStorage|numeroTarjetaPrueba|codigoTarjetaPrueba|titularTarjeta/);
 });
