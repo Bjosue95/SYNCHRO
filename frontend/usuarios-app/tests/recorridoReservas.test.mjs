@@ -317,3 +317,14 @@ test('revisar reserva comparte el estilo del boton continuar sin desbordarse', (
   assert.match(vista, /white-space:nowrap;/);
   assert.match(vista, /@media\(max-width:390px\)/);
 });
+
+test('resumen sin subtitulo redundante y ajustado a una pantalla movil', () => {
+  const vista=leer('PreReservaView');
+  assert.doesNotMatch(vista,/REVISIÓN DE LA RESERVA/);
+  assert.match(vista,/:class="\{'reserva-revision--resumen':paso===6\}"/);
+  assert.match(vista,/class="reserva-revision__ubicacion"/);
+  assert.match(vista,/\.reserva-revision--resumen \.reserva-revision__ubicacion \{grid-column:1\/-1;\}/);
+  assert.match(vista,/v-else-if="paso===7" class="reserva-revision__tarifa-aviso"/);
+  assert.doesNotMatch(vista,/Importe de la reserva: <strong>/);
+  assert.match(vista,/\.reserva-vista > \.reserva-revision--resumen \{\s*flex:0 0 auto;/);
+});
