@@ -599,6 +599,20 @@ if (builder.Configuration.GetValue<bool>("Reservas:ProcesarVencimientos") &&
 
 
 var app = builder.Build();
+// Acceso libre a reservas ÚNICAMENTE en el prototipo aislado.
+// El backend rehúsa arrancar si alguien intenta activar este modo en
+// producción o conectarlo a una base de datos fuera de SYNCHRO_Aislado.
+if (app.Configuration.GetValue<bool>("ReservasPrototipo:AccesoLibrePruebas"))
+{
+    var cadenaDemo = app.Configuration.GetConnectionString("SynchroDB");
+    if (!app.Environment.IsDevelopment() ||
+        !app.Configuration.GetValue<bool>("EncomiendasOperacion:Habilitado") ||
+        string.IsNullOrWhiteSpace(cadenaDemo) ||
+        !Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(
+            new SqlConnectionStringBuilder(cadenaDemo)))
+        throw new InvalidOperationException(
+            "Acceso libre de reservas permitido solo en Development y SynchroDB_Pruebas de SYNCHRO_Aislado.");
+}
 foreach (string indicador in new[] { "WhatsApp:SolicitudesInicioHabilitadas", "WhatsApp:SolicitudesInicioWorker:Habilitado", "WhatsApp:VerificacionOutbox:Habilitado", "EncomiendasOperacion:Habilitado" })
 {
     if (!app.Configuration.GetValue<bool>(indicador)) continue;
