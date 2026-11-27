@@ -315,6 +315,10 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;clearInterval(reloj);});
 
 .inicio-cliente__siguiente{display:grid;gap:0;border:1px solid #00b9c7;border-radius:18px;background:var(--surface);overflow:hidden;box-shadow:0 4px 17px rgb(0 185 199 / 8%);}
 .inicio-cliente__siguiente-principal{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,22px);padding:clamp(16px,2.6vw,24px);}
+.inicio-cliente__siguiente-principal>.inicio-cliente__siguiente-icono{grid-column:1;grid-row:1;align-self:center;}
+.inicio-cliente__siguiente-principal>.inicio-cliente__siguiente-texto{grid-column:2;grid-row:1;}
+.inicio-cliente__siguiente-principal>.inicio-cliente__siguiente-acciones{grid-column:3;grid-row:1;align-self:center;min-width:0;}
+.inicio-cliente__siguiente-acciones .inicio-cliente__accion{min-height:50px;height:auto;flex:0 0 auto;align-self:stretch;box-sizing:border-box;}
 .inicio-cliente__siguiente-acciones{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;}
 .inicio-cliente__siguiente-acciones .inicio-cliente__accion{white-space:normal;text-align:center;}
 .inicio-cliente__siguiente-icono{display:grid;place-items:center;width:58px;height:58px;border-radius:15px;background:var(--surface-accent);color:var(--accent-text);}
@@ -339,6 +343,13 @@ onBeforeUnmount(()=>{montado=false;consultaActual++;clearInterval(reloj);});
 .inicio-cliente__aviso{font-size:13px;color:var(--text-strong);padding:12px;background:var(--surface-accent);border-radius:12px;}
 .inicio-cliente__error{font-size:12px;color:var(--text-muted);padding:10px 0;}
 .inicio-cliente__error a{color:var(--accent-text);font-weight:800;}
-@media(max-width:760px){.inicio-cliente__siguiente-principal{grid-template-columns:auto minmax(0,1fr);}.inicio-cliente__siguiente-acciones{grid-column:1/-1;width:100%;flex-direction:column;}
- .inicio-cliente__siguiente-acciones .inicio-cliente__accion{width:100%;}.inicio-cliente__siguiente-icono{width:48px;height:48px;}.inicio-cliente__cancelacion-boton{width:100%;}.inicio-cliente__cancelacion-acciones .inicio-cliente__cancelacion-boton{width:auto;}}
+@media(max-width:760px){
+ .inicio-cliente__siguiente-principal{grid-template-columns:48px minmax(0,1fr);align-items:start;gap:12px;padding:16px;}
+ .inicio-cliente__siguiente-principal>.inicio-cliente__siguiente-icono{grid-column:1;grid-row:1;align-self:start;width:48px;height:48px;}
+ .inicio-cliente__siguiente-principal>.inicio-cliente__siguiente-texto{grid-column:2;grid-row:1;}
+ .inicio-cliente__siguiente-principal>.inicio-cliente__siguiente-acciones{grid-column:1/-1;grid-row:2;width:100%;flex-direction:column;align-self:auto;justify-content:flex-start;}
+ .inicio-cliente__siguiente-acciones .inicio-cliente__accion{width:100%;min-height:50px;height:auto;max-height:none;flex:0 0 auto;align-self:stretch;padding:13px 16px;line-height:1.3;}
+ .inicio-cliente__cancelacion-boton{width:100%;}
+ .inicio-cliente__cancelacion-acciones .inicio-cliente__cancelacion-boton{width:auto;}
+}
 </style>
