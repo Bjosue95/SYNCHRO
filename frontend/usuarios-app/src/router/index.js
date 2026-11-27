@@ -21,6 +21,11 @@ const rutas = [
     component: () => import("../views/PanelView.vue")
   },
   {
+    path: "/historial", name: "historial",
+    meta: { privada: true, titulo: "Historial" },
+    component: () => import("../views/PanelView.vue")
+  },
+  {
     path: "/reservas/:id(\\d+)", alias: "/encomiendas/:id(\\d+)", name: "detalle-encomienda",
     meta: { privada: true, titulo: "Detalle de reserva" },
     component: () => import("../views/EncomiendaDetalleView.vue")
