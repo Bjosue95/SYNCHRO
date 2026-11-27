@@ -83,3 +83,18 @@ test("la seleccion de reserva sigue el diseño de Guardar y el modo oscuro de ta
  assert.match(vista,/@media \(orientation:portrait\)/);
  assert.match(vista,/@media \(min-width:600px\) and \(min-height:700px\)/);
 });
+
+test("la reserva exige sesion de terminal antes de capturar y diferencia 401 de PIN invalido",()=>{
+  const api=leer("services/reservasWebTerminalApi.js");
+  const elegir=leer("views/ReservaWebElegirView.vue");
+  const pin=leer("views/RetiroPinView.vue");
+  assert.match(api,/class SesionTerminalNoAutorizada extends Error/);
+  assert.match(api,/respuesta.status === 401 \|\| respuesta.status === 403/);
+  assert.match(api,/fetch\("\/api\/terminales\/mi-sesion"/);
+  assert.match(elegir,/await comprobarSesionTerminalReservaWeb\(\)/);
+  assert.match(elegir,/:disabled="!seleccionado \|\| consultandoTerminal \|\| !!errorTerminal"/);
+  assert.match(elegir,/v-if="errorTerminal"/);
+  assert.match(elegir,/v-else class="cuadricula"/);
+  assert.match(pin,/await identificarDepositoReservaWeb\(pin.value\)/);
+  assert.doesNotMatch(api,/La sesión de la terminal ha vencido\./);
+});
