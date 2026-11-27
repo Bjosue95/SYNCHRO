@@ -26,6 +26,7 @@ public static class EncomiendasOperativasEndpoints
         reservas.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),filtro,h.RequestAborted),h));
         reservas.MapPost("",(CrearReservaPrototipoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Crear(Identidad(h),d.TelefonoDestinatario??"",d.TamanoSolicitado,h.RequestAborted,d),h));
         reservas.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,Identidad(h),h.RequestAborted),h));
+        reservas.MapPost("/{id:int}/pin-deposito/solicitar",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.SolicitarPinDeposito(id,Identidad(h),h.RequestAborted),h));
         reservas.MapPost("/{id:int}/cancelar",(int id,CancelarEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Cancelar(id,Identidad(h),d,h.RequestAborted),h));
         var web=app.MapGroup("/api/web/encomiendas").RequireAuthorization("SoloClientes")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
