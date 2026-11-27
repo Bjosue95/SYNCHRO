@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
 import { nombreEstadoReserva } from '../services/formatos.js';
@@ -7,7 +7,28 @@ const route=useRoute();
 const esHistorial=computed(()=>route.name==='historial');
 const categoria=computed(()=>esHistorial.value?'Historial':'Activas');
 const items=ref<any[]>([]),cargando=ref(true),error=ref(''),pagina=ref(1),total=ref(0),totalPaginas=ref(0);
-const filtros=reactive({estado:'',desde:'',hasta:'',numero:''});
+const buscarNumero=ref('');
+const numeroAplicado=ref<number|null>(null);
+function buscarEnHistorial(){
+  if(!esHistorial.value)return;
+  const texto=buscarNumero.value.trim().replace(/^#/,'');
+  if(texto&&!/^[1-9][0-9]*$/.test(texto)){
+    error.value='Introduce un número de reserva válido.';
+    return;
+  }
+  const numero=texto?Number(texto):null;
+  if(numero!==null&&!Number.isSafeInteger(numero)){
+    error.value='Introduce un número de reserva válido.';
+    return;
+  }
+  numeroAplicado.value=numero;
+  void cargar(true);
+}
+function limpiarBusqueda(){
+  buscarNumero.value='';
+  numeroAplicado.value=null;
+  void cargar(true);
+}
 const detalles=ref<Record<number,any>>({});
 const cancelandoId=ref<number|null>(null);
 const motivoCancelacion=ref('');
@@ -76,13 +97,8 @@ async function cargar(reiniciar=false){
   const actual=++numeroConsulta;
   cargando.value=true;
   error.value='';
-  if(filtros.desde && filtros.hasta && filtros.desde>filtros.hasta){
-    error.value='La fecha inicial debe ser anterior o igual a la fecha final.';
-    cargando.value=false;
-    return;
-  }
   try {
-    const datos=await encomiendasApi.listar({...filtros,categoria:categoria.value,pagina:pagina.value,tamanoPagina:12});
+    const datos=await encomiendasApi.listar({categoria:categoria.value,...(esHistorial.value&&numeroAplicado.value!==null?{numero:numeroAplicado.value}:{}),pagina:pagina.value,tamanoPagina:12});
     if(actual!==numeroConsulta)return;
     if(!Array.isArray(datos?.encomiendas) || !Number.isInteger(datos?.total))
       throw new Error('No fue posible verificar la lista de reservas.');
@@ -131,7 +147,7 @@ onMounted(()=>{
     if(!document.hidden&&!cargando.value&&!procesandoCancelacion.value)void cargar();
   },15000);
 });
-watch(()=>route.name,()=>{cerrarCancelacion();filtros.estado='';void cargar(true);});
+watch(()=>route.name,()=>{cerrarCancelacion();buscarNumero.value='';numeroAplicado.value=null;void cargar(true);});
 onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
 </script>
 <template>
@@ -139,15 +155,15 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
     <header class="env-heading"><div><h1>{{ esHistorial?'Historial':'Mis reservas' }}</h1><p>{{ esHistorial?'Consulta las reservas canceladas, vencidas y finalizadas.':'Consulta y gestiona únicamente tus reservas vigentes.' }}</p></div><div class="env-actions"><button type="button" class="boton boton-secundario" :disabled="cargando" @click="cargar()">Actualizar</button><RouterLink :to="esHistorial?'/mis-reservas':'/historial'" class="boton boton-primario">{{ esHistorial?'Mis reservas':'Ver historial' }}</RouterLink></div></header>
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
     <p v-if="error" class="alerta" role="alert">{{ error }} <button class="boton boton-secundario" @click="cargar()">Reintentar</button></p>
-    <form class="env-card filtros-reservas" @submit.prevent="cargar(true)">
-      <label class="campo"><span>Estado</span><select v-model="filtros.estado" aria-label="Estado">
-        <option value="">Todos</option>
-        <template v-if="esHistorial"><option value="Cancelada">Cancelada</option><option value="Vencida">Vencida</option><option value="Rechazada">Rechazada</option><option value="Retirada">Finalizada</option></template>
-        <template v-else><option value="Preparacion">En preparación</option><option value="ListaParaDeposito">Lista para depósito</option><option value="PendienteConsentimiento">Pendiente de consentimiento</option><option value="Pendiente">Pendiente</option><option value="Depositada">Depositada</option><option value="Retirada">Retiro pendiente</option></template>
-      </select></label>
-      <label class="campo"><span>Número de reserva</span><input v-model="filtros.numero" type="number" min="1" /></label>
-      <details><summary>Filtrar por fechas</summary><label class="campo"><span>Desde</span><input v-model="filtros.desde" type="date" /></label><label class="campo"><span>Hasta</span><input v-model="filtros.hasta" type="date" /></label></details>
-      <button class="boton boton-secundario" :disabled="cargando">Buscar reservas</button>
+    <form v-if="esHistorial" class="historial-busqueda" role="search" @submit.prevent="buscarEnHistorial">
+      <label for="numero-buscar" class="historial-busqueda__etiqueta">Buscar una reserva</label>
+      <div class="historial-busqueda__controles">
+        <input id="numero-buscar" v-model="buscarNumero" type="text" inputmode="numeric"
+          maxlength="12" autocomplete="off" placeholder="Número de reserva, ej. 5012" aria-label="Número de reserva" />
+        <button class="boton boton-primario" type="submit" :disabled="cargando">Buscar</button>
+        <button v-if="numeroAplicado!==null || buscarNumero.trim()" class="boton boton-secundario" type="button"
+          :disabled="cargando" @click="limpiarBusqueda">Limpiar</button>
+      </div>
     </form>
     <p v-if="cargando" role="status">Consultando tus reservas…</p>
     <template v-if="!cargando && !error">
@@ -189,15 +205,18 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
           </form>
         </article>
       </div>
-      <p v-if="!items.length" class="env-empty">{{ esHistorial?'No tienes operaciones finalizadas con estos filtros.':'No tienes reservas activas con estos filtros.' }}</p>
+      <p v-if="!items.length" class="env-empty">{{ esHistorial?(numeroAplicado!==null?'No se encontró esa reserva en tu historial.':'Todavía no tienes operaciones en el historial.'):'No tienes reservas activas.' }}</p>
       <nav v-if="totalPaginas>1" class="env-card-heading" aria-label="Paginación de mis reservas"><button class="boton boton-secundario" :disabled="pagina<=1" @click="cambiarPagina(-1)">Anterior</button><span>Página {{ pagina }} de {{ totalPaginas||1 }} · {{ total }} reservas</span><button class="boton boton-secundario" :disabled="pagina>=totalPaginas" @click="cambiarPagina(1)">Siguiente</button></nav>
     </template>
   </section>
 </template>
 <style scoped>
 .reservas-tarjetas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
-.filtros-reservas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;}
-.filtros-reservas details{align-self:start;}
+.historial-busqueda{display:grid;gap:9px;max-width:620px;padding:0;}
+.historial-busqueda__etiqueta{font-size:13px;font-weight:750;color:var(--text-strong);}
+.historial-busqueda__controles{display:flex;flex-wrap:wrap;align-items:center;gap:9px;}
+.historial-busqueda__controles input{height:47px;min-width:0;flex:1 1 220px;border-radius:12px;background:var(--surface);color:var(--text-strong);border:1px solid var(--border-strong);padding:10px 13px;box-sizing:border-box;}
+.historial-busqueda__controles button{min-height:47px;height:47px;padding:10px 17px;flex:0 0 auto;}
 .reserva-tarjeta{display:grid;align-content:start;gap:12px;min-width:0;padding:clamp(15px,2vw,22px);}
 .reserva-tarjeta__cabecera{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;}
 .reserva-tarjeta__cabecera h2{font-size:clamp(17px,2.5vw,22px);color:var(--text-strong);}
@@ -210,5 +229,5 @@ onBeforeUnmount(()=>{montado=false;numeroConsulta++;clearInterval(reloj);});
 .reserva-tarjeta__cancelacion>p{font-size:12px;line-height:1.5;color:var(--text-muted);}
 .reserva-tarjeta__confirmacion{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--text-strong);}
 .reserva-tarjeta__cancelacion textarea{width:100%;min-height:70px;}
-@media(max-width:650px){.reservas-tarjetas,.filtros-reservas{grid-template-columns:1fr;}.reserva-tarjeta__acciones .boton{flex:1 1 125px;}}
+@media(max-width:650px){.reservas-tarjetas{grid-template-columns:1fr;}.reserva-tarjeta__acciones .boton{flex:1 1 125px;}.historial-busqueda__controles input{flex-basis:100%;}.historial-busqueda__controles button{flex:1 1 120px;}}
 </style>
