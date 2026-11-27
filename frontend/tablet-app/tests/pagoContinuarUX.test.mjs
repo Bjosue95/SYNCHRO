@@ -20,7 +20,7 @@ test("pago conserva tres opciones y el cuarto espacio libre", () => {
 test("Continuar exige una seleccion", () => {
   const codigo = leer("../src/views/SeleccionMetodoPagoView.vue");
 
-  assert.match(codigo, /:disabled="!seleccion"/);
+  assert.match(codigo, /:disabled="!seleccion \|\| procesandoEncomienda"/);
   assert.match(codigo, /registrarMetodoPagoRetiro/);
   assert.match(codigo, /\/retirar\/pago\/resumen/);
   assert.doesNotMatch(codigo, /finalizarRetiroPersonalPagado/);

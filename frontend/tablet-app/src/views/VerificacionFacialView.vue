@@ -5,6 +5,7 @@ import { useTema } from "../composables/useTema";
 import { obtenerEleccionReservaWeb, registrarFotoReservaWeb } from "../services/reservaWebSesion.js";
 import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
 import { registrarCaptura } from "../services/retiroSesion.js";
+import { registrarFotoRetiroEncomienda } from "../services/retiroEncomiendaSesion.js";
 import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
 import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumirDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
 
@@ -16,6 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const { oscuro } = useTema();
 const esReservaWeb = computed(() => route.path === "/guardar/reserva/captura");
+const esRetiroEncomienda = computed(() => route.path === "/retirar/encomienda");
 const consentimientoFotoReserva = ref(false);
 const reservaPersonal = computed(() => esReservaWeb.value && obtenerEleccionReservaWeb()?.servicio === "Personal");
 const depositoConfirmado = ref(false);
@@ -40,9 +42,9 @@ const consentimiento = ref(false);
 const aceptaDescriptorV3 = ref(false);
 const aceptaRetiroV3 = ref(false);
 const usarRetiroV3 = computed(() =>
-  retirando.value && retiroV3Habilitado && aceptaRetiroV3.value
+  retirando.value && !esRetiroEncomienda.value && retiroV3Habilitado && aceptaRetiroV3.value
 );
-const usarDescriptor = computed(() => reservaPersonal.value || (!esReservaWeb.value && pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value)));
+const usarDescriptor = computed(() => !esRetiroEncomienda.value && (reservaPersonal.value || (!esReservaWeb.value && pruebaDescriptorV3 && (aceptaDescriptorV3.value || usarRetiroV3.value))));
 const encendida = ref(false);
 const iniciando = ref(false);
 const detectado = ref(false);
@@ -634,6 +636,17 @@ async function continuar() {
     return;
   }
 
+  if (esRetiroEncomienda.value) {
+    if (!consentimientoFotoReserva.value) { error.value="Debes autorizar la captura fotográfica."; return; }
+    try {
+      const foto=/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
+      if(!foto)throw new Error("Fotografía PNG inválida.");
+      registrarFotoRetiroEncomienda(foto[1]);
+      limpiarCaptura();detenerCamara();
+      await router.push("/retirar/encomienda/pin");
+    }catch(e){error.value=e?.message||"No se pudo preparar la fotografía.";}
+    return;
+  }
   if (retirando.value) {
     validandoEnServidor.value = true;
     error.value = "";
@@ -700,7 +713,7 @@ function comenzarEscaneo() {
     error.value = "Selecciona antes el tipo de reserva.";
     return;
   }
-  if (esReservaWeb.value && !consentimientoFotoReserva.value) {
+  if ((esReservaWeb.value || esRetiroEncomienda.value) && !consentimientoFotoReserva.value) {
     error.value = "Autoriza la captura para continuar.";
     return;
   }
@@ -751,8 +764,9 @@ onBeforeUnmount(() => {
 <template>
   <main class="pantalla-rostro" :class="{ 'tema-oscuro': oscuro, 'facial-con-imagen': encendida || tomada }">
     <header class="titulo-paso">
-      <h1>{{ esReservaWeb && !reservaPersonal ? "Captura de fotografía" : "Registro facial" }}</h1>
-      <p v-if="!esReservaWeb">Casillero {{ casillero }}</p>
+      <h1>{{ (esRetiroEncomienda || (esReservaWeb && !reservaPersonal)) ? "Captura de fotografía" : "Registro facial" }}</h1>
+      <p v-if="esRetiroEncomienda">Retiro de encomienda</p>
+      <p v-else-if="!esReservaWeb">Casillero {{ casillero }}</p>
     </header>
 
     <section class="zona-facial" aria-label="Registro facial de demostración">
@@ -816,7 +830,7 @@ onBeforeUnmount(() => {
 
     <footer class="pie-facial">
       <label
-        v-if="retiroV3Habilitado && retirando && !encendida && !tomada"
+        v-if="retiroV3Habilitado && retirando && !esRetiroEncomienda && !encendida && !tomada"
         class="consentimiento-v3"
       >
         <input v-model="aceptaRetiroV3" type="checkbox" />
@@ -842,12 +856,12 @@ onBeforeUnmount(() => {
         </span>
       </label>
       <label
-        v-if="esReservaWeb && !depositoConfirmado && !encendida && !tomada"
+        v-if="(esReservaWeb || esRetiroEncomienda) && !depositoConfirmado && !encendida && !tomada"
         class="consentimiento-v3"
       >
         <input v-model="consentimientoFotoReserva" type="checkbox" />
         <span>
-          {{ reservaPersonal ? "Autorizo el registro de mi descriptor facial V3 cifrado para comparar mi rostro al retirar mis pertenencias. La referencia se elimina al cerrar el servicio; la fotografía se conserva hasta 30 días." : "Autorizo la fotografía como evidencia del depósito, sin comparación facial. Su eliminación está programada a los 30 días." }}
+          {{ esRetiroEncomienda ? "Autorizo la fotografía como evidencia del retiro, sin comparación facial. Su eliminación está programada a los 30 días." : reservaPersonal ? "Autorizo el registro de mi descriptor facial V3 cifrado para comparar mi rostro al retirar mis pertenencias. La referencia se elimina al cerrar el servicio; la fotografía se conserva hasta 30 días." : "Autorizo la fotografía como evidencia del depósito, sin comparación facial. Su eliminación está programada a los 30 días." }}
         </span>
       </label>
       <button
@@ -877,7 +891,7 @@ onBeforeUnmount(() => {
         :disabled="validandoEnServidor"
         @click="continuar"
       >
-        <span>{{ esReservaWeb ? "Continuar al PIN" : "Continuar" }}</span>
+        <span>{{ esReservaWeb || esRetiroEncomienda ? "Continuar al PIN" : "Continuar" }}</span>
 
         <span class="icono-continuar" aria-hidden="true">
           <img

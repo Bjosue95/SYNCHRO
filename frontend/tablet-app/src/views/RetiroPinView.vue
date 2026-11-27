@@ -1,6 +1,7 @@
 ﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { hayFotoRetiroEncomienda, identificarEncomiendaConPin, prepararRecogidaEncomienda } from "../services/retiroEncomiendaSesion.js";
 import { useTema } from "../composables/useTema";
 import { identificarDepositoReservaWeb } from "../services/reservasWebTerminalApi.js";
 import { iniciarReservaWebDeposito,hayFotoReservaWeb,obtenerEleccionReservaWeb } from "../services/reservaWebSesion.js";
@@ -20,6 +21,7 @@ import {
 
 import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router = useRouter();
+const esEncomienda = useRoute().path === "/retirar/encomienda/pin";
 const { oscuro } = useTema();
 
 const propsVistaPrevia = defineProps({
@@ -119,6 +121,17 @@ async function abrirRecogida(datos){
 async function verificar() {
   if (!completo.value || procesando.value || terminado.value) return;
 
+  if (esEncomienda) {
+    procesando.value=true;mensaje.value="";
+    try {
+      const orden=await identificarEncomiendaConPin(pin.value);
+      if(orden.pagoConfirmado===true){await prepararRecogidaEncomienda();await router.replace("/retirar/recoger");}
+      else if(orden.pagoAdicionalRequerido===true){await router.replace("/retirar/encomienda/pago");}
+      else throw new Error("La encomienda no está autorizada.");
+    }catch(e){mensaje.value=e?.message||"No se pudo verificar el PIN.";}
+    finally{pin.value="";procesando.value=false;}
+    return;
+  }
   if (propsVistaPrevia.modoReserva) {
     procesando.value = true;
     mensaje.value = "";
@@ -305,7 +318,8 @@ onMounted(() => {
     router.replace("/guardar/reserva");
     return;
   }
-  if (!propsVistaPrevia.modoReserva && !obtenerRetiro().capturaHecha) {
+  if(esEncomienda&&!hayFotoRetiroEncomienda()){router.replace("/retirar/encomienda");return;}
+  if (!esEncomienda && !propsVistaPrevia.modoReserva && !obtenerRetiro().capturaHecha) {
     router.replace("/retirar/rostro");
     return;
   }
@@ -333,7 +347,7 @@ onBeforeUnmount(() => {
     <section class="pin-contenido">
 
       <header ref="encabezadoRef" class="pin-encabezado">
-        <h1>{{ terminado ? (propsVistaPrevia.modoReserva ? "Reserva localizada" : "Retiro completado") : (propsVistaPrevia.modoReserva ? "Verifica tu PIN de depósito" : "Introduce tu PIN") }}</h1>
+        <h1>{{ terminado ? (propsVistaPrevia.modoReserva ? "Reserva localizada" : "Retiro completado") : (propsVistaPrevia.modoReserva ? "Verifica tu PIN de depósito" : esEncomienda ? "Verifica tu PIN de retiro" : "Introduce tu PIN") }}</h1>
         <p v-if="!terminado">
           Ingresa los 6 d&iacute;gitos.
         </p>

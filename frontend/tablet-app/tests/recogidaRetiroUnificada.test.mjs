@@ -28,11 +28,14 @@ test("autorizaciones inválidas o vencidas no abren recogida",()=>{
   limpiarRecogidaPendiente();
 });
 test("misma animación, contador, botón de recogida y bienvenida para todos",()=>{
-  for(const vista of ["RetiroPinView","RetiroPagoView","RetiroCargaPagoView","RetiroEncomiendaWebView"]){
+  for(const vista of ["RetiroPinView","RetiroPagoView","RetiroCargaPagoView"]){
     const codigo=leer("views/"+vista+".vue");
     assert.match(codigo,/registrarRecogidaRetiro/);
     assert.ok(codigo.includes('router.replace("/retirar/recoger")'));
   }
+  const servicio=leer("services/retiroEncomiendaSesion.js");
+  assert.match(servicio,/registrarRecogidaRetiro/);
+  assert.match(servicio,/finalizarRecogidaEncomienda\(id,autorizacion\)/);
   const vista=leer("views/DepositoView.vue");
   for(const texto of ["Ya retiré mis pertenencias","Ya retiré mi encomienda","Ya retiré mi dispositivo","retiro-puerta__hoja","Agregar 1 minuto más","¡Gracias por utilizar SYNCHRO!"])assert.ok(vista.includes(texto));
   assert.ok(vista.includes("await actual.confirmar()"));

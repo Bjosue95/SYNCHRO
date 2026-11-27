@@ -37,7 +37,7 @@ test("demo avanza de resumen a pago, operador y retiro completado, sin retrocede
 test("selector conserva elección mediante query sin pagos ni confirmación real", () => {
   const codigo = leer("../src/views/SeleccionMetodoPagoView.vue");
   assert.match(codigo, /query: \{ metodo: seleccion\.value \}/);
-  assert.match(codigo, /<span>Continuar<\/span>/);
+  assert.match(codigo, /<span v-else>Continuar<\/span>/);
   assert.doesNotMatch(codigo, /Cambiar m[eé?]todo de pago/);
   assert.doesNotMatch(codigo, /finalizarRetiroPersonalPagado/);
 });

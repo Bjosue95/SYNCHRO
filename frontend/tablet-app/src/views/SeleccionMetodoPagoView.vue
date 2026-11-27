@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import ServiceCard from "../components/ServiceCard.vue";
+import { obtenerOrdenRetiroEncomienda, elegirPagoEncomienda, prepararRecogidaEncomienda } from "../services/retiroEncomiendaSesion.js";
 import { useTema } from "../composables/useTema";
 import {
   obtenerOrdenRetiroPagado,
@@ -24,6 +25,7 @@ const props = defineProps({
 const router = useRouter();
 const route = useRoute();
 const { oscuro } = useTema();
+const esEncomienda = route.path === "/retirar/encomienda/pago";
 const esCarga = route.path === "/retirar/dispositivo/pago" ||
   (import.meta.env.DEV && props.esCargaEjemplo);
 
@@ -34,9 +36,11 @@ const orden = vistaPrevia
   ? props.ordenEjemplo
   : esCarga
     ? obtenerOrdenCobroRetiroCarga()
-    : obtenerOrdenRetiroPagado();
+    : esEncomienda ? obtenerOrdenRetiroEncomienda() : obtenerOrdenRetiroPagado();
 
 const seleccion = ref("");
+const procesandoEncomienda=ref(false);
+const mensajeEncomienda=ref("");
 
 const metodos = [
   {
@@ -66,7 +70,7 @@ function seleccionar(codigo) {
 }
 
 async function continuar() {
-  if (!orden || !seleccion.value) return;
+  if (!orden || !seleccion.value || procesandoEncomienda.value) return;
 
   if (vistaPrevia) {
     await router.push({
@@ -78,6 +82,16 @@ async function continuar() {
 
   // Seleccion visual compartida; servicios y tokens independientes.
   // Elegir el metodo NO confirma un pago.
+  if(esEncomienda){
+    procesandoEncomienda.value=true;mensajeEncomienda.value="";
+    try{
+      const pago=await elegirPagoEncomienda(seleccion.value);
+      if(pago.pagoConfirmado===true){await prepararRecogidaEncomienda();await router.replace("/retirar/recoger");}
+      else await router.push("/retirar/encomienda/pago/resumen");
+    }catch(e){mensajeEncomienda.value=e?.message||"No se pudo solicitar el pago.";}
+    finally{procesandoEncomienda.value=false;}
+    return;
+  }
   if (esCarga) {
     guardarMetodoPagoRetiroCarga(seleccion.value);
     await router.push("/retirar/dispositivo/pago/resumen");
@@ -94,7 +108,7 @@ async function continuar() {
     :class="{ 'tema-oscuro': oscuro }"
   >
     <div v-if="orden" class="contenido-metodos">
-      <h1>¿Cómo deseas pagar?</h1>
+      <h1>¿Cómo deseas pagar?<span v-if="esEncomienda" class="importe-encomienda">Total: {{ Number(orden.importeHnl).toLocaleString("es-HN", {style:"currency",currency:"HNL"}) }}</span></h1>
 
       <section
         class="cuadricula-metodos"
@@ -122,14 +136,16 @@ async function continuar() {
       </section>
 
       <div class="accion-metodos">
+        <p v-if="mensajeEncomienda" class="error-pago-encomienda" role="alert">{{ mensajeEncomienda }}</p>
         <button
           type="button"
           class="boton-continuar"
           data-preview-permitido
-          :disabled="!seleccion"
+          :disabled="!seleccion || procesandoEncomienda"
           @click="continuar"
         >
-          <span>Continuar</span>
+          <span v-if="procesandoEncomienda">Comprobando...</span>
+          <span v-else>Continuar</span>
 
           <span class="icono-continuar" aria-hidden="true">
             <img
@@ -150,7 +166,7 @@ async function continuar() {
       <h1>Verificación necesaria</h1>
       <p role="alert">No se encontró una orden de cobro activa. Inicia nuevamente la verificación para continuar.</p>
       <div class="accion-metodos">
-        <button type="button" class="boton-continuar" @click="router.replace('/retirar/rostro')">Repetir verificación</button>
+        <button type="button" class="boton-continuar" @click="router.replace(esEncomienda ? '/retirar/encomienda' : '/retirar/rostro')">Repetir verificación</button>
       </div>
     </div>
   </main>
@@ -414,4 +430,7 @@ async function continuar() {
 }
 
 
+/* Se mantiene la geometría del selector original. */
+.importe-encomienda { display: block; font-size: clamp(15px, 1.7vw, 20px); margin-top: 4px; color: inherit; font-weight: 700; }
+.error-pago-encomienda { margin:0 8px 0 0; flex:1 1 auto; font-size:13px; line-height:1.3; color:inherit; overflow-wrap:anywhere; }
 </style>

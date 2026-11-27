@@ -1,4 +1,5 @@
 ﻿import { createRouter, createWebHistory } from "vue-router";
+import { limpiarRetiroEncomienda } from "../services/retiroEncomiendaSesion.js";
 import { obtenerOrdenRetiroPagado } from "../services/retiroSesion.js";
 import { limpiarRecogidaPendiente } from "../services/recogidaRetiroSesion.js";
 import { iniciarRetiroCarga } from "../services/retiroCargaSesion.js";
@@ -59,6 +60,9 @@ const router = createRouter({
 
     { path: "/retirar", name: "retirar", component: () => import("../views/RetirarView.vue") },
     { path: "/retirar/encomienda", name: "retirar-encomienda", component: () => import("../views/RetiroEncomiendaWebView.vue") },
+    { path: "/retirar/encomienda/pin", component: () => import("../views/RetiroPinView.vue") },
+    { path: "/retirar/encomienda/pago", component: () => import("../views/SeleccionMetodoPagoView.vue") },
+    { path: "/retirar/encomienda/pago/resumen", component: () => import("../views/RetiroPagoView.vue") },
     {
       path: "/retirar/dispositivo",
       name: "retirar-dispositivo",
@@ -105,6 +109,7 @@ const router = createRouter({
 
 // SYNCHRO-RETIRO-AUTO-GUARD-V1: el usuario no elige espacio.
 router.beforeEach((to, from) => {
+  if(to.path==="/retirar/encomienda"||!to.path.startsWith("/retirar/encomienda/"))limpiarRetiroEncomienda();
   if(to.path!=="/retirar/recoger"&&to.path!=="/retirar/reserva/recoger")limpiarRecogidaPendiente();
   // Una transición desde el PIN nunca debe provocar un regreso silencioso al rostro.
   if (from.path === "/retirar/pin" && to.path === "/retirar/pago" && !obtenerOrdenRetiroPagado()) return false;

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { obtenerOrdenRetiroEncomienda, obtenerMetodoRetiroEncomienda, consultarPagoEncomienda, prepararRecogidaEncomienda } from "../services/retiroEncomiendaSesion.js";
 import { useTema } from "../composables/useTema";
 import {
   normalizarMetodoPagoDemo,
@@ -20,6 +21,7 @@ import {
 
 import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router = useRouter();
+const esEncomienda = useRoute().path === "/retirar/encomienda/pago/resumen";
 const { oscuro } = useTema();
 
 // Datos de muestra solo para visualizar el diseño.
@@ -41,7 +43,7 @@ const esVistaPrevia =
 const orden = ref(
   esVistaPrevia
     ? props.ordenEjemplo
-    : obtenerOrdenRetiroPagado()
+    : esEncomienda ? obtenerOrdenRetiroEncomienda() : obtenerOrdenRetiroPagado()
 );
 const verificando = ref(false);
 const completado = ref(false);
@@ -86,7 +88,7 @@ const totalConfirmado = computed(() => {
 });
 
 // Preferencia visual; solo el backend y el operador confirman pagos.
-const metodoRetiro = esVistaPrevia ? "" : obtenerMetodoPagoRetiro();
+const metodoRetiro = esVistaPrevia ? "" : esEncomienda ? obtenerMetodoRetiroEncomienda() : obtenerMetodoPagoRetiro();
 const metodoVisual = computed(() => esVistaPrevia
   ? metodoVistaPrevia.value
   : metodoRetiro
@@ -123,7 +125,7 @@ async function actualizarEstadoPago() {
   consultaEnCurso = true;
 
   try {
-    const datos = await consultarEstadoCobroRetiroPersonal(
+    const datos = esEncomienda ? await consultarPagoEncomienda() : await consultarEstadoCobroRetiroPersonal(
       orden.value.autorizacionPago
     );
 
@@ -154,14 +156,14 @@ async function actualizarEstadoPago() {
 }
 onMounted(() => {
   if (!orden.value) {
-    router.replace("/retirar/rostro");
+    router.replace(esEncomienda ? "/retirar/encomienda" : "/retirar/rostro");
     return;
   }
 
   if (esVistaPrevia) return;
 
   if (!metodoRetiro) {
-    router.replace("/retirar/pago");
+    router.replace(esEncomienda ? "/retirar/encomienda/pago" : "/retirar/pago");
     return;
   }
 
@@ -195,6 +197,7 @@ async function comprobarPago() {
   mensaje.value = "";
 
   try {
+    if(esEncomienda){await prepararRecogidaEncomienda();await router.replace("/retirar/recoger");return;}
     const {cobroId,autorizacionPago,codigoCasillero,venceAutorizacion}=orden.value;
     registrarRecogidaRetiro({codigo:codigoCasillero,tipo:"personal",vence:venceAutorizacion,
       volver:"/retirar/rostro",confirmar:()=>finalizarRetiroPersonalPagado(cobroId,autorizacionPago),limpiar:()=>limpiarRetiro(autorizacionPago)});
@@ -253,7 +256,7 @@ function finalizar() {
 
         <div class="dato">
           <span>Servicio</span>
-          <strong>Resguardo personal</strong>
+          <strong>{{ esEncomienda ? "Encomienda" : "Resguardo personal" }}</strong>
         </div>
 
         <div class="dato">
@@ -327,6 +330,7 @@ function finalizar() {
                 : "Acerca el teléfono al lector sin contacto."
           }}
         </p>
+        <p v-if="esEncomienda">Total a pagar: {{ importe }}</p>
       </header>
 
       <!-- SYNCHRO-PAGO-V3 -->
@@ -422,11 +426,11 @@ function finalizar() {
         <!-- SYNCHRO-RESUMEN-SIN-TARJETAS-V1 -->
 <section v-else-if="orden" class="contenido-pago">
       <header>
-        <span v-if="!esVistaPrevia" class="etiqueta">SYNCHRO · RETIRO PERSONAL</span>
-        <h1>Resumen de tu consumo</h1>
+        <span v-if="!esVistaPrevia" class="etiqueta">{{ esEncomienda ? "SYNCHRO · ENCOMIENDAS" : "SYNCHRO · RETIRO PERSONAL" }}</span>
+        <h1>{{ esEncomienda ? "Resumen de tu pago" : "Resumen de tu consumo" }}</h1>
         <p v-if="!esVistaPrevia">
           El pago fue confirmado.
-          Revisa tu consumo antes de recoger tus pertenencias.
+          {{ esEncomienda ? "Revisa tu pago antes de recoger tu encomienda." : "Revisa tu consumo antes de recoger tus pertenencias." }}
         </p>
         <p v-else>
           Vista previa: el pago y el retiro son únicamente demostrativos.
@@ -437,13 +441,13 @@ function finalizar() {
 
       <div class="tarjeta-resumen resumen-alto-v5">
         <div class="resumen-intro-v5">
-          <span>DETALLE DE TU CONSUMO</span>
-          <strong>Resguardo personal</strong>
+          <span>{{ esEncomienda ? "DETALLE DE LA RESERVA" : "DETALLE DE TU CONSUMO" }}</span>
+          <strong>{{ esEncomienda ? "Encomienda" : "Resguardo personal" }}</strong>
         </div>
 
         <div class="dato">
           <span>Servicio</span>
-          <strong>Almacenamiento temporal</strong>
+          <strong>{{ esEncomienda ? "Encomienda reservada" : "Almacenamiento temporal" }}</strong>
         </div>
 
         <div class="dato dato-casillero">
@@ -452,13 +456,13 @@ function finalizar() {
         </div>
 
         <div class="dato">
-          <span>Tiempo de uso</span>
-          <strong>{{ orden.minutosUtilizados }} min</strong>
+          <span>{{ esEncomienda ? "Tiempo reservado" : "Tiempo de uso" }}</span>
+          <strong>{{ orden.minutosUtilizados == null ? "Según reserva" : orden.minutosUtilizados + " min" }}</strong>
         </div>
 
         <div class="dato">
           <span>Modalidad</span>
-          <strong>Pago al finalizar</strong>
+          <strong>{{ esEncomienda ? "Pago del destinatario" : "Pago al finalizar" }}</strong>
         </div>
 
         <div v-if="metodoVisual" class="dato">
@@ -471,7 +475,7 @@ function finalizar() {
         </p>
 
         <div class="dato total">
-          <span>Total del consumo</span>
+          <span>{{ esEncomienda ? "Total pagado" : "Total del consumo" }}</span>
           <strong>{{ importe }}</strong>
         </div>
       </div>
@@ -523,7 +527,7 @@ function finalizar() {
       </button>
 
       <p v-if="!esVistaPrevia" class="nota">
-        Revisa el detalle y pulsa «Continuar» para recoger tus pertenencias.
+        {{ esEncomienda ? "Pulsa «Continuar» para recoger tu encomienda." : "Revisa el detalle y pulsa «Continuar» para recoger tus pertenencias." }}
       </p>
       <p v-else class="nota">
         Ningún cobro ni retiro real se ejecuta en esta demostración.
