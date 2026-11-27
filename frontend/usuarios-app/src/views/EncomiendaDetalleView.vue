@@ -120,8 +120,9 @@ onBeforeUnmount(() => {
     <p v-if="aviso" class="mensaje-exito" role="status">{{ aviso }}</p>
     <p v-if="!detalle && cargando" role="status">Consultando la reserva…</p>
     <template v-if="detalle">
-      <header class="env-heading">
+      <header class="env-heading reserva-cabecera">
         <div>
+          <span class="reserva-cabecera__etiqueta">MI RESERVA</span>
           <h1>Reserva #{{ detalle.id }}</h1>
           <p>
             {{ detalle.tamano }} ·
@@ -140,13 +141,16 @@ onBeforeUnmount(() => {
         </button>
       </header>
       <section v-if="!detalle.historica && !detalle.cancelacion" class="env-card reserva-seguimiento" aria-labelledby="reserva-seguimiento-titulo">
-        <h2 id="reserva-seguimiento-titulo">Progreso de tu operación</h2>
+        <div class="reserva-seguimiento__encabezado">
+          <div><span class="reserva-seguimiento__etiqueta">ESTADO ACTUAL</span><h2 id="reserva-seguimiento-titulo">Progreso de tu operación</h2></div>
+          <span class="reserva-seguimiento__contador">{{ Math.min(etapaActual+1,5) }} de 5</span>
+        </div>
         <ol class="reserva-seguimiento__pasos">
-          <li :class="{activo:etapaActual>=0}"><span>1</span><strong>Reserva y pago</strong></li>
-          <li :class="{activo:etapaActual>=1}"><span>2</span><strong>Autorización</strong></li>
-          <li :class="{activo:etapaActual>=2}"><span>3</span><strong>PIN de depósito</strong></li>
-          <li :class="{activo:etapaActual>=3}"><span>4</span><strong>Depósito confirmado</strong></li>
-          <li :class="{activo:etapaActual>=4}"><span>5</span><strong>Retiro</strong></li>
+          <li :class="{activo:etapaActual>=0,actual:etapaActual===0}"><span>1</span><strong>Reserva y pago</strong></li>
+          <li :class="{activo:etapaActual>=1,actual:etapaActual===1}"><span>2</span><strong>Autorización</strong></li>
+          <li :class="{activo:etapaActual>=2,actual:etapaActual===2}"><span>3</span><strong>PIN de depósito</strong></li>
+          <li :class="{activo:etapaActual>=3,actual:etapaActual===3}"><span>4</span><strong>Depósito confirmado</strong></li>
+          <li :class="{activo:etapaActual>=4,actual:etapaActual===4}"><span>5</span><strong>Retiro</strong></li>
         </ol>
         <p v-if="!detalle.condiciones?.pagoConfirmado && detalle.reserva?.modalidadPago==='WebTarjeta'" role="status">
           La solicitud de pago está en revisión. Al confirmarse, el administrador podrá gestionar el PIN de depósito cuando esté autorizado el WhatsApp.
@@ -161,7 +165,17 @@ onBeforeUnmount(() => {
         <p v-else-if="!esPersonal && pinRetiroEntregado" role="status">PIN de retiro entregado al teléfono autorizado del destinatario.</p>
         <p v-else role="status">Consulta la información de depósito y retiro de tus pertenencias.</p>
       </section>
-      <section v-if="detalle.reserva" class="env-card"><h2>{{ detalle.reserva.servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</h2><p>{{ detalle.reserva.tipoCasillero }} · {{ nombreEstadoReserva(detalle.tamano) }} · {{ detalle.reserva.minutos }} minutos</p><p>{{ detalle.reserva.ubicacion }}</p></section>
+      <section v-if="detalle.reserva" class="env-card reserva-resumen">
+        <div class="reserva-resumen__encabezado">
+          <h2>{{ detalle.reserva.servicio==='Personal'?'Pertenencias personales':'Encomienda' }}</h2>
+          <span class="reserva-resumen__importe" v-if="detalle.pago?.importeHnl!=null">L {{ Number(detalle.pago.importeHnl).toFixed(2) }}</span>
+        </div>
+        <div class="reserva-resumen__datos">
+          <div><small>Casillero</small><strong>{{ detalle.reserva.tipoCasillero }} · {{ detalle.tamano }}</strong></div>
+          <div><small>Duración</small><strong>{{ detalle.reserva.minutos/60 }} {{ detalle.reserva.minutos===60?'hora':'horas' }}</strong></div>
+          <div class="reserva-resumen__ubicacion"><small>Estación</small><strong>{{ detalle.reserva.ubicacion }}</strong></div>
+        </div>
+      </section>
       <section v-if="detalle.cancelacion" class="env-card" aria-label="Cancelación registrada">
         <h2>Reserva cancelada</h2><p>{{ fechaHonduras(detalle.cancelacion.fechaUtc) }} · {{ detalle.cancelacion.motivo }}</p>
         <p v-if="detalle.cancelacion.detalle">{{ detalle.cancelacion.detalle }}</p>
@@ -183,7 +197,9 @@ onBeforeUnmount(() => {
         <h2>Registro anterior</h2><dl class="env-facts"><div><dt>Creación</dt><dd>{{ fechaHonduras(detalle.creadaUtc) }}</dd></div><div><dt>Destinatario</dt><dd>{{ detalle.telefonoDestinatario }}</dd></div><div><dt>Depósito</dt><dd>{{ detalle.depositoUtc ? fechaHonduras(detalle.depositoUtc) : 'Pendiente' }}</dd></div><div><dt>Retiro confirmado</dt><dd>{{ detalle.retiradaConfirmada ? fechaHonduras(detalle.entregaUtc) : 'Retiro no confirmado' }}</dd></div></dl>
       </section>
       <template v-if="!detalle.historica && !detalle.cancelacion">
-      <div class="env-two-columns">
+      <details class="reserva-acordeon" :open="!detalle.condiciones?.remitenteAutorizado">
+        <summary><span>Personas y autorizaciones</span><span class="reserva-acordeon__estado">{{ detalle.condiciones?.remitenteAutorizado ? 'Comprobadas' : 'Acción pendiente' }}</span></summary>
+        <div class="env-two-columns">
         <section
           v-for="rol in (detalle.reserva?.servicio==='Personal'?['remitente']:['remitente','destinatario'])"
           :key="rol"
@@ -262,7 +278,10 @@ onBeforeUnmount(() => {
           </p>
         </section>
       </div>
-      <section class="env-card">
+      </details>
+      <details class="reserva-acordeon" :open="!detalle.condiciones?.pagoConfirmado && detalle.reserva?.modalidadPago==='WebTarjeta'">
+        <summary><span>Pago de la reserva</span><span class="reserva-acordeon__estado">{{ nombreEstadoReserva(detalle.pago.estado) }}</span></summary>
+      <section class="env-card reserva-acordeon__contenido">
         <div class="env-card-heading">
           <h2>Pago de la reserva</h2>
           <span class="env-status">{{
@@ -310,7 +329,8 @@ onBeforeUnmount(() => {
           El pago ya está confirmado; no se cobrará una segunda vez al retirar.
         </p>
       </section>
-      <section class="env-card">
+      </details>
+      <section class="env-card reserva-pin">
         <h2>Tu PIN de depósito</h2>
         <ol class="env-checklist">
           <li>
@@ -339,7 +359,9 @@ onBeforeUnmount(() => {
           Usa tu PIN de depósito en la terminal SYNCHRO. El estado cambiará cuando el servidor confirme que la encomienda o tus pertenencias quedaron depositadas.
         </p>
       </section>
-      <section class="env-card">
+      <details class="reserva-acordeon" :open="depositoConfirmado && !detalle.retiradaConfirmada">
+        <summary><span>Depósito y retiro</span><span class="reserva-acordeon__estado">{{ depositoConfirmado ? 'Depósito confirmado' : 'Pendiente' }}</span></summary>
+      <section class="env-card reserva-acordeon__contenido">
         <h2>Depósito y retiro</h2>
         <p v-if="!esPersonal && !depositoConfirmado" class="env-help">El envío de la invitación y la entrega del PIN del destinatario permanecen deshabilitados hasta que la tablet confirme el depósito.</p>
         <p v-else-if="!esPersonal && depositoConfirmado" class="env-help">Depósito confirmado. Ya puedes compartir la invitación de WhatsApp con el destinatario. Su aceptación debe ser comprobada antes de que el administrador emita el PIN de retiro.</p>
@@ -365,8 +387,11 @@ onBeforeUnmount(() => {
           Los valores de los PIN no se muestran en este historial. La autorización de retiro solo se habilita después de confirmar el depósito. La identidad y el retiro se registran durante la operación.
         </p>
       </section>
+      </details>
       </template>
-      <section class="env-card">
+      <details class="reserva-acordeon">
+        <summary><span>Historial de movimientos</span><span class="reserva-acordeon__estado">{{ detalle.seguimiento?.length || 0 }} eventos</span></summary>
+      <section class="env-card reserva-acordeon__contenido">
         <h2>Seguimiento de tu reserva</h2>
         <ol class="env-timeline">
           <li v-for="h in detalle.seguimiento" :key="h.tipo + h.fechaUtc + h.descripcion">
@@ -378,16 +403,53 @@ onBeforeUnmount(() => {
         </ol>
         <p class="env-help">Eventos registrados por el servidor, en orden cronológico. El retiro solo aparece cuando está confirmado.</p>
       </section>
+      </details>
     </template>
   </section>
 </template>
 
 <style scoped>
-.reserva-seguimiento {display:grid;gap:17px;}
-.reserva-seguimiento__pasos {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;list-style:none;padding:0;margin:0;}
-.reserva-seguimiento__pasos li {display:grid;justify-items:center;gap:9px;text-align:center;color:var(--text-muted);font-size:11px;line-height:1.4;}
-.reserva-seguimiento__pasos li span {width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border-strong);background:var(--surface-soft);color:var(--text-strong);border-radius:50%;font-weight:800;}
-.reserva-seguimiento__pasos li.activo span {border-color:var(--brand-accent);background:var(--surface-accent);}
-.reserva-seguimiento__pasos li.activo strong {color:var(--text-strong);}
-@media(max-width:600px){.reserva-seguimiento__pasos{grid-template-columns:repeat(3,minmax(0,1fr));}}
+
+.reserva-cabecera{align-items:center;}
+.reserva-cabecera__etiqueta,.reserva-seguimiento__etiqueta{font-size:10px;letter-spacing:.11em;font-weight:850;color:var(--accent-text);}
+.reserva-seguimiento {display:grid;gap:clamp(12px,1.8vw,19px);padding:clamp(14px,2vw,23px);}
+.reserva-seguimiento__encabezado{display:flex;justify-content:space-between;align-items:center;gap:15px;}
+.reserva-seguimiento__encabezado>div{display:grid;gap:5px;}
+.reserva-seguimiento__encabezado h2{font-size:clamp(18px,2.4vw,23px);}
+.reserva-seguimiento__contador{white-space:nowrap;font-size:12px;font-weight:800;background:var(--surface-accent);padding:6px 10px;border-radius:99px;color:var(--text-strong);}
+.reserva-seguimiento__pasos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(3px,1.2vw,10px);list-style:none;padding:0;margin:0;}
+.reserva-seguimiento__pasos li{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:8px;text-align:center;color:var(--text-muted);font-size:clamp(9px,1.3vw,11px);line-height:1.3;min-width:0;}
+.reserva-seguimiento__pasos li span{width:clamp(25px,4.4vw,35px);height:clamp(25px,4.4vw,35px);flex:0 0 auto;display:grid;place-items:center;border:1px solid var(--border-strong);background:var(--surface-soft);color:var(--text-strong);border-radius:50%;font-weight:800;}
+.reserva-seguimiento__pasos li.activo span{border-color:#00b9c7;background:var(--surface-accent);}
+.reserva-seguimiento__pasos li.actual span{background:#00b9c7;border-color:#00b9c7;color:#01305c;box-shadow:0 0 0 4px rgb(0 185 199 / 15%);}
+.reserva-seguimiento__pasos li.activo strong{color:var(--text-strong);}
+.reserva-seguimiento>p[role="status"]{font-size:clamp(12px,1.5vw,14px);line-height:1.5;margin:0;background:var(--surface-accent);border-radius:12px;padding:12px 13px;color:var(--text-strong);}
+.reserva-resumen{display:grid;gap:15px;padding:clamp(15px,2vw,23px);}
+.reserva-resumen__encabezado{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.reserva-resumen__encabezado h2{font-size:clamp(17px,2.2vw,22px);}
+.reserva-resumen__importe{font-size:clamp(17px,2.4vw,22px);font-weight:850;color:var(--text-strong);}
+.reserva-resumen__datos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;}
+.reserva-resumen__datos>div{display:grid;min-width:0;gap:4px;}
+.reserva-resumen__datos small{color:var(--text-muted);font-size:11px;}
+.reserva-resumen__datos strong{color:var(--text-strong);font-size:clamp(12px,1.6vw,15px);overflow-wrap:anywhere;}
+.reserva-resumen__ubicacion{grid-column:1/-1;padding-top:10px;border-top:1px solid var(--border);}
+.reserva-acordeon{border-radius:15px;border:1px solid var(--border);background:var(--surface);overflow:hidden;}
+.reserva-acordeon>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;padding:clamp(13px,2vw,18px);font-weight:800;color:var(--text-strong);font-size:clamp(13px,1.8vw,17px);}
+.reserva-acordeon>summary::-webkit-details-marker{display:none;}
+.reserva-acordeon>summary::before{content:'+';display:grid;place-items:center;flex:0 0 23px;width:23px;height:23px;border-radius:7px;background:var(--surface-accent);font-weight:900;color:var(--accent-text);}
+.reserva-acordeon[open]>summary::before{content:'−';}
+.reserva-acordeon>summary>span:first-child{margin-right:auto;}
+.reserva-acordeon__estado{font-size:11px;font-weight:650;color:var(--text-muted);text-align:right;}
+.reserva-acordeon>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px;}
+.reserva-acordeon>.env-two-columns,.reserva-acordeon>.reserva-acordeon__contenido{margin:0 12px 12px;}
+.reserva-acordeon>.env-two-columns .env-card{min-width:0;}
+.reserva-acordeon__contenido{border:0;background:var(--surface-soft);box-shadow:none;padding:15px;}
+.reserva-pin{display:grid;gap:11px;}
+.reserva-pin .env-checklist{margin:0;}
+@media(max-width:600px){
+ .reserva-seguimiento__pasos{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;}
+ .reserva-seguimiento__pasos li{font-size:9px;}
+ .reserva-seguimiento__pasos li strong{overflow-wrap:anywhere;}
+ .reserva-acordeon__estado{font-size:10px;}
+}
 </style>
