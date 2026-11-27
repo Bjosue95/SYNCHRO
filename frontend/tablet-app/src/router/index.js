@@ -23,8 +23,11 @@ const router = createRouter({
       name: "guardar",
       component: GuardarView,
     },
-    { path: "/guardar/reserva", name: "guardar-reserva", component: () => import("../views/ReservaPinView.vue") },
+    { path: "/guardar/reserva", name: "guardar-reserva", component: () => import("../views/ReservaWebElegirView.vue") },
+    { path: "/guardar/reserva/tipo", name: "guardar-reserva-tipo", component: () => import("../views/ReservaWebElegirView.vue") },
     { path: "/guardar/reserva/captura", name: "guardar-reserva-captura", component: VerificacionFacialView },
+    { path: "/guardar/reserva/pin", name: "guardar-reserva-pin", component: () => import("../views/ReservaPinView.vue") },
+    { path: "/guardar/reserva/deposito", name: "guardar-reserva-deposito", component: DepositoView },
     {
       path: "/guardar/tamano",
       name: "guardar-tamano",
