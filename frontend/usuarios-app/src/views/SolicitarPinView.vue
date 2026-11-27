@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
 import { ErrorApi } from '../services/clientesApi.js';
 import { estadoSesion } from '../services/sesion.js';
@@ -133,7 +133,7 @@ onBeforeUnmount(()=>{activo=false;version++;clearInterval(reloj);});
         </template>
         <button v-else type="button" class="pin-page__boton" :disabled="!puedeSolicitar" @click="solicitar">
           {{ enviando?'Registrando solicitud…':'Solicitar PIN de depósito' }}
-          <AppIcon nombre="continuar" :tamano="21" />
+          <AppIcon nombre="flecha" :tamano="21" />
         </button>
         <p v-if="error" class="pin-page__error" role="alert">{{ error }}</p>
         <p v-if="esperandoEntrega" class="pin-page__nota">Puedes consultar esta reserva más adelante desde «Mis reservas».</p>
