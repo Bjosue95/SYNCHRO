@@ -62,7 +62,6 @@ public static class VinculacionTerminalEndpoints
                                 IsolationLevel.Serializable);
 
                     int terminalId;
-                    bool activa;
 
                     await using (var consultar = new SqlCommand(
                         """
@@ -91,17 +90,10 @@ public static class VinculacionTerminalEndpoints
                         }
 
                         terminalId = lector.GetInt32(0);
-                        activa = lector.GetBoolean(1);
                     }
 
-                    if (activa)
-                    {
-                        return Results.Conflict(new
-                        {
-                            mensaje = "La terminal ya esta autorizada."
-                        });
-                    }
-
+                    // Una terminal activa puede solicitar una nueva sesión si la anterior
+                    // expiró. La autorización nueva exige igualmente aprobación administrativa.
                     await using (var consultar = new SqlCommand(
                         """
                         SELECT COUNT(*)
