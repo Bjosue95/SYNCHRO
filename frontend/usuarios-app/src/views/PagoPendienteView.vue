@@ -10,6 +10,10 @@ const router=useRouter();
 const reservaId=computed(()=>Number(route.params.id));
 const estadoAccesible=ref('Comprobando el estado de la operación');
 const error=ref('');
+const mostrarAyuda=ref(false);
+const fallosConsecutivos=ref(0);
+const etapa=ref<'consultando'|'pago'|'pin'|'entrega'>('consultando');
+let comienzoEspera=Date.now();
 let reloj:ReturnType<typeof setInterval>|undefined;
 let consultaActiva=false;
 let montada=true;
@@ -44,6 +48,7 @@ async function consultar(){
     const d=await encomiendasApi.detalle(id);
     if(!montada||actual!==version||id!==reservaId.value)return;
     error.value='';
+    fallosConsecutivos.value=0;
     if(pinEntregado(d)){
       clearInterval(reloj);
       estadoAccesible.value='PIN entregado. Volviendo a Inicio.';
@@ -57,6 +62,7 @@ async function consultar(){
       return;
     }
     if(d.pago?.estado==='ConfirmadoManual'||d.condiciones?.pagoConfirmado){
+      etapa.value='pin';
       estadoAccesible.value='Pago confirmado. Preparando el PIN de depósito.';
       if(!d.condiciones?.remitenteAutorizado){
         // El PIN no se puede emitir sin consentimiento: continuar por la reserva.
@@ -71,24 +77,39 @@ async function consultar(){
           if(montada&&actual===version)estadoAccesible.value='PIN solicitado. Esperando la entrega.';
         }catch(e){
           if(await gestionarSesion(e))return;
-          if(montada&&actual===version)error.value=(e as Error).message||'No se pudo registrar la solicitud del PIN.';
+          if(montada&&actual===version){
+            error.value=(e as Error).message||'No se pudo registrar la solicitud del PIN.';
+            fallosConsecutivos.value++;
+            mostrarAyuda.value=true;
+          }
         }
       }else if(pinSolicitado(d)||pinEmitido(d)){
+        etapa.value='entrega';
         estadoAccesible.value='Esperando la entrega del PIN de depósito.';
       }
     }else{
+      etapa.value='pago';
       estadoAccesible.value='Esperando la confirmación del pago.';
     }
   }catch(e){
     if(await gestionarSesion(e))return;
-    if(montada&&actual===version)error.value=(e as Error).message||'No se pudo consultar la operación.';
+    if(montada&&actual===version){
+      error.value=(e as Error).message||'No se pudo consultar la operación.';
+      fallosConsecutivos.value++;
+      mostrarAyuda.value=true;
+    }
   }finally{
     consultaActiva=false;
+    if(montada&&actual===version&&Date.now()-comienzoEspera>=20000)mostrarAyuda.value=true;
   }
 }
 function iniciar(){
   clearInterval(reloj);
   error.value='';
+  mostrarAyuda.value=false;
+  fallosConsecutivos.value=0;
+  etapa.value='consultando';
+  comienzoEspera=Date.now();
   ultimoIntentoSolicitud=0;
   redirigiendoAcceso=false;
   void consultar();
@@ -112,8 +133,16 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
       <div class="espera-pago__destello espera-pago__destello--uno"></div>
       <div class="espera-pago__destello espera-pago__destello--dos"></div>
     </div>
-    <span class="espera-pago__lectura" role="status" aria-live="polite">{{ estadoAccesible }}</span>
-    <span v-if="error" class="espera-pago__lectura" role="alert">{{ error }}</span>
+    <div v-if="mostrarAyuda" class="espera-pago__informacion" role="status" aria-live="polite">
+      <p v-if="error">{{ error }}</p>
+      <p v-else-if="etapa==='entrega'">Estamos esperando que SYNCHRO confirme la entrega de tu PIN de depósito.</p>
+      <p v-else-if="etapa==='pin'">Pago confirmado. Tu PIN de depósito está pendiente de gestión.</p>
+      <p v-else-if="etapa==='pago'">El pago continúa pendiente de confirmación.</p>
+      <p v-else>Estamos comprobando el estado de tu reserva.</p>
+      <button type="button" class="espera-pago__consulta" @click="router.push('/reservas/'+reservaId)">Ver estado de mi reserva</button>
+      <small>Esta solicitud no genera un segundo pago ni otra reserva.</small>
+    </div>
+    <span v-else class="espera-pago__lectura" role="status" aria-live="polite">{{ estadoAccesible }}</span>
   </section>
 </template>
 
@@ -146,6 +175,22 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
   padding:clamp(12px,3vw,32px);
   box-sizing:border-box;
 }
+.espera-pago__informacion{
+  position:absolute;
+  top:calc(50% + min(130px,30vw,26dvh));
+  left:50%;transform:translateX(-50%);
+  width:min(calc(100% - 32px),400px);
+  display:grid;justify-items:center;gap:9px;
+  text-align:center;font-size:12px;line-height:1.4;
+  color:var(--text-strong);
+}
+.espera-pago__informacion p{margin:0;}
+.espera-pago__informacion small{font-size:10px;color:var(--text-muted);}
+.espera-pago__consulta{
+  cursor:pointer;border:1px solid #00b9c7;background:#01305c;color:#fff;
+  border-radius:12px;padding:11px 16px;min-height:42px;font-weight:750;
+}
+.espera-pago__consulta:focus-visible{outline:3px solid #00b9c7;outline-offset:3px;}
 .espera-pago__lectura{
   position:absolute;
   width:1px;height:1px;
