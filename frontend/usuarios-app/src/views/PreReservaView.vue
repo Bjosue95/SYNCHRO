@@ -727,8 +727,8 @@ onMounted(cargar);
   border-radius: 15px;
 }
 .reserva-revision__datos > div { display:grid; gap:6px; min-width:0; }
-.reserva-revision__importe {padding:12px 14px;border:1px solid var(--border-strong);background:var(--surface-accent);border-radius:11px;}
-.reserva-revision__importe dd {font-size:22px;color:var(--text-strong);}
+.reserva-revision__importe {grid-column:1/-1;padding:16px 18px;border:1px solid var(--border-strong);background:var(--surface-accent);border-radius:11px;}
+.reserva-revision__importe dd {font-size:clamp(20px,3vw,28px);color:var(--text-strong);overflow-wrap:normal;}
 .reserva-revision__tarifa-aviso {font-size:13px;line-height:1.6;color:var(--text-muted);}
 .reserva-revision__datos dt { font-size:12px; color:var(--text-muted); font-weight:700; }
 .reserva-revision__datos dd { margin:0; color:var(--text-strong); font-weight:800; overflow-wrap:anywhere; }
