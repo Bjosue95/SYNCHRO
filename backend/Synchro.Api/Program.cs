@@ -214,11 +214,13 @@ builder.Services
         options.Cookie.SameSite = SameSiteMode.Strict;
 
 
+        // Sesión de estación: se renueva mientras la terminal esté en uso.
+        // Cada petición sigue comprobando que la terminal permanezca activa en SQL.
         options.ExpireTimeSpan = builder.Environment.IsDevelopment()
-            ? TimeSpan.FromHours(2)
-            : TimeSpan.FromMinutes(15);
+            ? TimeSpan.FromDays(7)
+            : TimeSpan.FromHours(24);
 
-        options.SlidingExpiration = false;
+        options.SlidingExpiration = true;
 
         options.Events.OnRedirectToLogin = context =>
         {
