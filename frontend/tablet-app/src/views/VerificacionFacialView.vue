@@ -372,7 +372,7 @@ async function analizar() {
 
     const indicacion = estadoRostro(datos);
 
-    const modoV3 = pruebaDescriptorV3 &&
+    const modoV3 = !esReservaWeb.value && pruebaDescriptorV3 &&
       (aceptaDescriptorV3.value || usarRetiroV3.value);
 
     const calidad = modoV3 && indicacion === "listo"
