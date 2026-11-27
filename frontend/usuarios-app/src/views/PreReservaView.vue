@@ -817,4 +817,28 @@ onMounted(cargar);
   .reserva-revision__acciones > * { width:100%;max-width:none;flex:0 0 auto; }
 }
 @media(prefers-reduced-motion:reduce){.reserva-pagador{transition:none;}}
+
+/* Ajuste final de la rejilla: nunca 2+1 en forma de pirámide. */
+@media (max-width: 800px) {
+  .reserva-vista .reserva-opciones.reserva-tres {grid-template-columns:repeat(3,minmax(0,1fr));}
+  .reserva-vista .reserva-opciones.reserva-tres > * {grid-column:auto;justify-self:stretch;width:100%;}
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva) {
+    height:clamp(158px,34dvh,220px);
+    min-height:0;
+    grid-template-rows:38px minmax(30px,auto) minmax(30px,1fr) 16px 16px;
+    gap:3px;
+    padding:12px 4px;
+  }
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__icono) {width:42px;height:38px;}
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.icono-tablet) {max-width:42px;max-height:42px;}
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__titulo) {font-size:clamp(11px,3vw,15px);line-height:1.15;overflow-wrap:anywhere;}
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__descripcion) {font-size:10px;line-height:1.2;}
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__disponibles),
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__seleccion) {font-size:10px;white-space:normal;}
+  .reserva-vista .reserva-opciones:not(.reserva-tres) :deep(.seleccion-reserva) {height:clamp(175px,38dvh,240px);}
+}
+@media(max-width:380px){
+  .reserva-vista .reserva-opciones.reserva-tres {gap:5px;}
+  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva) {padding:10px 2px;}
+}
 </style>
