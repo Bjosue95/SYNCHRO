@@ -98,7 +98,9 @@ internal sealed partial class EncomiendasOperativasSql
                 UNION ALL SELECT N'PagoConfirmado',N'Pago del remitente confirmado manualmente',PagoConfirmadoUtc
                 FROM dbo.EncomiendasOperativas WHERE ReservaId=@id AND PagoConfirmadoUtc IS NOT NULL
                 UNION ALL SELECT N'PinEntregado',CASE Finalidad WHEN N'Deposito' THEN N'Envío del PIN de depósito declarado por el operador' ELSE N'Envío del PIN de retiro declarado por el operador' END,EntregadoUtc
-                FROM dbo.PinesEncomiendaOperativa WHERE ReservaId=@id AND EntregadoUtc IS NOT NULL;
+                FROM dbo.PinesEncomiendaOperativa WHERE ReservaId=@id AND EntregadoUtc IS NOT NULL
+                UNION ALL SELECT N'PinDepositoSolicitado',N'PIN de depósito solicitado por el titular',FechaUtc
+                FROM dbo.AuditoriaEncomiendaOperativa WHERE ReservaId=@id AND Accion=N'PinDepositoSolicitado';
                 """,("@id",fila.Id));
             await using var r=await q.ExecuteReaderAsync(ct);while(await r.ReadAsync(ct))eventos.Add(new(r.GetString(0),r.GetString(1),Fecha(r,2)));
         }
