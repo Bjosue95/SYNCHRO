@@ -45,8 +45,18 @@ test("retirar solo se completa despues de confirmacion protegida", () => {
   assert.match(codigo, /obtenerMetodoPagoRetiro/);
 
   // Nunca se concede la finalizacion local sin la respuesta del servidor.
-  assert.match(codigo, /const resultado = await finalizarRetiroPersonalPagado/);
-  assert.match(codigo, /completado\.value = true/);
+  // El resumen solo registra la confirmación diferida; no libera el casillero.
+  assert.match(codigo, /registrarRecogidaRetiro\(\{codigo:codigoCasillero,tipo:"personal"/);
+  assert.match(codigo, /confirmar:\(\)=>finalizarRetiroPersonalPagado\(cobroId,autorizacionPago\)/);
+  assert.match(codigo, /await router\.replace\("\/retirar\/recoger"\)/);
+  assert.doesNotMatch(codigo, /await finalizarRetiroPersonalPagado\(/);
+  const recogida = leer("../src/views/DepositoView.vue");
+  assert.match(recogida, /const datos=await actual\.confirmar\(\)/);
+  assert.match(recogida, /if\(datos\?\.retiroConfirmado!==true\|\|datos\.codigoCasillero!==actual\.codigoCasillero\)throw new Error/);
+  // El cierre se muestra únicamente después de validar la respuesta.
+  assert.match(recogida, /if\(datos\?\.retiroConfirmado!==true[^\n]+\n\s+if\(!vivo\)return;\n\s+actual\.limpiar\(\);\n\s+recogida\.value=\{codigoCasillero:datos\.codigoCasillero\};\n\s+intento=null;\n\s+finalizar\(\);/);
+  assert.match(recogida, /@click="confirmarDeposito"/);
+  assert.match(recogida, /estado\.value = "confirmado"/);
   assert.match(codigo, /if \(esVistaPrevia\) return;/);
   // NFC comparte las validaciones protegidas.
   assert.match(codigo, /nombreMetodoConfirmado/);

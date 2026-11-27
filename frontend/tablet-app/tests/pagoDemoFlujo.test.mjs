@@ -63,5 +63,12 @@ test("flujo preview usa animación y tarjeta final originales sin ejecutar cobro
   assert.match(codigo, /if \(!esVistaPrevia \|\| !orden\.value\) return;/);
   assert.match(codigo, /if \(esVistaPrevia\) return;/);
   assert.match(codigo, /if \(!pagoConfirmado\.value \|\| !orden\.value/);
-  assert.match(codigo, /const resultado = await finalizarRetiroPersonalPagado/);
+  // El resumen solo registra la confirmación diferida; no libera el casillero.
+  assert.match(codigo, /registrarRecogidaRetiro\(\{codigo:codigoCasillero,tipo:"personal"/);
+  assert.match(codigo, /confirmar:\(\)=>finalizarRetiroPersonalPagado\(cobroId,autorizacionPago\)/);
+  assert.match(codigo, /await router\.replace\("\/retirar\/recoger"\)/);
+  assert.doesNotMatch(codigo, /await finalizarRetiroPersonalPagado\(/);
+  const recogida = leer("../src/views/DepositoView.vue");
+  assert.match(recogida, /const datos=await actual\.confirmar\(\)/);
+  assert.match(recogida, /if\(datos\?\.retiroConfirmado!==true\|\|datos\.codigoCasillero!==actual\.codigoCasillero\)throw new Error/);
 });
