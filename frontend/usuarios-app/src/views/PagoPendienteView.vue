@@ -32,13 +32,6 @@ async function gestionarSesion(error:unknown){
 }
 const finalizada=(d:any)=>Boolean(d?.historica||d?.cancelacion||
   ['Cancelada','Vencida','Rechazada'].includes(d?.estado));
-const pinEntregado=(d:any)=>Boolean(d?.pines?.some((p:any)=>
-  p.finalidad==='Deposito'&&['Entregado','Consumido'].includes(p.estado)));
-const pinEmitido=(d:any)=>Boolean(d?.pines?.some((p:any)=>
-  p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado)));
-const pinSolicitado=(d:any)=>Boolean(d?.historial?.some((h:any)=>
-  h.accion==='PinDepositoSolicitado'));
-
 async function consultar(){
   const id=reservaId.value;
   if(!Number.isSafeInteger(id)||id<=0||consultaActiva)return;
@@ -49,12 +42,6 @@ async function consultar(){
     if(!montada||actual!==version||id!==reservaId.value)return;
     error.value='';
     fallosConsecutivos.value=0;
-    if(pinEntregado(d)){
-      clearInterval(reloj);
-      estadoAccesible.value='PIN entregado. Volviendo a Inicio.';
-      await router.replace('/bienvenida');
-      return;
-    }
     if(finalizada(d)){
       clearInterval(reloj);
       estadoAccesible.value='La reserva ya no está activa.';
@@ -62,31 +49,10 @@ async function consultar(){
       return;
     }
     if(d.pago?.estado==='ConfirmadoManual'||d.condiciones?.pagoConfirmado){
-      etapa.value='pin';
-      estadoAccesible.value='Pago confirmado. Preparando el PIN de depósito.';
-      if(!d.condiciones?.remitenteAutorizado){
-        // El PIN no se puede emitir sin consentimiento: continuar por la reserva.
-        clearInterval(reloj);
-        await router.replace('/reservas/'+id);
-        return;
-      }
-      if(!pinEmitido(d)&&!pinSolicitado(d)&&Date.now()-ultimoIntentoSolicitud>=5000){
-        ultimoIntentoSolicitud=Date.now();
-        try{
-          await encomiendasApi.solicitarPinDeposito(id);
-          if(montada&&actual===version)estadoAccesible.value='PIN solicitado. Esperando la entrega.';
-        }catch(e){
-          if(await gestionarSesion(e))return;
-          if(montada&&actual===version){
-            error.value=(e as Error).message||'No se pudo registrar la solicitud del PIN.';
-            fallosConsecutivos.value++;
-            mostrarAyuda.value=true;
-          }
-        }
-      }else if(pinSolicitado(d)||pinEmitido(d)){
-        etapa.value='entrega';
-        estadoAccesible.value='Esperando la entrega del PIN de depósito.';
-      }
+      clearInterval(reloj);
+      estadoAccesible.value='Pago confirmado. Continúa con la solicitud del PIN.';
+      await router.replace('/reservas/'+id+'/solicitar-pin');
+      return;
     }else{
       etapa.value='pago';
       estadoAccesible.value='Esperando la confirmación del pago.';
