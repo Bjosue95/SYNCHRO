@@ -41,6 +41,7 @@ function continuar(){
   if(paso.value===5||paso.value===4&&servicio.value==='Personal'){
     revisar();return;
   }
+  if(paso.value===7&&!pagador.value){error.value='Selecciona cómo deseas pagar.';return;}
   if(paso.value===7&&pagador.value==='Destinatario'){void crear();return;}
   paso.value=Math.min(ultimoPaso,saltoSiguiente(paso.value));
 }
@@ -73,7 +74,7 @@ function detenerConsultaPago(){
 }
 const tipos=[{id:'Normal',nombre:'Normal'},{id:'Refrigerado',nombre:'Refrigerado'},{id:'Caliente',nombre:'Caliente'}];
 // Campos solamente de memoria local. No se envían al backend ni se almacenan.
-const pagador=ref<'Remitente'|'Destinatario'>('Remitente');
+const pagador=ref<'Remitente'|'Destinatario'|null>(null);
 const titularTarjeta=ref(''),numeroTarjetaPrueba=ref(''),venceTarjetaPrueba=ref(''),codigoTarjetaPrueba=ref('');
 const tarjetaPruebaValida=computed(()=>titularTarjeta.value.trim().length>=3&&titularTarjeta.value.trim().length<=60
   &&numeroTarjetaPrueba.value.replace(/\D/g,'')==='4242424242424242'
@@ -178,7 +179,7 @@ watch(servicio,(nuevo)=>{
   // Frío y calor se reservan exclusivamente para encomiendas.
   // Al volver a pertenencias personales se restaura Normal sin ocultar las tarjetas.
   if(nuevo==='Personal' && tipo.value!=='Normal')tipo.value='Normal';
-  pagador.value='Remitente';
+  pagador.value=null;
   limpiarTarjetaPrueba();
   revisando.value=false;
   if(reservaEnEspera.value===null&&paso.value>0)paso.value=0;
@@ -199,6 +200,7 @@ function revisar(){
 }
 async function crear(){
   if(enviando.value)return;
+  if(!pagador.value){error.value='Selecciona cómo deseas pagar.';return;}
   if(!disponible.value || (servicio.value==='Encomienda'&&!normalizarTelefono(telefono.value))){
     revisando.value=false;
     error.value='Verifica la selección antes de crear tu reserva.';
@@ -403,7 +405,7 @@ onMounted(cargar);
             <button type="button" class="reserva-pagador"
               :class="{'es-seleccionada':pagador==='Remitente'}"
               :aria-pressed="pagador==='Remitente'" :disabled="enviando"
-              @click="pagador='Remitente'">
+              @click="pagador='Remitente';paso=8">
               <IconoTablet nombre="pago" :tamano="32" />
               <strong>Pagar desde la web</strong>
               <small>Pago con tarjeta · sujeto a confirmación.</small>
@@ -496,10 +498,10 @@ onMounted(cargar);
     </div>
     <footer v-if="!cargando && paso<=ultimoPaso" class="reserva-paso__navegacion">
       <button v-if="paso>0" type="button" class="boton boton-secundario" @click="regresar" :disabled="enviando">Regresar</button>
-      <button v-if="paso<8" type="button" class="boton boton-primario reserva-paso__continuar"
-        :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible)"
+      <button v-if="paso<7 || paso===7" type="button" class="boton boton-primario reserva-paso__continuar"
+        :disabled="enviando || actualizando || (paso===2 && !tamano) || (paso===3 && !ubicacion) || (paso===4 && !disponible) || (paso===7 && !pagador)"
         @click="continuar">
-        <span class="reserva-paso__continuar-texto">{{ paso===7 ? (pagador==='Remitente'?'Continuar a tarjeta':'Confirmar reserva') : paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
+        <span class="reserva-paso__continuar-texto">{{ paso===7 ? 'Confirmar reserva' : paso===6 ? 'Continuar al pago' : paso===4 && servicio==='Personal' || paso===5 ? 'Revisar reserva' : 'Continuar' }}</span>
         <IconoTablet nombre="continuar" :tamano="21" />
       </button>
       <SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear">
