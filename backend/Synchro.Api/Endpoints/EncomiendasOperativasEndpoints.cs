@@ -95,6 +95,7 @@ public static class EncomiendasOperativasEndpoints
         var prototipo=app.MapGroup("/api/terminales/reservas").RequireAuthorization("SoloTerminal")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
         prototipo.MapGet("/csrf-token",(HttpContext h,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(h).RequestToken}));
+        prototipo.MapGet("/estacion",(HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.EstadoTerminalDeReservas(Identidad(h),h.RequestAborted)));
         prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>{Consentimiento(h);return s.DepositarDemostrativo(id,Identidad(h),d,h.RequestAborted);}));
         prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaDeposito(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
         prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>Terminal(h,s,()=>s.IdentificarParaRetiro(d.Pin,Identidad(h),h.RequestAborted))).RequireRateLimiting("IdentificarRetiroEncomienda");
