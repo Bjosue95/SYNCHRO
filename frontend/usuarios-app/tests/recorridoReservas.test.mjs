@@ -241,9 +241,12 @@ test('escritorio ajusta tres opciones al alto disponible y no repite titulo de d
   assert.match(vista, /\.reserva-vista \.reserva-opciones:has\(> :nth-child\(3\)\) :deep\(\.seleccion-reserva\) \{/);
 });
 
-test('navegacion inferior sin bloque blanco y con margen lateral consistente', () => {
+test('navegacion inferior integrada y con margenes reales en pantalla', () => {
   const vista=leer('PreReservaView');
-  assert.match(vista, /\.reserva-paso__navegacion \{flex:0 0 auto;[^\n]*background:transparent;padding:10px clamp\(12px,2\.2vw,24px\) 10px;/);
-  assert.match(vista, /\.reserva-paso__navegacion \{flex-direction:row;padding-inline:12px;\}/);
-  assert.doesNotMatch(vista, /\.reserva-paso__navegacion \{flex:0 0 auto;[^\n]*background:var\(--surface\)/);
+  assert.match(vista, /\.env-page--asistente > \.reserva-paso__navegacion \{/);
+  assert.match(vista, /margin-inline:clamp\(16px,2\.4vw,30px\)/);
+  assert.match(vista, /background:var\(--bg\)/);
+  assert.match(vista, /width:calc\(100% - 2 \* clamp\(16px,2\.4vw,30px\)\)/);
+  assert.doesNotMatch(vista, /\.reserva-paso__navegacion\{flex-direction:column-reverse\}/);
+  assert.doesNotMatch(vista, /\.reserva-paso__navegacion \{display:flex;gap:12px;justify-content:space-between;\}/);
 });
