@@ -73,8 +73,8 @@ function mensajeError(causa: unknown) {
 function destinoSeguro() {
   const destino = route.query.volver;
   return typeof destino === "string" &&
-    /^\/(mis-reservas|mi-perfil|mi-cuenta|reservar(?:\/encomienda)?|consultar|(?:encomiendas|reservas)\/\d+)(\?|$)/.test(destino)
-    ? destino : "/reservar";
+    /^\/(bienvenida|mis-reservas|mi-perfil|mi-cuenta|reservar(?:\/encomienda)?|consultar|(?:encomiendas|reservas)\/\d+)(\?|$)/.test(destino)
+    ? destino : "/bienvenida";
 }
 
 async function enviar() {
