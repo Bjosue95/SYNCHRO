@@ -80,3 +80,24 @@ test('Mis reservas muestra etapa real y protege la cancelacion antes del deposit
  assert.match(panel,/setInterval\(\(\)=>\{/);
  assert.match(detalle,/id="destinatario-autorizacion"/);
 });
+
+test('Mis reservas e Historial son vistas privadas separadas y se filtran antes de paginar en SQL',()=>{
+  const rutas=leer('src/router/index.js');
+  const menu=leer('src/components/layout/AppShell.vue');
+  const panel=leer('src/views/PanelView.vue');
+  const backend=leer('../../backend/Synchro.Api/Services/Encomiendas/EncomiendasOperativasHistorial.cs');
+  assert.match(rutas,/path: "\/historial", name: "historial"/);
+  assert.match(rutas,/meta: \{ privada: true, titulo: "Historial" \}/);
+  assert.match(menu,/ruta: "\/historial", nombre: "Historial"/);
+  assert.match(panel,/const esHistorial=computed\(\(\)=>route.name==='historial'\)/);
+  assert.match(panel,/categoria:categoria\.value/);
+  assert.match(panel,/esHistorial\?'Ver detalle':accionTexto\(detalleDe\(e\)\)/);
+  assert.match(panel,/!esHistorial && detalles\[Number\(e.id\)\] && cancelable\(detalleDe\(e\)\)/);
+  assert.match(panel,/watch\(\(\)=>route.name/);
+  assert.match(backend,/string\? Categoria=null/);
+  assert.match(backend,/@categoria=N'Activas'/);
+  assert.match(backend,/@categoria=N'Historial'/);
+  assert.match(backend,/Estado IN\(N'Cancelada',N'Vencida',N'Rechazada'\)/);
+  assert.match(backend,/Estado=N'Retirada' AND EntregaUtc IS NOT NULL/);
+  assert.match(backend,/@salto ROWS FETCH NEXT @tamano ROWS ONLY/);
+});
