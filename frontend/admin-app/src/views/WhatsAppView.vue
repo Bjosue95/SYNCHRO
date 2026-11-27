@@ -35,8 +35,9 @@ type RolEncomienda = 'remitente' | 'destinatario';
 function activosDe(tipo: RolEncomienda) {
   const rolBuscado = tipo === 'remitente' ? 'Remitente' : 'Destinatario';
   return solicitudes.value.filter(x =>
-    x.servicio === 'Encomiendas' && x.claseReserva === 'Encomienda' &&
-    x.rol === rolBuscado &&
+    x.servicio === 'Encomiendas' &&
+    (x.claseReserva === 'Encomienda' || (tipo === 'remitente' && x.claseReserva === 'Personal')) &&
+    (x.rol === rolBuscado || (tipo === 'remitente' && x.claseReserva === 'Personal' && x.rol === 'Titular')) &&
     (tipo === 'remitente' ? enPreparacion(x.estado) : x.estado === 'Depositada')
   );
 }
@@ -48,6 +49,12 @@ const activos = computed(() =>
   categoria.value === 'tablet' ? [] : activosDe(categoria.value)
 );
 const pendientes = computed(() => activos.value.filter(requiereAtencion));
+const solicitudesPinDeposito=computed(()=>solicitudes.value.filter((x:any)=>
+  x.servicio==='Encomiendas'&&x.solicitudPinDeposito===true
+  &&x.entrega!=='EnviadoManual'
+  &&['Preparacion','ListaParaDeposito'].includes(x.estado)
+  &&x.pagoEstado==='ConfirmadoManual'
+  &&(x.rol==='Remitente'||x.rol==='Titular')));
 const resumen = computed(() => ({
   pendientes: activos.value.filter(x => x.consentimiento !== 'Confirmado').length,
   porEnviar: activos.value.filter(x => x.consentimiento === 'Confirmado' && x.entrega !== 'EnviadoManual').length,
@@ -151,6 +158,12 @@ async function actualizarTodo(mostrarEstado = true) {
   }
 }
 function actualizarVista() { void actualizarTodo(); }
+async function atenderPinSolicitado(id:number) {
+  if(ocupado.value)return;
+  cerrarFicha();
+  categoria.value='remitente';
+  await abrir(id);
+}
 function cambiarCategoria(nueva: Categoria) {
   if (categoria.value === nueva) return;
   cerrarFicha();
@@ -163,7 +176,7 @@ async function abrir(id: number) {
   cerrarFicha(); ocupado.value = true;
   try {
     const datos = await apiAdmin(`/api/admin/encomiendas/operativas/${id}`);
-    if (datos.reserva?.servicio === 'Personal' ||
+    if ((datos.reserva?.servicio === 'Personal' && categoria.value === 'destinatario') ||
       (categoria.value === 'remitente' && !enPreparacion(datos.estado)) ||
       (categoria.value === 'destinatario' && datos.estado !== 'Depositada'))
       throw new Error('Esta autorización no está disponible en esta etapa.');
@@ -282,6 +295,16 @@ watch(() => route.query.encomienda, valor => {
       </button>
     </header>
 
+    <section v-if="solicitudesPinDeposito.length" class="wa-solicitudes-pin" aria-label="Solicitudes de PIN de depósito desde la web">
+      <h2>PIN de depósito solicitados desde la web</h2>
+      <p>Estas reservas ya tienen el pago confirmado. Gestiona la emisión y registra la entrega real por WhatsApp.</p>
+      <div class="wa-solicitudes-pin__lista">
+        <div v-for="item in solicitudesPinDeposito" :key="item.encomiendaId" class="wa-solicitudes-pin__fila">
+          <div><strong>Reserva #{{ item.encomiendaId }}</strong><small>{{ item.claseReserva==='Personal'?'Pertenencias personales':'Encomienda' }} · {{ item.telefono }}</small></div>
+          <button type="button" class="primario" :disabled="ocupado" @click="atenderPinSolicitado(item.encomiendaId)">Atender solicitud</button>
+        </div>
+      </div>
+    </section>
     <nav class="categorias wa-tabs" aria-label="Tipo de solicitud">
       <button v-for="cat in [{id:'tablet',nombre:'Tablet'},{id:'remitente',nombre:'Remitente'},{id:'destinatario',nombre:'Destinatario'}]"
         :key="cat.id" type="button" :class="{activo:categoria===cat.id}"
@@ -318,16 +341,20 @@ watch(() => route.query.encomienda, valor => {
         <p v-else-if="pendientes.length === 0" class="tarjeta">No hay autorizaciones pendientes.</p>
         <article v-for="item in pendientes" :key="item.operacionId+'-'+item.rol" class="tarjeta">
           <div class="encabezado">
-            <h2>{{ categoria === 'remitente' ? 'Autorizar depósito' : 'Autorizar retiro' }}</h2>
-            <span class="estado">{{ item.consentimiento !== 'Confirmado' ? 'Pendiente' : 'PIN por enviar' }}</span>
+            <h2>{{ categoria === 'remitente' ? 'PIN para depósito' : 'Autorizar retiro' }}</h2>
+            <span class="estado">{{ item.solicitudPinDeposito ? 'PIN solicitado en la web' : item.consentimiento !== 'Confirmado' ? 'Pendiente' : 'PIN por enviar' }}</span>
           </div>
           <p><strong>Operación interna:</strong> #{{ item.encomiendaId }}</p>
+          <p v-if="item.claseReserva==='Personal'"><strong>Servicio:</strong> Pertenencias personales</p>
           <p><strong>WhatsApp:</strong> {{ item.telefono || 'Sin comprobar' }}</p>
           <button class="primario" type="button" :disabled="ocupado" @click="abrir(item.encomiendaId)">Atender solicitud</button>
         </article>
       </template>
 
       <article v-else class="tarjeta ficha">
+        <p v-if="detalle.historial?.some((h:any)=>h.accion==='PinDepositoSolicitado') && !detalle.pines?.some((p:any)=>p.finalidad==='Deposito'&&p.estado==='Entregado')" class="aviso" role="status">
+          El titular solicitó el PIN de depósito desde la web. Emítelo y registra su entrega después de enviar el mensaje al número autorizado.
+        </p>
         <div class="encabezado">
           <h2>{{ categoria === 'remitente' ? 'Autorizar depósito' : 'Autorizar retiro' }}</h2>
           <button type="button" class="secundario" :disabled="ocupado" @click="cerrarFicha();actualizar()">Volver</button>
@@ -580,4 +607,13 @@ watch(() => route.query.encomienda, valor => {
 @media (prefers-reduced-motion: reduce) {
   .wa-shell .wa-tabs button { transition: none; }
 }
+
+.wa-solicitudes-pin{background:var(--wa-card);border:1px solid #00b9c7;border-radius:16px;padding:clamp(14px,2vw,21px);margin:0 0 18px;color:var(--wa-text);}
+.wa-solicitudes-pin h2{font-size:clamp(16px,2vw,20px);margin:0 0 6px;}
+.wa-solicitudes-pin p{font-size:13px;line-height:1.5;margin:0 0 14px;color:var(--wa-muted);}
+.wa-solicitudes-pin__lista{display:grid;gap:9px;}
+.wa-solicitudes-pin__fila{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--wa-canvas);padding:11px;border-radius:12px;}
+.wa-solicitudes-pin__fila>div{display:grid;gap:4px;min-width:0;}
+.wa-solicitudes-pin__fila small{font-size:12px;color:var(--wa-muted);overflow-wrap:anywhere;}
+@media(max-width:480px){.wa-solicitudes-pin__fila button{width:100%;}}
 </style>
