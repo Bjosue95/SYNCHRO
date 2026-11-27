@@ -382,8 +382,8 @@ test('el pago conserva un aviso breve de demostracion sin repetirlo en cada camp
   assert.doesNotMatch(vista,/Escribe un nombre ficticio/);
   assert.doesNotMatch(vista,/Revisa los datos de demostración para continuar/);
   assert.doesNotMatch(vista,/confirmación administrativa\.<\/span>/);
-  assert.match(espera,/Pago pendiente de confirmación/);
-  assert.match(espera,/no se ha efectuado ningún cargo bancario/);
+  assert.match(espera,/Verificando pago/);
+  assert.match(espera,/Pago de demostración · Sin cargo bancario real/);
 });
 
 test('la tarjeta de demostración valida formatos, no valores bancarios específicos', () => {
@@ -395,4 +395,16 @@ test('la tarjeta de demostración valida formatos, no valores bancarios específ
   assert.doesNotMatch(vista,/==='4242424242424242'/);
   assert.doesNotMatch(vista,/==='12\/30'/);
   assert.doesNotMatch(vista,/==='123'/);
+});
+
+test('la espera de pago usa animación automatica sin botones ni textos redundantes', () => {
+  const vista=leer('PagoPendienteView');
+  assert.match(vista,/class="espera-pago__animacion"/);
+  assert.match(vista,/@keyframes espera-giro/);
+  assert.match(vista,/@keyframes espera-flotar/);
+  assert.match(vista,/@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(vista,/setInterval\(\(\)=>\{if\(!document\.hidden\)void consultar\(\);\},5000\)/);
+  assert.match(vista,/await router\.replace\('\/reservas\/'\+id\)/);
+  assert.doesNotMatch(vista,/Actualizar estado|Ver mi reserva|@click="consultar"/);
+  assert.doesNotMatch(vista,/RouterLink/);
 });
