@@ -1185,4 +1185,86 @@ onMounted(cargar);
   .reserva-vista > .reserva-prueba .reserva-prueba__campos {grid-template-columns:repeat(2,minmax(0,1fr));}
   .reserva-vista > .reserva-prueba .reserva-prueba__titular,.reserva-vista > .reserva-prueba .reserva-prueba__numero {grid-column:1/-1;}
 }
+
+/* Pago en escritorio: contenido centrado, campos proporcionados y tarjeta sin recortes. */
+@media (min-width:851px) {
+  .reserva-vista:has(> .reserva-prueba) {
+    overflow-y:auto;
+    align-items:center;
+    scrollbar-gutter:stable;
+  }
+  .reserva-vista > .reserva-prueba {
+    width:min(100%,1080px);
+    box-sizing:border-box;
+    flex:0 0 auto;
+    align-self:center;
+    gap:clamp(12px,2vh,20px);
+    padding:clamp(16px,2.5vh,26px) clamp(18px,2.5vw,30px);
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__contenido {
+    grid-template-columns:minmax(0,370px) minmax(0,1fr);
+    align-items:center;
+    justify-content:center;
+    gap:clamp(22px,3vw,42px);
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta {
+    width:100%;
+    height:auto;
+    min-height:0;
+    max-height:none;
+    aspect-ratio:1.7;
+    box-sizing:border-box;
+    padding:clamp(16px,2vw,23px);
+    gap:8px;
+    justify-content:space-between;
+    margin:0;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__numero-visual {
+    font-size:clamp(15px,1.65vw,22px);
+    letter-spacing:.04em;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta-inferior {
+    gap:10px;
+    align-items:end;
+    font-size:clamp(10px,1vw,12px);
+    line-height:1.25;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta-inferior span {
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta-inferior span:first-child {
+    flex:1 1 auto;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta-inferior span:last-child {
+    flex:0 0 auto;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__formulario {
+    gap:9px;
+  }
+  .reserva-vista > .reserva-prueba .reserva-prueba__campos {
+    gap:clamp(9px,1.5vh,14px) 12px;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__pie {
+    padding:10px 13px;
+  }
+}
+@media (min-width:851px) and (max-height:740px) {
+  .reserva-vista > .reserva-prueba {
+    gap:10px;
+    padding:13px 18px;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__contenido {
+    grid-template-columns:minmax(0,330px) minmax(0,1fr);
+    gap:24px;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__tarjeta {
+    padding:15px;
+  }
+  .reserva-vista > .reserva-prueba .reserva-pago__pie {
+    padding:8px 11px;
+  }
+}
 </style>
