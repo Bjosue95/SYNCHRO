@@ -4,17 +4,35 @@
  */
 
 const BASE = "/api/terminales/reservas";
+export class SesionTerminalNoAutorizada extends Error {
+  constructor() {
+    super("Esta estación necesita autorización. Solicita al administrador que verifique la vinculación de la terminal.");
+    this.name = "SesionTerminalNoAutorizada";
+    this.codigo = "TerminalNoAutorizada";
+  }
+}
+
+export async function comprobarSesionTerminalReservaWeb() {
+  const respuesta = await fetch("/api/terminales/mi-sesion", {
+    credentials: "same-origin",
+    cache: "no-store"
+  });
+  return leer(respuesta);
+}
+
 
 async function leer(respuesta) {
   const datos = await respuesta.json().catch(() => null);
+
+  if (respuesta.status === 401 || respuesta.status === 403) {
+    throw new SesionTerminalNoAutorizada();
+  }
 
   if (!respuesta.ok) {
     throw new Error(
       datos?.mensaje ||
       datos?.title ||
-      (respuesta.status === 401
-        ? "La sesión de la terminal ha vencido."
-        : `No se pudo completar la operación (${respuesta.status}).`)
+      `No se pudo completar la operación (${respuesta.status}).`
     );
   }
 
