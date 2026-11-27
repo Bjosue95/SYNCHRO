@@ -189,5 +189,5 @@ test('PIN destinatario permanece condicionado al deposito confirmado', () => {
 test('tarifa visible ocupa todo el ancho del resumen en pantallas pequeñas', () => {
   const vista=leer('PreReservaView');
   assert.match(vista, /\.reserva-revision__importe \{grid-column:1\/-1;/);
-  assert.match(vista, /\.reserva-revision__importe dd \{font-size:clamp/);
+  assert.match(vista, /\.reserva-revision__datos \.reserva-revision__importe dd \{font-size:clamp/);
 });
