@@ -243,9 +243,12 @@ onMounted(cargar);
     <p v-if="error" class="alerta" role="alert">{{ error }}</p><p v-if="cargando" role="status">Consultando disponibilidad…</p>
     <span v-if="actualizando" class="reserva-sr-only" role="status">Actualizando disponibilidad</span>
     <nav v-if="paso<=ultimoPaso" class="reserva-pasos" aria-label="Progreso de la reserva">
-      <div class="reserva-pasos__texto"><span>Paso {{ pasoNumero }} de {{ pasosVisibles.length }}</span><strong>{{ pasoActual }}</strong></div>
+      <div class="reserva-pasos__texto">
+        <span class="reserva-pasos__contador">{{ pasoNumero }} / {{ pasosVisibles.length }}</span>
+        <strong>{{ pasoActual }}</strong>
+      </div>
       <div class="reserva-pasos__barra" role="progressbar" :aria-valuenow="pasoNumero" :aria-valuemin="1" :aria-valuemax="pasosVisibles.length" :aria-valuetext="pasoActual">
-        <span v-for="(_,indice) in pasosVisibles" :key="indice" :class="{ 'activo':indice<pasoNumero }"></span>
+        <span :style="{width:(pasoNumero/pasosVisibles.length*100)+'%'}"></span>
       </div>
     </nav>
     <div v-if="!cargando" class="reserva-vista" :key="paso">
@@ -818,27 +821,101 @@ onMounted(cargar);
 }
 @media(prefers-reduced-motion:reduce){.reserva-pagador{transition:none;}}
 
-/* Ajuste final de la rejilla: nunca 2+1 en forma de pirámide. */
-@media (max-width: 800px) {
-  .reserva-vista .reserva-opciones.reserva-tres {grid-template-columns:repeat(3,minmax(0,1fr));}
-  .reserva-vista .reserva-opciones.reserva-tres > * {grid-column:auto;justify-self:stretch;width:100%;}
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva) {
-    height:clamp(158px,34dvh,220px);
-    min-height:0;
-    grid-template-rows:38px minmax(30px,auto) minmax(30px,1fr) 16px 16px;
-    gap:3px;
-    padding:12px 4px;
-  }
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__icono) {width:42px;height:38px;}
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.icono-tablet) {max-width:42px;max-height:42px;}
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__titulo) {font-size:clamp(11px,3vw,15px);line-height:1.15;overflow-wrap:anywhere;}
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__descripcion) {font-size:10px;line-height:1.2;}
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__disponibles),
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva__seleccion) {font-size:10px;white-space:normal;}
-  .reserva-vista .reserva-opciones:not(.reserva-tres) :deep(.seleccion-reserva) {height:clamp(175px,38dvh,240px);}
+/* Rejilla tipo tablet, con dos columnas y uso completo del espacio. */
+.reserva-vista .reserva-opciones,
+.reserva-vista .reserva-opciones.reserva-tres {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-auto-rows:minmax(0,1fr);
+  gap:clamp(8px,1.4vw,14px);
+  width:100%;
+  flex:1 1 auto;
+  align-content:stretch;
 }
-@media(max-width:380px){
-  .reserva-vista .reserva-opciones.reserva-tres {gap:5px;}
-  .reserva-vista .reserva-opciones.reserva-tres :deep(.seleccion-reserva) {padding:10px 2px;}
+.reserva-vista .reserva-opciones > :only-child {grid-column:1/-1;}
+.reserva-vista .reserva-opciones > :last-child:nth-child(odd):not(:first-child) {
+  grid-column:1/-1;
+}
+.reserva-vista .reserva-opciones :deep(.seleccion-reserva) {
+  height:100%;
+  min-height:clamp(130px,19dvh,195px);
+  display:grid;
+  grid-template-rows:minmax(33px,auto) auto minmax(18px,1fr) auto auto;
+  align-content:center;
+  gap:clamp(2px,.8vh,7px);
+  padding:clamp(9px,1.5vh,17px);
+}
+.reserva-vista .reserva-opciones :deep(.seleccion-reserva__icono) {
+  width:50px;height:46px;margin:auto;
+}
+.reserva-vista .reserva-opciones :deep(.seleccion-reserva__titulo) {
+  font-size:clamp(12px,2.8vw,17px);
+  line-height:1.25;
+}
+.reserva-vista .reserva-opciones :deep(.seleccion-reserva__descripcion) {
+  font-size:clamp(10px,1.8vw,12px);
+  line-height:1.3;
+}
+.reserva-vista .reserva-opciones :deep(.seleccion-reserva__disponibles),
+.reserva-vista .reserva-opciones :deep(.seleccion-reserva__seleccion) {
+  font-size:11px;white-space:normal;
+}
+.reserva-vista > .env-card:has(.reserva-opciones) {
+  justify-content:flex-start;
+}
+.reserva-pasos {
+  display:grid;
+  gap:6px;
+  padding:4px 0 7px;
+  background:transparent;
+  border:0;
+  border-radius:0;
+}
+.reserva-pasos__texto {
+  display:flex;
+  justify-content:flex-start;
+  align-items:center;
+  gap:9px;
+  font-size:12px;
+  line-height:1.2;
+}
+.reserva-pasos__contador {
+  padding:3px 7px;
+  border-radius:7px;
+  background:var(--surface-accent);
+  font-size:11px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+.reserva-pasos__barra {
+  display:block;
+  height:3px;
+  overflow:hidden;
+  border-radius:99px;
+  background:var(--border);
+}
+.reserva-pasos__barra span {
+  display:block;
+  height:100%;
+  background:var(--brand-accent);
+  border-radius:inherit;
+  transition:width 180ms ease;
+}
+@media(max-width:800px) {
+  .env-page--asistente .reserva-pasos {padding:2px 0 5px;gap:5px;}
+  .reserva-vista .reserva-opciones,
+  .reserva-vista .reserva-opciones.reserva-tres {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {min-height:clamp(110px,17dvh,175px);padding:8px 9px;}
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva__icono) {width:42px;height:39px;}
+  .reserva-vista .reserva-opciones :deep(.icono-tablet) {max-width:43px;max-height:43px;}
+}
+@media(max-height:580px) {
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {min-height:105px;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .reserva-pasos__barra span {transition:none;}
 }
 </style>
