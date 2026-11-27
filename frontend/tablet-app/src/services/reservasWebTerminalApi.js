@@ -45,6 +45,22 @@ export async function comprobarSesionTerminalReservaWeb() {
   return leer(respuesta);
 }
 
+export async function comprobarAsignacionTerminalReservasWeb() {
+  const consultar = () => fetch(`${BASE}/estacion`, {
+    credentials: "same-origin", cache: "no-store"
+  });
+  let respuesta = await consultar();
+  if (respuesta.status === 401) {
+    await renovarSesionTerminalReservaWeb();
+    respuesta = await consultar();
+  }
+  const datos = await leer(respuesta);
+  if (datos?.autorizada !== true) {
+    throw new Error("No se pudo confirmar que esta estación atienda reservas web.");
+  }
+  return datos;
+}
+
 
 async function leer(respuesta) {
   const datos = await respuesta.json().catch(() => null);
