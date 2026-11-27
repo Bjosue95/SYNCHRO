@@ -40,6 +40,44 @@ internal sealed partial class EncomiendasOperativasSql
         return await ConsultarParaRetiro(identificada!.Value,terminal,ct);
     }
 
+    // La vinculación (cookie Terminal) identifica la estación. Esta validación
+    // adicional determina cuál estación puede atender las reservas web.
+    private async Task ExigirTerminalDeReservas(int terminal, CancellationToken ct)
+    {
+        Exigir(terminal > 0, "TerminalNoAutorizada",
+            "No se encontró una terminal autorizada.", 403);
+
+        await using var conexion = await Abrir(ct);
+        await using var comando = Comando(conexion, null, """
+            SELECT COUNT(*),
+                   COALESCE(SUM(CASE WHEN Id=@terminal THEN 1 ELSE 0 END), 0)
+            FROM dbo.Terminales
+            WHERE Activa=1;
+            """, ("@terminal", terminal));
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        Exigir(await lector.ReadAsync(ct), "TerminalNoAutorizada",
+            "No se pudo comprobar la terminal.", 403);
+        var activas = lector.GetInt32(0);
+        var coincide = lector.GetInt32(1);
+
+        Exigir(coincide == 1, "TerminalNoAutorizada",
+            "Esta estación no está activa en el servidor.", 403);
+
+        var configurada = config.GetValue<int?>("ReservasPrototipo:TerminalId");
+        if (configurada is > 0)
+        {
+            Exigir(configurada.Value == terminal, "TerminalNoAutorizada",
+                "Esta estación no es la asignada a las reservas web.", 403);
+            return;
+        }
+
+        // En una instalación de una sola estación, su ID se toma de SQL
+        // sin exigir configurar un número que cambia al reinstalar la DB.
+        Exigir(activas == 1, "TerminalReservasSinAsignar",
+            "Hay varias estaciones activas. El administrador debe definir " +
+            "ReservasPrototipo:TerminalId con el ID de la estación de reservas.", 403);
+    }
+
     // Identifica una reserva web usando exclusivamente su PIN de depósito.
     // No consume el PIN ni confirma el depósito.
     public async Task<object> IdentificarParaDeposito(
@@ -52,16 +90,11 @@ internal sealed partial class EncomiendasOperativasSql
             403
         );
 
-        var terminalConfigurada =
-            config.GetValue<int?>("ReservasPrototipo:TerminalId");
-
-        Exigir(
-            terminalConfigurada.HasValue &&
-            terminalConfigurada.Value == terminal,
-            "TerminalNoAutorizada",
-            "Esta terminal no está autorizada para estas reservas.",
-            403
-        );
+        // Validar que esta estación esté asignada a reservas web. Cuando
+        // solo existe una terminal activa, es la estación de reservas.
+        // Si existen varias, exigir una asignación explícita (sin permitir
+        // que cualquier estación activa use el PIN de una reserva ajena).
+        await ExigirTerminalDeReservas(terminal, ct);
         await using var c = await Abrir(ct);
         int? identificada = null;
 
