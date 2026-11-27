@@ -369,7 +369,7 @@ test('la solicitud aprobada abre una ruta independiente y privada de espera', ()
   assert.match(reserva,/await router\.replace\('\/reservas\/'\+d\.id\+'\/pago-pendiente'\)/);
   assert.match(vista,/encomiendasApi\.detalle\(id\)/);
   assert.match(vista,/d\.condiciones\?\.pagoConfirmado/);
-  assert.match(vista,/if\(d\.pago\?\.estado==='ConfirmadoManual'/);
+  assert.match(vista,/if\(d\.pago\?\.estado==='ConfirmadoManual'\|\|d\.condiciones\?\.pagoConfirmado\)/);
   assert.match(vista,/clearInterval\(reloj\)/);
   assert.match(vista,/onBeforeUnmount/);
   assert.doesNotMatch(vista,/localStorage|sessionStorage|numeroTarjetaPrueba|codigoTarjetaPrueba|titularTarjeta/);
@@ -382,8 +382,8 @@ test('el pago conserva un aviso breve de demostracion sin repetirlo en cada camp
   assert.doesNotMatch(vista,/Escribe un nombre ficticio/);
   assert.doesNotMatch(vista,/Revisa los datos de demostración para continuar/);
   assert.doesNotMatch(vista,/confirmación administrativa\.<\/span>/);
-  assert.match(espera,/Verificando pago/);
-  assert.match(espera,/Pago de demostración · Sin cargo bancario real/);
+  assert.match(espera,/role="status" aria-live="polite"/);
+  assert.doesNotMatch(espera,/<h1|Total solicitado|Pago de demostración/);
 });
 
 test('la tarjeta de demostración valida formatos, no valores bancarios específicos', () => {
@@ -436,4 +436,19 @@ test('pantalla de tarjeta en escritorio centra el contenido y no recorta titular
   assert.match(vista, /aspect-ratio:1\.7;/);
   assert.match(vista, /overflow-wrap:anywhere;/);
   assert.match(vista, /@media \(min-width:851px\) and \(max-height:740px\)/);
+});
+
+test('espera solo animacion a pantalla completa hasta PIN de deposito entregado',()=>{
+  const vista=leer('PagoPendienteView');
+  assert.match(vista,/const pinEntregado=\(d:any\)=>/);
+  assert.match(vista,/p\.finalidad==='Deposito'&&\['Entregado','Consumido'\]\.includes\(p\.estado\)/);
+  assert.match(vista,/if\(pinEntregado\(d\)\)\{/);
+  assert.match(vista,/await router\.replace\('\/bienvenida'\)/);
+  assert.match(vista,/await encomiendasApi\.solicitarPinDeposito\(id\)/);
+  assert.match(vista,/!pinEmitido\(d\)&&!pinSolicitado\(d\)/);
+  assert.match(vista,/if\(!d\.condiciones\?\.remitenteAutorizado\)/);
+  assert.match(vista,/height:100dvh/);
+  assert.match(vista,/overflow:hidden/);
+  assert.match(vista,/:global\(\.app-shell:has\(\.espera-pago\) \.topbar\)\{display:none;\}/);
+  assert.doesNotMatch(vista,/<h1|<button|Total solicitado|Reserva #/);
 });
