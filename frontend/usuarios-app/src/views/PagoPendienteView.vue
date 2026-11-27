@@ -65,9 +65,9 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
         <AppIcon nombre="reloj" :tamano="34" />
       </div>
       <div class="espera-pago__encabezado">
-        <span class="espera-pago__etiqueta">SOLICITUD REGISTRADA</span>
-        <h1 id="espera-pago-titulo">Esperando confirmación del pago</h1>
-        <p>Tu solicitud de pago se envió a SYNCHRO. El administrador debe comprobar y confirmar la operación.</p>
+        
+        <h1 id="espera-pago-titulo">Estamos verificando tu solicitud</h1>
+        <p>Tu reserva se registró correctamente. Te avisaremos en esta pantalla cuando se confirme su estado.</p>
       </div>
       <div class="espera-pago__datos">
         <div><span>Reserva</span><strong>#{{ reservaId }}</strong></div>
@@ -78,11 +78,11 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
       </div>
       <div v-else class="espera-pago__estado" role="status">
         <span class="espera-pago__punto" aria-hidden="true"></span>
-        {{ cargando&&!detalle?'Consultando la reserva…':'Pendiente de confirmación administrativa' }}
+        {{ cargando&&!detalle?'Consultando la reserva…':'Pago pendiente de confirmación' }}
       </div>
       <p v-if="error" class="alerta" role="alert">{{ error }}</p>
-      <p class="espera-pago__nota">La información se actualiza automáticamente cada pocos segundos. Cuando el administrador confirme el pago, se abrirá tu reserva para continuar con la autorización y el PIN de depósito.</p>
-      <p class="espera-pago__nota">El pago es demostrativo: no se efectuó ningún cargo bancario. No necesitas crear otra reserva.</p>
+      <p class="espera-pago__nota">Este estado se actualiza automáticamente. Una vez confirmado el pago, continuaremos con tu reserva y la gestión del PIN de depósito.</p>
+      <p class="espera-pago__nota">Demostración: no se ha efectuado ningún cargo bancario. No crees otra reserva mientras esta solicitud esté pendiente.</p>
       <div class="espera-pago__acciones">
         <button type="button" class="boton boton-primario" :disabled="cargando" @click="consultar">
           Actualizar estado
