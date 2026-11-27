@@ -509,7 +509,7 @@ onMounted(cargar);
 .env-page--asistente > .reserva-paso__navegacion {
   flex:0 0 auto;
   display:flex;
-  justify-content:space-between;
+  justify-content:flex-end;
   align-items:center;
   gap:12px;
   box-sizing:border-box;
@@ -521,7 +521,8 @@ onMounted(cargar);
   box-shadow:none;
 }
 .reserva-paso__navegacion .boton,.reserva-paso__navegacion .syn-button {display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:49px;padding:10px 18px;max-width:100%;box-sizing:border-box;}
-.reserva-paso__navegacion .boton:last-child,.reserva-paso__navegacion .syn-button:last-child {margin-left:auto;}
+.env-page--asistente > .reserva-paso__navegacion > :first-child {margin-left:auto;}
+.env-page--asistente > .reserva-paso__navegacion > :last-child {margin-left:0;}
 @media(max-width:800px){
   :global(.panel-contenido:has(.env-page--asistente)){height:calc(100dvh - 70px);padding:8px 10px;}
   .env-page--asistente .env-heading p {display:none;}
@@ -881,7 +882,7 @@ onMounted(cargar);
   max-width:100%;
 }
  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {
-  height:clamp(155px,24dvh,205px);
+  height:clamp(185px,28dvh,225px);
   min-height:0;
   display:grid;
   grid-template-rows:43px minmax(28px,auto) minmax(27px,1fr) auto auto;
@@ -966,7 +967,7 @@ onMounted(cargar);
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
   }
-  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:clamp(145px,23dvh,190px);min-height:0;padding:8px 9px;}
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:clamp(185px,28dvh,220px);min-height:0;padding:8px 9px;}
   .reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.seleccion-reserva) {
     height:100%;
     min-height:0;
@@ -976,7 +977,7 @@ onMounted(cargar);
   .reserva-vista .reserva-opciones :deep(.icono-tablet) {max-width:43px;max-height:43px;}
 }
 @media(max-height:580px) {
-  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:135px;min-height:0;}
+  .reserva-vista .reserva-opciones :deep(.seleccion-reserva) {height:clamp(140px,27dvh,190px);min-height:0;}
   .reserva-vista .reserva-opciones:has(> :nth-child(3)) :deep(.seleccion-reserva) {height:100%;min-height:0;}
   .reserva-vista > .env-card:has(.reserva-opciones) {gap:6px;padding:9px;}
   .reserva-vista .reserva-opciones:has(> :nth-child(3)) {gap:6px;}
