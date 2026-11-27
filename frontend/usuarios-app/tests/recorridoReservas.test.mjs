@@ -148,7 +148,9 @@ test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos ban
   assert.match(vista, /<section v-if="paso===7" class="env-card reserva-pago__eleccion">/);
   assert.match(vista, /pagador:pagador\.value==='Remitente'\?'Remitente'/);
   assert.match(vista, /modalidadPago:pagador\.value==='Remitente'\?'WebTarjeta'/);
-  assert.match(vista, /@click="pagador=\'Remitente\';paso=8"/);
+  assert.match(vista, /@click="pagador=\'Remitente\'"/);
+  assert.match(vista, /v-if="pagador==='Remitente'" class="reserva-pagador__check"/);
+  assert.doesNotMatch(vista, /@click="pagador=\'Remitente\';paso=8"/);
   assert.match(vista, /v-if="pagoError"/);
   assert.doesNotMatch(vista, /servicio==='Encomienda'&&pagador==='Remitente'&&!tarjetaPruebaValida/);
 });
@@ -156,7 +158,9 @@ test('el pago web se ofrece para pertenencias y encomiendas sin enviar datos ban
 test('el pago muestra instrucciones y permite confirmar para ver errores', () => {
   const vista=leer('PreReservaView');
   assert.doesNotMatch(vista, /function usarDatosPrueba\(\)/);
-  assert.match(vista, /@click="pagador=\'Remitente\';paso=8"/);
+  assert.match(vista, /@click="pagador=\'Remitente\'"/);
+  assert.match(vista, /v-if="pagador==='Remitente'" class="reserva-pagador__check"/);
+  assert.doesNotMatch(vista, /@click="pagador=\'Remitente\';paso=8"/);
   assert.match(vista, /<SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear"/);
   assert.match(vista, /pagoError\.value='Completa todos los campos/);
 });
