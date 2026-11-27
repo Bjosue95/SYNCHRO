@@ -71,6 +71,13 @@ const pagoDemoReserva = computed(() =>
   detalle.value?.reserva?.modalidadPago==="WebTarjeta" || pagoDiferido.value
 );
 const permitePin = computed(() => pagado.value || pagoDiferido.value);
+const pinDepositoSolicitadoPendiente = computed(() => {
+  const historial = detalle.value?.historial as Array<{ accion: string }> | undefined;
+  const pines = detalle.value?.pines as Array<{ finalidad: string; estado: string }> | undefined;
+  return historial?.some((h) => h.accion === "PinDepositoSolicitado") === true &&
+    !pines?.some((p) => p.finalidad === "Deposito" &&
+      ["Emitido", "Entregado", "Consumido"].includes(p.estado));
+});
 const ruta = () => `/${detalle.value.id}`;
 function fecha(valor: string) {
   return valor
@@ -655,7 +662,7 @@ onBeforeUnmount(() => {
         </form>
       </section>
       <section v-if="props.centroWhatsApp" class="enc-card">
-        <p v-if="detalle.historial?.some((h)=>h.accion==='PinDepositoSolicitado') && !detalle.pines?.some((p)=>p.finalidad==='Deposito'&&['Emitido','Entregado','Consumido'].includes(p.estado))" class="enc-notice" role="status">
+        <p v-if="pinDepositoSolicitadoPendiente" class="enc-notice" role="status">
           <strong>PIN de depósito solicitado por el titular.</strong> Verifica la autorización y emite el PIN para su entrega manual al WhatsApp autorizado.
         </p>
         <h3>PIN independientes</h3>
