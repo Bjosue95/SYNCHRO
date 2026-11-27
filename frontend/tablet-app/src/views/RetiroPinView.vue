@@ -14,8 +14,9 @@ import {
 import {
   obtenerRetiro,
   limpiarRetiro,
-  registrarOrdenRetiroPagado
-} from "../services/retiroSesion";
+  registrarOrdenRetiroPagado,
+  obtenerOrdenRetiroPagado
+} from "../services/retiroSesion.js";
 
 import { registrarRecogidaRetiro } from "../services/recogidaRetiroSesion.js";
 const router = useRouter();
@@ -221,10 +222,14 @@ async function verificar() {
           autorizacionGeneradaEn+5*60*1000
         );
 
+        // No borrar la autorización de reintento hasta completar la transición.
+        if (obtenerOrdenRetiroPagado()?.autorizacionPago !== autorizacionPago)
+          throw new Error("No se pudo conservar la orden de cobro.");
+        const navegacion = await router.replace("/retirar/pago");
+        if (navegacion || router.currentRoute.value.path !== "/retirar/pago")
+          throw new Error("No se pudo abrir la pantalla de pago.");
         autorizacionPagoPendiente.value = null;
         autorizacionGeneradaEn = 0;
-
-        await router.replace("/retirar/pago");
         return;
       } catch (error) {
         const detalle = error instanceof Error

@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 
 import { useTema } from "../composables/useTema";
-import { iniciarRetiro } from "../services/retiroSesion";
+import { iniciarRetiro } from "../services/retiroSesion.js";
 
 // Mismo modo oscuro que el menu principal.
 const { oscuro } = useTema();

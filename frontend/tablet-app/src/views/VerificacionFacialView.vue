@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { obtenerEleccionReservaWeb, registrarFotoReservaWeb } from "../services/reservaWebSesion.js";
 import { VERSION_CONSENTIMIENTO_V3 } from "../services/solicitudInicioFacialV3.js";
-import { registrarCaptura } from "../services/retiroSesion";
+import { registrarCaptura } from "../services/retiroSesion.js";
 import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
 import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumirDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
 

@@ -2,7 +2,7 @@
 import { computed,ref } from "vue";
 import { useRouter } from "vue-router";
 import RetiroMarco from "../components/retiro/RetiroMarco.vue";
-import { iniciarRetiro } from "../services/retiroSesion";
+import { iniciarRetiro } from "../services/retiroSesion.js";
 const router=useRouter();
 const codigo=ref("");
 const codigoValido=computed(()=>/^[A-Z0-9-]{2,10}$/.test(codigo.value.trim().toUpperCase()));

@@ -1,49 +1,37 @@
-// SYNCHRO: sesion efimera en memoria. Nunca persistir el token facial en URL/storage.
-let autorizacionFacial =
-  import.meta.hot?.data?.autorizacionFacial ?? null;
-
-let retiroReservaPersonal = null;
-
-// SYNCHRO-TABLET-RETIRO-PAGADO-V1
-let ordenRetiroPagado =
-  import.meta.hot?.data?.ordenRetiroPagado ?? null;
-
-let metodoPagoRetiro =
-  import.meta.hot?.data?.metodoPagoRetiro ?? null;
-
-// Conserva el estado solamente durante actualizaciones
-// de modulos de Vite. No persiste al recargar la pagina.
-if (import.meta.hot) {
-  import.meta.hot.dispose((datos) => {
-    datos.autorizacionFacial = autorizacionFacial;
-    datos.ordenRetiroPagado = ordenRetiroPagado;
-    datos.metodoPagoRetiro = metodoPagoRetiro;
-  });
+// Sesión efímera de retiro. No se guarda en URL, localStorage ni sessionStorage.
+// Vite conserva la misma referencia de estado entre versiones del módulo durante HMR.
+// Una recarga completa elimina la autorización y exige verificar nuevamente.
+function crearEstadoRetiro() {
+  return { autorizacionFacial:null, retiroReservaPersonal:null, ordenRetiroPagado:null, metodoPagoRetiro:null };
 }
+const estado = import.meta.hot
+  ? (import.meta.hot.data.estadoRetiro ??= crearEstadoRetiro())
+  : crearEstadoRetiro();
 
 export function iniciarRetiro() {
-  autorizacionFacial = null;
-  retiroReservaPersonal = null;
-  ordenRetiroPagado = null;
-  metodoPagoRetiro = null;
+  estado.autorizacionFacial = null;
+  estado.retiroReservaPersonal = null;
+  estado.ordenRetiroPagado = null;
+  estado.metodoPagoRetiro = null;
 }
 
 export function registrarCaptura(token) {
   if (typeof token !== "string" || !token || token.length > 4096) {
     throw new Error("Autorizacion facial invalida.");
   }
-  autorizacionFacial = token;
+  estado.autorizacionFacial = token;
 }
 
 export function obtenerRetiro() {
-  return { capturaHecha: Boolean(autorizacionFacial), autorizacionFacial };
+  return { capturaHecha: Boolean(estado.autorizacionFacial), autorizacionFacial: estado.autorizacionFacial };
 }
 
-export function limpiarRetiro() {
-  autorizacionFacial = null;
-  retiroReservaPersonal = null;
-  ordenRetiroPagado = null;
-  metodoPagoRetiro = null;
+export function limpiarRetiro(autorizacionEsperada) {
+  if (typeof autorizacionEsperada === "string" && estado.ordenRetiroPagado?.autorizacionPago !== autorizacionEsperada) return;
+  estado.autorizacionFacial = null;
+  estado.retiroReservaPersonal = null;
+  estado.ordenRetiroPagado = null;
+  estado.metodoPagoRetiro = null;
 }
 // Almacenar unicamente en memoria, nunca en URL ni storage.
 export function registrarOrdenRetiroPagado(
@@ -62,7 +50,7 @@ export function registrarOrdenRetiroPagado(
     throw new Error("La orden de retiro pagado no es valida.");
   }
 
-  ordenRetiroPagado = Object.freeze({
+  estado.ordenRetiroPagado = Object.freeze({
     cobroId: orden.cobroId,
     codigoCasillero: orden.codigoCasillero,
     importeHnl: orden.importeHnl,
@@ -72,16 +60,17 @@ export function registrarOrdenRetiroPagado(
     autorizacionPago
   });
 
-  autorizacionFacial = null;
-  metodoPagoRetiro = null;
+  estado.autorizacionFacial = null;
+  estado.metodoPagoRetiro = null;
+  return estado.ordenRetiroPagado;
 }
 
 export function obtenerOrdenRetiroPagado() {
-  return ordenRetiroPagado;
+  return estado.ordenRetiroPagado;
 }
 
 export function registrarMetodoPagoRetiro(metodo) {
-  if (!ordenRetiroPagado) {
+  if (!estado.ordenRetiroPagado) {
     throw new Error("No existe una orden de cobro activa.");
   }
 
@@ -90,11 +79,11 @@ export function registrarMetodoPagoRetiro(metodo) {
   }
 
   // La eleccion NO confirma ningun pago.
-  metodoPagoRetiro = metodo;
+  estado.metodoPagoRetiro = metodo;
 }
 
 export function obtenerMetodoPagoRetiro() {
-  return metodoPagoRetiro;
+  return estado.metodoPagoRetiro;
 }
 export function registrarRetiroReservaPersonal(datos) {
   if(datos?.retiroAutorizado!==true||datos?.retiroConfirmado!==false||
@@ -103,7 +92,7 @@ export function registrarRetiroReservaPersonal(datos) {
     !/^[A-Za-z0-9-]{1,10}$/.test(datos.codigoCasillero||""))
     throw new Error("Autorización de retiro inválida.");
   limpiarRetiro();
-  retiroReservaPersonal=Object.freeze({codigoCasillero:datos.codigoCasillero,
+  estado.retiroReservaPersonal=Object.freeze({codigoCasillero:datos.codigoCasillero,
     autorizacionRetiro:datos.autorizacionRetiro,vence:Date.now()+Math.min(600,Math.max(1,Number(datos.vigenciaSegundos)||600))*1000});
 }
-export function obtenerRetiroReservaPersonal(){return retiroReservaPersonal;}
+export function obtenerRetiroReservaPersonal(){return estado.retiroReservaPersonal;}

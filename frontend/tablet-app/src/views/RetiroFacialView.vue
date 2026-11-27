@@ -2,7 +2,7 @@
 import { ref, nextTick, onBeforeUnmount } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
-import { registrarCaptura } from "../services/retiroSesion";
+import { registrarCaptura } from "../services/retiroSesion.js";
 
 const router = useRouter();
 const { oscuro } = useTema();

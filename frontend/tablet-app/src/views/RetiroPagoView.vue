@@ -12,7 +12,7 @@ import {
   obtenerOrdenRetiroPagado,
   obtenerMetodoPagoRetiro,
   limpiarRetiro
-} from "../services/retiroSesion";
+} from "../services/retiroSesion.js";
 import {
   finalizarRetiroPersonalPagado,
   consultarEstadoCobroRetiroPersonal
@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
 
   // Ninguna autorizacion queda guardada al abandonar la vista.
   if (!completado.value && !esVistaPrevia) {
-    limpiarRetiro();
+    if (orden.value?.autorizacionPago) limpiarRetiro(orden.value.autorizacionPago);
   }
 });
 
@@ -197,7 +197,7 @@ async function comprobarPago() {
   try {
     const {cobroId,autorizacionPago,codigoCasillero,venceAutorizacion}=orden.value;
     registrarRecogidaRetiro({codigo:codigoCasillero,tipo:"personal",vence:venceAutorizacion,
-      volver:"/retirar/rostro",confirmar:()=>finalizarRetiroPersonalPagado(cobroId,autorizacionPago),limpiar:limpiarRetiro});
+      volver:"/retirar/rostro",confirmar:()=>finalizarRetiroPersonalPagado(cobroId,autorizacionPago),limpiar:()=>limpiarRetiro(autorizacionPago)});
     await router.replace("/retirar/recoger");
   } catch (error) {
     const detalle = error instanceof Error

@@ -7,7 +7,7 @@ import { useTema } from "../composables/useTema";
 import {
   obtenerOrdenRetiroPagado,
   registrarMetodoPagoRetiro
-} from "../services/retiroSesion";
+} from "../services/retiroSesion.js";
 import {
   obtenerOrdenCobroRetiroCarga,
   guardarMetodoPagoRetiroCarga
@@ -57,9 +57,7 @@ const metodos = [
 ];
 
 onMounted(() => {
-  if (!orden) {
-    router.replace(esCarga ? "/retirar/dispositivo" : "/retirar/rostro");
-  }
+  if (!orden && esCarga) router.replace("/retirar/dispositivo");
 });
 
 function seleccionar(codigo) {
@@ -146,6 +144,13 @@ async function continuar() {
             />
           </span>
         </button>
+      </div>
+    </div>
+    <div v-else-if="!esCarga" class="contenido-metodos">
+      <h1>Verificación necesaria</h1>
+      <p role="alert">No se encontró una orden de cobro activa. Inicia nuevamente la verificación para continuar.</p>
+      <div class="accion-metodos">
+        <button type="button" class="boton-continuar" @click="router.replace('/retirar/rostro')">Repetir verificación</button>
       </div>
     </div>
   </main>

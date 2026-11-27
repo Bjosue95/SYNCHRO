@@ -1,4 +1,5 @@
 ﻿import { createRouter, createWebHistory } from "vue-router";
+import { obtenerOrdenRetiroPagado } from "../services/retiroSesion.js";
 import { limpiarRecogidaPendiente } from "../services/recogidaRetiroSesion.js";
 import { iniciarRetiroCarga } from "../services/retiroCargaSesion.js";
 import { registrarRutasVistaPrevia } from "../preview/rutas.js";
@@ -103,8 +104,10 @@ const router = createRouter({
 });
 
 // SYNCHRO-RETIRO-AUTO-GUARD-V1: el usuario no elige espacio.
-router.beforeEach((to) => {
+router.beforeEach((to, from) => {
   if(to.path!=="/retirar/recoger"&&to.path!=="/retirar/reserva/recoger")limpiarRecogidaPendiente();
+  // Una transición desde el PIN nunca debe provocar un regreso silencioso al rostro.
+  if (from.path === "/retirar/pin" && to.path === "/retirar/pago" && !obtenerOrdenRetiroPagado()) return false;
   if (to.path === "/retirar/dispositivo") {
     iniciarRetiroCarga();
     return "/retirar/dispositivo/rostro";
