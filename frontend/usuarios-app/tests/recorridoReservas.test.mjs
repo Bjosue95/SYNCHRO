@@ -185,3 +185,9 @@ test('PIN destinatario permanece condicionado al deposito confirmado', () => {
   assert.match(detalle, /permanecen deshabilitados hasta que la tablet confirme el depósito/);
   assert.match(detalle, /pinRetiroEntregado/);
 });
+
+test('tarifa visible ocupa todo el ancho del resumen en pantallas pequeñas', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /\.reserva-revision__importe \{grid-column:1\/-1;/);
+  assert.match(vista, /\.reserva-revision__importe dd \{font-size:clamp/);
+});
