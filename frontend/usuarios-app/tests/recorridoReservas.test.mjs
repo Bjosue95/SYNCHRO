@@ -109,8 +109,8 @@ test('la revisión distingue el pagador y nunca transmite datos de tarjeta', () 
   assert.match(vista, /pagador==='Destinatario'/);
   assert.match(vista, /4242 4242 4242 4242/);
   assert.match(vista, /12\/30/);
-  assert.match(vista, /venceTarjetaPrueba\.value\.replace\(\/\\s\/g,''\)==='12\/30'/);
-  assert.match(vista, /codigoTarjetaPrueba\.value\.trim\(\)==='123'/);
+  assert.match(vista, /venceTarjetaPrueba\.value\.match/);
+  assert.match(vista, /test\(codigoTarjetaPrueba\.value\)/);
   assert.match(vista, /limpiarTarjetaPrueba\(\)/);
   assert.match(api, /pagador:/);
   assert.match(api, /modalidadPago:/);
@@ -162,7 +162,7 @@ test('el pago muestra instrucciones y permite confirmar para ver errores', () =>
   assert.match(vista, /v-if="pagador==='Remitente'" class="reserva-pagador__check"/);
   assert.doesNotMatch(vista, /@click="pagador=\'Remitente\';paso=8"/);
   assert.match(vista, /<SynButton v-else tipo="button" :cargando="enviando" :disabled="enviando" @click="crear"/);
-  assert.match(vista, /pagoError\.value='Completa todos los campos/);
+  assert.match(vista, /pagoError\.value='Revisa el formato/);
 });
 
 test('el resumen y los cobros usan tarifas del catálogo sin inventar precios', () => {
@@ -378,10 +378,21 @@ test('la solicitud aprobada abre una ruta independiente y privada de espera', ()
 test('el pago conserva un aviso breve de demostracion sin repetirlo en cada campo', () => {
   const vista=leer('PreReservaView');
   const espera=leer('PagoPendienteView');
-  assert.match(vista,/Pago de demostración\. Usa los valores de ejemplo/);
+  assert.match(vista,/Pago de demostración\. Puedes usar datos inventados/);
   assert.doesNotMatch(vista,/Escribe un nombre ficticio/);
   assert.doesNotMatch(vista,/Revisa los datos de demostración para continuar/);
   assert.doesNotMatch(vista,/confirmación administrativa\.<\/span>/);
   assert.match(espera,/Pago pendiente de confirmación/);
   assert.match(espera,/no se ha efectuado ningún cargo bancario/);
+});
+
+test('la tarjeta de demostración valida formatos, no valores bancarios específicos', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista,/const tarjetaPruebaValida=computed\(\(\)=>\{/);
+  assert.match(vista,/\^\\d\{16\}\$/);
+  assert.match(vista,/mes>=1&&mes<=12/);
+  assert.match(vista,/\^\\d\{3\}\$/);
+  assert.doesNotMatch(vista,/==='4242424242424242'/);
+  assert.doesNotMatch(vista,/==='12\/30'/);
+  assert.doesNotMatch(vista,/==='123'/);
 });
