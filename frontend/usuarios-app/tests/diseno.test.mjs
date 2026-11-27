@@ -72,7 +72,8 @@ test("no se inventan metricas ni historial de reservas en el panel", () => {
   assert.match(panel, /const puedeCancelar|function cancelable\(e:any\)/);
   assert.doesNotMatch(panel, /fechaHonduras\(e\.creadaUtc\)|fechaHonduras\(e\.entregaUtc\)/);
   assert.match(panel, /!cargando\s*&&\s*!error/);
-  assert.match(panel, /Reservar casillero/);
+  assert.match(panel, /Ver historial/);
+  assert.match(panel, /categoria:categoria\.value/);
   assert.match(panel, /reservas-tarjetas/);
   assert.doesNotMatch(panel, /<table|ReferenciaFacialCaptura/);
 });
