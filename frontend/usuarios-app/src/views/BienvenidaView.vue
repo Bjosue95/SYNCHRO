@@ -85,7 +85,7 @@ const enlaceSiguiente=computed(()=>{
 const puedeCancelar=computed(()=>Boolean(reservaPendiente.value)
   &&!depositoConfirmado.value&&!retiroConfirmado.value
   &&!reservaPendiente.value?.historica&&!reservaPendiente.value?.cancelacion
-  &&['Preparacion','ListaParaDeposito','Pendiente','PendienteConsentimiento','Vencida'].includes(reservaPendiente.value?.estado)));
+  &&['Preparacion','ListaParaDeposito','Pendiente','PendienteConsentimiento','Vencida'].includes(reservaPendiente.value?.estado));
 function restablecerCancelacion(){
   cancelando.value=false;
   confirmarCancelacion.value=false;
