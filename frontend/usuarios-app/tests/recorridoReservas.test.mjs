@@ -450,7 +450,12 @@ test('espera solo animacion a pantalla completa hasta PIN de deposito entregado'
   assert.match(vista,/height:100dvh/);
   assert.match(vista,/overflow:hidden/);
   assert.match(vista,/:global\(\.app-shell:has\(\.espera-pago\) \.topbar\)\{display:none;\}/);
-  assert.doesNotMatch(vista,/<h1|<button|Total solicitado|Reserva #/);
+  assert.doesNotMatch(vista,/<h1|Total solicitado|Reserva #/);
+  assert.match(vista,/v-if="mostrarAyuda"/);
+  assert.match(vista,/Date\.now\(\)-comienzoEspera>=20000/);
+  assert.match(vista,/Ver estado de mi reserva/);
+  assert.match(vista,/v-else-if="etapa==='entrega'"/);
+  assert.match(vista,/v-if="error"/);
 });
 
 test('si la sesión caduca durante la animación se vuelve al acceso conservando la reserva',()=>{
@@ -462,4 +467,14 @@ test('si la sesión caduca durante la animación se vuelve al acceso conservando
   assert.match(espera,/if\(await gestionarSesion\(e\)\)return/);
   assert.match(espera,/redirigiendoAcceso/);
   assert.doesNotMatch(espera,/await router\.replace\('\/bienvenida'\)[\s\S]*?error\.estado===401/);
+});
+
+test('la animacion muestra salida solo si hay demora o error, sin aprobar el PIN por cuenta propia',()=>{
+ const vista=leer('PagoPendienteView');
+ assert.match(vista,/mostrarAyuda\.value=false/);
+ assert.match(vista,/mostrarAyuda\.value=true/);
+ assert.match(vista,/if\(pinEntregado\(d\)\)\{/);
+ assert.match(vista,/if\(await gestionarSesion\(e\)\)return/);
+ assert.match(vista,/await router\.replace\('\/bienvenida'\)/);
+ assert.doesNotMatch(vista,/setTimeout\([^)]*router\.replace\('\/bienvenida'/);
 });
