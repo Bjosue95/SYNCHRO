@@ -51,7 +51,9 @@ test('la bienvenida consulta reservas reales y ofrece siguiente paso de PIN solo
   assert.match(detalle,/pinDepositoEmitido/);
   assert.match(api,/pin-deposito\/solicitar/);
   assert.match(api,/metodo: "POST"/);
-  assert.match(espera,/await router\.replace\('\/bienvenida'\)/);
+  assert.match(espera,/await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
+  const solicitud=leer('src/views/SolicitarPinView.vue');
+  assert.match(solicitud,/await router\.replace\('\/bienvenida'\)/);
 });
 
 test('solicitar PIN solo registra evento en API con cuenta propia y dos autorizaciones',()=>{
