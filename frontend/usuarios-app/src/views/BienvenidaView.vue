@@ -78,7 +78,7 @@ const enlaceSiguiente=computed(()=>{
   if(!id)return '/mis-reservas';
   if(etapaSiguiente.value==='solicitar-pin')return '/reservas/'+id+'/solicitar-pin';
   if(etapaSiguiente.value==='autorizar-destinatario')return '/reservas/'+id+'#destinatario-autorizacion';
-  if(etapaSiguiente.value==='autorizar-whatsapp')return '/reservas/'+id+'#personas-autorizaciones';
+  if(etapaSiguiente.value==='autorizar-whatsapp')return '/reservas/'+id;
   if(etapaSiguiente.value==='personal-resguardado'||etapaSiguiente.value==='esperar-retiro')return '/reservas/'+id+'#deposito-retiro';
   return '/reservas/'+id;
 });
