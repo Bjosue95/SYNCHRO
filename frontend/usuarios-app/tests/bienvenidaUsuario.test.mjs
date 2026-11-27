@@ -110,3 +110,12 @@ test('cancelacion desde bienvenida solo antes de deposito y con confirmacion rea
   assert.match(vista,/no se reembolsa automáticamente/);
   assert.doesNotMatch(vista,/Math\.random\(/);
 });
+
+test('la tarjeta de siguiente paso mantiene acciones de altura normal en móvil',()=>{
+  const vista=leer('src/views/BienvenidaView.vue');
+  assert.match(vista,/\.inicio-cliente__siguiente-principal>\.inicio-cliente__siguiente-acciones\{grid-column:3;grid-row:1/);
+  assert.match(vista,/@media\(max-width:760px\)/);
+  assert.match(vista,/\.inicio-cliente__siguiente-principal>\.inicio-cliente__siguiente-acciones\{grid-column:1\/-1;grid-row:2/);
+  assert.match(vista,/\.inicio-cliente__siguiente-acciones \.inicio-cliente__accion\{width:100%;min-height:50px;height:auto;max-height:none;flex:0 0 auto/);
+  assert.match(vista,/\.inicio-cliente__cancelacion\{/);
+});
