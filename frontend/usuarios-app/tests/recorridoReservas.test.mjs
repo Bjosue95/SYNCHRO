@@ -275,3 +275,21 @@ test('las tarjetas y acciones usan la paleta de tablet con SVG visibles en claro
   assert.doesNotMatch(vista,/\.reserva-final__continuar :deep\(\.icono-tablet\) \{ filter: var\(--action-icon-filter\); \}/);
   assert.match(icono,/tema\.value === 'oscuro' \? '-oscuro' : ''/);
 });
+
+test('ubicaciones futuras deshabilitadas sin contaminar inventario SQL', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista,/UNAH · Campus Comayagua/);
+  assert.match(vista,/Parque Central de Comayagua/);
+  assert.match(vista,/Próximamente · No disponible/);
+  assert.match(vista,/v-for="estacion in estacionesProximas"/);
+  assert.match(vista,/reserva-opcion-ubicacion--proxima/);
+  assert.match(vista,/class="reserva-opcion-ubicacion reserva-opcion-ubicacion--proxima"[\s\S]*?disabled>/);
+  assert.match(vista,/const ubicaciones=computed\(\(\)=>\[\.\.\.new Map/);
+  assert.match(vista,/ubicacionId:ubicacion\.value/);
+  assert.doesNotMatch(vista,/@click="ubicacion=estacion\.id"/);
+});
+test('selección de estación comienza arriba sin espacio vacío', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista,/\.reserva-vista > \.reserva-final \{\s*flex:0 0 auto;\s*justify-content:flex-start;/);
+  assert.match(vista,/\.reserva-vista > \.reserva-final \.reserva-final__intro \{align-content:start;\}/);
+});
