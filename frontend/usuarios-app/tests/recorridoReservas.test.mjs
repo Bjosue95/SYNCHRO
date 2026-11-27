@@ -127,7 +127,8 @@ test('el historial utiliza solo datos reales y descarta respuestas antiguas', ()
   assert.match(panel, /encomiendasApi\.listar\(/);
   assert.match(panel, /items\.value=datos\.encomiendas/);
   assert.match(panel, /actual!==numeroConsulta/);
-  assert.match(panel, /fecha inicial debe ser anterior o igual a la fecha final/);
+  assert.match(panel, /v-if="esHistorial" class="historial-busqueda"/);
+  assert.match(panel, /numeroAplicado\.value/);
   assert.match(panel, /v-if="totalPaginas>1"/);
 });
 
