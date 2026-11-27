@@ -26,6 +26,11 @@ const rutas = [
     component: () => import("../views/EncomiendaDetalleView.vue")
   },
   {
+    path: "/reservas/:id(\\d+)/solicitar-pin", name: "solicitar-pin",
+    meta: { privada: true, titulo: "PIN de depósito" },
+    component: () => import("../views/SolicitarPinView.vue")
+  },
+  {
     path: "/reservas/:id(\\d+)/pago-pendiente", name: "pago-pendiente",
     meta: { privada: true, titulo: "Confirmación del pago" },
     component: () => import("../views/PagoPendienteView.vue")
