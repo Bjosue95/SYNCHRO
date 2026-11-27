@@ -29,10 +29,12 @@ test("Continuar exige una seleccion", () => {
 test("vista previa permite consultar el resumen sin cobrar", () => {
   const codigo = leer("../src/views/SeleccionMetodoPagoView.vue");
   const rutas = leer("../src/preview/rutas.js");
+  const catalogo = leer("../src/preview/pantallas.js");
   const visor = leer("../src/preview/views/PantallaView.vue");
 
   assert.match(codigo, /\/vista-previa\/pago-resumen/);
-  assert.match(rutas, /pago-resumen/);
+  assert.match(rutas, /buscarPantalla\(id\)/);
+  assert.match(catalogo, /id: "pago-resumen"/);
   assert.match(visor, /data-preview-permitido/);
 });
 
