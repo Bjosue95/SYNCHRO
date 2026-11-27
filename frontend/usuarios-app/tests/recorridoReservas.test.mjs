@@ -425,3 +425,15 @@ test('detalle presenta estado y resumen antes de informacion secundaria plegable
   assert.match(detalle,/detalle\.condiciones\?\.remitenteAutorizado/);
   assert.match(detalle,/rol === 'destinatario' && depositoConfirmado/);
 });
+
+test('pantalla de tarjeta en escritorio centra el contenido y no recorta titular', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /@media \(min-width:851px\)/);
+  assert.match(vista, /\.reserva-vista:has\(> \.reserva-prueba\)/);
+  assert.match(vista, /width:min\(100%,1080px\)/);
+  assert.match(vista, /grid-template-columns:minmax\(0,370px\) minmax\(0,1fr\)/);
+  assert.match(vista, /max-height:none;/);
+  assert.match(vista, /aspect-ratio:1\.7;/);
+  assert.match(vista, /overflow-wrap:anywhere;/);
+  assert.match(vista, /@media \(min-width:851px\) and \(max-height:740px\)/);
+});
