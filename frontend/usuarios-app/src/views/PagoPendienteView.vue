@@ -12,13 +12,12 @@ const estadoAccesible=ref('Comprobando el estado de la operación');
 const error=ref('');
 const mostrarAyuda=ref(false);
 const fallosConsecutivos=ref(0);
-const etapa=ref<'consultando'|'pago'|'pin'|'entrega'>('consultando');
+const etapa=ref<'consultando'|'pago'>('consultando');
 let comienzoEspera=Date.now();
 let reloj:ReturnType<typeof setInterval>|undefined;
 let consultaActiva=false;
 let montada=true;
 let version=0;
-let ultimoIntentoSolicitud=0;
 let redirigiendoAcceso=false;
 async function gestionarSesion(error:unknown){
   if(!(error instanceof ErrorApi&&error.estado===401))return false;
@@ -76,7 +75,6 @@ function iniciar(){
   fallosConsecutivos.value=0;
   etapa.value='consultando';
   comienzoEspera=Date.now();
-  ultimoIntentoSolicitud=0;
   redirigiendoAcceso=false;
   void consultar();
   reloj=setInterval(()=>{if(!document.hidden)void consultar();},5000);
@@ -101,8 +99,6 @@ onBeforeUnmount(()=>{montada=false;version++;clearInterval(reloj);});
     </div>
     <div v-if="mostrarAyuda" class="espera-pago__informacion" role="status" aria-live="polite">
       <p v-if="error">{{ error }}</p>
-      <p v-else-if="etapa==='entrega'">Estamos esperando que SYNCHRO confirme la entrega de tu PIN de depósito.</p>
-      <p v-else-if="etapa==='pin'">Pago confirmado. Tu PIN de depósito está pendiente de gestión.</p>
       <p v-else-if="etapa==='pago'">El pago continúa pendiente de confirmación.</p>
       <p v-else>Estamos comprobando el estado de tu reserva.</p>
       <button type="button" class="espera-pago__consulta" @click="router.push('/reservas/'+reservaId)">Ver estado de mi reserva</button>
