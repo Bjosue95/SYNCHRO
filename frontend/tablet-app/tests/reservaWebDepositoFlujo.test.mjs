@@ -89,7 +89,7 @@ test("la reserva exige sesion de terminal antes de capturar y diferencia 401 de 
   const elegir=leer("views/ReservaWebElegirView.vue");
   const pin=leer("views/RetiroPinView.vue");
   assert.match(api,/class SesionTerminalNoAutorizada extends Error/);
-  assert.match(api,/respuesta.status === 401 \|\| respuesta.status === 403/);
+  assert.match(api,/respuesta.status === 401 \|\| \(respuesta.status === 403/);
   assert.match(api,/fetch\("\/api\/terminales\/mi-sesion"/);
   assert.match(elegir,/await comprobarSesionTerminalReservaWeb\(\)/);
   assert.match(elegir,/:disabled="!seleccionado \|\| consultandoTerminal \|\| !!errorTerminal"/);
