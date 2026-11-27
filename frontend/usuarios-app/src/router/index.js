@@ -11,6 +11,11 @@ const rutas = [
     component: () => import("../views/AccesoView.vue")
   },
   {
+    path: "/bienvenida", name: "bienvenida",
+    meta: { privada: true, titulo: "Mi espacio" },
+    component: () => import("../views/BienvenidaView.vue")
+  },
+  {
     path: "/mis-reservas", alias: "/mi-cuenta", name: "cuenta",
     meta: { privada: true, titulo: "Mis reservas" },
     component: () => import("../views/PanelView.vue")
