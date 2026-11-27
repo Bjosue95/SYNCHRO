@@ -17,6 +17,7 @@ const secciones = [
   { ruta: "/bienvenida", nombre: "Inicio", icono: "inicio" },
   { ruta: "/reservar", nombre: "Reservar casillero", icono: "casillero" },
   { ruta: "/mis-reservas", nombre: "Mis reservas", icono: "reservas" },
+  { ruta: "/historial", nombre: "Historial", icono: "historial" },
   { ruta: "/mi-perfil", nombre: "Mi perfil", icono: "usuario" }
 ];
 
