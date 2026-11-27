@@ -230,3 +230,13 @@ test('dos tarjetas usan una sola fila sin estirarse hasta el fondo', () => {
   assert.match(vista, /height:clamp\(145px,23dvh,190px\)/);
   assert.doesNotMatch(vista, /grid-auto-rows:minmax\(0,1fr\)/);
 });
+
+test('escritorio ajusta tres opciones al alto disponible y no repite titulo de detalles', () => {
+  const vista=leer('PreReservaView');
+  assert.doesNotMatch(vista, /DETALLES DE LA RESERVA/);
+  assert.match(vista, /\.reserva-vista \.reserva-opciones:has\(> :nth-child\(3\)\) \{/);
+  assert.match(vista, /grid-template-rows:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(vista, /\.reserva-vista > \.env-card:has\(\.reserva-opciones > :nth-child\(3\)\) \{/);
+  assert.match(vista, /min-height:0;\s*overflow:hidden;/);
+  assert.match(vista, /\.reserva-vista \.reserva-opciones:has\(> :nth-child\(3\)\) :deep\(\.seleccion-reserva\) \{/);
+});
