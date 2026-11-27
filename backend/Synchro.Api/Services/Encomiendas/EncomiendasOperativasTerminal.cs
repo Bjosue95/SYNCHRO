@@ -159,7 +159,7 @@ internal sealed partial class EncomiendasOperativasSql
         int? identificada = null;
 
         await using (var q = Comando(c, null, """
-            SELECT o.ReservaId, o.RemitenteId,
+            SELECT o.ReservaId, r.ClientePersonaId,
                    p.PinHash, p.PinSalt
             FROM dbo.EncomiendasOperativas o
             JOIN dbo.PreReservasEncomiendasWeb r
