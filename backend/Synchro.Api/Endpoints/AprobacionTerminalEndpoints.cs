@@ -123,8 +123,7 @@ public static class AprobacionTerminalEndpoints
                           AND solicitud.CodigoVisual = @codigo
                           AND solicitud.Estado = N'Pendiente'
                           AND solicitud.FechaExpiracion >
-                              SYSUTCDATETIME()
-                          AND terminal.Id IS NOT NULL;
+                              SYSUTCDATETIME();
 
                         SELECT @@ROWCOUNT;
                         """,
