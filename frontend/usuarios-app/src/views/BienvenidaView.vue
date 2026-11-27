@@ -4,7 +4,7 @@ import { computed } from 'vue';
 import { estadoSesion } from '../services/sesion.js';
 import AppIcon from '../components/ui/AppIcon.vue';
 
-const usuario=computed(()=>estadoSesion.cliente?.nombreUsuario || '');
+const usuario=computed(()=> (estadoSesion.cliente as {nombreUsuario?:string}|null)?.nombreUsuario || '');
 </script>
 
 <template>
