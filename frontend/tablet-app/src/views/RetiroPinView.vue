@@ -179,7 +179,8 @@ async function verificar() {
     // SYNCHRO-TABLET-PAGO-OPTATIVO-V1
     // Activar solamente cuando backend, tarifas y operador
     // esten preparados. No se modifica el diseno del PIN.
-    if (import.meta.env.VITE_RETIRO_PAGO_HABILITADO === "true") {
+    if (import.meta.env.VITE_RETIRO_PAGO_HABILITADO === "true" ||
+        (import.meta.env.DEV && import.meta.env.VITE_RETIRO_PAGO_HABILITADO !== "false")) {
       // Validar rostro y PIN una sola vez.
       // Si el cobro falla, reutilizar solo la autorizacion
       // de pago temporal que el servidor ya emitio.

@@ -54,6 +54,11 @@ try {
     $env:EncomiendasOperacion__Habilitado = 'true'
     $env:ReservasPrototipo__AccesoLibrePruebas = 'true'
     $env:RostroV3__RetiroHabilitado = 'true'
+    $env:RostroV3__RegistroHabilitado = 'true'
+    $env:WhatsAppManual__Habilitado = 'true'
+
+    # Carga la configuracion de tarifas y verifica SQL, sin reescribir el catalogo.
+    & (Join-Path $PSScriptRoot 'Configurar-TarifasFeria-Pruebas.ps1') -SoloVerificar
     $env:ProteccionDatos__DirectorioClaves = $directorioClaves
     $env:CargaDispositivos__ClaveHmac = $claveBase64
 

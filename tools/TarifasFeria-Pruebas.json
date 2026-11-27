@@ -1,0 +1,39 @@
+{
+  "ResguardoPersonal": {
+    "MinutosBase": 60,
+    "MinutosPorBloque": 30,
+    "Tarifas": {
+      "Pequeno": 10,
+      "Mediano": 15,
+      "Grande": 20
+    },
+    "Adicionales": {
+      "Pequeno": 5,
+      "Mediano": 8,
+      "Grande": 10
+    }
+  },
+  "Carga": [
+    {
+      "Modalidad": "Inalambrica",
+      "MinutosBase": 60,
+      "PrecioBase": 10,
+      "MinutosAdicionales": 30,
+      "PrecioAdicional": 5
+    },
+    {
+      "Modalidad": "Cable",
+      "MinutosBase": 60,
+      "PrecioBase": 10,
+      "MinutosAdicionales": 30,
+      "PrecioAdicional": 5
+    },
+    {
+      "Modalidad": "Laptop",
+      "MinutosBase": 60,
+      "PrecioBase": 20,
+      "MinutosAdicionales": 30,
+      "PrecioAdicional": 10
+    }
+  ]
+}
