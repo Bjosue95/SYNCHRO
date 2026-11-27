@@ -340,7 +340,13 @@ test('el pago web usa pantalla independiente con titular y sin autocompletado', 
   assert.match(vista,/v-if="paso===6" class="env-card reserva-revision/);
   assert.match(vista,/v-if="paso===7" class="env-card reserva-pago__eleccion"/);
   assert.match(vista,/v-if="paso===8 && pagador==='Remitente'"/);
-  assert.match(vista,/@click="pagador='Remitente';paso=8"/);
+  assert.match(vista,/@click="pagador='Remitente'"/);
+  assert.match(vista,/@click="pagador='Destinatario'"/);
+  assert.match(vista, /class="reserva-pagador__check"/);
+  assert.match(vista, /v-if="pagador==='Remitente'" class="reserva-pagador__check"/);
+  assert.match(vista, /v-if="pagador==='Destinatario'" class="reserva-pagador__check"/);
+  assert.match(vista, /paso===7 \? \(pagador==='Remitente' \? 'Continuar a tarjeta' : 'Confirmar reserva'\)/);
+  assert.doesNotMatch(vista, /@click="pagador='Remitente';paso=8"/);
   assert.match(vista,/const titularTarjeta=ref\(''\)/);
   assert.match(vista,/v-model="titularTarjeta"/);
   assert.match(vista,/titularTarjeta\.trim\(\) \|\| 'CLIENTE SYNCHRO'/);
