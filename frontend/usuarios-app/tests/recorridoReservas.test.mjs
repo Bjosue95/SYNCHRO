@@ -186,7 +186,7 @@ test('reserva en pasos adaptables conserva selecciones y espera aprobacion del p
   const espera=readFileSync(new URL('../src/views/PagoPendienteView.vue',import.meta.url),'utf8');
   assert.match(espera, /setInterval\(\(\)=>\{if\(!document\.hidden\)void consultar\(\);\},5000\)/);
   assert.match(espera, /d\.pago\?\.estado==='ConfirmadoManual'/);
-  assert.match(espera, /await router\.replace\('\/bienvenida'\)/);
+  assert.match(espera, /await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
 });
 test('PIN destinatario permanece condicionado al deposito confirmado', () => {
   const detalle=leer('EncomiendaDetalleView');
@@ -404,7 +404,7 @@ test('la espera de pago usa animación automatica sin botones ni textos redundan
   assert.match(vista,/@keyframes espera-flotar/);
   assert.match(vista,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(vista,/setInterval\(\(\)=>\{if\(!document\.hidden\)void consultar\(\);\},5000\)/);
-  assert.match(vista,/await router\.replace\('\/bienvenida'\)/);
+  assert.match(vista,/await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
   assert.doesNotMatch(vista,/Actualizar estado|Ver mi reserva|@click="consultar"/);
   assert.doesNotMatch(vista,/RouterLink/);
 });
@@ -438,24 +438,20 @@ test('pantalla de tarjeta en escritorio centra el contenido y no recorta titular
   assert.match(vista, /@media \(min-width:851px\) and \(max-height:740px\)/);
 });
 
-test('espera solo animacion a pantalla completa hasta PIN de deposito entregado',()=>{
-  const vista=leer('PagoPendienteView');
-  assert.match(vista,/const pinEntregado=\(d:any\)=>/);
-  assert.match(vista,/p\.finalidad==='Deposito'&&\['Entregado','Consumido'\]\.includes\(p\.estado\)/);
-  assert.match(vista,/if\(pinEntregado\(d\)\)\{/);
-  assert.match(vista,/await router\.replace\('\/bienvenida'\)/);
-  assert.match(vista,/await encomiendasApi\.solicitarPinDeposito\(id\)/);
-  assert.match(vista,/!pinEmitido\(d\)&&!pinSolicitado\(d\)/);
-  assert.match(vista,/if\(!d\.condiciones\?\.remitenteAutorizado\)/);
-  assert.match(vista,/height:100dvh/);
-  assert.match(vista,/overflow:hidden/);
-  assert.match(vista,/:global\(\.app-shell:has\(\.espera-pago\) \.topbar\)\{display:none;\}/);
-  assert.doesNotMatch(vista,/<h1|Total solicitado|Reserva #/);
-  assert.match(vista,/v-if="mostrarAyuda"/);
-  assert.match(vista,/Date\.now\(\)-comienzoEspera>=20000/);
-  assert.match(vista,/Ver estado de mi reserva/);
-  assert.match(vista,/v-else-if="etapa==='entrega'"/);
-  assert.match(vista,/v-if="error"/);
+test('la animación del pago abre pantalla independiente de solicitud y no genera PIN automáticamente',()=>{
+  const espera=leer('PagoPendienteView');
+  const solicitud=leer('SolicitarPinView');
+  assert.match(espera,/d\.pago\?\.estado==='ConfirmadoManual'/);
+  assert.match(espera,/await router\.replace\('\/reservas\/'\+id\+'\/solicitar-pin'\)/);
+  assert.doesNotMatch(espera,/encomiendasApi\.solicitarPinDeposito\(/);
+  assert.match(solicitud,/async function solicitar\(\)/);
+  assert.match(solicitud,/await encomiendasApi\.solicitarPinDeposito\(reservaId\.value\)/);
+  assert.match(solicitud,/@click="solicitar"/);
+  assert.match(solicitud,/if\(entregado\)\{/);
+  assert.match(solicitud,/await router\.replace\('\/bienvenida'\)/);
+  assert.match(solicitud,/['"]Entregado['"]/);
+  assert.match(solicitud,/clearInterval\(reloj\)/);
+  assert.match(espera,/:global\(\.app-shell:has\(\.espera-pago\) \.topbar\)\{display:none;\}/);
 });
 
 test('si la sesión caduca durante la animación se vuelve al acceso conservando la reserva',()=>{
@@ -469,12 +465,13 @@ test('si la sesión caduca durante la animación se vuelve al acceso conservando
   assert.doesNotMatch(espera,/await router\.replace\('\/bienvenida'\)[\s\S]*?error\.estado===401/);
 });
 
-test('la animacion muestra salida solo si hay demora o error, sin aprobar el PIN por cuenta propia',()=>{
- const vista=leer('PagoPendienteView');
- assert.match(vista,/mostrarAyuda\.value=false/);
- assert.match(vista,/mostrarAyuda\.value=true/);
- assert.match(vista,/if\(pinEntregado\(d\)\)\{/);
- assert.match(vista,/if\(await gestionarSesion\(e\)\)return/);
- assert.match(vista,/await router\.replace\('\/bienvenida'\)/);
- assert.doesNotMatch(vista,/setTimeout\([^)]*router\.replace\('\/bienvenida'/);
+test('la espera no aprueba el PIN ni regresa a Bienvenida al confirmar solamente el pago',()=>{
+ const espera=leer('PagoPendienteView');
+ const solicitud=leer('SolicitarPinView');
+ assert.match(espera,/mostrarAyuda\.value=false/);
+ assert.match(espera,/mostrarAyuda\.value=true/);
+ assert.doesNotMatch(espera,/await router\.replace\('\/bienvenida'\)/);
+ assert.match(solicitud,/pinEntregado/);
+ assert.match(solicitud,/if\(entregado\)\{/);
+ assert.match(solicitud,/await router\.replace\('\/bienvenida'\)/);
 });
