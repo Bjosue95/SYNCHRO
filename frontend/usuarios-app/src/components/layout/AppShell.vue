@@ -14,6 +14,7 @@ const error = ref("");
 const nombre = computed(() => estadoSesion.cliente?.nombreUsuario || "Cliente");
 const inicial = computed(() => nombre.value.charAt(0).toLocaleUpperCase("es-HN"));
 const secciones = [
+  { ruta: "/bienvenida", nombre: "Inicio", icono: "inicio" },
   { ruta: "/reservar", nombre: "Reservar casillero", icono: "casillero" },
   { ruta: "/mis-reservas", nombre: "Mis reservas", icono: "reservas" },
   { ruta: "/mi-perfil", nombre: "Mi perfil", icono: "usuario" }
@@ -45,7 +46,7 @@ async function salir() {
     <div v-if="abierto" class="sidebar-overlay" @click="abierto = false" aria-hidden="true"></div>
     <aside class="sidebar" :class="{ abierta: abierto }" aria-label="Menú de usuario">
       <div class="sidebar-marca">
-        <RouterLink to="/mi-cuenta" class="enlace-marca"><BrandLogo /></RouterLink>
+        <RouterLink to="/bienvenida" class="enlace-marca"><BrandLogo /></RouterLink>
         <button type="button" class="cerrar-sidebar" aria-label="Cerrar menú" @click="abierto = false">
           <AppIcon nombre="volver" :tamano="19"/>
         </button>
