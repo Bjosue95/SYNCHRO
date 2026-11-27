@@ -45,10 +45,10 @@ defineEmits<{ seleccionar: [] }>();
   padding: 18px 12px;
   text-align: center;
   font: inherit;
-  border: 2px solid var(--border);
+  border: 2px solid #dfeaf0;
   border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text-strong);
+  background: #ffffff;
+  color: #01305c;
   cursor: pointer;
   transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
@@ -71,7 +71,7 @@ defineEmits<{ seleccionar: [] }>();
   place-items: center;
   align-self: stretch;
   min-width: 0;
-  color: var(--text-muted);
+  color: #5b7282;
   font-size: 12.5px;
   line-height: 1.25;
   overflow: hidden;
@@ -83,14 +83,14 @@ defineEmits<{ seleccionar: [] }>();
   place-items: center;
   align-self: stretch;
   min-width: 0;
-  color: var(--text-muted);
+  color: #008c99;
   font-size: 12px;
   line-height: 1.2;
   white-space: nowrap;
 }
 .seleccion-reserva.seleccionada {
   border-color: var(--brand-accent);
-  background: var(--surface-accent);
+  background: #e8f9fa;
   box-shadow: 0 0 0 2px rgb(0 185 199 / 12%);
 }
 .seleccion-reserva.seleccionada::after {
@@ -114,6 +114,28 @@ defineEmits<{ seleccionar: [] }>();
   outline-offset: 3px;
 }
 .seleccion-reserva:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Equivalentes exactos de las tarjetas SYNCHRO Tablet en modo oscuro. */
+:global(:root[data-theme="oscuro"] .seleccion-reserva) {
+  background:#103956;
+  border-color:#315573;
+  color:#ffffff;
+}
+:global(:root[data-theme="oscuro"] .seleccion-reserva .seleccion-reserva__descripcion) {
+  color:#c6dfea;
+}
+:global(:root[data-theme="oscuro"] .seleccion-reserva .seleccion-reserva__disponibles),
+:global(:root[data-theme="oscuro"] .seleccion-reserva .seleccion-reserva__seleccion) {
+  color:#5ec6e8;
+}
+:global(:root[data-theme="oscuro"] .seleccion-reserva.seleccionada) {
+  background:#174b65;
+  border-color:#00b9c7;
+  box-shadow:0 0 0 2px rgb(0 185 199 / 20%);
+}
+:global(:root[data-theme="oscuro"] .seleccion-reserva:disabled) {
+  opacity:.75;
+}
 @media (prefers-reduced-motion: reduce) {
   .seleccion-reserva { transition: none; }
 }
