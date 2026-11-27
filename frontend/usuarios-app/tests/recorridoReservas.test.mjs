@@ -199,8 +199,18 @@ test('una sola seccion por paso y tarjetas sin piramide movil', () => {
   assert.match(vista, /v-if="paso===3" class="reserva-bloque"/);
   assert.match(vista, /v-if="paso===4" class="reserva-bloque"/);
   assert.match(vista, /saltoSiguiente=\(actual:number\)=>actual===4&&servicio\.value==='Personal'\?6:actual\+1/);
-  assert.match(vista, /\.reserva-vista \.reserva-opciones\.reserva-tres \{grid-template-columns:repeat\(3,minmax\(0,1fr\)\);\}/);
-  assert.doesNotMatch(vista, /:last-child:nth-child\(odd\)/);
+  assert.match(vista, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(vista, /:last-child:nth-child\(odd\):not\(:first-child\)/);
+  assert.match(vista, /:only-child \{grid-column:1\/-1;\}/);
   assert.match(vista, /overflow-y:auto;overscroll-behavior:contain/);
   assert.match(vista, /<footer v-if="!cargando && paso<=ultimoPaso"/);
+});
+
+test('indicador de progreso compacto y tarjetas adaptadas a la cantidad', () => {
+  const vista=leer('PreReservaView');
+  assert.match(vista, /reserva-pasos__contador/);
+  assert.match(vista, /:style="\{width:\(pasoNumero\/pasosVisibles\.length\*100\)\+'%'\}"/);
+  assert.match(vista, /\.reserva-vista \.reserva-opciones > :only-child \{grid-column:1\/-1;\}/);
+  assert.match(vista, /\.reserva-vista \.reserva-opciones > :last-child:nth-child\(odd\):not\(:first-child\)/);
+  assert.match(vista, /\.reserva-pasos__barra \{\s*display:block;\s*height:3px;/);
 });
