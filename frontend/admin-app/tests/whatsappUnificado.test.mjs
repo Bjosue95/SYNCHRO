@@ -17,3 +17,9 @@ test("Tablet, Depósito web y Destinatario comparten el panel de PIN",()=>{
  assert.match(tablet,/envioComprobado: true/);
  assert.match(wa,/envioComprobado: true/);
 });
+
+test("la bandeja Tablet excluye solicitudes vencidas y envíos ya completados",()=>{
+ const tablet=leer("views/WhatsAppManualAdminView.vue");
+ assert.match(tablet,/const pendientes=computed\(\(\)=>operaciones\.value\.filter\(x=>\["Pendiente","Reservado","PinEmitido"\]\.includes\(x\.estado\)\)\)/);
+ assert.match(tablet,/operaciones\.filter\(x => x\.estado === "Enviado"\)/);
+});

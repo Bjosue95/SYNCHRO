@@ -23,7 +23,7 @@ const pinActual = ref(null);
 const copiado=ref(false);
 const seleccionado=ref(null);
 const detalle=computed(()=>operaciones.value.find(x=>x.intentoId===seleccionado.value)||null);
-const pendientes=computed(()=>operaciones.value.filter(x=>["Pendiente","Reservado","PinEmitido","Vencido"].includes(x.estado)));
+const pendientes=computed(()=>operaciones.value.filter(x=>["Pendiente","Reservado","PinEmitido"].includes(x.estado)));
 function abrir(item){if(trabajando.value)return;seleccionado.value=item.intentoId;error.value="";aviso.value="";}
 function volver(){if(trabajando.value)return;if(pinActual.value&&!window.confirm("El PIN se muestra una sola vez. ¿Volver sin confirmar el envío?"))return;ocultarValorPin();pinActual.value=null;copiado.value=false;seleccionado.value=null;error.value="";aviso.value="";}
 let ocultacion=null;
@@ -282,7 +282,7 @@ defineExpose({ actualizar });
         <article v-for="item in pendientes" :key="item.intentoId" class="tarjeta">
           <div class="cabecera-tarjeta">
             <h2>PIN para resguardo personal</h2>
-            <span class="estado">{{ item.estado === 'Pendiente' ? 'Pendiente' : item.estado === 'Vencido' ? 'Vencido' : 'PIN por enviar' }}</span>
+            <span class="estado">{{ item.estado === 'Pendiente' ? 'Pendiente' : 'PIN por enviar' }}</span>
           </div>
           <p><strong>Casillero:</strong> {{ item.codigoCasillero }}</p>
           <p><strong>WhatsApp:</strong> {{ item.telefonoCliente || 'Sin comprobar' }}</p>
