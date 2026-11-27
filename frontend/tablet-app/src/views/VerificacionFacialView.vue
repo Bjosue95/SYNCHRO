@@ -617,7 +617,7 @@ async function continuar() {
       return;
     }
     try {
-      const coincidencia=/^data:image\\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
+      const coincidencia=/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(fotoBase64.value);
       if (!coincidencia) throw new Error("La fotografía no tiene un formato PNG válido.");
       // Fotografía temporal: no se crea un descriptor ni se compara un rostro.
       registrarFotoReservaWeb(coincidencia[1]);
