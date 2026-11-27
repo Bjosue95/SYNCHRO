@@ -1,0 +1,19 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const leer=p=>readFileSync(new URL("../src/"+p,import.meta.url),"utf8");
+test("Tablet, Depósito web y Destinatario comparten el panel de PIN",()=>{
+ const wa=leer("views/WhatsAppView.vue"),tablet=leer("views/WhatsAppManualAdminView.vue"),panel=leer("components/PanelEnvioPin.vue");
+ assert.match(wa,/nombre:'Depósito web'/);
+ assert.match(wa,/<PanelEnvioPin/);
+ assert.match(tablet,/<PanelEnvioPin/);
+ assert.match(tablet,/Atender solicitud/);
+ assert.match(tablet,/class="formulario" @submit.prevent="confirmar\(detalle\)"/);
+ assert.match(panel,/Copiar mensaje completo/);
+ assert.match(panel,/Abrir WhatsApp/);
+ assert.match(panel,/Ya envié el PIN por WhatsApp/);
+ assert.match(panel,/:disabled="ocupado \|\| !copiado"/);
+ assert.match(tablet,/!copiado.value/);
+ assert.match(tablet,/envioComprobado: true/);
+ assert.match(wa,/envioComprobado: true/);
+});

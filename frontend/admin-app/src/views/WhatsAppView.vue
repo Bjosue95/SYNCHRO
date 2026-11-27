@@ -5,6 +5,7 @@ import { apiAdmin, operarEncomienda } from '../services/adminApi';
 import { chatPinEncomienda, mensajePinEncomienda } from '../services/pinEncomiendaManual.js';
 import WhatsAppManualAdminView from './WhatsAppManualAdminView.vue';
 import AdminIcon from '../components/AdminIcon.vue';
+import PanelEnvioPin from '../components/PanelEnvioPin.vue';
 
 type Categoria = 'tablet' | 'remitente' | 'destinatario';
 const route = useRoute();
@@ -138,7 +139,7 @@ async function actualizar(): Promise<boolean> {
 async function actualizarTodo(mostrarEstado = true) {
   if (!montado || actualizandoTodo.value) return;
   actualizandoTodo.value = true;
-  if (mostrarEstado) estadoActualizacion.value = 'Consultando Tablet, Remitente y Destinatario…';
+  if (mostrarEstado) estadoActualizacion.value = 'Consultando Tablet, Depósito web y Destinatario…';
   try {
     const [encomiendasOk, tabletOk] = await Promise.all([actualizar(), consultarTablet()]);
     if (categoria.value === 'tablet') await tabletVista.value?.actualizar();
@@ -307,7 +308,7 @@ watch(() => route.query.encomienda, valor => {
       </div>
     </section>
     <nav class="categorias wa-tabs" aria-label="Tipo de solicitud">
-      <button v-for="cat in [{id:'tablet',nombre:'Tablet'},{id:'remitente',nombre:'Depósito'},{id:'destinatario',nombre:'Destinatario'}]"
+      <button v-for="cat in [{id:'tablet',nombre:'Tablet'},{id:'remitente',nombre:'Depósito web'},{id:'destinatario',nombre:'Destinatario'}]"
         :key="cat.id" type="button" :class="{activo:categoria===cat.id}"
         :aria-current="categoria===cat.id ? 'page' : undefined"
         @click="cambiarCategoria(cat.id as Categoria)">
@@ -383,19 +384,12 @@ watch(() => route.query.encomienda, valor => {
             Generar PIN de {{ categoria === 'remitente' ? 'depósito' : 'retiro' }}
           </button>
         </template>
-        <section v-if="pinActual" class="pin-panel" aria-label="Envío manual del PIN">
-          <h3>PIN de {{ categoria === 'remitente' ? 'depósito' : 'retiro' }}</h3>
-          <p v-if="pinValido" class="numero-pin">{{ pinActual.pin }}</p>
-          <p v-else class="info">El PIN está oculto. Si no lo enviaste, regresa y genera un reemplazo.</p>
-          <p>Enviar a: {{ pinActual.telefono }}</p>
-          <textarea v-if="mensajePin" :value="mensajePin" rows="4" readonly aria-label="Mensaje completo" />
-          <div class="acciones">
-            <button class="primario" type="button" :disabled="ocupado || !mensajePin" @click="copiar">Copiar mensaje completo</button>
-            <a v-if="enlacePin" :href="enlacePin" target="_blank" rel="noopener noreferrer" class="secundario">Abrir WhatsApp</a>
-            <button class="primario" type="button" :disabled="ocupado || !copiado" @click="enviado">Ya envié el PIN por WhatsApp</button>
-          </div>
-          <p class="ayuda">El PIN se oculta después de 60 segundos. Marcar enviado es una declaración del operador.</p>
-        </section>
+        <PanelEnvioPin v-if="pinActual"
+          :titulo="categoria === 'remitente' ? 'PIN de depósito' : 'PIN de retiro'"
+          :pin="pinValido ? pinActual.pin : ''" :telefono="pinActual.telefono"
+          :mensaje="mensajePin" :enlace="enlacePin" :ocupado="ocupado" :copiado="copiado"
+          @copiar="copiar" @enviado="enviado" @reemplazar="emitir" />
+
       </article>
     </section>
     </div>
@@ -617,4 +611,13 @@ watch(() => route.query.encomienda, valor => {
 .wa-solicitudes-pin__fila>div{display:grid;gap:4px;min-width:0;}
 .wa-solicitudes-pin__fila small{font-size:12px;color:var(--wa-muted);overflow-wrap:anywhere;}
 @media(max-width:480px){.wa-solicitudes-pin__fila button{width:100%;}}
+/* Tablet utiliza la misma geometría de ficha, formularios y acciones que Depósito web. */
+.wa-shell :deep(.wa-tablet-integrada .barra-solicitudes) {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:15px;}
+.wa-shell :deep(.wa-tablet-integrada .cabecera-tarjeta) {padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--wa-border);}
+.wa-shell :deep(.wa-tablet-integrada .formulario) {display:grid;gap:14px;margin:18px 0;}
+.wa-shell :deep(.wa-tablet-integrada .formulario input) {box-sizing:border-box;display:block;width:100%;min-width:0;padding:12px 14px;border:1px solid var(--wa-border);border-radius:11px;background:var(--wa-field);color:var(--wa-text);font:inherit;}
+.wa-shell :deep(.wa-tablet-integrada .info),.wa-shell :deep(.wa-tablet-integrada .texto-esperado) {padding:13px;border:1px solid var(--wa-border);border-radius:12px;background:var(--wa-card);color:var(--wa-text);line-height:1.55;}
+.wa-shell :deep(.wa-tablet-integrada .ayuda) {font-size:14px;line-height:1.55;}
+.wa-shell :deep(.wa-tablet-integrada .pin-panel textarea) {min-height:0;}
+.wa-shell :deep(.wa-tablet-integrada .pin-panel .acciones) {justify-content:flex-start;}
 </style>

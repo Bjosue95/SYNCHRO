@@ -42,9 +42,11 @@ test("la bandeja WhatsApp presenta solicitudes PIN de deposito web y pertenencia
   assert.match(wa,/PIN de depósito solicitados desde la web/);
   assert.match(wa,/atenderPinSolicitado\(item\.encomiendaId\)/);
   assert.match(wa,/categoria\.value='remitente'/);
-  assert.match(wa,/Ya envié el PIN por WhatsApp/);
+  assert.match(wa,/PanelEnvioPin/);
+  const panel=readFileSync(new URL("../src/components/PanelEnvioPin.vue",import.meta.url),"utf8");
+  assert.match(panel,/Ya envié el PIN por WhatsApp/);
   assert.match(backend,/a\.Accion=N'PinDepositoSolicitado'/);
   assert.match(backend,/solicitudPinDeposito=r\.GetBoolean\(22\)/);
-  assert.match(backend,/SolicitudPinDeposito\) AS/);
+  assert.match(backend,/SolicitudPinDeposito,PagoDiferidoDestinatario\) AS/);
   assert.match(detalle, /!r\.IsDBNull\(6\)\?"Entregado"/);
 });
