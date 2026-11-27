@@ -23,6 +23,7 @@ const router = createRouter({
       name: "guardar",
       component: GuardarView,
     },
+    { path: "/terminal/vincular", name: "terminal-vincular", component: () => import("../views/AutorizarTerminalView.vue") },
     { path: "/guardar/reserva", name: "guardar-reserva", component: () => import("../views/ReservaWebElegirView.vue") },
     { path: "/guardar/reserva/tipo", name: "guardar-reserva-tipo", component: () => import("../views/ReservaWebElegirView.vue") },
     { path: "/guardar/reserva/captura", name: "guardar-reserva-captura", component: VerificacionFacialView },
