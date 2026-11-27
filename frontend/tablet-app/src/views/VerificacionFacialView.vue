@@ -813,7 +813,7 @@ onBeforeUnmount(() => {
         @click="comenzarEscaneo"
       >
         <span>
-          {{ consentimiento ? "Reintentar escaneo" : "Autorizar e iniciar escaneo" }}
+          {{ consentimiento ? "Reintentar escaneo" : "Iniciar escaneo" }}
         </span>
       </button>
 
@@ -1381,4 +1381,18 @@ onBeforeUnmount(() => {
   background: #103956; color: #fff; border-color: #315573;
 }
 
+/* Separar privacidad del botón sin cambiar la posición de las acciones posteriores. */
+.pie-facial:has(.privacidad-facial) {
+  box-sizing: border-box;
+  height: 144px;
+  justify-content: flex-end;
+  gap: 20px;
+  padding-bottom: 16px;
+}
+.pantalla-rostro:has(.privacidad-facial) .panel-facial {
+  padding-bottom: 152px;
+}
+.pie-facial:has(.privacidad-facial) .continuar {
+  flex-shrink: 0;
+}
 </style>

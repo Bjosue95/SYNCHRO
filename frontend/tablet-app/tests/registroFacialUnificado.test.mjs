@@ -11,7 +11,9 @@ test("pantallas faciales operativas usan el mismo título y no piden activar V3"
     assert.match(s,/aria-describedby="aviso-facial"/);
     assert.match(s,/<details [^>]*class="privacidad-facial">/);
     assert.match(s,/<summary data-preview-permitido>Privacidad<\/summary>/);
-    assert.match(s,/Autorizar e iniciar escaneo/);
+    assert.match(s,/"Iniciar escaneo"/);
+    assert.doesNotMatch(s,/Autorizar e iniciar escaneo/);
+    assert.match(s,/\.pie-facial:has\(\.privacidad-facial\) \{[\s\S]*?gap: 20px;/);
     assert.doesNotMatch(s,/<details[^>]*\sopen(?:\s|=|>)/);
     assert.match(s,/consentimiento\.value = true/);
   }
