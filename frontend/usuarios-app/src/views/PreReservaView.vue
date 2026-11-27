@@ -107,6 +107,12 @@ const cantidadPorTamano=(t:string)=>contarCasilleros(porTipo.value.filter(o=>o.t
 const porTipo=computed(()=>opciones.value.filter(o=>o.tipo===tipo.value));
 const porTamano=computed(()=>porTipo.value.filter(o=>o.tamano===tamano.value));
 const ubicaciones=computed(()=>[...new Map<string,string>(porTamano.value.map(o=>[o.ubicacionId,o.ubicacion])).entries()]);
+// Lugares de referencia para la interfaz: no forman parte del catálogo SQL
+// ni se envían como ubicaciones reservables a la API.
+const estacionesProximas=[
+  {id:'proxima-unah-comayagua',nombre:'UNAH · Campus Comayagua'},
+  {id:'proxima-parque-comayagua',nombre:'Parque Central de Comayagua'}
+];
 const elegibles=computed(()=>porTamano.value.filter(o=>o.ubicacionId===ubicacion.value));
 const duraciones=computed<number[]>(()=>[...new Set<number>(elegibles.value.flatMap(o=>o.duraciones))].sort((a,b)=>a-b));
 const tipoPermitido=computed(()=>servicio.value==='Encomienda'||tipo.value==='Normal');
@@ -298,7 +304,19 @@ onMounted(cargar);
                     <AppIcon nombre="check" :tamano="19" />
                   </span>
                 </button>
-                <p v-if="!ubicaciones.length" class="env-help">No hay ubicaciones para este tamaño. Selecciona otra opción.</p>
+                <button v-for="estacion in estacionesProximas" :key="estacion.id" type="button"
+                  class="reserva-opcion-ubicacion reserva-opcion-ubicacion--proxima"
+                  :aria-label="estacion.nombre+' · Próximamente, no disponible para reservas'"
+                  disabled>
+                  <span class="reserva-opcion-ubicacion__contenido">
+                    <strong>{{ estacion.nombre }}</strong>
+                    <small>Próximamente · No disponible</small>
+                  </span>
+                  <span class="reserva-opcion-ubicacion__marca" aria-hidden="true">
+                    <AppIcon nombre="ubicacion" :tamano="19" />
+                  </span>
+                </button>
+                <p v-if="!ubicaciones.length" class="env-help">No hay estaciones disponibles para reservar este tamaño. Las otras ubicaciones son solo referencias de futuras estaciones.</p>
               </div>
               <p v-if="ubicacionPendiente" class="reserva-bloque__nota">
                 La dirección exacta de esta estación aún no está confirmada.
@@ -505,6 +523,14 @@ onMounted(cargar);
 .reserva-vista .reserva-opciones {width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(7px,1.5vw,14px);}
 .reserva-vista .reserva-opciones:not(.reserva-tres) {grid-template-columns:repeat(2,minmax(0,1fr));}
 .reserva-vista .reserva-final__grid {grid-template-columns:minmax(0,1fr);}
+/* Formulario por pasos: comienza arriba y no deja un vacío antes del título. */
+.reserva-vista > .reserva-final {
+  flex:0 0 auto;
+  justify-content:flex-start;
+  align-content:start;
+  min-height:0;
+}
+.reserva-vista > .reserva-final .reserva-final__intro {align-content:start;}
 .reserva-vista .reserva-final__resumen {display:none;}
 .env-page--asistente > .reserva-paso__navegacion {
   flex:0 0 auto;
@@ -611,6 +637,17 @@ onMounted(cargar);
 .reserva-bloque__cabecera h3 { font-size: 17px; line-height: 1.25; }
 .reserva-bloque__cabecera p { font-size: 12px; line-height: 1.55; color: var(--text-muted); }
 .reserva-ubicaciones { display: grid; gap: 10px; }
+.reserva-opcion-ubicacion--proxima,
+.reserva-opcion-ubicacion--proxima:disabled {
+  cursor:not-allowed;
+  opacity:1;
+  border-color:var(--border);
+  background:var(--surface-soft);
+  color:var(--text-muted);
+}
+.reserva-opcion-ubicacion--proxima strong {color:var(--text-muted);}
+.reserva-opcion-ubicacion--proxima .reserva-opcion-ubicacion__marca {opacity:.55;}
+.reserva-opcion-ubicacion--proxima:hover {border-color:var(--border);background:var(--surface-soft);}
 .reserva-opcion-ubicacion {
   font: inherit;
   display: flex;
