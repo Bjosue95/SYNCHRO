@@ -158,14 +158,6 @@ onBeforeUnmount(() => observador?.disconnect());
     <QuoteForm />
     <ContactSection />
 
-    <section class="contenedor syn-bottom-message" data-reveal>
-      <AppIcon nombre="seguridad" :tamano="26"/>
-      <p>
-        En SYNCHRO, la seguridad forma parte de cada operación.
-        La solicitud web, el consentimiento y la verificación
-        son pasos distintos de un mismo servicio.
-      </p>
-    </section>
   </div>
 </template>
 
@@ -220,8 +212,6 @@ onBeforeUnmount(() => observador?.disconnect());
 .syn-charge-battery span { height:16px; background: var(--brand-accent); border-radius:1px; opacity:.25; animation: syn-charge-show 2.2s ease-out both; }
 .syn-charge-battery span:nth-child(1) { animation-delay:.15s; }.syn-charge-battery span:nth-child(2) { animation-delay:.3s; }.syn-charge-battery span:nth-child(3) { animation-delay:.45s; }.syn-charge-battery span:nth-child(4) { animation-delay:.6s; }
 @keyframes syn-charge-show { to { opacity:.9; } }
-.syn-bottom-message { display: flex; align-items: flex-start; gap: 17px; max-width: 1170px; padding: 26px 0 70px; border-top: 1px solid var(--border); }
-.syn-bottom-message p { margin: 0; font-size: 14px; line-height: 1.7; max-width: 690px; color: var(--text-muted); }
 .syn-pendiente { opacity: 0; transform: translateY(14px); transition: opacity 400ms ease, transform 400ms ease; }
 .syn-service-grid > :nth-child(2) { transition-delay: 70ms; } .syn-service-grid > :nth-child(3) { transition-delay: 100ms; } .syn-service-grid > :nth-child(4) { transition-delay: 150ms; }
 @media (max-width: 1000px) {
@@ -238,7 +228,6 @@ onBeforeUnmount(() => observador?.disconnect());
   .syn-feature { padding: 22px; }
   .syn-feature-main, .syn-feature-storage { min-height: 0; }
   .syn-feature-thermal, .syn-feature-charge { min-height: 0; }
-  .syn-bottom-message { padding: 24px 0 46px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .syn-charge-battery span { animation: none; opacity: .9; }

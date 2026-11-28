@@ -84,3 +84,17 @@ test("origen, misión y visión proceden del material de SYNCHRO", () => {
   assert.match(nosotros, /Hacia dónde vamos/);
   assert.match(nosotros, /temperatura controlada/);
 });
+
+test("contacto concentra WhatsApp en una única acción principal y mantiene los canales oficiales",()=>{
+  const contacto=leer("src/components/landing/ContactSection.vue");
+  const footer=leer("src/components/landing/SiteFooter.vue");
+  const inicio=leer("src/views/InicioView.vue");
+  assert.equal((contacto.match(/:href="whatsapp"/g)||[]).length,1);
+  assert.doesNotMatch(footer,/:href="whatsapp"|Contactar por WhatsApp|syn-footer-cta/);
+  assert.match(contacto,/empresa\.correo/);
+  assert.match(contacto,/empresa\.direccion/);
+  assert.match(contacto,/Seguridad en cada operación/);
+  assert.doesNotMatch(inicio,/syn-bottom-message/);
+  assert.match(footer,/Política de cookies/);
+  assert.match(footer,/Preferencias de cookies/);
+});
