@@ -6,6 +6,7 @@ import { ErrorApi } from "../services/clientesApi.js";
 import AppIcon from "../components/ui/AppIcon.vue";
 import AccessHighlights from "../components/ui/AccessHighlights.vue";
 import SynButton from "../components/ui/SynButton.vue";
+import PasswordStrength from "../components/ui/PasswordStrength.vue";
 import {
   usuarioValido, contrasenaValida, normalizarTelefono
 } from "../services/validaciones.js";
@@ -50,8 +51,14 @@ function validarCampo(campo: Campo) {
   }
 }
 function revisarCampo(campo: Campo, alSalir = false) {
-  if (alSalir) tocados[campo] = true;
-  if (intentado.value || tocados[campo]) validarCampo(campo);
+  // En registro no marcar la contraseña vacía como error solo por pasar el foco.
+  if (campo === "contrasena" && esRegistro.value && !formulario.contrasena && !intentado.value) {
+    errores[campo] = "";
+    tocados[campo] = false;
+  } else {
+    if (alSalir) tocados[campo] = true;
+    if (intentado.value || tocados[campo]) validarCampo(campo);
+  }
   if (!alSalir && !enviando.value) error.value = "";
 }
 
@@ -164,7 +171,7 @@ async function enviar() {
             <input id="acceso-contrasena" v-model="formulario.contrasena" :type="mostrarContrasena ? 'text' : 'password'" required
               :minlength="esRegistro ? 12 : undefined" maxlength="128"
               :readonly="enviando" :aria-invalid="!!errores.contrasena"
-              :aria-describedby="errores.contrasena ? 'contrasena-error' : esRegistro ? 'contrasena-ayuda' : undefined"
+              :aria-describedby="[esRegistro && !formulario.contrasena ? 'contrasena-ayuda' : '', esRegistro && formulario.contrasena ? 'fortaleza-contrasena' : '', errores.contrasena ? 'contrasena-error' : ''].filter(Boolean).join(' ') || undefined"
               :autocomplete="esRegistro ? 'new-password' : 'current-password'"
               :placeholder="esRegistro ? '12 caracteres como mínimo' : 'Tu contraseña'"
               @input="revisarCampo('contrasena')" @blur="revisarCampo('contrasena', true)" />
@@ -174,7 +181,8 @@ async function enviar() {
               <AppIcon :nombre="mostrarContrasena ? 'ojo-oculto' : 'ojo'" :tamano="23" />
             </button>
             </div>
-            <small v-if="esRegistro && !errores.contrasena" id="contrasena-ayuda">Entre 12 y 128 caracteres.</small>
+            <small v-if="esRegistro && !formulario.contrasena" id="contrasena-ayuda">Entre 12 y 128 caracteres. Prefiere una frase larga o una contraseña única.</small>
+            <PasswordStrength v-if="esRegistro && formulario.contrasena" :contrasena="formulario.contrasena" :usuario="formulario.nombreUsuario" :telefono="formulario.telefono" />
             <p v-if="errores.contrasena" id="contrasena-error" class="campo-error"><AppIcon nombre="alerta" :tamano="17" />{{ errores.contrasena }}</p>
           </div>
 
