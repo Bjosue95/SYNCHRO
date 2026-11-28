@@ -16,6 +16,13 @@ using Synchro.Api.Services.RostroSimulado;
 using Microsoft.AspNetCore.DataProtection;
 using Synchro.Api.Services.Encomiendas;
 
+// Diagnóstico local, sin iniciar HTTP, workers ni módulos de operaciones.
+if (args.Length == 1 && args[0] == "--verificar-base-definitiva")
+{
+    Environment.ExitCode = await Synchro.Api.Services.DiagnosticoBaseDefinitiva.VerificarAsync();
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 AdminConfiguracionEndpoints.CargarTarifasLocales(builder);
 
