@@ -1,3 +1,4 @@
+using Synchro.Api.Services.Administracion;
 using System.Data;
 using System.Globalization;
 using Microsoft.Data.SqlClient;
@@ -88,12 +89,12 @@ public static class AdminReportesEndpoints
     // Honduras usa UTC-06:00; la fecha final del usuario es inclusiva.
     private static DateTime LimiteUtc(DateOnly dia) => DateTime.SpecifyKind(dia.ToDateTime(TimeOnly.MinValue).AddHours(6),DateTimeKind.Utc);
 
-    public static void MapAdminReportesEndpoints(this WebApplication app)
+    public static void MapAdminReportesEndpoints(this WebApplication app, bool definitiva = false)
     {
         app.MapGet("/api/admin/reportes", async (string? desde,string? hasta,HttpContext http,IConfiguration config) =>
         {
             http.Response.Headers.CacheControl="no-store";
-            if(!app.Environment.IsDevelopment()) return Results.NotFound();
+            if(!definitiva && !app.Environment.IsDevelopment()) return Results.NotFound();
             if(!http.Request.IsHttps) return Results.StatusCode(403);
             var hoy=DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-6));
             if(!DateOnly.TryParseExact(desde,"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var inicio) ||
@@ -110,10 +111,10 @@ public static class AdminReportesEndpoints
             {
                 var cadena=config.GetConnectionString("SynchroDB");
                 if(string.IsNullOrWhiteSpace(cadena))return Results.Problem(statusCode:503,title:"Conexión SQL no configurada.");
-                if(!ConexionSqlAislada.EsWhatsAppPermitido(new SqlConnectionStringBuilder(cadena)))return Results.NotFound();
+                if(definitiva ? !DestinoAdministrativoDefinitivo.Permitido(cadena) : !ConexionSqlAislada.EsWhatsAppPermitido(new SqlConnectionStringBuilder(cadena)))return Results.NotFound();
                 await using var db=new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
-                await using(var validar=new SqlCommand("""
+                await using(var validar=new SqlCommand(definitiva ? DestinoAdministrativoDefinitivo.ValidacionSql : """
                     SELECT CASE WHEN DB_NAME()=N'SynchroDB_Pruebas' AND EXISTS(
                       SELECT 1 FROM sys.extended_properties WHERE class=0 AND name=N'SynchroFixtureDeposito'
                       AND CONVERT(nvarchar(10),value)=N'1') THEN 1 ELSE 0 END;

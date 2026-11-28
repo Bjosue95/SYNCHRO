@@ -1,3 +1,4 @@
+using Synchro.Api.Services.Administracion;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Models;
@@ -6,14 +7,14 @@ namespace Synchro.Api.Endpoints;
 
 public static class CasillerosPrototipoEndpoints
 {
-    public static void MapCasillerosPrototipoEndpoints(this WebApplication app)
+    public static void MapCasillerosPrototipoEndpoints(this WebApplication app, bool definitiva = false)
     {
-        app.MapGet("/api/terminales/casilleros-prototipo",
+        var ruta = app.MapGet("/api/terminales/casilleros-prototipo",
             async (HttpContext http, IConfiguration configuracion) =>
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!app.Environment.IsDevelopment())
+            if (!definitiva && !app.Environment.IsDevelopment())
                 return Results.NotFound();
 
             string? cadena = configuracion.GetConnectionString("SynchroDB");
@@ -25,7 +26,7 @@ public static class CasillerosPrototipoEndpoints
 
             var datos = new SqlConnectionStringBuilder(cadena);
 
-            if (!string.Equals(
+            if (definitiva ? !DestinoAdministrativoDefinitivo.Permitido(cadena) : !string.Equals(
                     datos.InitialCatalog,
                     "SynchroDB_Pruebas",
                     StringComparison.OrdinalIgnoreCase))
@@ -38,6 +39,13 @@ public static class CasillerosPrototipoEndpoints
             await using var db = new SqlConnection(cadena);
             await db.OpenAsync(http.RequestAborted);
 
+            if (definitiva)
+            {
+                await using var comprobar = new SqlCommand(DestinoAdministrativoDefinitivo.ValidacionSql, db);
+                if (Convert.ToInt32(await comprobar.ExecuteScalarAsync(http.RequestAborted)) != 1)
+                    return Results.Problem(statusCode:503,title:"Base definitiva no autorizada.");
+            }
+            else
             await using (var verificar = new SqlCommand("SELECT DB_NAME()", db))
             {
                 string? baseActual = await verificar.ExecuteScalarAsync(
@@ -94,5 +102,6 @@ public static class CasillerosPrototipoEndpoints
 
             return Results.Ok(lista);
         });
+        if (definitiva) ruta.RequireAuthorization("OperarServicios");
     }
 }

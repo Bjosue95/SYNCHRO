@@ -1,3 +1,4 @@
+using Synchro.Api.Services.Administracion;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Services;
@@ -8,14 +9,14 @@ namespace Synchro.Api.Endpoints;
 // al lado de los casilleros de resguardo del administrador.
 public static class AdminEspaciosCargaEndpoints
 {
-    public static void MapAdminEspaciosCargaEndpoints(this WebApplication app)
+    public static void MapAdminEspaciosCargaEndpoints(this WebApplication app, bool definitiva = false)
     {
         app.MapGet("/api/admin/carga/espacios", async (
             HttpContext http, IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!app.Environment.IsDevelopment() ||
-                !config.GetValue<bool>("CargaDispositivos:RegistroHabilitado"))
+            if (!definitiva && (!app.Environment.IsDevelopment() ||
+                !config.GetValue<bool>("CargaDispositivos:RegistroHabilitado")))
                 return Results.NotFound();
             if (!http.Request.IsHttps)
                 return Results.StatusCode(403);
@@ -27,13 +28,13 @@ public static class AdminEspaciosCargaEndpoints
 
             try
             {
-                if (!ConexionSqlAislada.EsWhatsAppPermitido(
+                if (definitiva ? !DestinoAdministrativoDefinitivo.Permitido(cadena) : !ConexionSqlAislada.EsWhatsAppPermitido(
                     new SqlConnectionStringBuilder(cadena)))
                     return Results.NotFound();
 
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
-                await using (var validar = new SqlCommand("""
+                await using (var validar = new SqlCommand(definitiva ? DestinoAdministrativoDefinitivo.ValidacionSql : """
                     SELECT CASE WHEN DB_NAME()=N'SynchroDB_Pruebas'
                       AND EXISTS (SELECT 1 FROM sys.extended_properties
                         WHERE class=0 AND name=N'SynchroFixtureDeposito'

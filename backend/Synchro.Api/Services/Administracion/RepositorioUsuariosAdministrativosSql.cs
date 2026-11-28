@@ -48,12 +48,18 @@ internal static class AccesoAdministrativoSql
         return new(roles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),version);
     }
 }
-internal sealed class RepositorioUsuariosAdministrativosSql(IConfiguration config) : IRepositorioUsuariosAdministrativos
+internal sealed class RepositorioUsuariosAdministrativosSql(IConfiguration config, bool definitiva = false) : IRepositorioUsuariosAdministrativos
 {
     public async Task<T> TransaccionAsync<T>(int actor,Func<List<UsuarioAdministrativoEstado>,T> cambio,CancellationToken token)
     {
-        string cadena=ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");
-        await using var c=new SqlConnection(cadena);await c.OpenAsync(token);await using var t=(SqlTransaction)await c.BeginTransactionAsync(token);
+        string cadena=definitiva ? DestinoAdministrativoDefinitivo.Exigir(config.GetConnectionString("SynchroDB")) : ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");
+        await using var c=new SqlConnection(cadena);await c.OpenAsync(token);
+        if(definitiva)
+        {
+            await using var validar=new SqlCommand(DestinoAdministrativoDefinitivo.ValidacionSql,c);
+            if(Convert.ToInt32(await validar.ExecuteScalarAsync(token))!=1)throw new InvalidOperationException("Base definitiva no autorizada.");
+        }
+        await using var t=(SqlTransaction)await c.BeginTransactionAsync(token);
         var usuarios=new List<UsuarioAdministrativoEstado>();
         await using(var q=new SqlCommand("SELECT Id,NombreUsuario,Activo,CASE WHEN PasswordHash COLLATE Latin1_General_100_BIN2=N'FIXTURE_NO_LOGIN' THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END,CASE WHEN PasswordHash COLLATE Latin1_General_100_BIN2=N'ARCHIVED_NO_LOGIN' THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END FROM dbo.Administradores WITH(UPDLOCK,HOLDLOCK) ORDER BY Id",c,t))
         {

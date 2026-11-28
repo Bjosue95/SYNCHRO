@@ -37,13 +37,16 @@ internal static class HostAdministracionDefinitiva
         builder.Configuration.AddInMemoryCollection(new Dictionary<string,string?>
         {
             ["ConnectionStrings:SynchroDB"]=Conexion,
-            ["AllowedHosts"]="localhost;127.0.0.1;[::1]"
+            ["AllowedHosts"]="localhost;127.0.0.1;[::1]",
+            ["Administracion:UsuariosHabilitados"]="true"
         });
         builder.WebHost.ConfigureKestrel(o=>o.ListenLocalhost(7278,l=>l.UseHttps()));
         string directorio=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"SYNCHRO","Definitivo","DataProtectionKeys");
         Directory.CreateDirectory(directorio);
         builder.Services.AddDataProtection().SetApplicationName("SYNCHRO-Administracion-Definitiva").PersistKeysToFileSystem(new DirectoryInfo(directorio)).ProtectKeysWithDpapi();
         builder.Services.AddScoped<IPasswordHasher<Administrador>,PasswordHasher<Administrador>>();
+        builder.Services.AddScoped<IRepositorioUsuariosAdministrativos>(sp=>new RepositorioUsuariosAdministrativosSql(sp.GetRequiredService<IConfiguration>(),definitiva:true));
+        builder.Services.AddScoped<GestionUsuariosAdministrativos>();
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o=>{
             o.Cookie.Name="Synchro.Admin.Definitivo";
             o.Cookie.HttpOnly=true;
@@ -74,11 +77,15 @@ internal static class HostAdministracionDefinitiva
         builder.Services.AddAuthorization(o=>{
             o.AddPolicy("SesionAdministrativa",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador","Auditor"));
             o.AddPolicy("SoloAdministradores",p=>p.RequireAuthenticatedUser().RequireRole("Administrador"));
+            o.AddPolicy("OperarServicios",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador"));
+            o.AddPolicy("VerReportes",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Auditor"));
         });
         builder.Services.AddAntiforgery(o=>{o.HeaderName="X-CSRF-TOKEN";o.Cookie.Name="Synchro.Csrf.Definitivo";o.Cookie.SecurePolicy=CookieSecurePolicy.Always;o.Cookie.SameSite=SameSiteMode.Strict;});
         builder.Services.AddRateLimiter(o=>{
             o.RejectionStatusCode=429;
             o.AddFixedWindowLimiter("LoginLimitado",l=>{l.PermitLimit=5;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
+            foreach(string politica in new[]{"OperacionesTerminal","EncomiendasOperativas"})
+                o.AddFixedWindowLimiter(politica,l=>{l.PermitLimit=240;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
         });
         var app=builder.Build();
         app.Use(async (ctx,next)=>{
@@ -93,6 +100,11 @@ internal static class HostAdministracionDefinitiva
         app.UseAuthorization();
         app.UseAntiforgery();
         app.MapAdministracionEndpoints();
+        app.MapCasillerosPrototipoEndpoints(definitiva:true);
+        app.MapAdminEspaciosCargaEndpoints(definitiva:true);
+        app.MapAdminMovimientosEndpoints(definitiva:true);
+        app.MapAdminReportesEndpoints(definitiva:true);
+        app.MapUsuariosAdministrativosEndpoints(soloLectura:true);
         app.MapGet("/api/estado",()=>new{proyecto="SYNCHRO",estado="integracion administrativa local",operaciones=false});
         app.MapGet("/api/admin/verificacion-base",async (CancellationToken token)=>{
             await using var c=new SqlConnection(Conexion);await c.OpenAsync(token);

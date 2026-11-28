@@ -1,3 +1,4 @@
+using Synchro.Api.Services.Administracion;
 using System.Data;
 using Microsoft.Data.SqlClient;
 
@@ -54,7 +55,7 @@ public static class AdminMovimientosEndpoints
         )
         """;
 
-    public static void MapAdminMovimientosEndpoints(this WebApplication app)
+    public static void MapAdminMovimientosEndpoints(this WebApplication app, bool definitiva = false)
     {
         app.MapGet("/api/admin/movimientos", async (
             int? pagina, int? tamanoPagina, string? servicio, string? codigo,
@@ -62,7 +63,7 @@ public static class AdminMovimientosEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!app.Environment.IsDevelopment()) return Results.NotFound();
+            if (!definitiva && !app.Environment.IsDevelopment()) return Results.NotFound();
             if (!http.Request.IsHttps) return Results.StatusCode(403);
 
             int numeroPagina = pagina ?? 1;
@@ -85,15 +86,15 @@ public static class AdminMovimientosEndpoints
             try
             {
                 var cs = new SqlConnectionStringBuilder(cadena);
-                if (!cs.DataSource.Equals(@"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) ||
+                if (definitiva ? !DestinoAdministrativoDefinitivo.Permitido(cadena) : (!cs.DataSource.Equals(@"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) ||
                     !cs.InitialCatalog.Equals("SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) ||
-                    !cs.IntegratedSecurity)
+                    !cs.IntegratedSecurity))
                     return Results.NotFound();
 
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
 
-                await using (var preparar = new SqlCommand("""
+                await using (var preparar = new SqlCommand(definitiva ? DestinoAdministrativoDefinitivo.ValidacionSql : """
                     SELECT CASE WHEN DB_NAME()=N'SynchroDB_Pruebas'
                       AND EXISTS (SELECT 1 FROM sys.extended_properties
                           WHERE class=0 AND name=N'SynchroFixtureDeposito'

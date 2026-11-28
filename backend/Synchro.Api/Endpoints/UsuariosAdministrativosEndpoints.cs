@@ -15,13 +15,14 @@ public sealed record RestablecerPasswordAdministrativoSolicitud(string Contrasen
 
 public static class UsuariosAdministrativosEndpoints
 {
-    public static void MapUsuariosAdministrativosEndpoints(this WebApplication app)
+    public static void MapUsuariosAdministrativosEndpoints(this WebApplication app, bool soloLectura = false)
     {
         var rutas=app.MapGroup("/api/admin/usuarios").RequireAuthorization("SoloAdministradores")
             .AddEndpointFilter(new ModuloPrototipoHabilitadoFilter(app.Configuration,"Administracion:UsuariosHabilitados"))
             .RequireRateLimiting("OperacionesTerminal");
         rutas.MapGet("/",(HttpContext http,GestionUsuariosAdministrativos gestion)=>
             Ejecutar(()=>gestion.ListarAsync(Actor(http),http.RequestAborted)));
+        if(soloLectura)return;
         rutas.MapPost("/",(CrearUsuarioAdministrativoSolicitud datos,HttpContext http,GestionUsuariosAdministrativos gestion)=>
             Ejecutar(()=>gestion.CrearAsync(Actor(http),datos.NombreUsuario,datos.Contrasena,datos.Roles,http.RequestAborted)))
             .AddEndpointFilter<OperacionTerminalSeguraFilter>();
