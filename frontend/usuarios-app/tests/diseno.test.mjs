@@ -77,3 +77,23 @@ test("no se inventan metricas ni historial de reservas en el panel", () => {
   assert.match(panel, /reservas-tarjetas/);
   assert.doesNotMatch(panel, /<table|ReferenciaFacialCaptura/);
 });
+
+
+test("bienvenida reutiliza la estación multifuncional con la marca original", () => {
+  const bienvenida = leer("src/views/BienvenidaView.vue");
+  const estacion = leer("src/components/ui/LockerJourney.vue");
+  const portada = leer("src/views/InicioView.vue");
+  assert.doesNotMatch(bienvenida, /TU ESPACIO SYNCHRO|inicio-cliente__casilleros/);
+  assert.match(bienvenida, /<LockerJourney compacto\s*\/>/);
+  assert.match(portada, /<LockerJourney\s*\/>/);
+  assert.match(estacion, /compacto: \{ type: Boolean, default: false \}/);
+  assert.match(estacion, /href="\/branding\/marca-completa\.png"/);
+  assert.match(estacion, /href="\/branding\/isotipo-oscuro\.png"/);
+  assert.match(estacion, /href="\/branding\/nombre-blanco\.png"/);
+  assert.match(estacion, /href="\/branding\/nombre-azul\.png"/);
+  assert.doesNotMatch(estacion, /<text[^>]*>SYNCHRO<\/text>/);
+  assert.match(estacion, /<aside v-if="!props\.compacto" class="syn-v4-note"/);
+  assert.match(estacion, /<div v-if="!props\.compacto" class="syn-journey-controls"/);
+  assert.match(estacion, /\.syn-v4-compacta \.syn-v4-station \{ width:100%; min-width:0;/);
+  assert.match(estacion, /@click="cambiarPuerta\(c\.codigo\)"/);
+});

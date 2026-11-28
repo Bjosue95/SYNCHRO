@@ -3,6 +3,8 @@ import { computed, ref, useId } from "vue";
 import AppIcon from "./AppIcon.vue";
 import ObjetoEstacion from "./ObjetoEstacion.vue";
 
+const props = defineProps({ compacto: { type: Boolean, default: false } });
+
 // Ilustración interactiva local: no ejecuta depósitos ni consulta estaciones.
 const etapas = Object.freeze([
   { nombre: "Solicitud", titulo: "Prepara tu envío", detalle: "Selecciona un servicio y consulta sus pasos.", icono: "reservas" },
@@ -62,9 +64,9 @@ function controlarTeclado(evento) {
 </script>
 
 <template>
-  <div class="syn-journey syn-v4" aria-label="Ilustración interactiva de la estación multifuncional SYNCHRO">
+  <div class="syn-journey syn-v4" :class="{ 'syn-v4-compacta': props.compacto }" aria-label="Ilustración interactiva de la estación multifuncional SYNCHRO">
     <div class="syn-v4-stage" :data-step="activa">
-      <div class="syn-v4-scene" role="region" tabindex="0" aria-label="Estación multifuncional. En pantallas pequeñas puedes desplazarla horizontalmente.">
+      <div class="syn-v4-scene" role="region" :tabindex="props.compacto ? undefined : 0" :aria-label="props.compacto ? 'Estación multifuncional SYNCHRO' : 'Estación multifuncional. En pantallas pequeñas puedes desplazarla horizontalmente.'">
         <svg class="syn-v4-station" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 732 410"
           role="group" aria-label="Estación con compartimentos normales, refrigerados, calientes, maletas, tablet y carga de dispositivos">
           <defs>
@@ -103,7 +105,7 @@ function controlarTeclado(evento) {
           <circle cx="311" cy="285" r="9" class="syn-v4-ring" /><circle cx="353" cy="285" r="9" class="syn-v4-ring" />
           <rect x="307" y="316" width="11" height="11" rx="2" class="syn-v4-mini" />
           <rect x="344" y="316" width="11" height="11" rx="2" class="syn-v4-mini" />
-          <text x="331" y="358" text-anchor="middle" class="syn-v4-mark">SYNCHRO</text>
+          <image href="/branding/nombre-azul.png" x="295" y="343" width="72" height="17" preserveAspectRatio="xMidYMid meet" />
           </g>
 
           <rect class="syn-v4-charge-housing" x="525" y="110" width="169" height="262" rx="7" fill="#dfeaf0" stroke="#83a7b5" stroke-width="1.5" />
@@ -132,9 +134,9 @@ function controlarTeclado(evento) {
           </g>
           <rect x="38" y="381" width="656" height="5" rx="2.5" fill="#698d9c" />
         </svg>
-        <span class="syn-v4-hint">Pulsa un casillero para abrirlo o cerrarlo.<span class="syn-v4-hint-movil"> Desliza para ver toda la estación.</span></span>
+        <span v-if="!props.compacto" class="syn-v4-hint">Pulsa un casillero para abrirlo o cerrarlo.<span class="syn-v4-hint-movil"> Desliza para ver toda la estación.</span></span>
       </div>
-      <aside class="syn-v4-note" aria-live="polite">
+      <aside v-if="!props.compacto" class="syn-v4-note" aria-live="polite">
         <span class="syn-v4-note-icon"><AppIcon :nombre="etapa.icono" :tamano="27" tema-forzado="claro" /></span>
         <span class="syn-v4-label">Paso {{ fase }} / 03</span>
         <strong>{{ etapa.nombre }}</strong>
@@ -142,7 +144,7 @@ function controlarTeclado(evento) {
       </aside>
     </div>
 
-    <div class="syn-journey-controls">
+    <div v-if="!props.compacto" class="syn-journey-controls">
       <div class="syn-journey-description">
         <span class="syn-journey-overline">De la solicitud a la entrega</span>
         <Transition name="syn-story" mode="out-in">
@@ -181,7 +183,6 @@ function controlarTeclado(evento) {
 .syn-v4-door.frio .syn-v4-front { fill:#ddf1fa; stroke:#78b9d2; }
 .syn-v4-door.calor .syn-v4-front { fill:#fae9da; stroke:#d7a77b; }
 .syn-v4-code { fill:#2e536c; font-size:12px; font-weight:700; font-family:ui-monospace,Consolas,monospace; }
-.syn-v4-mark { fill:#466b80; font-weight:700; font-size:11px; }
 .syn-v4-ring { fill:#eef5f7; stroke:#00b9c7; stroke-width:3; }
 .syn-v4-mini { fill:#eef5f7; stroke:#577d92; stroke-width:2; }
 .syn-v4-cell { outline:none; cursor:pointer; }
@@ -216,4 +217,9 @@ function controlarTeclado(evento) {
   .syn-v4-hint-movil { display:inline; }
 }
 @media (prefers-reduced-motion: reduce) { .syn-v4-door,.syn-v4-object,.syn-story-enter-active,.syn-story-leave-active { transition:none; } }
+/* Variante de bienvenida: misma geometría, marca y puertas, sin panel explicativo. */
+.syn-v4.syn-v4-compacta { border:0; border-radius:0; background:transparent; box-shadow:none; overflow:visible; }
+.syn-v4-compacta .syn-v4-stage { grid-template-columns:minmax(0,1fr); padding:0; gap:0; background:transparent; }
+.syn-v4-compacta .syn-v4-scene { display:flex; overflow:visible; }
+.syn-v4-compacta .syn-v4-station { width:100%; min-width:0; max-width:100%; height:auto; }
 </style>
