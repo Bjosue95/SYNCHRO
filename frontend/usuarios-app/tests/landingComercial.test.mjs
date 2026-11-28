@@ -37,13 +37,14 @@ test("siete ubicaciones se presentan sin afirmar estaciones operativas", () => {
   }
 });
 
-test("el formulario prepara correo sin simular su envío ni guardar datos", () => {
+test("el formulario envía cotizaciones directamente sin abrir el correo ni guardar datos", () => {
   const codigo = leer("src/components/landing/QuoteForm.vue");
-  assert.match(codigo, /mailto:/);
-  assert.match(codigo, /encodeURIComponent/);
-  assert.match(codigo, /navigator\.clipboard\.writeText/);
-  assert.match(codigo, /No se envía automáticamente/);
-  assert.doesNotMatch(codigo, /fetch\(|localStorage|sessionStorage|apiClientes/);
+  assert.match(codigo, /@submit.prevent="enviarSolicitud"/);
+  assert.match(codigo, /await enviarCotizacionEmail\(/);
+  assert.match(codigo, /:cargando="enviando"/);
+  assert.match(codigo, /if \(enviando.value\) return/);
+  assert.match(codigo, /Object.assign\(datos,/);
+  assert.doesNotMatch(codigo, /mailto:|prepararCorreo|copiarSolicitud|localStorage|sessionStorage|apiClientes/);
   assert.ok(soluciones.some(x => x.id === "modulos"));
 });
 

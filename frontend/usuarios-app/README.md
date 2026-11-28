@@ -188,7 +188,7 @@ Los datos oficiales se centralizan en src/data/empresa.js: correo, WhatsApp, Ins
 Componentes independientes en src/components/landing/:
 - AboutSynchro.vue: origen, misión y visión tomados de los documentos de SYNCHRO.
 - LocationsMap.vue: mapa interactivo con filtros y listado accesible de siete ubicaciones contempladas. No son estaciones instaladas. Plaza Ciudad Nueva está en Comayagua; el pin exacto queda pendiente de coordenadas verificadas.
-- QuoteForm.vue: prepara el mensaje en el cliente de correo del visitante mediante mailto:synchrohn@gmail.com y permite copiar la solicitud. NO envía ni almacena información desde el servidor; el usuario debe enviar desde su correo.
+- QuoteForm.vue: envía directamente la solicitud por EmailJS mediante una plantilla con destinatario fijo. Requiere configurar EmailJS; no abre aplicaciones de correo ni guarda los datos en el navegador.
 - ContactSection.vue: WhatsApp oficial, correo, horario y dirección.
 - SiteFooter.vue: logo, soluciones, navegación, Instagram, TikTok y contacto.
 
@@ -225,3 +225,29 @@ casillero general M03 y no interviene en reservas ni operaciones reales.
 
 `tests/iconografiaPropia.test.mjs` verifica los 64 iconos de cada modo y
 los principales puntos de contacto que los utilizan.
+
+
+## Envío directo de cotizaciones con EmailJS
+
+1. En https://dashboard.emailjs.com/ conectar Gmail de SYNCHRO en Email Services. Probar el servicio.
+2. Crear una plantilla en Email Templates. Configurar **To Email** fijo: `synchrohn@gmail.com`, **From Name**: SYNCHRO, correo remitente del servicio conectado y **Reply To**: `{{correo}}`. No usar destinatario dinámico, ni el correo del visitante como remitente.
+3. Subject: `Cotización SYNCHRO - {{solucion}}`. Contenido de la plantilla (usar variables escapadas de doble llave, no HTML sin escapar):
+
+```text
+Nueva solicitud de cotización — SYNCHRO
+Nombre: {{nombre}}
+Correo: {{correo}}
+Teléfono: {{telefono}}
+Organización: {{organizacion}}
+Solución: {{solucion}}
+Ciudad o ubicación: {{ciudad}}
+
+Proyecto:
+{{descripcion}}
+```
+
+4. Copiar `.env.example` a `.env.local` en este directorio y rellenar Service ID, Template ID y Public Key (Account). No incluir contraseña de Gmail, clave privada ni token de acceso. Las variables VITE son públicas por diseño. El archivo .env.local está ignorado por Git.
+5. Reiniciar Vite. En producción configurar las mismas variables antes de compilar y limitar los orígenes autorizados en EmailJS a los de SYNCHRO (en desarrollo incluir únicamente los orígenes locales necesarios). Para exposición pública considerar CAPTCHA con integración completa del widget y token antes de activarlo en la plantilla; los límites de origen y de frecuencia no reemplazan la protección antibots.
+6. Probar una solicitud ficticia y verificar recepción en el buzón, incluso spam. Solo se muestra éxito si EmailJS responde HTTP 200; un fallo conserva los campos. La aceptación del proveedor no garantiza llegada a bandeja principal.
+
+El envío transmite los campos a EmailJS y al proveedor de correo, no a SQL. El servicio usa la API REST oficial sin añadir dependencias. Configurar las políticas de privacidad y conservación del correo de acuerdo con el uso comercial.

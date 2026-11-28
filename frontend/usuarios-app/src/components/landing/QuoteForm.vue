@@ -3,6 +3,7 @@ import { computed, reactive, ref } from "vue";
 import AppIcon from "../ui/AppIcon.vue";
 import SynButton from "../ui/SynButton.vue";
 import { empresa, soluciones } from "../../data/empresa.js";
+import { enviarCotizacionEmail } from "../../services/cotizacionesEmail.js";
 
 const datos = reactive({
   nombre: "", correo: "", telefono: "", organizacion: "",
@@ -10,6 +11,7 @@ const datos = reactive({
 });
 const mensajeEstado = ref("");
 const error = ref(false);
+const enviando = ref(false);
 const solucionSeleccionada = computed(() =>
   soluciones.find(s => s.id === datos.solucion)?.nombre ?? "Consulta"
 );
@@ -30,42 +32,24 @@ function validar() {
   return "";
 }
 
-const asunto = computed(() => "Cotización SYNCHRO - " + solucionSeleccionada.value);
-const cuerpo = computed(() => [
-  "Solicitud de cotización - SYNCHRO", "",
-  "Nombre: " + datos.nombre.trim(),
-  "Organización: " + (datos.organizacion.trim() || "No indicada"),
-  "Correo para respuesta: " + datos.correo.trim(),
-  "Teléfono: " + (datos.telefono.trim() || "No indicado"),
-  "Solución: " + solucionSeleccionada.value,
-  "Ciudad o ubicación: " + (datos.ciudad.trim() || "No indicada"), "",
-  "Necesidad o proyecto:", datos.descripcion.trim()
-].join("\n"));
-const correoPreparado = computed(() =>
-  "mailto:" + empresa.correo +
-  "?subject=" + encodeURIComponent(asunto.value) +
-  "&body=" + encodeURIComponent(cuerpo.value)
-);
-
-function prepararCorreo() {
+async function enviarSolicitud() {
+  if (enviando.value) return;
   mensajeEstado.value = validar();
   error.value = Boolean(mensajeEstado.value);
   if (error.value) return;
-  mensajeEstado.value = "Se abrirá tu aplicación de correo. Revisa el mensaje y envíalo desde allí.";
-  window.location.href = correoPreparado.value;
-}
-async function copiarSolicitud() {
-  mensajeEstado.value = validar();
-  error.value = Boolean(mensajeEstado.value);
-  if (error.value) return;
+  enviando.value = true;
   try {
-    await navigator.clipboard.writeText(
-      "Para: " + empresa.correo + "\nAsunto: " + asunto.value + "\n\n" + cuerpo.value
-    );
-    mensajeEstado.value = "Solicitud copiada. Pégala en tu correo y envíala a " + empresa.correo + ".";
-  } catch {
+    await enviarCotizacionEmail(datos, solucionSeleccionada.value, import.meta.env);
+    Object.assign(datos, { nombre: "", correo: "", telefono: "", organizacion: "",
+      solucion: "modulos", ciudad: "", descripcion: "" });
+    mensajeEstado.value = "Tu solicitud se ha enviado correctamente. Nuestro equipo se pondrá en contacto contigo.";
+  } catch (e) {
     error.value = true;
-    mensajeEstado.value = "No se pudo copiar. Puedes escribirnos directamente a " + empresa.correo + ".";
+    mensajeEstado.value = e?.codigo === "CONFIGURACION"
+      ? "El envío de cotizaciones aún no está disponible. Escríbenos a " + empresa.correo + "."
+      : "No pudimos confirmar el envío. Tus datos siguen aquí. Inténtalo nuevamente o escríbenos a " + empresa.correo + ".";
+  } finally {
+    enviando.value = false;
   }
 }
 </script>
@@ -94,16 +78,16 @@ async function copiarSolicitud() {
       <div class="syn-quote-card">
         <h3>Solicitar cotización</h3>
         <p class="syn-quote-subtitle">Cuéntanos sobre tu proyecto.</p>
-        <form class="syn-quote-form" @submit.prevent="prepararCorreo">
+        <form class="syn-quote-form" @submit.prevent="enviarSolicitud">
           <div class="syn-quote-row">
             <label>
               <span>Nombre completo *</span>
-              <input v-model="datos.nombre" autocomplete="name" maxlength="100"
+              <input :disabled="enviando" v-model="datos.nombre" autocomplete="name" maxlength="100"
                 required placeholder="Tu nombre" />
             </label>
             <label>
               <span>Correo electrónico *</span>
-              <input v-model="datos.correo" type="email" autocomplete="email"
+              <input :disabled="enviando" v-model="datos.correo" type="email" autocomplete="email"
                 maxlength="180" required placeholder="nombre@empresa.com" />
             </label>
           </div>
@@ -111,12 +95,12 @@ async function copiarSolicitud() {
           <div class="syn-quote-row">
             <label>
               <span>Organización</span>
-              <input v-model="datos.organizacion" autocomplete="organization"
+              <input :disabled="enviando" v-model="datos.organizacion" autocomplete="organization"
                 maxlength="100" placeholder="Opcional" />
             </label>
             <label>
               <span>Teléfono</span>
-              <input v-model="datos.telefono" type="tel" autocomplete="tel"
+              <input :disabled="enviando" v-model="datos.telefono" type="tel" autocomplete="tel"
                 maxlength="22" placeholder="+504..." />
             </label>
           </div>
@@ -124,7 +108,7 @@ async function copiarSolicitud() {
           <div class="syn-quote-row">
             <label>
               <span>Solución de interés *</span>
-              <select v-model="datos.solucion" required>
+              <select :disabled="enviando" v-model="datos.solucion" required>
                 <option v-for="opcion in soluciones" :key="opcion.id" :value="opcion.id">
                   {{ opcion.nombre }}
                 </option>
@@ -132,13 +116,13 @@ async function copiarSolicitud() {
             </label>
             <label>
               <span>Ciudad o ubicación</span>
-              <input v-model="datos.ciudad" maxlength="120" placeholder="Ej. Comayagua" />
+              <input :disabled="enviando" v-model="datos.ciudad" maxlength="120" placeholder="Ej. Comayagua" />
             </label>
           </div>
 
           <label>
             <span>Cuéntanos tu proyecto *</span>
-            <textarea v-model="datos.descripcion" required minlength="15"
+            <textarea :disabled="enviando" v-model="datos.descripcion" required minlength="15"
               maxlength="1800" rows="4"
               placeholder="Qué servicio necesitas y en qué lugar lo instalarías"></textarea>
           </label>
@@ -146,16 +130,13 @@ async function copiarSolicitud() {
           <p v-if="mensajeEstado" role="status"
             class="syn-quote-notice" :class="{ error }">{{ mensajeEstado }}</p>
           <div class="syn-quote-actions">
-            <SynButton tipo="submit">
-              Preparar correo <AppIcon nombre="enviar" :tamano="19" />
+            <SynButton tipo="submit" :cargando="enviando">
+              {{ enviando ? "Enviando solicitud..." : "Enviar solicitud" }}
+              <AppIcon v-if="!enviando" nombre="enviar" :tamano="19" />
             </SynButton>
-            <button type="button" class="syn-quote-copy" @click="copiarSolicitud">
-              <AppIcon nombre="copiar" :tamano="19"/> Copiar solicitud
-            </button>
           </div>
           <p class="syn-quote-disclaimer">
-            No se envía automáticamente. Tu aplicación de correo se abrirá
-            con el mensaje preparado para {{ empresa.correo }}.
+            Usaremos tus datos de contacto y la información del proyecto para atender tu solicitud de cotización.
           </p>
         </form>
       </div>
@@ -185,10 +166,9 @@ async function copiarSolicitud() {
   border-radius:10px; padding:11px 12px; min-width:0; width:100%; font-size:14px;
 }
 .syn-quote-form textarea { resize:vertical; min-height:106px; }
+.syn-quote-form :disabled:not(button) { opacity:.75; cursor:wait; }
 .syn-quote-form input:focus-visible,.syn-quote-form textarea:focus-visible,.syn-quote-form select:focus-visible { outline:3px solid var(--ring); outline-offset:2px; }
 .syn-quote-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-.syn-quote-copy { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-strong); padding:12px 17px; border-radius:11px; font-size:13px; font-weight:700; min-height:46px; }
-.syn-quote-copy:hover { background:var(--surface-hover); }
 .syn-quote-notice { margin:0; padding:12px 14px; background:var(--success-bg); color:var(--success-text); border-radius:9px; font-size:13px; line-height:1.55; }
 .syn-quote-notice.error { background:var(--danger-bg); color:var(--danger-text); }
 .syn-quote-disclaimer { color:var(--text-subtle); font-size:11px; line-height:1.6; margin:0; }
