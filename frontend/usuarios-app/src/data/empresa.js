@@ -3,12 +3,12 @@
 export const empresa = Object.freeze({
   nombre: "SYNCHRO",
   lema: "El punto donde todo se conecta",
-  correo: import.meta.env.MODE === "feria" ? "" : "synchrohn@gmail.com",
-  whatsapp: import.meta.env.MODE === "feria" ? "" : "+50433182642",
-  whatsappDigitos: import.meta.env.MODE === "feria" ? "" : "50433182642",
+  correo: import.meta.env?.MODE === "feria" ? "" : "synchrohn@gmail.com",
+  whatsapp: import.meta.env?.MODE === "feria" ? "" : "+50433182642",
+  whatsappDigitos: import.meta.env?.MODE === "feria" ? "" : "50433182642",
   instagram: "https://www.instagram.com/synchrohn",
   tiktok: "https://www.tiktok.com/@synchro_hn?is_from_webapp=1&sender_device=pc",
-  direccion: import.meta.env.MODE === "feria" ? "" : "Universidad Nacional Autónoma de Honduras (UNAH) – Centro Universitario Regional del Centro (CURC), Carretera salida a Tegucigalpa, Colonia San Miguel, contiguo a Ferromax, Comayagua, Honduras.",
+  direccion: import.meta.env?.MODE === "feria" ? "" : "Universidad Nacional Autónoma de Honduras (UNAH) – Centro Universitario Regional del Centro (CURC), Carretera salida a Tegucigalpa, Colonia San Miguel, contiguo a Ferromax, Comayagua, Honduras.",
   horario: "Lunes a viernes, 8:00 a. m. a 5:00 p. m."
 });
 
