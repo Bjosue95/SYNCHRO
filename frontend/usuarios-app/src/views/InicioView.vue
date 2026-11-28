@@ -38,32 +38,63 @@ onBeforeUnmount(() => observador?.disconnect());
   <div id="inicio" ref="pagina" class="syn-home">
     <section class="syn-home-hero">
       <div class="contenedor syn-hero-grid syn-v4-hero-grid">
-        <div class="syn-hero-content">
-          <span class="syn-overline">Guardar · Entregar · Conectar</span>
-          <h1>Tu espacio.<br><span>Tu tiempo.</span></h1>
-          <p>
-            SYNCHRO reúne almacenamiento temporal, encomiendas y carga de dispositivos.
-            Desde tu cuenta puedes reservar un casillero para tus pertenencias o una encomienda y consultar su estado.
-          </p>
-          <div class="syn-hero-actions">
-            <RouterLink to="/reservar" class="boton boton-primario">
-              Reservar casillero
-              <AppIcon nombre="flecha" :tamano="19" />
-            </RouterLink>
-            <a href="#servicios" class="syn-hero-secondary">
-              Explorar servicios <span aria-hidden="true">↗</span>
-            </a>
+        <div class="syn-hero-top">
+          <div class="syn-hero-content">
+            <span class="syn-overline">Guardar · Entregar · Conectar</span>
+            <h1>Tu espacio.<br><span>Tu tiempo.</span></h1>
+            <p>
+              Guarda tus pertenencias, gestiona encomiendas, utiliza casilleros con frío o calor
+              y carga tus dispositivos. Todo en una estación inteligente.
+            </p>
+            <div class="syn-hero-actions">
+              <RouterLink to="/reservar" class="boton boton-primario">
+                Reservar casillero <AppIcon nombre="flecha" :tamano="21"/>
+              </RouterLink>
+              <a href="#servicios" class="syn-hero-secondary">
+                Explorar servicios <AppIcon nombre="flecha" :tamano="20"/>
+              </a>
+            </div>
+            <p class="syn-hero-foot">
+              <AppIcon nombre="seguridad" :tamano="22"/>
+              Tecnología, accesibilidad y seguridad en una sola experiencia.
+            </p>
           </div>
-          <div class="syn-hero-highlights" aria-label="Soluciones principales">
-            <span><AppIcon nombre="casillero" :tamano="22" /> Resguardo personal</span>
-            <span><AppIcon nombre="temperatura" :tamano="22" /> Frío y calor</span>
-            <span><AppIcon nombre="carga" :tamano="22" /> Carga de dispositivos</span>
-          </div>
-          <p class="syn-hero-foot">
-            Tecnología, accesibilidad y seguridad conectadas en una sola experiencia.
-          </p>
+          <aside class="syn-hero-soluciones" aria-labelledby="hero-soluciones-titulo">
+            <h2 id="hero-soluciones-titulo">Una estación, cuatro soluciones.</h2>
+            <div class="syn-hero-highlights">
+              <article class="syn-hero-highlight">
+                <span class="syn-hero-highlight-icon"><AppIcon nombre="casillero" :tamano="30"/></span>
+                <h3>Resguardo personal</h3>
+                <p>Un espacio temporal para tus pertenencias.</p>
+              </article>
+              <article class="syn-hero-highlight">
+                <span class="syn-hero-highlight-icon"><AppIcon nombre="encomienda" :tamano="30"/></span>
+                <h3>Encomiendas</h3>
+                <p>Prepara tus envíos y coordina su entrega.</p>
+              </article>
+              <article class="syn-hero-highlight">
+                <span class="syn-hero-highlight-icon"><AppIcon nombre="temperatura" :tamano="30"/></span>
+                <h3>Frío y calor</h3>
+                <p>Compartimentos con temperatura controlada.</p>
+              </article>
+              <article class="syn-hero-highlight">
+                <span class="syn-hero-highlight-icon"><AppIcon nombre="carga" :tamano="30"/></span>
+                <h3>Carga de dispositivos</h3>
+                <p>Espacios para celulares y laptops.</p>
+              </article>
+            </div>
+          </aside>
         </div>
-        <LockerJourney />
+        <section class="syn-hero-estacion" aria-labelledby="hero-estacion-titulo">
+          <header class="syn-hero-estacion-heading">
+            <div>
+              <h2 id="hero-estacion-titulo">Explora la estación multifuncional.</h2>
+              <p>Interactúa con los casilleros y descubre cómo se integran nuestros servicios.</p>
+            </div>
+            <span class="syn-hero-estacion-indicador"><AppIcon nombre="casillero" :tamano="20"/> Vista interactiva</span>
+          </header>
+          <LockerJourney />
+        </section>
       </div>
     </section>
 
@@ -234,9 +265,7 @@ onBeforeUnmount(() => observador?.disconnect());
   .syn-pendiente { opacity:1; transform:none; }
 }
 
-/* V4: la ilustracion ocupa el ancho de la portada. Las tarjetas existentes no se reemplazan. */
-.syn-home .syn-hero-grid.syn-v4-hero-grid { grid-template-columns:minmax(0,1fr) !important; gap:27px; }
-.syn-home .syn-v4-hero-grid > .syn-hero-content { max-width:820px; }
+/* La estación conserva toda la anchura; la portada se organiza en redisenio-v2.css. */
 .syn-home .syn-feature .syn-mini-demo { min-width:0; }
 .syn-home .syn-feature :deep(.syn-mini-instruccion) { color:#d8eff2; }
 .syn-home .syn-feature-maletas { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,360px); gap:28px; align-items:center; }

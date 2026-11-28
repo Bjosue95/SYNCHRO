@@ -105,3 +105,15 @@ test("pie compacto: identidad y lema en una sola columna, sin franja decorativa 
   assert.match(footer,/\{\{ empresa\.lema \}\}/);
   assert.doesNotMatch(footer,/syn-footer-intro|syn-footer-emblema|nombre="tecnologia"/);
 });
+
+test("portada equilibrada: cuatro servicios y estación interactiva de ancho completo",()=>{
+ const inicio=leer("src/views/InicioView.vue");
+ const css=leer("src/styles/redisenio-v2.css");
+ const portada=inicio.slice(inicio.indexOf('<section class="syn-home-hero">'),inicio.indexOf('<section id="servicios"'));
+ assert.equal((portada.match(/class="syn-hero-highlight"/g)||[]).length,4);
+ for (const nombre of ["Resguardo personal","Encomiendas","Frío y calor","Carga de dispositivos"]) assert.ok(portada.includes(nombre));
+ assert.match(portada,/<LockerJourney\s*\/>/);
+ assert.match(portada,/to="\/reservar"/);
+ assert.match(css,/\.syn-hero-top\s*\{[^}]*grid-template-columns:minmax\(0,1\.1fr\) minmax\(0,\.9fr\)/);
+ assert.match(css,/@media\(max-width:820px\)/);
+});
