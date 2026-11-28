@@ -48,7 +48,15 @@ test("control de tema usa iconos de luna y sol distintos con trazo SYNCHRO", () 
   const theme = leer("src/components/ui/ThemeToggle.vue");
   assert.match(theme, /alternarTema/);
   assert.match(theme, /nombre="|:nombre="/);
-  assert.match(theme, /'luna' : 'sol'/);
+  assert.match(theme, /nombre="sol"/);
+  assert.match(theme, /nombre="luna"/);
+  assert.match(theme, /:data-modo="tema"/);
+  assert.match(theme, /:class="\{ activa: tema === 'claro' \}"/);
+  assert.match(theme, /:class="\{ activa: tema === 'oscuro' \}"/);
+  assert.match(theme, /@click="alternarTema"/);
+  assert.match(theme, /min-height: 44px/);
+  assert.match(theme, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(theme, /etiqueta-tema/);
   for (const modo of ["claro", "oscuro"]) {
     const luna = leer(`public/iconos/${modo}/luna.svg`);
     const sol = leer(`public/iconos/${modo}/sol.svg`);
