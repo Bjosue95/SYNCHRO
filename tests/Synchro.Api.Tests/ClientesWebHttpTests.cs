@@ -1,8 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Synchro.Api.Services.Clientes;
 
 namespace Synchro.Api.Tests;
@@ -11,8 +8,7 @@ public sealed class ClientesWebHttpTests
     [Fact]
     public async Task CookieFirmadaRequierePasswordCorrectaYCuentaActivaEnCadaSolicitud()
     {
-        var cuentas=new ClientesWebSimulados();using var fabrica=new FabricaTerminalHttpPruebas().WithWebHostBuilder(b=>b.ConfigureTestServices(s=>
-        {s.RemoveAll<IRepositorioClientesWeb>();s.AddSingleton<IRepositorioClientesWeb>(cuentas);}));
+        var cuentas=new ClientesWebSimulados();using var fabrica=new FabricaClientesWebHttpPruebas(cuentas);
         using var cliente=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost"),AllowAutoRedirect=false});
         await PreReservasWebTabletTests.RegistrarAsync(cliente);
         Assert.DoesNotContain("Clave-cliente",cuentas.Cuentas[41].PasswordHash);
@@ -29,8 +25,7 @@ public sealed class ClientesWebHttpTests
     [Fact]
     public async Task RegistroValidaCsrfPasswordTelefonoYDuplicadoSinCrearPersonasAdicionales()
     {
-        var cuentas=new ClientesWebSimulados();using var fabrica=new FabricaTerminalHttpPruebas().WithWebHostBuilder(b=>b.ConfigureTestServices(s=>
-        {s.RemoveAll<IRepositorioClientesWeb>();s.AddSingleton<IRepositorioClientesWeb>(cuentas);}));
+        var cuentas=new ClientesWebSimulados();using var fabrica=new FabricaClientesWebHttpPruebas(cuentas);
         using var cliente=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost"),AllowAutoRedirect=false});
         const string ruta="/api/web/clientes/acceso/registro";
         using var sinCsrf=await cliente.PostAsJsonAsync(ruta,new{nombreUsuario="cliente_prueba",contrasena="Clave-cliente-solo-pruebas-123",telefono="+50499990001"});Assert.Equal(HttpStatusCode.BadRequest,sinCsrf.StatusCode);

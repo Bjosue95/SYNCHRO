@@ -1,11 +1,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Synchro.Api.Services.Clientes;
 using Xunit.Abstractions;
 
@@ -21,12 +16,7 @@ public sealed class CargaClientesWebHttpTests(ITestOutputHelper salida)
     public async Task RegistroLoginYSesionConcurrentesEnFeria(int usuarios)
     {
         var cuentas = new ClientesWebSimulados();
-        using var fabrica = new FabricaTerminalHttpPruebas().WithWebHostBuilder(b =>
-        {
-            b.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
-                new Dictionary<string,string?> { ["ClientesWeb:ModoFeria"] = "true" }));
-            b.ConfigureTestServices(s => { s.RemoveAll<IRepositorioClientesWeb>(); s.AddSingleton<IRepositorioClientesWeb>(cuentas); });
-        });
+        using var fabrica = new FabricaClientesWebHttpPruebas(cuentas, feria: true);
         using var arranque = fabrica.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         const string clave = "Carga-local-solo-pruebas-2026";
         var inicio = Stopwatch.StartNew();
