@@ -7,6 +7,7 @@ import AdminIcon from "../components/AdminIcon.vue";
 const router = useRouter();
 const route = useRoute();
 const menuAbierto = ref(false);
+const nombreUsuario = ref("");
 const rol = ref("");
 const roles = ref([]);
 const saliendo = ref(false);
@@ -42,6 +43,8 @@ onMounted(async () => {
   window.addEventListener("keydown", cerrarConEscape);
   try {
     const sesion = await consultarSesion();
+    if (typeof sesion.usuario !== "string" || !sesion.usuario.trim()) throw new Error("Identidad de sesión no disponible.");
+    nombreUsuario.value = sesion.usuario;
     roles.value = sesion.roles || [];
     rol.value = sesion?.rol || roles.value[0] || "";
   } catch { await router.replace("/login"); }
@@ -82,7 +85,7 @@ async function salir() {
         </div>
       </nav>
       <div class="sidebar-bottom">
-        <div class="sidebar-user"><span class="user-avatar"><AdminIcon name="user" :size="19" /></span><span><strong>Operador SYNCHRO</strong><small>{{ rol }}</small></span></div>
+        <div class="sidebar-user"><span class="user-avatar"><AdminIcon name="user" :size="19" /></span><span class="sidebar-identidad"><strong :title="nombreUsuario">{{ nombreUsuario || "Cargando usuario…" }}</strong><small>{{ rol }}</small></span></div>
         <button type="button" class="sidebar-exit" :disabled="saliendo" @click="salir"><AdminIcon name="logout" :size="18" />{{ saliendo ? 'Cerrando...' : 'Cerrar sesión' }}</button>
       </div>
     </aside>
@@ -102,3 +105,8 @@ async function salir() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.sidebar-identidad { flex: 1; min-width: 0; }
+.sidebar-identidad strong, .sidebar-identidad small { overflow-wrap: anywhere; }
+</style>
