@@ -11,7 +11,9 @@ export default defineConfig(({ command }) => {
     const certPath = process.env.SYNCHRO_CERT_PATH ||
       join(process.env.LOCALAPPDATA || "", "SYNCHRO", "certificados", "localhost.pfx");
     try {
-      https = { pfx: readFileSync(certPath), passphrase: process.env.SYNCHRO_CERT_PASSWORD };
+      https = process.env.SYNCHRO_KEY_PATH
+        ? { cert: readFileSync(certPath), key: readFileSync(process.env.SYNCHRO_KEY_PATH) }
+        : { pfx: readFileSync(certPath), passphrase: process.env.SYNCHRO_CERT_PASSWORD };
     } catch {
       throw new Error("No se encontró el certificado de SYNCHRO. Revisa SYNCHRO_CERT_PATH o el certificado local de la tablet.");
     }
