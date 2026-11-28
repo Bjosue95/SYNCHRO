@@ -1,3 +1,5 @@
+import { obtenerCsrfTerminal } from "./recuperarSesionTerminal.js";
+
 /*
  * SYNCHRO
  * Depósito protegido de pertenencias personales
@@ -17,15 +19,12 @@ export async function registrarDepositoPersonal(usoId, tokenDeposito) {
   }
 
   // 2. Obtener el token CSRF de la terminal.
-  const respuestaCsrf = await fetch("/api/terminales/csrf-token", {
-    credentials: "same-origin",
-    cache: "no-store",
-  });
+  const respuestaCsrf = await obtenerCsrfTerminal("/api/terminales/csrf-token");
 
   if (!respuestaCsrf.ok) {
     throw new Error(
       respuestaCsrf.status === 401
-        ? "La sesión de la terminal ha vencido."
+        ? "Servicio temporalmente no disponible. Intenta nuevamente o solicita ayuda al operador."
         : "No se pudo obtener el token de seguridad.",
     );
   }
@@ -58,7 +57,7 @@ export async function registrarDepositoPersonal(usoId, tokenDeposito) {
     throw new Error(
       datos?.mensaje ||
         (respuesta.status === 401
-          ? "La sesión de la terminal ha vencido."
+          ? "Servicio temporalmente no disponible. Intenta nuevamente o solicita ayuda al operador."
           : `No se pudo registrar el depósito (${respuesta.status}).`),
     );
   }

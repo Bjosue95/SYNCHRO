@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
+import { recuperarSesionTerminal } from "./services/recuperarSesionTerminal.js";
 import {
   RouterView,
   useRoute,
@@ -42,7 +43,21 @@ const quitarGuardia = router.beforeEach((to, from) => {
       : "synchro-avanzar";
 });
 
-onUnmounted(quitarGuardia);
+// La pantalla no cambia cuando la red vuelve ni cuando se renueva la sesión.
+let relojSesion;
+const recuperarVisible=()=>{if(document.visibilityState==="visible")void recuperarSesionTerminal();};
+onMounted(()=>{
+ recuperarVisible();
+ window.addEventListener("online",recuperarVisible);
+ document.addEventListener("visibilitychange",recuperarVisible);
+ relojSesion=window.setInterval(recuperarVisible,300000);
+});
+onUnmounted(()=>{
+ quitarGuardia();
+ window.clearInterval(relojSesion);
+ window.removeEventListener("online",recuperarVisible);
+ document.removeEventListener("visibilitychange",recuperarVisible);
+});
 </script>
 
 <template>

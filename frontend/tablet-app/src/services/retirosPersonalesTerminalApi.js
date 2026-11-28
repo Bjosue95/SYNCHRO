@@ -1,3 +1,5 @@
+import { obtenerCsrfTerminal } from "./recuperarSesionTerminal.js";
+
 /* SYNCHRO - Retiro personal protegido (misma sesion y CSRF que el deposito). */
 export async function retirarPertenenciasPersonales(usoId, pin) {
   if (!Number.isInteger(usoId) || usoId <= 0) {
@@ -7,13 +9,10 @@ export async function retirarPertenenciasPersonales(usoId, pin) {
     throw new Error("El PIN debe tener seis dígitos.");
   }
 
-  const respuestaCsrf = await fetch("/api/terminales/csrf-token", {
-    credentials: "same-origin",
-    cache: "no-store",
-  });
+  const respuestaCsrf = await obtenerCsrfTerminal("/api/terminales/csrf-token");
   if (!respuestaCsrf.ok) {
     throw new Error(respuestaCsrf.status === 401
-      ? "La sesión de la terminal ha vencido."
+      ? "Servicio temporalmente no disponible. Intenta nuevamente o solicita ayuda al operador."
       : "No se pudo obtener el token de seguridad.");
   }
   const { csrfToken } = await respuestaCsrf.json();
@@ -34,7 +33,7 @@ export async function retirarPertenenciasPersonales(usoId, pin) {
     const datos = await respuesta.json().catch(() => null);
     throw new Error(datos?.mensaje ||
       (respuesta.status === 401
-        ? "La sesión de la terminal ha vencido."
+        ? "Servicio temporalmente no disponible. Intenta nuevamente o solicita ayuda al operador."
         : `No se pudo registrar el retiro (${respuesta.status}).`));
   }
   return await respuesta.json();

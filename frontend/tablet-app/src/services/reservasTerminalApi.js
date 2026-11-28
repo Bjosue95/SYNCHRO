@@ -1,3 +1,5 @@
+import { obtenerCsrfTerminal } from "./recuperarSesionTerminal.js";
+
 /*
  * SYNCHRO
  * Reservas protegidas desde la terminal
@@ -5,15 +7,12 @@
 
 export async function reservarCasilleroTerminal(codigoCasillero) {
   // 1. Obtener el token CSRF de la terminal
-  const respuestaCsrf = await fetch("/api/terminales/csrf-token", {
-    credentials: "same-origin",
-    cache: "no-store",
-  });
+  const respuestaCsrf = await obtenerCsrfTerminal("/api/terminales/csrf-token");
 
   if (!respuestaCsrf.ok) {
     throw new Error(
       respuestaCsrf.status === 401
-        ? "La sesión de la terminal ha vencido."
+        ? "Servicio temporalmente no disponible. Intenta nuevamente o solicita ayuda al operador."
         : "No se pudo obtener el token de seguridad.",
     );
   }

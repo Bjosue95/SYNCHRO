@@ -1,10 +1,12 @@
+import { obtenerCsrfTerminal } from "./recuperarSesionTerminal.js";
+
 /* SYNCHRO: operaciones de encomiendas exclusivas de la tablet.
  * Estas solicitudes NO habilitan depósitos ni sustituyen WhatsApp o verificación facial.
  */
 async function leer(respuesta) {
   const datos = await respuesta.json().catch(() => null);
   if (!respuesta.ok) {
-    if (respuesta.status === 401) throw new Error("La sesión de la terminal venció. Vuelve a vincularla.");
+    if (respuesta.status === 401) throw new Error("Servicio temporalmente no disponible. Intenta nuevamente o solicita ayuda al operador.");
     if (respuesta.status === 429) throw new Error("Demasiadas solicitudes. Intenta más tarde.");
     throw new Error(datos?.mensaje || `Error HTTP ${respuesta.status}`);
   }
@@ -12,9 +14,7 @@ async function leer(respuesta) {
 }
 
 async function enviarProtegido(ruta, datos) {
-  const { csrfToken } = await leer(await fetch("/api/terminales/encomiendas/csrf-token", {
-    credentials: "same-origin", cache: "no-store",
-  }));
+  const { csrfToken } = await leer(await obtenerCsrfTerminal("/api/terminales/encomiendas/csrf-token"));
   if (!csrfToken) throw new Error("No se recibió el token CSRF.");
   return leer(await fetch(ruta, {
     method: "POST", credentials: "same-origin", cache: "no-store",
