@@ -48,6 +48,35 @@ public static class AprobacionTerminalEndpoints
         })
         .RequireAuthorization("SoloAdministradores");
 
+        // Solo informar si la estación principal tiene una solicitud vigente.
+        // No devolver el código visual, el token ni los secretos de vinculación.
+        app.MapGet("/api/admin/terminales/vinculacion/pendiente-principal", async (HttpContext contexto) =>
+        {
+            contexto.Response.Headers.CacheControl="no-store";
+            if(!contexto.Request.IsHttps) return Results.StatusCode(403);
+            var cadena=app.Configuration.GetConnectionString("SynchroDB");
+            if(string.IsNullOrWhiteSpace(cadena)) return Results.Problem("Base de datos no configurada.");
+            try
+            {
+                await using var conexion=new SqlConnection(cadena);
+                await conexion.OpenAsync(contexto.RequestAborted);
+                await using var cmd=new SqlCommand("""
+                    SELECT TOP(1) s.Id,s.FechaExpiracion
+                    FROM dbo.SolicitudesVinculacionTerminal s
+                    JOIN dbo.Terminales t ON t.Id=s.TerminalId
+                    WHERE t.Codigo=N'SYNCHRO-DEMO-01'
+                      AND s.Estado=N'Pendiente' AND s.FechaExpiracion>SYSUTCDATETIME()
+                    ORDER BY s.Id DESC;
+                    """,conexion);
+                await using var lector=await cmd.ExecuteReaderAsync(contexto.RequestAborted);
+                if(!await lector.ReadAsync(contexto.RequestAborted))
+                    return Results.Ok(new { solicitudId=(int?)null, fechaExpiracionUtc=(DateTime?)null });
+                return Results.Ok(new { solicitudId=(int?)lector.GetInt32(0),
+                    fechaExpiracionUtc=(DateTime?)DateTime.SpecifyKind(lector.GetDateTime(1),DateTimeKind.Utc) });
+            }
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No fue posible consultar la autorización de la tablet.");}
+        }).RequireAuthorization("SoloAdministradores");
+
         app.MapPost(
             "/api/admin/terminales/vinculacion/aprobar",
             async (

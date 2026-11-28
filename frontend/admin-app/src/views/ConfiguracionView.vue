@@ -1,5 +1,5 @@
 <script setup>
-import {computed,onMounted,ref,watch} from "vue";
+import {computed,inject,onMounted,ref,watch} from "vue";
 import {useRoute} from "vue-router";
 import {apiAdmin} from "../services/adminApi.js";
 import AdminIcon from "../components/AdminIcon.vue";
@@ -7,6 +7,17 @@ const tabs=[["usuarios","Usuarios y permisos"],["datos","Gestión de datos"],["t
 const ruta=useRoute();
 const tab=ref("usuarios"),ocupado=ref(false),error=ref(""),aviso=ref("");
 const terminalPrincipal=ref(null),ubicacionEstacion=ref(""),errorEstacion=ref("");
+const autorizacionTablet=inject("autorizacionTablet");
+const solicitudTablet=computed(()=>autorizacionTablet?.solicitud.value||null);
+const codigoVisualTablet=ref("");
+watch(()=>solicitudTablet.value?.solicitudId,()=>{codigoVisualTablet.value="";});
+function aprobarTablet(){return ejecutar(async()=>{
+ const id=solicitudTablet.value?.solicitudId;
+ if(!id||!/^\d{8}$/.test(codigoVisualTablet.value))return;
+ await mutar("/api/admin/terminales/vinculacion/aprobar","POST",{solicitudId:id,codigoVisual:codigoVisualTablet.value});
+ codigoVisualTablet.value="";await autorizacionTablet?.actualizar();
+ aviso.value="Autorización aprobada. En la tablet, pulsa Comprobar aprobación.";
+});}
 const usuarios=ref([]),nuevo=ref(false),nombre=ref(""),clave=ref(""),rolesNuevos=ref(["Operador"]);
 const editar=ref(null),activo=ref(true),rolesEditados=ref([]),passwordId=ref(null),password=ref("");
 const roles=["Administrador","Operador","Auditor"];
@@ -99,6 +110,7 @@ function respaldo(){return ejecutar(async()=>{
  const r=await mutar("/api/admin/configuracion/respaldos","POST",{});await cargarRespaldos();aviso.value="Respaldo verificado: "+r.nombre;
 });}
 async function cargarEstacion(){
+ void autorizacionTablet?.actualizar();
  terminalPrincipal.value=null;ubicacionEstacion.value="";errorEstacion.value="";
  const [registro,config]=await Promise.allSettled([
    apiAdmin("/api/admin/terminales/vinculacion/listar"),
@@ -119,7 +131,7 @@ function cambiar(id){if(ocupado.value)return;cancelar();tab.value=id;void ejecut
  if(id==="respaldos")await cargarRespaldos();
 });}
 onMounted(()=>{if(ruta.query.seccion==="estacion")cambiar("estacion");else void ejecutar(cargarUsuarios);});
-watch(()=>ruta.query.seccion,seccion=>{if(seccion==="estacion"&&tab.value!=="estacion")cambiar("estacion");});
+watch(()=>[ruta.query.seccion,ruta.query.solicitud],([seccion])=>{if(seccion==="estacion"&&tab.value!=="estacion")cambiar("estacion");});
 const fecha=v=>new Date(v).toLocaleString("es-HN",{timeZone:"America/Tegucigalpa"});
 const mb=v=>(v/1048576).toFixed(2)+" MB";
 </script>
@@ -186,6 +198,14 @@ const mb=v=>(v/1048576).toFixed(2)+" MB";
     </article>
     <p class="cfg-muted">El estado corresponde al registro de la estación, no a una medición de conexión en tiempo real.</p>
     <div class="cfg-recuadro"><strong>Ubicación registrada</strong><p>{{ubicacionEstacion||"No disponible"}}</p></div>
+   </section>
+   <section v-if="solicitudTablet" class="panel cfg-panel">
+    <h2>Autorizar tablet</h2><p>La estación ha solicitado una nueva autorización. Comprueba el número de solicitud y escribe el código de ocho dígitos que aparece en la tablet.</p>
+    <form class="cfg-form" @submit.prevent="aprobarTablet">
+      <div class="cfg-grid"><label>Número de solicitud<input :value="solicitudTablet.solicitudId" readonly/></label><label>Código de aprobación<input v-model.trim="codigoVisualTablet" type="text" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" autocomplete="off" required/></label></div>
+      <div class="cfg-acciones"><button type="submit" class="cfg-primario" :disabled="ocupado||!/^\d{8}$/.test(codigoVisualTablet)">Aprobar estación</button></div>
+    </form>
+    <p class="cfg-muted">Solo aprueba una solicitud que reconozcas. La solicitud vence a los cinco minutos.</p>
    </section>
    <section class="panel cfg-panel"><h2>Seguridad</h2><p>Las autorizaciones de WhatsApp, la verificación facial y la vigencia de PIN mantienen sus controles actuales.</p><p class="cfg-muted">La modificación de la ubicación, disponibilidad de servicios y parámetros de seguridad todavía no está habilitada desde esta interfaz.</p></section>
   </template>

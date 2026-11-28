@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import { cerrarSesion, consultarSesion } from "../services/adminApi";
+import { apiAdmin, cerrarSesion, consultarSesion } from "../services/adminApi";
 import AdminIcon from "../components/AdminIcon.vue";
 
 const router = useRouter();
@@ -12,6 +12,18 @@ const rol = ref("");
 const roles = ref([]);
 const saliendo = ref(false);
 const error = ref("");
+const solicitudTablet=ref(null);
+let relojTablet,consultandoTablet=false,desmontado=false;
+async function consultarSolicitudTablet(){
+  if(desmontado||consultandoTablet||!roles.value.includes("Administrador"))return;
+  consultandoTablet=true;
+  try{
+    const d=await apiAdmin("/api/admin/terminales/vinculacion/pendiente-principal");
+    if(!desmontado)solicitudTablet.value=Number.isInteger(d?.solicitudId)&&d.solicitudId>0?d:null;
+  }catch{if(!desmontado)solicitudTablet.value=null;}
+  finally{consultandoTablet=false;}
+}
+provide("autorizacionTablet",{solicitud:solicitudTablet,actualizar:consultarSolicitudTablet});
 
 const grupos = [
   { titulo: "OPERACIONES", enlaces: [
@@ -46,9 +58,14 @@ onMounted(async () => {
     nombreUsuario.value = sesion.usuario;
     roles.value = sesion.roles || [];
     rol.value = sesion?.rol || roles.value[0] || "";
+    if(!desmontado&&roles.value.includes("Administrador")){
+      void consultarSolicitudTablet();
+      relojTablet=window.setInterval(()=>{if(document.visibilityState==="visible")void consultarSolicitudTablet();},10000);
+      window.addEventListener("focus",consultarSolicitudTablet);
+    }
   } catch { await router.replace("/login"); }
 });
-onBeforeUnmount(() => window.removeEventListener("keydown", cerrarConEscape));
+onBeforeUnmount(() => {desmontado=true;window.clearInterval(relojTablet);window.removeEventListener("focus",consultarSolicitudTablet);window.removeEventListener("keydown", cerrarConEscape);});
 
 async function salir() {
   if (saliendo.value) return;
@@ -82,6 +99,9 @@ async function salir() {
             <span v-if="enlace.pendiente" class="nav-pending" aria-label="En preparación">Pronto</span>
           </RouterLink>
         </div>
+        <RouterLink v-if="solicitudTablet&&roles.includes('Administrador')" :to="{name:'configuracion',query:{seccion:'estacion',solicitud:solicitudTablet.solicitudId}}" class="sidebar-link sidebar-autorizacion" @click="menuAbierto=false">
+          <AdminIcon name="lockers" :size="19"/><span>Autorizar tablet</span><span class="nav-pending">Pendiente</span>
+        </RouterLink>
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-user"><span class="user-avatar"><AdminIcon name="user" :size="19" /></span><span class="sidebar-identidad"><strong :title="nombreUsuario">{{ nombreUsuario || "Cargando usuario…" }}</strong><small>{{ rol }}</small></span></div>
@@ -107,5 +127,6 @@ async function salir() {
 
 <style scoped>
 .sidebar-identidad { flex: 1; min-width: 0; }
+.sidebar-autorizacion {border:1px solid #5ec6e8; margin-top:10px; color:#fff;}
 .sidebar-identidad strong, .sidebar-identidad small { overflow-wrap: anywhere; }
 </style>
