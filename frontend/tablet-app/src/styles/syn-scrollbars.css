@@ -1,0 +1,62 @@
+/* SYNCHRO | Barras de desplazamiento nativas
+   Mismo diseño en usuarios, administración y terminal.
+   No modifica overflow, gestos táctiles ni dimensiones de contenedores. */
+:root {
+  --syn-scroll-thumb: #829eaf;
+  --syn-scroll-hover: #006f7e;
+  --syn-scroll-active: #01305c;
+  --syn-scroll-track: transparent;
+}
+
+/* El panel administrativo conserva su menú lateral azul incluso en tema claro. */
+:root[data-theme="oscuro"],
+.synchro-app.tema-oscuro,
+.admin-sidebar {
+  --syn-scroll-thumb: #698fa5;
+  --syn-scroll-hover: #5ec6e8;
+  --syn-scroll-active: #00b9c7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="claro"]) :is(.wa-workspace,.enc-page,.manual-admin) {
+    --syn-scroll-thumb: #698fa5;
+    --syn-scroll-hover: #5ec6e8;
+    --syn-scroll-active: #00b9c7;
+  }
+}
+
+/* Se respeta el ajuste de contraste forzado del sistema.
+   Solo se estilizan barras que el navegador necesita mostrar. */
+@media (forced-colors: none) {
+  @supports selector(::-webkit-scrollbar) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: var(--syn-scroll-track);
+    }
+    ::-webkit-scrollbar-thumb {
+      min-height: 28px;
+      min-width: 28px;
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: var(--syn-scroll-thumb);
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--syn-scroll-hover);
+    }
+    ::-webkit-scrollbar-thumb:active {
+      background-color: var(--syn-scroll-active);
+    }
+  }
+  /* Firefox y navegadores que solo admiten propiedades estándar. */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--syn-scroll-thumb) var(--syn-scroll-track);
+    }
+  }
+}

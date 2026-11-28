@@ -10,3 +10,4 @@ createApp(App).use(router).mount("#app");
 import "./styles/syn-ui.css";
 import "./styles/redisenio-home.css";
 import "./styles/redisenio-v2.css";
+import "./styles/syn-scrollbars.css";
