@@ -98,3 +98,10 @@ test("contacto concentra WhatsApp en una única acción principal y mantiene los
   assert.match(footer,/Política de cookies/);
   assert.match(footer,/Preferencias de cookies/);
 });
+
+test("pie compacto: identidad y lema en una sola columna, sin franja decorativa duplicada",()=>{
+  const footer=leer("src/components/landing/SiteFooter.vue");
+  assert.match(footer,/<BrandLogo compacto\s*\/>/);
+  assert.match(footer,/\{\{ empresa\.lema \}\}/);
+  assert.doesNotMatch(footer,/syn-footer-intro|syn-footer-emblema|nombre="tecnologia"/);
+});

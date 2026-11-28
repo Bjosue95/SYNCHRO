@@ -10,21 +10,13 @@ import { empresa } from "../../data/empresa.js";
 <template>
   <footer class="syn-footer">
     <div class="contenedor">
-      <div class="syn-footer-intro">
-        <div>
-          <span class="syn-footer-kicker">SYNCHRO</span>
-          <h2>El punto donde todo se conecta.</h2>
-          <p>Almacenamiento, encomiendas y conectividad en una sola experiencia.</p>
-        </div>
-        <span class="syn-footer-emblema" aria-hidden="true"><AppIcon nombre="tecnologia" :tamano="46"/></span>
-      </div>
-
       <div class="syn-footer-grid">
         <div class="syn-footer-brand">
           <RouterLink to="/" class="syn-footer-logo" aria-label="SYNCHRO - Inicio">
-            <BrandLogo />
+            <BrandLogo compacto />
           </RouterLink>
-          <p>
+          <p class="syn-footer-lema">{{ empresa.lema }}.</p>
+          <p class="syn-footer-descripcion">
             Soluciones inteligentes de almacenamiento, encomiendas,
             temperatura controlada y carga de dispositivos.
           </p>
@@ -83,13 +75,9 @@ import { empresa } from "../../data/empresa.js";
 
 <style scoped>
 .syn-footer { padding:0; background:var(--surface); border-top:1px solid var(--border); }
-.syn-footer-intro { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:42px 0; border-bottom:1px solid var(--border); }
-.syn-footer-kicker { color:var(--accent-text); font-size:12px; letter-spacing:.07em; font-weight:720; }
-.syn-footer-intro h2 { margin:8px 0 0; color:var(--text-strong); font-size:clamp(25px,3vw,37px); letter-spacing:-.035em; font-weight:650; }
-.syn-footer-intro p { color:var(--text-muted); font-size:14px; line-height:1.6; margin:10px 0 0; }
-.syn-footer-emblema { display:grid; place-items:center; width:78px; height:78px; flex:none; border-radius:20px; border:1px solid var(--border); background:var(--surface-accent); }
-.syn-footer-grid { display:grid; grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,.8fr)) minmax(0,1.1fr); gap:clamp(17px,3vw,44px); padding:56px 0 63px; }
-.syn-footer-brand p { margin:24px 0 20px; font-size:13px; line-height:1.75; max-width:270px; color:var(--text-muted); }
+.syn-footer-grid { display:grid; grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,.8fr)) minmax(0,1.1fr); gap:clamp(17px,3vw,44px); padding:clamp(32px,4vw,54px) 0 clamp(28px,3vw,42px); }
+.syn-footer-lema { margin:14px 0 8px; color:var(--text-strong); font-size:16px; line-height:1.45; font-weight:600; max-width:280px; }
+.syn-footer-descripcion { margin:0 0 18px; font-size:13px; line-height:1.7; max-width:270px; color:var(--text-muted); }
 .syn-footer-logo { display:inline-flex; text-decoration:none; }
 .syn-footer-social { display:flex; align-items:center; gap:10px; }
 .syn-footer-social a { display:grid; place-items:center; width:42px; height:42px; background:var(--surface-soft); border:1px solid var(--border); border-radius:12px; color:var(--text-strong); }
@@ -108,6 +96,6 @@ import { empresa } from "../../data/empresa.js";
 .syn-footer-privacidad a,.syn-footer-privacidad button { color:var(--text-muted); font:inherit; background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
 .syn-footer-privacidad a:focus-visible,.syn-footer-privacidad button:focus-visible { outline:2px solid var(--ring); outline-offset:4px; }
 @media(max-width:960px) { .syn-footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:37px; } }
-@media(max-width:560px) { .syn-footer-grid { grid-template-columns:1fr 1fr; column-gap:25px; } .syn-footer-brand,.syn-footer-contact { grid-column:span 2; } .syn-footer-intro { align-items:flex-start; } .syn-footer-emblema { display:none; } .syn-footer-bottom { flex-direction:column; } }
+@media(max-width:560px) { .syn-footer-grid { grid-template-columns:1fr 1fr; column-gap:25px; } .syn-footer-brand,.syn-footer-contact { grid-column:span 2; } .syn-footer-bottom { flex-direction:column; } }
 @media(max-width:360px) { .syn-footer-grid { grid-template-columns:1fr; } .syn-footer-brand,.syn-footer-contact { grid-column:auto; } }
 </style>
