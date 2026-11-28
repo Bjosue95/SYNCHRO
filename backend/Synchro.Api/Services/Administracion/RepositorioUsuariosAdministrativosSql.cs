@@ -8,6 +8,26 @@ internal static class AccesoAdministrativoSql
     public const string ClaimVersion="synchro_version_sesion";
     public static async Task<AccesoAdministrativo> ObtenerAsync(SqlConnection c,int id,CancellationToken token,SqlTransaction? transaccion=null)
     {
+        // En SynchroDB no se concede el rol por compatibilidad historica.
+        if (string.Equals(c.Database,"SynchroDB",StringComparison.OrdinalIgnoreCase))
+        {
+            await using var estricto = new SqlCommand("""
+                SELECT r.Rol,g.VersionSesion
+                FROM dbo.AccesosAdministrativosGestionados g
+                JOIN dbo.RolesAdministrativosPrototipo r ON r.AdministradorId=g.AdministradorId
+                WHERE g.AdministradorId=@id AND g.VersionSesion>=1;
+                """,c,transaccion);
+            estricto.Parameters.Add("@id",SqlDbType.Int).Value=id;
+            var explicitos=new List<string>();int versionExplicita=0;
+            await using var lector=await estricto.ExecuteReaderAsync(token);
+            while(await lector.ReadAsync(token))
+            {
+                versionExplicita=lector.GetInt32(1);
+                string rol=lector.GetString(0);
+                if(GestionUsuariosAdministrativos.RolesPermitidos.Contains(rol,StringComparer.Ordinal))explicitos.Add(rol);
+            }
+            return new(explicitos.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),versionExplicita);
+        }
         // La compatibilidad con cuentas anteriores no convierte en administrador
         // a una cuenta gestionada que se haya quedado sin roles.
         await using var q=new SqlCommand("""

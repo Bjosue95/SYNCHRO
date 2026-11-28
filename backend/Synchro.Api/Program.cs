@@ -23,6 +23,12 @@ if (args.Length == 1 && args[0] == "--verificar-base-definitiva")
     return;
 }
 
+if (args.Length == 1 && args[0] == "--administracion-definitiva")
+{
+    await Synchro.Api.Services.Administracion.HostAdministracionDefinitiva.IniciarAsync();
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 AdminConfiguracionEndpoints.CargarTarifasLocales(builder);
 
