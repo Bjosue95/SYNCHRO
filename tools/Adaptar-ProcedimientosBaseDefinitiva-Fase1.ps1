@@ -12,6 +12,16 @@ $procedimientos = [ordered]@{
     ValidarCodigoTelefonoSynchro = 56663
     ValidarPinRetiroSynchro = 51403
 }
+# Opciones de compilacion originales verificadas en el esquema exportado.
+$quotedIdentifier = @{
+    CancelarReservaPersonalManualSynchro = 1
+    ConsumirVerificacionInicioSesionSynchro = 0
+    EmitirPinRetiroSynchro = 1
+    TomarOutboxWhatsAppSynchro = 1
+    ValidarCodigoTelefonoConFinalidadSynchro = 0
+    ValidarCodigoTelefonoSynchro = 0
+    ValidarPinRetiroSynchro = 1
+}
 $guardiaNueva = "IF DB_NAME() <> N'SynchroDB' OR ISNULL(CONVERT(nvarchar(128),SERVERPROPERTY('InstanceName')),N'') <> N'SQLEXPRESS' OR ISNULL(CONVERT(int,SERVERPROPERTY('IsLocalDB')),1) <> 0"
 $conexion = [System.Data.SqlClient.SqlConnection]::new('Server=.\SQLEXPRESS;Database=SynchroDB;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Connect Timeout=15')
 $tx = $null
@@ -42,10 +52,12 @@ IF (SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped=0)<>55
 SELECT m.definition
 FROM sys.procedures p JOIN sys.sql_modules m ON m.object_id=p.object_id
 JOIN sys.schemas s ON s.schema_id=p.schema_id
-WHERE s.name=N'dbo' AND p.name=@nombre AND m.uses_ansi_nulls=1 AND m.uses_quoted_identifier=1;
+WHERE s.name=N'dbo' AND p.name=@nombre AND m.uses_ansi_nulls=1 AND m.uses_quoted_identifier=@quoted;
 '@
         [void]$q.Parameters.Add('@nombre',[System.Data.SqlDbType]::NVarChar,128)
         $q.Parameters['@nombre'].Value = $nombre
+        [void]$q.Parameters.Add('@quoted',[System.Data.SqlDbType]::Bit)
+        $q.Parameters['@quoted'].Value = [bool]$quotedIdentifier[$nombre]
         $definicion = [string]$q.ExecuteScalar()
         if ([string]::IsNullOrWhiteSpace($definicion)) { throw "Definicion no disponible: $nombre" }
         if ($definicion -match 'SynchroFixtureDeposito|ConfirmadoSimulado|PagoSimulado') {
@@ -76,10 +88,33 @@ WHERE s.name=N'dbo' AND p.name=@nombre AND m.uses_ansi_nulls=1 AND m.uses_quoted
     # Todas las definiciones se verifican antes de modificar alguna.
     $q.Parameters.Clear()
     foreach ($nombre in $pendientes.Keys) {
+        $opcion = if ($quotedIdentifier[$nombre] -eq 1) { 'ON' } else { 'OFF' }
+        $q.CommandText = "SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER $opcion;"
+        [void]$q.ExecuteNonQuery()
         $q.CommandText = $pendientes[$nombre]
         [void]$q.ExecuteNonQuery()
     }
 
+    # Comprobar que ALTER preservo las opciones originales y la nueva guardia.
+    $q.CommandText = 'SET QUOTED_IDENTIFIER ON;'
+    [void]$q.ExecuteNonQuery()
+    foreach ($nombre in $procedimientos.Keys) {
+        $q.Parameters.Clear()
+        $q.CommandText = @'
+SELECT COUNT(*) FROM sys.procedures p JOIN sys.sql_modules m ON m.object_id=p.object_id
+JOIN sys.schemas s ON s.schema_id=p.schema_id
+WHERE s.name=N'dbo' AND p.name=@nombre AND m.uses_ansi_nulls=1
+ AND m.uses_quoted_identifier=@quoted AND CHARINDEX(@guardia,m.definition)>0;
+'@
+        [void]$q.Parameters.Add('@nombre',[System.Data.SqlDbType]::NVarChar,128)
+        [void]$q.Parameters.Add('@quoted',[System.Data.SqlDbType]::Bit)
+        [void]$q.Parameters.Add('@guardia',[System.Data.SqlDbType]::NVarChar,4000)
+        $q.Parameters['@nombre'].Value = $nombre
+        $q.Parameters['@quoted'].Value = [bool]$quotedIdentifier[$nombre]
+        $q.Parameters['@guardia'].Value = $guardiaNueva
+        if ([int]$q.ExecuteScalar() -ne 1) { throw "Validacion posterior incorrecta: $nombre" }
+    }
+    $q.Parameters.Clear()
     $q.CommandText = @'
 SELECT COUNT(*) FROM sys.procedures p JOIN sys.sql_modules m ON m.object_id=p.object_id
 WHERE m.definition LIKE N'%SynchroDB[_]Pruebas%';
