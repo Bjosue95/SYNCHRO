@@ -55,6 +55,7 @@ const rutas = [
     meta: { privada: true, titulo: "Consultar solicitud" },
     component: () => import("../views/ConsultarReservaView.vue")
   },
+  { path: "/politica-de-cookies", name: "politica-cookies", component: () => import("../views/PoliticaCookiesView.vue") },
   { path: "/:pathMatch(.*)*", redirect: "/" }
 ];
 

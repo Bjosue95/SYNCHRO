@@ -2,12 +2,15 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { ubicaciones, linkMaps } from "../../data/empresa.js";
 import AppIcon from "../ui/AppIcon.vue";
+import SynButton from "../ui/SynButton.vue";
+import { useCookies } from "../../composables/useCookies.js";
+const { mapaPermitido, guardarPreferencias } = useCookies();
 import "leaflet/dist/leaflet.css";
 
 const contenedorMapa = ref(null);
 const filtro = ref("todas");
 const seleccionado = ref("curc");
-const estadoMapa = ref("cargando");
+const estadoMapa = ref("bloqueado");
 const zonas = [
   { id: "todas", etiqueta: "Todas" },
   { id: "centro", etiqueta: "Comayagua" },
@@ -38,12 +41,12 @@ function popupSeguro(lugar) {
 }
 
 async function iniciarMapa() {
-  if (preparando || mapa || desmontado) return;
+  if (!mapaPermitido.value || preparando || mapa || desmontado) return;
   preparando = true;
   try {
     const modulo = await import("leaflet");
     L = modulo.default || modulo;
-    if (desmontado || !contenedorMapa.value) return;
+    if (desmontado || !mapaPermitido.value || !contenedorMapa.value) return;
     mapa = L.map(contenedorMapa.value, {
       zoomControl: true, scrollWheelZoom: false,
       keyboard: true, attributionControl: true
@@ -68,7 +71,7 @@ async function iniciarMapa() {
     actualizarMarcadores();
     estadoMapa.value = "listo";
   } catch {
-    estadoMapa.value = "error";
+    if (mapaPermitido.value && !desmontado) estadoMapa.value = "error";
   } finally {
     preparando = false;
   }
@@ -107,7 +110,9 @@ function elegirLugar(lugar) {
 }
 watch(filtro, actualizarMarcadores);
 
-onMounted(() => {
+function prepararMapa() {
+  if (!mapaPermitido.value || desmontado) return;
+  estadoMapa.value = "cargando";
   if (!("IntersectionObserver" in window)) { void iniciarMapa(); return; }
   observador = new IntersectionObserver(entradas => {
     if (!entradas.some(x => x.isIntersecting)) return;
@@ -115,12 +120,24 @@ onMounted(() => {
     void iniciarMapa();
   }, { rootMargin: "200px" });
   if (contenedorMapa.value) observador.observe(contenedorMapa.value);
-});
-onBeforeUnmount(() => {
-  desmontado = true;
+}
+function retirarMapa() {
   observador?.disconnect();
+  observador = null;
   mapa?.remove();
   mapa = null;
+  grupo = null;
+  marcadores.clear();
+  estadoMapa.value = "bloqueado";
+}
+watch(mapaPermitido, permitido => {
+  if (permitido) prepararMapa();
+  else retirarMapa();
+});
+onMounted(prepararMapa);
+onBeforeUnmount(() => {
+  desmontado = true;
+  retirarMapa();
 });
 </script>
 
@@ -148,7 +165,15 @@ onBeforeUnmount(() => {
         <div class="syn-map-surface">
           <div ref="contenedorMapa" class="syn-map-canvas" role="region"
             aria-label="Mapa interactivo de lugares de referencia"></div>
-          <div v-if="estadoMapa === 'cargando'" class="syn-map-loading" aria-live="polite">
+          <div v-if="estadoMapa === 'bloqueado'" class="syn-map-loading syn-map-permiso">
+            <div>
+              <AppIcon nombre="ubicacion" :tamano="40"/>
+              <h3>Mapa interactivo</h3>
+              <p>Al activarlo, OpenStreetMap recibirá datos técnicos de conexión. Puedes consultar la lista sin activar el mapa.</p>
+              <SynButton @click="guardarPreferencias(true)">Activar mapa externo</SynButton>
+            </div>
+          </div>
+          <div v-else-if="estadoMapa === 'cargando'" class="syn-map-loading" aria-live="polite">
             Cargando mapa…
           </div>
           <div v-else-if="estadoMapa === 'error'" class="syn-map-loading" role="status">
@@ -203,6 +228,9 @@ onBeforeUnmount(() => {
 .syn-map-surface { min-height:500px; position:relative; }
 .syn-map-canvas { height:100%; width:100%; min-height:500px; background:#dfeaed; z-index:0; }
 .syn-map-loading { position:absolute; inset:0; display:grid; place-items:center; background:var(--surface-soft); color:var(--text-muted); text-align:center; padding:22px; font-size:14px; }
+.syn-map-permiso > div { display:grid; justify-items:center; gap:12px; max-width:330px; }
+.syn-map-permiso h3 { color:var(--text-strong); font-size:18px; margin:0; }
+.syn-map-permiso p { line-height:1.6; margin:0; }
 .syn-map-list { max-height:500px; overflow-y:auto; border-left:1px solid var(--border); }
 .syn-map-list-header { display:grid; gap:4px; padding:21px; border-bottom:1px solid var(--border); background:var(--surface-soft); }
 .syn-map-list-header strong { font-size:16px; color:var(--text-strong); }

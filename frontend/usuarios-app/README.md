@@ -251,3 +251,8 @@ Proyecto:
 6. Probar una solicitud ficticia y verificar recepción en el buzón, incluso spam. Solo se muestra éxito si EmailJS responde HTTP 200; un fallo conserva los campos. La aceptación del proveedor no garantiza llegada a bandeja principal.
 
 El envío transmite los campos a EmailJS y al proveedor de correo, no a SQL. El servicio usa la API REST oficial sin añadir dependencias. Configurar las políticas de privacidad y conservación del correo de acuerdo con el uso comercial.
+
+
+## Política de cookies y contenido externo
+
+El aviso global de usuarios aparece hasta que se guarda una decisión, con vigencia de 180 días. Solo esenciales y Aceptar todas son opciones equivalentes; Configurar permite elegir el mapa externo. La preferencia no identifica al visitante. La política está en /politica-de-cookies y el enlace para modificarla está en el pie público y el menú de cuenta. La sesión, CSRF, tema solicitado y EmailJS al enviar el formulario siguen funcionando independientemente de la elección. OpenStreetMap no se carga hasta permitirlo; al retirar el permiso se desmonta el mapa. No añadir analítica, publicidad o nuevos proveedores sin actualizar la política y los controles. Pruebas: tests/cookies.test.mjs.

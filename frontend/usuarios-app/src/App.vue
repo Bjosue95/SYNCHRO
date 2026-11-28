@@ -4,6 +4,7 @@ import { RouterView, useRoute } from "vue-router";
 import { comprobarSesion } from "./services/sesion.js";
 import AppShell from "./components/layout/AppShell.vue";
 import PublicLayout from "./components/layout/PublicLayout.vue";
+import CookieNotice from "./components/ui/CookieNotice.vue";
 
 const route = useRoute();
 const layout = computed(() => route.meta.privada ? AppShell : PublicLayout);
@@ -24,4 +25,5 @@ onMounted(() => {
       </Transition>
     </RouterView>
   </component>
+  <CookieNotice />
 </template>

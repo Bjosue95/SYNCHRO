@@ -5,6 +5,8 @@ import { estadoSesion, cerrarSesion } from "../../services/sesion.js";
 import AppIcon from "../ui/AppIcon.vue";
 import BrandLogo from "../ui/BrandLogo.vue";
 import ThemeToggle from "../ui/ThemeToggle.vue";
+import { useCookies } from "../../composables/useCookies.js";
+const { abrirPreferencias } = useCookies();
 
 const router = useRouter();
 const route = useRoute();
@@ -69,6 +71,10 @@ async function salir() {
           <span class="sidebar-icono"><AppIcon nombre="volver" :tamano="21"/></span>
           <span>Volver al sitio</span>
         </RouterLink>
+        <button type="button" class="sidebar-link sidebar-cookies" @click="abierto = false; abrirPreferencias()">
+          <span class="sidebar-icono"><AppIcon nombre="seguridad" :tamano="21"/></span>
+          <span>Preferencias de cookies</span>
+        </button>
       </div>
 
       <div class="sidebar-pie">
@@ -109,3 +115,9 @@ async function salir() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.sidebar-cookies { width:100%; text-align:left; font-family:inherit; cursor:pointer; border:0; background:transparent; }
+.sidebar-cookies:hover { background:var(--surface-hover); }
+.sidebar-cookies:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+</style>

@@ -2,6 +2,8 @@
 import { RouterLink } from "vue-router";
 import BrandLogo from "../ui/BrandLogo.vue";
 import AppIcon from "../ui/AppIcon.vue";
+import { useCookies } from "../../composables/useCookies.js";
+const { abrirPreferencias } = useCookies();
 import { empresa, linkWhatsapp } from "../../data/empresa.js";
 const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
 </script>
@@ -75,7 +77,10 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
 
       <div class="syn-footer-bottom">
         <span>© {{ new Date().getFullYear() }} SYNCHRO. Todos los derechos reservados.</span>
-        <span>Innovación, seguridad y accesibilidad para conectar Honduras.</span>
+        <div class="syn-footer-privacidad">
+          <RouterLink to="/politica-de-cookies">Política de cookies</RouterLink>
+          <button type="button" @click="abrirPreferencias">Preferencias de cookies</button>
+        </div>
       </div>
     </div>
   </footer>
@@ -105,6 +110,9 @@ const whatsapp = linkWhatsapp("Hola, quisiera información sobre SYNCHRO.");
 .syn-footer-cta :deep(svg) { flex:0 0 auto; }
 .syn-footer-address-title { margin:9px 0 0 !important; }
 .syn-footer-bottom { display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px; padding:23px 0; border-top:1px solid var(--border); color:var(--text-subtle); font-size:11px; }
+.syn-footer-privacidad { display:flex; flex-wrap:wrap; gap:12px 20px; }
+.syn-footer-privacidad a,.syn-footer-privacidad button { color:var(--text-muted); font:inherit; background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.syn-footer-privacidad a:focus-visible,.syn-footer-privacidad button:focus-visible { outline:2px solid var(--ring); outline-offset:4px; }
 @media(max-width:960px) { .syn-footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:37px; } }
 @media(max-width:560px) { .syn-footer-grid { grid-template-columns:1fr 1fr; column-gap:25px; } .syn-footer-brand,.syn-footer-contact { grid-column:span 2; } .syn-footer-intro { flex-direction:column; align-items:flex-start; } .syn-footer-cta { white-space:normal; } .syn-footer-bottom { flex-direction:column; } }
 @media(max-width:360px) { .syn-footer-grid { grid-template-columns:1fr; } .syn-footer-brand,.syn-footer-contact { grid-column:auto; } }
