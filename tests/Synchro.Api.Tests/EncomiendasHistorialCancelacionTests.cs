@@ -14,7 +14,8 @@ public sealed partial class EncomiendasOperativasSqlTests
     {
         var ct=CancellationToken.None;var s=f.Servicio;
         int id=Json(await s.Crear(f.Persona,"+999123456702","Mediano",ct)).GetProperty("id").GetInt32();
-        await Consentir(f,id,"Remitente");await Consentir(f,id,"Destinatario");
+        await Consentir(f,id,"Remitente");
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>Consentir(f,id,"Destinatario"));
         await s.ConfirmarPago(id,new("Efectivo",22,"RECIBO-PROPIO-"+Guid.NewGuid().ToString("N"),true,null),f.Admin,ct);
         await s.RegistrarReferencia(f.Persona,Captura(),ct);
         var pin=await EmitirEntregar(f,id,"Deposito");
@@ -39,7 +40,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.True(detalle.GetProperty("pagoRequiereRevision").GetBoolean());Assert.Equal("ConfirmadoManual",detalle.GetProperty("pago").GetProperty("estado").GetString());
         Assert.Equal(JsonValueKind.Null,detalle.GetProperty("compartir").GetProperty("enlaceWhatsApp").ValueKind);
         Assert.Equal("Confirmado",Json(await s.ConsultarConsentimientoCuenta(f.Persona,ct)).GetProperty("consentimiento").GetString());
-        Assert.Contains(detalle.GetProperty("seguimiento").EnumerateArray(),e=>e.GetProperty("tipo").GetString()=="AceptacionDestinatario");
+        Assert.DoesNotContain(detalle.GetProperty("seguimiento").EnumerateArray(),e=>e.GetProperty("tipo").GetString()=="AceptacionDestinatario");
         Assert.All(detalle.GetProperty("pines").EnumerateArray(),p=>Assert.Equal("Revocado",p.GetProperty("estado").GetString()));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.EmitirPin(id,"Deposito",false,f.Admin,ct));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.EmitirPin(id,"Retiro",false,f.Admin,ct));
@@ -75,6 +76,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         var f=await Preparar();var s=f.Servicio;var ct=CancellationToken.None;var(id,solicitud)=await PrepararDeposito(f);
         await s.ConfirmarDeposito(solicitud,f.Terminal,true,ct);
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.Cancelar(id,f.Persona,new("Ya no desea enviar la encomienda",null,true,1),ct));
+        await Consentir(f,id,"Destinatario");
         var pin=await EmitirEntregar(f,id,"Retiro");var ev=Json(await s.CapturarDestinatario(id,f.Terminal,Captura(destinatario:true),ct)).GetProperty("evidenciaId").GetGuid();
         await s.Retirar(id,f.Terminal,new(ev,pin.GetProperty("pin").GetString()!,true),ct);
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.Cancelar(id,f.Persona,new("Ya no desea enviar la encomienda",null,true,1),ct));
@@ -148,7 +150,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         int id=Json(await f.Servicio.Crear(f.Persona,"+999123456702","Mediano",ct)).GetProperty("id").GetInt32();
         var s=new EncomiendasOperativasSql(ConfiguracionManual,f.Proteccion,TimeProvider.System);
         var encomiendas=Json(await s.BandejaWhatsApp(new(Servicio:"Encomiendas",Referencia:id.ToString()),ct));
-        Assert.Equal(2,encomiendas.GetProperty("total").GetInt32());Assert.All(encomiendas.GetProperty("solicitudes").EnumerateArray(),x=>Assert.Equal("Encomiendas",x.GetProperty("servicio").GetString()));
+        Assert.Equal(1,encomiendas.GetProperty("total").GetInt32());Assert.All(encomiendas.GetProperty("solicitudes").EnumerateArray(),x=>Assert.Equal("Encomiendas",x.GetProperty("servicio").GetString()));
         var cfgEstacion=new ConfigurationBuilder().AddInMemoryCollection(ConfiguracionManual.AsEnumerable())
             .AddInMemoryCollection(new Dictionary<string,string?>{["Administracion:ExcluirFixturesBandejaWhatsApp"]="true"}).Build();
         var estacion=new EncomiendasOperativasSql(cfgEstacion,f.Proteccion,TimeProvider.System);

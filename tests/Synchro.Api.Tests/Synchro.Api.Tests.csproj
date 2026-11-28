@@ -34,6 +34,10 @@
     <ProjectReference Include="..\..\backend\Synchro.Api\Synchro.Api.csproj" />
     <None Include="../../backend/Synchro.Api/Database/Migrations/20261114_WhatsAppManual_Pruebas.sql" Link="sql/aislado/WhatsAppManual.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../backend/Synchro.Api/Database/Migrations/20261114_WhatsAppManual_Cancelacion_Pruebas.sql" Link="sql/aislado/WhatsAppManualCancelacion.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261116_CobrosRetiroPersonal_Pruebas.sql" Link="sql/aislado/CobrosRetiroPersonal.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261120_CobroPrimeraHoraYAdicionales_Pruebas.sql" Link="sql/aislado/CobroPrimeraHora.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261116_AuditoriaCobrosRetiroPersonal_Pruebas.sql" Link="sql/aislado/AuditoriaCobrosRetiroPersonal.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../backend/Synchro.Api/Database/Migrations/20261116_FinalizarRetiroPagado_Pruebas.sql" Link="sql/aislado/FinalizarRetiroPagado.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

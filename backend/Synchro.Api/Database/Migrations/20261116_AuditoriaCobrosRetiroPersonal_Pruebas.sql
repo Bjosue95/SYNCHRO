@@ -35,13 +35,7 @@ BEGIN
             CHECK (ImporteHnl > 0),
 
         MetodoPago NVARCHAR(24) NOT NULL
-            CHECK (
-    MetodoPago IN (
-        N'EfectivoSimulado',
-        N'TarjetaSimulada',
-        N'NfcSimulado'
-    )
-)
+            CHECK (MetodoPago IN (N'EfectivoSimulado', N'TarjetaSimulada', N'NfcSimulado')),
 
         ConfirmadoUtc DATETIME2(3) NOT NULL,
 

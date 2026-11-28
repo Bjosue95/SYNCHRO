@@ -29,7 +29,7 @@ public sealed partial class EncomiendasOperativasSqlTests
     private static IConfiguration ConfiguracionReserva(Fixture f)=>new ConfigurationBuilder().AddConfiguration(Configuracion).AddInMemoryCollection(new Dictionary<string,string?>{
         ["ReservasPrototipo:TerminalId"]=f.Terminal.ToString(System.Globalization.CultureInfo.InvariantCulture),
         ["ReservasPrototipo:Casilleros:0"]=f.Casillero,["ReservasPrototipo:Ubicacion"]="Inventario de pruebas",["ReservasPrototipo:DuracionesMinutos:0"]="60",
-        ["ReservasPrototipo:DuracionesMinutos:1"]="120"}).Build();
+        ["ReservasPrototipo:DuracionesMinutos:1"]="120",["ReservasPrototipo:TarifasNormales:Mediano:60"]="22"}).Build();
     private static CapturaEncomiendaSolicitud CapturaDemostrativa(bool retiro=false)=>new(Convert.ToBase64String(RostroSimuladoTests.Png(retiro)),null,
         "SYNCHRO-CAPTURA-DEMOSTRATIVA-v1",EncomiendasOperativasSql.VersionCapturaDemostrativa);
 
@@ -56,7 +56,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.All(bandeja.GetProperty("solicitudes").EnumerateArray(),x=>{Assert.Equal(servicio,x.GetProperty("claseReserva").GetString());Assert.Equal(tipo,x.GetProperty("tipoCasillero").GetString());});
         if(tipo!="Normal"){
             var anterior=new ServicioTemporal(new RepositorioServicioTemporalSql(cfg),cfg,TimeProvider.System);
-            await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>anterior.ReservarAsync(f.Casillero,30,null,ct,f.Persona));
+            await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>anterior.ReservarAsync(f.Casillero,60,null,ct,f.Persona));
         }
         await Consentir(f,id,"Remitente");
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>Consentir(f,id,"Destinatario"));
@@ -280,7 +280,10 @@ public sealed partial class EncomiendasOperativasSqlTests
         cliente.DefaultRequestHeaders.Remove("X-Test-Id");cliente.DefaultRequestHeaders.Add("X-Test-Id",(f.Persona+100000).ToString());
         Assert.Equal(HttpStatusCode.NotFound,(await cliente.GetAsync($"/api/web/reservas/{id}",ct)).StatusCode);
 
-        await Consentir(f,id,"Remitente");await f.Servicio.ConfirmarPago(id,new("Efectivo",22,"PAGO-HTTP-"+Guid.NewGuid().ToString("N"),true,null),f.Admin,ct);
+        await Consentir(f,id,"Remitente");
+        var servicioPrueba=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);
+        var tarifa=Json(await servicioPrueba.Detalle(id,f.Persona,ct)).GetProperty("pago").GetProperty("tarifaConfigurada").GetDecimal();
+        await servicioPrueba.ConfirmarPago(id,new("Efectivo",tarifa,"PAGO-HTTP-"+Guid.NewGuid().ToString("N"),true,null),f.Admin,ct);
         var deposito=Json(await f.Servicio.EmitirPin(id,"Deposito",false,f.Admin,ct));
         await f.Servicio.ConfirmarEntregaPin(id,new(deposito.GetProperty("id").GetGuid(),"+999123456701","WA-HTTP-DEPOSITO",true),f.Admin,ct);
         using var terminal=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});

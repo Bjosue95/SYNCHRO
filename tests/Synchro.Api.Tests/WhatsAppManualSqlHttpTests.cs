@@ -576,6 +576,16 @@ public sealed class WhatsAppManualSqlHttpTests
 
         await db.OpenAsync();
         await PrepararAsync(db);
+        // Instalar únicamente en la instancia de suite validada, con datos ficticios.
+        foreach (string archivo in new[] { "CobrosRetiroPersonal.sql", "CobroPrimeraHora.sql", "AuditoriaCobrosRetiroPersonal.sql", "FinalizarRetiroPagado.sql" })
+        {
+            foreach (string lote in InstalacionPrototipo.Lotes(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "sql", "aislado", archivo))))
+            {
+                await PruebaHistoricaAislada.VerificarAsync(db);
+                await using var comando = new SqlCommand(lote, db);
+                await comando.ExecuteNonQueryAsync();
+            }
+        }
 
         string codigo = "P" + Guid.NewGuid().ToString("N")[..8];
 

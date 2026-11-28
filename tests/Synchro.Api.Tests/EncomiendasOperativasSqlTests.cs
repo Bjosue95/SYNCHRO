@@ -85,10 +85,10 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.Throws<ArgumentException>(()=>Synchro.Api.Services.PreReservaEncomiendaService.Validar(f.Persona,"incorrecto","Mediano"));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.Detalle(id,f.Persona+100000,ct));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.EmitirPin(id,"Deposito",false,f.Admin,ct));
-        await Consentir(f,id,"Remitente");
         var pago=new PagoEncomiendaSolicitud("Efectivo",22,"RECIBO-TEST-"+Guid.NewGuid().ToString("N"),true,null);
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarPago(id,pago,f.Admin,ct));
-        await Consentir(f,id,"Destinatario");
+        await Consentir(f,id,"Remitente");
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>Consentir(f,id,"Destinatario"));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarPago(id,pago with{ImporteHnl=0},f.Admin,ct));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarPago(id,pago with{Metodo="EfectivoSimulado"},f.Admin,ct));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarPago(id,pago with{PagoComprobado=false},f.Admin,ct));
@@ -110,6 +110,8 @@ public sealed partial class EncomiendasOperativasSqlTests
         var dep=Json(concurrentes[0]);Assert.True(dep.GetProperty("depositoConfirmado").GetBoolean());
         Assert.Equal(dep.GetProperty("usoId").GetInt32(),Json(concurrentes[1]).GetProperty("usoId").GetInt32());
         Assert.Equal(dep.GetProperty("usoId").GetInt32(),Json(await s.ConfirmarDeposito(solicitud,f.Terminal,true,ct)).GetProperty("usoId").GetInt32());
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.EmitirPin(id,"Retiro",false,f.Admin,ct));
+        await Consentir(f,id,"Destinatario");
         Assert.False(Json(await s.ConsultarParaRetiro(id,f.Terminal,ct)).GetProperty("pagoAdicionalRequerido").GetBoolean());
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConsultarParaRetiro(id,f.Terminal+100000,ct));
         var retiro=await EmitirEntregar(f,id,"Retiro");Assert.NotEqual(pinDeposito,retiro.GetProperty("pin").GetString());
@@ -154,13 +156,14 @@ public sealed partial class EncomiendasOperativasSqlTests
         var f=await Preparar();var s=f.Servicio;var ct=CancellationToken.None;
         int rechazo=Json(await s.Crear(f.Persona,"+999123456703","Mediano",ct)).GetProperty("id").GetInt32();
         var d=Json(await s.Detalle(rechazo,f.Persona,ct)).GetProperty("destinatario");
-        await s.ConfirmarConsentimiento(rechazo,"Destinatario",new(d.GetProperty("telefono").GetString()!,d.GetProperty("codigo").GetString()!,"RECHAZO-TEST-"+Guid.NewGuid().ToString("N"),true,false,d.GetProperty("texto").GetString()),f.Admin,true,ct);
+        var rechazoAnticipado=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarConsentimiento(rechazo,"Destinatario",new(d.GetProperty("telefono").GetString()!,d.GetProperty("codigo").GetString()!,"RECHAZO-TEST-"+Guid.NewGuid().ToString("N"),true,false,d.GetProperty("texto").GetString()),f.Admin,true,ct));
+        Assert.Equal("DepositoPendiente",rechazoAnticipado.Codigo);
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarPago(rechazo,new("Efectivo",22,"TEST",true,null),f.Admin,ct));
         int vencida=Json(await s.Crear(f.Persona,"+999123456704","Mediano",ct)).GetProperty("id").GetInt32();
         await using(var c=new SqlConnection(Cadena)){await c.OpenAsync();await using var q=new SqlCommand("UPDATE dbo.PreReservasEncomiendasWeb SET FechaExpiracion=DATEADD(MINUTE,-1,SYSUTCDATETIME()) WHERE Id=@id",c);q.Parameters.AddWithValue("@id",vencida);await q.ExecuteNonQueryAsync();}
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>Consentir(f,vencida,"Destinatario"));
         int id=Json(await s.Crear(f.Persona,"+999123456705","Mediano",ct)).GetProperty("id").GetInt32();
-        await Consentir(f,id,"Remitente");await Consentir(f,id,"Destinatario");await s.ConfirmarPago(id,new("Efectivo",22,"PAGO-TEST",true,null),f.Admin,ct);await s.RegistrarReferencia(f.Persona,Captura(),ct);
+        await Consentir(f,id,"Remitente");await s.ConfirmarPago(id,new("Efectivo",22,"PAGO-TEST",true,null),f.Admin,ct);await s.RegistrarReferencia(f.Persona,Captura(),ct);
         var pin=await EmitirEntregar(f,id,"Deposito");var malo=pin.GetProperty("pin").GetString()=="000000"?"000001":"000000";
         var solicitud=Json(await s.CrearSolicitudDeposito(f.Terminal,f.Casillero,ct)).GetProperty("solicitudId").GetGuid();
         for(int i=0;i<5;i++)await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.AutorizarDeposito(id,f.Persona,new(solicitud,malo,Captura()),ct));
@@ -184,8 +187,8 @@ public sealed partial class EncomiendasOperativasSqlTests
         int segunda=Json(await s.Crear(f.Persona,"+999123456702","Mediano",ct)).GetProperty("id").GetInt32();
         var inicial=Json(await s.Detalle(id,f.Persona,ct));
         Assert.Equal("Pendiente",inicial.GetProperty("remitente").GetProperty("consentimiento").GetString());
-        Assert.Contains("https://wa.me/999123456702?text=",inicial.GetProperty("compartir").GetProperty("enlaceWhatsApp").GetString());
-        Assert.Contains("https://wa.me/50433182642?text=SYNCHRO%20ACEPTO%20"+id,inicial.GetProperty("compartir").GetProperty("mensaje").GetString());
+        Assert.Equal(JsonValueKind.Null,inicial.GetProperty("compartir").GetProperty("enlaceWhatsApp").ValueKind);
+        Assert.Equal(JsonValueKind.Null,inicial.GetProperty("compartir").GetProperty("mensaje").ValueKind);
         // Consultar/copiar un enlace no escribe autorizaciones.
         Assert.Equal("Pendiente",Json(await s.Detalle(id,f.Persona,ct)).GetProperty("destinatario").GetProperty("consentimiento").GetString());
         var aceptacion=new ConsentimientoOperativoSolicitud("+999123456701","","WA-CUENTA-"+Guid.NewGuid().ToString("N"),true,true,"SYNCHRO ACEPTO");
@@ -198,15 +201,27 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.Equal("CuentaTelefono",siguiente.GetProperty("remitente").GetProperty("alcance").GetString());
         Assert.Equal(f.Usuario,siguiente.GetProperty("remitente").GetProperty("administrador").GetString());
         Assert.Equal(aceptacion.MensajeReferencia,siguiente.GetProperty("remitente").GetProperty("referencia").GetString());
-        var destinatario=new ConsentimientoOperativoSolicitud("+999123456702",id.ToString(),"WA-DEST-"+Guid.NewGuid().ToString("N"),true,true,"SYNCHRO ACEPTO "+id);
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>Consentir(f,id,"Destinatario"));
+        await s.ConfirmarPago(id,new("Efectivo",22,"PAGO-PRIMERA-"+Guid.NewGuid().ToString("N"),true,null),f.Admin,ct);
+        await s.RegistrarReferencia(f.Persona,Captura(),ct);
+        var pinDeposito=await EmitirEntregar(f,id,"Deposito");
+        var solicitud=Json(await s.CrearSolicitudDeposito(f.Terminal,f.Casillero,ct)).GetProperty("solicitudId").GetGuid();
+        await s.AutorizarDeposito(id,f.Persona,new(solicitud,pinDeposito.GetProperty("pin").GetString()!,Captura()),ct);
+        await s.ConfirmarDeposito(solicitud,f.Terminal,true,ct);
+        var compartida=Json(await s.Detalle(id,f.Persona,ct));
+        Assert.Contains("https://wa.me/999123456702?text=",compartida.GetProperty("compartir").GetProperty("enlaceWhatsApp").GetString());
+        var parte=compartida.GetProperty("destinatario");
+        var destinatario=new ConsentimientoOperativoSolicitud("+999123456702",parte.GetProperty("codigo").GetString()!,"WA-DEST-"+Guid.NewGuid().ToString("N"),true,true,parte.GetProperty("texto").GetString());
+        Assert.Contains("https://wa.me/50433182642?text="+Uri.EscapeDataString(destinatario.TextoMensaje!),compartida.GetProperty("compartir").GetProperty("mensaje").GetString());
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarConsentimiento(segunda,"Destinatario",destinatario,f.Admin,false,ct));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarConsentimiento(id,"Destinatario",destinatario with{Telefono=aceptacion.Telefono},f.Admin,false,ct));
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.ConfirmarConsentimiento(id,"Destinatario",destinatario with{TextoMensaje="SYNCHRO ACEPTO"},f.Admin,false,ct));
         await s.ConfirmarConsentimiento(id,"Destinatario",destinatario,f.Admin,false,ct);
         Assert.True(Json(await s.Detalle(id,f.Persona,ct)).GetProperty("condiciones").GetProperty("consentimientosConfirmados").GetBoolean());
         Assert.False(Json(await s.Detalle(segunda,f.Persona,ct)).GetProperty("condiciones").GetProperty("consentimientosConfirmados").GetBoolean());
+        // Las comprobaciones de revocación y nuevo teléfono se hacen sobre la segunda reserva, aún sin depósito.
+        id=segunda;
         await s.ConfirmarPago(id,new("Efectivo",22,"PAGO-REVOCACION",true,null),f.Admin,ct);
-        await s.RegistrarReferencia(f.Persona,Captura(),ct);
         await s.RevocarConsentimientoCuenta(f.Persona,ct);
         Assert.Equal("Revocado",Json(await s.Detalle(id,f.Persona,ct)).GetProperty("remitente").GetProperty("consentimiento").GetString());
         Assert.Equal(JsonValueKind.Null,Json(await s.ConsultarConsentimientoCuenta(f.Persona,ct)).GetProperty("verificadoUtc").ValueKind);
@@ -248,10 +263,19 @@ public sealed partial class EncomiendasOperativasSqlTests
         var f=await Preparar();var s=f.Servicio;var ct=CancellationToken.None;
         int id=Json(await s.Crear(f.Persona,"+999123456702","Mediano",ct)).GetProperty("id").GetInt32();
         var anterior=Json(await s.Detalle(id,null,ct));
-        foreach(var rol in new[]{"remitente","destinatario"}) {
+        async Task ConsentimientoAnterior(string rol) {
             var p=anterior.GetProperty(rol);
             await s.ConfirmarConsentimiento(id,rol,new(p.GetProperty("telefono").GetString()!,p.GetProperty("codigoAnterior").GetString()!,"WA-ANTERIOR-"+Guid.NewGuid().ToString("N"),true,true,p.GetProperty("textoAnterior").GetString()),f.Admin,false,ct);
         }
+        await ConsentimientoAnterior("remitente");
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>ConsentimientoAnterior("destinatario"));
+        await s.ConfirmarPago(id,new("Efectivo",22,"PAGO-ANTERIOR-"+Guid.NewGuid().ToString("N"),true,null),f.Admin,ct);
+        await s.RegistrarReferencia(f.Persona,Captura(),ct);
+        var deposito=await EmitirEntregar(f,id,"Deposito");
+        var solicitud=Json(await s.CrearSolicitudDeposito(f.Terminal,f.Casillero,ct)).GetProperty("solicitudId").GetGuid();
+        await s.AutorizarDeposito(id,f.Persona,new(solicitud,deposito.GetProperty("pin").GetString()!,Captura()),ct);
+        await s.ConfirmarDeposito(solicitud,f.Terminal,true,ct);
+        await ConsentimientoAnterior("destinatario");
         var actual=Json(await s.Detalle(id,f.Persona,ct));
         Assert.True(actual.GetProperty("condiciones").GetProperty("consentimientosConfirmados").GetBoolean());
         Assert.Equal("EncomiendaAnterior",actual.GetProperty("remitente").GetProperty("alcance").GetString());
