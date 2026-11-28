@@ -25,7 +25,7 @@ internal sealed record AutorizarDepositoEncomiendaSolicitud(Guid SolicitudId, st
 internal sealed record RetiroOperativoSolicitud(Guid EvidenciaId, string Pin, bool EntregaComprobada)
 { public override string ToString() => "Retiro de encomienda protegido"; }
 
-internal sealed partial class EncomiendasOperativasSql(IConfiguration config, IDataProtectionProvider proteccion, TimeProvider reloj)
+internal sealed partial class EncomiendasOperativasSql(IConfiguration config, IDataProtectionProvider proteccion, TimeProvider reloj, bool definitiva = false)
 {
     public const string VersionConsentimiento = "SYNCHRO-ENCOMIENDAS-FACIAL-V3-2026-11";
     private DateTimeOffset Ahora => reloj.GetUtcNow();
@@ -37,6 +37,20 @@ internal sealed partial class EncomiendasOperativasSql(IConfiguration config, ID
         if (!config.GetValue<bool>("EncomiendasOperacion:Habilitado")&&!(bandeja&&config.GetValue<bool>("WhatsAppManual:Habilitado")))
             throw new OperacionEncomiendaException("NoHabilitado", "La gestión operativa de encomiendas no está habilitada.", 503);
         var cadena = config.GetConnectionString("SynchroDB");
+        if(definitiva)
+        {
+            var autorizada=Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Exigir(cadena);
+            var definitivaSql=new SqlConnection(autorizada);
+            try
+            {
+                await definitivaSql.OpenAsync(ct);
+                await using var verificar=new SqlCommand(Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.ValidacionSql,definitivaSql);
+                if(Convert.ToInt32(await verificar.ExecuteScalarAsync(ct))!=1)
+                    throw new InvalidOperationException("Base definitiva no autorizada.");
+                return definitivaSql;
+            }
+            catch{await definitivaSql.DisposeAsync();throw;}
+        }
         var destino = new SqlConnectionStringBuilder(cadena);
         if (!destino.IntegratedSecurity || destino.InitialCatalog != "SynchroDB_Pruebas" ||
             !string.Equals(destino.DataSource, @"(localdb)\SYNCHRO_Aislado", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(destino.AttachDBFilename))

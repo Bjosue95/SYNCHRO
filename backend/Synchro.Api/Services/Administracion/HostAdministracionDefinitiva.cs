@@ -7,6 +7,7 @@ using Microsoft.Data.SqlClient;
 using Synchro.Api.Endpoints;
 using Synchro.Api.Models;
 using Synchro.Api.Services.Clientes;
+using Synchro.Api.Services.Encomiendas;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -39,7 +40,25 @@ internal static class HostAdministracionDefinitiva
         {
             ["ConnectionStrings:SynchroDB"]=Conexion,
             ["AllowedHosts"]="localhost;127.0.0.1;[::1]",
-            ["Administracion:UsuariosHabilitados"]="true"
+            ["Administracion:UsuariosHabilitados"]="true",
+            ["EncomiendasOperacion:Habilitado"]="true",
+            ["ReservasPrototipo:TarifasNormales:Pequeno:60"]="15",
+            ["ReservasPrototipo:TarifasNormales:Pequeno:120"]="25",
+            ["ReservasPrototipo:TarifasNormales:Pequeno:180"]="35",
+            ["ReservasPrototipo:TarifasNormales:Pequeno:240"]="45",
+            ["ReservasPrototipo:TarifasNormales:Mediano:60"]="25",
+            ["ReservasPrototipo:TarifasNormales:Mediano:120"]="40",
+            ["ReservasPrototipo:TarifasNormales:Mediano:180"]="55",
+            ["ReservasPrototipo:TarifasNormales:Mediano:240"]="70",
+            ["ReservasPrototipo:TarifasNormales:Grande:60"]="40",
+            ["ReservasPrototipo:TarifasNormales:Grande:120"]="65",
+            ["ReservasPrototipo:TarifasNormales:Grande:180"]="90",
+            ["ReservasPrototipo:TarifasNormales:Grande:240"]="115",
+            ["ReservasPrototipo:Ubicacion"]="Parque Central de la Villa de San Antonio, Comayagua, Honduras",
+            ["ReservasPrototipo:DuracionesMinutos:0"]="60",
+            ["ReservasPrototipo:DuracionesMinutos:1"]="120",
+            ["ReservasPrototipo:DuracionesMinutos:2"]="180",
+            ["ReservasPrototipo:DuracionesMinutos:3"]="240"
         });
         builder.WebHost.ConfigureKestrel(o=>o.ListenLocalhost(7278,l=>l.UseHttps()));
         string directorio=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"SYNCHRO","Definitivo","DataProtectionKeys");
@@ -52,6 +71,8 @@ internal static class HostAdministracionDefinitiva
         builder.Services.AddScoped<CuentasClientesWeb>();
         builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>,PasswordHasher<CuentaClienteWeb>>();
         builder.Services.AddSingleton<LimitesAccesoClientes>();
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddScoped(sp=>new EncomiendasOperativasSql(sp.GetRequiredService<IConfiguration>(),sp.GetRequiredService<IDataProtectionProvider>(),sp.GetRequiredService<TimeProvider>(),definitiva:true));
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o=>{
             o.Cookie.Name="Synchro.Admin.Definitivo";
             o.Cookie.HttpOnly=true;
@@ -128,12 +149,13 @@ internal static class HostAdministracionDefinitiva
         app.UseAntiforgery();
         app.MapAdministracionEndpoints();
         app.MapClientesWebEndpoints();
+        app.MapReservasWebDefinitivasEndpoints();
         app.MapCasillerosPrototipoEndpoints(definitiva:true);
         app.MapAdminEspaciosCargaEndpoints(definitiva:true);
         app.MapAdminMovimientosEndpoints(definitiva:true);
         app.MapAdminReportesEndpoints(definitiva:true);
         app.MapUsuariosAdministrativosEndpoints(soloLectura:true);
-        app.MapGet("/api/estado",()=>new{proyecto="SYNCHRO",estado="integracion administrativa local",operaciones=false});
+        app.MapGet("/api/estado",()=>new{proyecto="SYNCHRO",estado="integracion administrativa y reservas web locales",operaciones=false,reservasWeb=true});
         app.MapGet("/api/admin/verificacion-base",async (CancellationToken token)=>{
             await using var c=new SqlConnection(Conexion);await c.OpenAsync(token);
             await using var q=new SqlCommand("SELECT (SELECT COUNT(*) FROM dbo.Casilleros),(SELECT COUNT(*) FROM dbo.EspaciosCarga),(SELECT COUNT(*) FROM dbo.TarifasCargaSynchro)",c);
@@ -142,7 +164,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Operaciones, pagos, WhatsApp y rutas de terminal no habilitados.");
+        Console.WriteLine("Reservas web habilitadas para demostracion local. Pagos, WhatsApp y rutas de terminal no habilitados.");
         await app.RunAsync();
     }
 }
