@@ -25,9 +25,21 @@ async function ejecutar(fn){
  if(ocupado.value)return;ocupado.value=true;error.value="";aviso.value="";
  try{await fn();}catch(e){error.value=e?.message||"No se pudo completar la operación.";}finally{ocupado.value=false;}
 }
+const usuarioSesion=ref("");
+const esCuentaPropia=u=>u.nombreUsuario?.toLocaleLowerCase()===usuarioSesion.value.toLocaleLowerCase();
 const usuariosNormales=computed(()=>usuarios.value.filter(u=>!u.esPrueba));
 const cuentasPrueba=computed(()=>usuarios.value.filter(u=>u.esPrueba).length);
-async function cargarUsuarios(){usuarios.value=await apiAdmin("/api/admin/usuarios/");}
+async function cargarUsuarios(){
+ const s=await apiAdmin("/api/admin/mi-sesion");
+ usuarioSesion.value=s.usuario||"";
+ usuarios.value=await apiAdmin("/api/admin/usuarios/");
+}
+function retirarCuenta(u){return ejecutar(async()=>{
+ if(esCuentaPropia(u)||!usuarioSesion.value)return;
+ if(!window.confirm("¿Retirar definitivamente la cuenta "+u.nombreUsuario+"? Perderá sus permisos, contraseña y sesiones. No podrás reactivarla; el historial se conserva."))return;
+ await mutar("/api/admin/usuarios/"+u.id+"/archivar","POST",{confirmacion:"RETIRAR CUENTA"});
+ cancelar();await cargarUsuarios();aviso.value="Cuenta retirada del listado.";
+});}
 function archivarPruebas(){return ejecutar(async()=>{
  const cantidad=cuentasPrueba.value;if(!cantidad)return;
  if(!window.confirm("¿Retirar "+cantidad+" cuentas de pruebas? Se desactivarán y perderán todos sus permisos. Se conservarán únicamente sus referencias históricas. Las cuentas normales no se modificarán."))return;
@@ -110,7 +122,7 @@ const mb=v=>(v/1048576).toFixed(2)+" MB";
     <div v-if="cuentasPrueba" class="cfg-recuadro cfg-form"><strong>{{cuentasPrueba}} cuentas administrativas de pruebas</strong><p class="cfg-muted">Son registros de pruebas automatizadas, no cuentas de trabajo. Retíralos para conservar solo los usuarios normales y su historial de auditoría.</p><div class="cfg-acciones"><button type="button" class="cfg-peligro" :disabled="ocupado" @click="archivarPruebas">Retirar cuentas de pruebas</button></div></div>
     <div v-if="!usuariosNormales.length&&!ocupado&&!error" class="cfg-muted">No hay usuarios disponibles.</div>
     <article v-for="u in usuariosNormales" :key="u.id" class="cfg-usuario">
-     <div class="cfg-avatar"><AdminIcon name="user" :size="22"/></div><div class="cfg-identidad"><strong>{{u.nombreUsuario}}</strong><small>{{u.roles.join(" · ")||"Sin permisos"}}</small></div><span class="cfg-estado" :class="{vigente:u.activo}">{{u.activo?"Activo":"Inactivo"}}</span><div class="cfg-acciones"><button type="button" class="cfg-secundario" :disabled="ocupado" @click="abrirUsuario(u)">Editar acceso</button><button type="button" class="cfg-secundario" :disabled="ocupado" @click="abrirPassword(u)">Contraseña</button></div>
+     <div class="cfg-avatar"><AdminIcon name="user" :size="22"/></div><div class="cfg-identidad"><strong>{{u.nombreUsuario}}</strong><small>{{u.roles.join(" · ")||"Sin permisos"}}</small></div><span class="cfg-estado" :class="{vigente:u.activo}">{{u.activo?"Activo":"Inactivo"}}</span><div class="cfg-acciones"><button type="button" class="cfg-secundario" :disabled="ocupado" @click="abrirUsuario(u)">Editar acceso</button><button type="button" class="cfg-secundario" :disabled="ocupado" @click="abrirPassword(u)">Contraseña</button><button v-if="usuarioSesion&&!esCuentaPropia(u)" type="button" class="cfg-secundario cfg-retirar" :disabled="ocupado" @click="retirarCuenta(u)">Retirar cuenta</button></div>
      <form v-if="editar===u.id" class="cfg-form cfg-edicion" @submit.prevent="guardarUsuario"><label class="cfg-check"><input v-model="activo" type="checkbox"/> Cuenta activa</label><fieldset><legend>Roles asignados</legend><label v-for="r in roles" :key="r" class="cfg-check"><input type="checkbox" v-model="rolesEditados" :value="r"/>{{r}}</label></fieldset><p class="cfg-muted">El sistema impide desactivar al último administrador activo.</p><div class="cfg-acciones"><button type="button" class="cfg-secundario" @click="cancelar">Cancelar</button><button type="submit" class="cfg-primario" :disabled="ocupado">Guardar cambios</button></div></form>
      <form v-if="passwordId===u.id" class="cfg-form cfg-edicion" @submit.prevent="restablecer"><label>Nueva contraseña<input v-model="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required/></label><div class="cfg-acciones"><button type="button" class="cfg-secundario" @click="cancelar">Cancelar</button><button type="submit" class="cfg-primario" :disabled="ocupado">Restablecer contraseña</button></div></form>
     </article>
@@ -168,6 +180,7 @@ const mb=v=>(v/1048576).toFixed(2)+" MB";
 .cfg-primario{background:#00b9c7;color:#01305c;}
 .cfg-secundario{background:var(--white);color:var(--ink);border-color:var(--border);}
 .cfg-peligro{background:#b42318;color:#fff;}
+.cfg-retirar{color:#b42318;border-color:#e9b8b4;}
 .cfg button:disabled{opacity:.5;cursor:not-allowed;}
 .cfg-recuadro,.cfg-edicion{border:1px solid var(--border);background:var(--canvas);padding:16px;border-radius:12px;}
 .cfg-form{display:grid;gap:14px;}

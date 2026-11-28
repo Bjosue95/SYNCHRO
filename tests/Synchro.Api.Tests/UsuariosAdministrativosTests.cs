@@ -17,7 +17,7 @@ internal sealed class UsuariosAdministrativosSimulados : IRepositorioUsuariosAdm
         lock(_sync)
         {
             if(!Usuarios.Any(u=>u.Id==actor&&u.Activo&&u.Roles.Contains("Administrador")))throw new AccesoAdministrativoRechazadoException();
-            var copia=Usuarios.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion,EsPrueba=u.EsPrueba}).ToList();
+            var copia=Usuarios.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion,EsPrueba=u.EsPrueba,EsArchivada=u.EsArchivada}).ToList();
             T resultado=cambio(copia);if(FallarConfirmacion)throw new InvalidOperationException("Fallo sintetico de confirmacion.");
             foreach(var u in copia.Where(u=>u.Modificado))
             {
@@ -25,7 +25,7 @@ internal sealed class UsuariosAdministrativosSimulados : IRepositorioUsuariosAdm
                 if(u.NuevoPasswordHash is not null)Hashes[u.Id]=u.NuevoPasswordHash;
                 Auditoria.Add(u.Accion);
             }
-            Usuarios=copia.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion,EsPrueba=u.EsPrueba}).ToList();
+            Usuarios=copia.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion,EsPrueba=u.EsPrueba,EsArchivada=u.EsArchivada}).ToList();
             return Task.FromResult(resultado);
         }
     }
@@ -60,6 +60,21 @@ public sealed class UsuariosAdministrativosTests
         Assert.False(archivada.Activo);Assert.Empty(archivada.Roles);Assert.Equal(1,archivada.VersionSesion);
         Assert.Single(await servicio.ListarAsync(7,default));
         await Assert.ThrowsAsync<UsuarioAdministrativoNoEncontradoException>(()=>servicio.ActualizarAsync(7,8,true,["Administrador"],default));
+    }
+    [Fact]
+    public async Task RetirarCuentaImpideReactivacionYProtegeLaCuentaEnUso()
+    {
+        var repo=new UsuariosAdministrativosSimulados();
+        var servicio=new GestionUsuariosAdministrativos(repo,new PasswordHasher<Administrador>());
+        var otra=await servicio.CrearAsync(7,"cuenta_antigua",PasswordPrueba,["Operador"],default);
+        await Assert.ThrowsAsync<ArgumentException>(()=>servicio.ArchivarCuentaAsync(7,7,default));
+        await servicio.ArchivarCuentaAsync(7,otra.Id,default);
+        var retirada=repo.Usuarios.Single(u=>u.Id==otra.Id);
+        Assert.True(retirada.EsArchivada);Assert.False(retirada.Activo);Assert.Empty(retirada.Roles);
+        Assert.Equal(GestionUsuariosAdministrativos.MarcadorArchivada,repo.Hashes[otra.Id]);
+        Assert.Single(await servicio.ListarAsync(7,default));
+        await Assert.ThrowsAsync<UsuarioAdministrativoNoEncontradoException>(()=>servicio.ActualizarAsync(7,otra.Id,true,["Administrador"],default));
+        await Assert.ThrowsAsync<UsuarioAdministrativoNoEncontradoException>(()=>servicio.RestablecerPasswordAsync(7,otra.Id,PasswordPrueba,default));
     }
     [Fact]
     public async Task NoSeDesactivaNiSeEliminaRolDelUltimoAdministrador()
