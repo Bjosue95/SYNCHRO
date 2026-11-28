@@ -22,7 +22,11 @@ watch(configurando, abierta => { if (abierta) opcionMapa.value = mapaPermitido.v
       </div>
       <h2 id="syn-cookie-titulo">{{ configurando ? "Preferencias de cookies" : "Tu privacidad importa" }}</h2>
       <p>Usamos cookies esenciales para mantener tu sesión segura y almacenamiento local para recordar tus preferencias. Puedes elegir si permites el mapa externo.</p>
-      <RouterLink to="/politica-de-cookies" class="syn-cookie-enlace">Consultar política de cookies</RouterLink>
+      <RouterLink to="/politica-de-cookies" class="syn-cookie-enlace">
+        <AppIcon nombre="privacidad" :tamano="19"/>
+        <span>Consultar política de cookies</span>
+        <AppIcon nombre="flecha" :tamano="16"/>
+      </RouterLink>
       <div v-if="configurando" class="syn-cookie-opciones">
         <div class="syn-cookie-fila">
           <div><strong>Esenciales</strong><small>Sesión, seguridad y elección de privacidad.</small></div>
@@ -37,9 +41,9 @@ watch(configurando, abierta => { if (abierta) opcionMapa.value = mapaPermitido.v
         <SynButton variante="secundario" @click="guardarPreferencias(false)">Solo esenciales</SynButton>
         <SynButton variante="secundario" @click="guardarPreferencias(true)">Aceptar todas</SynButton>
         <SynButton v-if="configurando" @click="guardarPreferencias(opcionMapa)">Guardar preferencias</SynButton>
-        <button v-else class="syn-cookie-ajustar" type="button" @click="abrirPreferencias">
-          <AppIcon nombre="seguridad" :tamano="17"/> Configurar
-        </button>
+        <SynButton v-else variante="secundario" @click="abrirPreferencias">
+          <AppIcon nombre="control-acceso" :tamano="18"/> Configurar
+        </SynButton>
       </div>
     </section>
   </Teleport>
@@ -51,10 +55,12 @@ watch(configurando, abierta => { if (abierta) opcionMapa.value = mapaPermitido.v
 .syn-cookie-cerrar { border:1px solid var(--border); background:var(--surface-soft); color:var(--text); border-radius:8px; width:36px; height:36px; font-size:24px; cursor:pointer; }
 .syn-cookie h2 { font-size:21px; line-height:1.2; margin:0; letter-spacing:-.02em; }
 .syn-cookie p { color:var(--text-muted); font-size:13px; line-height:1.65; margin:0; }
-.syn-cookie-enlace,.syn-cookie-ajustar { color:var(--accent-text); font-size:12px; font-weight:650; text-decoration:underline; text-underline-offset:3px; }
+.syn-cookie-enlace { display:flex; align-items:center; gap:9px; min-height:42px; padding:9px 12px; box-sizing:border-box; border:1px solid var(--border); border-radius:10px; background:var(--surface-soft); color:var(--text-strong); font-size:12px; font-weight:650; text-decoration:none; transition:background-color .18s,border-color .18s; }
+.syn-cookie-enlace span { flex:1; }
+.syn-cookie-enlace:hover { background:var(--surface-hover); border-color:var(--brand-accent); }
+@media(prefers-reduced-motion:reduce) { .syn-cookie-enlace { transition:none; } }
 .syn-cookie-acciones { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
 .syn-cookie-acciones > :last-child { grid-column:1/-1; }
-.syn-cookie-ajustar { display:flex; align-items:center; justify-content:center; gap:8px; background:none; border:0; min-height:36px; cursor:pointer; }
 .syn-cookie-opciones { display:grid; gap:8px; }
 .syn-cookie-fila { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px; background:var(--surface-soft); border:1px solid var(--border); border-radius:10px; font-size:12px; }
 .syn-cookie-fila strong,.syn-cookie-fila small { display:block; }

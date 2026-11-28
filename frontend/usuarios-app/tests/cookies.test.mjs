@@ -36,3 +36,16 @@ test("mapa no se inicializa sin permiso y se desmonta al retirarlo",()=>{
   assert.match(mapa,/else retirarMapa\(\)/);
   assert.match(mapa,/mapa\?\.remove\(\)/);
 });
+
+
+test("política usa la iconografía original y navegación visual adaptable", () => {
+  const politica=leer("views/PoliticaCookiesView.vue");
+  const aviso=leer("components/ui/CookieNotice.vue");
+  assert.match(politica, /<AppIcon nombre="volver"/);
+  assert.match(politica, /class="syn-politica-hero"/);
+  assert.match(politica, /data-etiqueta="Duración"/);
+  assert.match(politica, /@media\(max-width:640px\)/);
+  assert.match(politica, /prefers-reduced-motion/);
+  assert.match(aviso, /class="syn-cookie-enlace">\s*<AppIcon nombre="privacidad"/);
+  assert.match(aviso, /<SynButton v-else variante="secundario" @click="abrirPreferencias">/);
+});
