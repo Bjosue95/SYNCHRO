@@ -1,5 +1,6 @@
 <script setup>
 import { useReloj } from "../composables/useReloj";
+import IconoSynchro from "./IconoSynchro.vue";
 
 defineProps({
   oscuro: {
@@ -52,7 +53,8 @@ const { hora, fecha } = useReloj();
     <!-- Controles -->
     <div class="acciones-header">
       <button type="button" class="boton-ayuda" @click="emit('abrir-ayuda')">
-        ? Ayuda
+        <IconoSynchro nombre="23_ayuda" :tema="oscuro ? 'oscuro' : 'claro'" :tamano="22" />
+        <span>Ayuda</span>
       </button>
 
       <button
@@ -187,6 +189,7 @@ const { hora, fecha } = useReloj();
 }
 
 .boton-ayuda {
+  gap: 7px;
   padding: 0 16px;
   font-weight: 600;
 }
