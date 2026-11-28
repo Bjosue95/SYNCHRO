@@ -31,3 +31,11 @@ test("El deposito presencial envia texto y referencia interna al confirmar Whats
   assert.match(vista,/mensajeReferencia: "DeclaracionManual:" \+ crypto\.randomUUID\(\)/);
   assert.match(vista,/mensajeComprobado: true/);
 });
+
+test("El envio presencial declara el telefono autorizado y una referencia interna",()=>{
+  const vista=leer("views/WhatsAppManualAdminView.vue");
+  const envio=vista.slice(vista.indexOf('await ejecutar("/api/admin/whatsapp-manual/marcar-enviado"'));
+  assert.match(envio,/telefonoCliente: pinActual\.value\.telefono/);
+  assert.match(envio,/mensajeReferencia: "DeclaracionManual:" \+ crypto\.randomUUID\(\)/);
+  assert.match(envio,/envioComprobado: true/);
+});

@@ -1189,7 +1189,7 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                 !telefono.StartsWith("504",StringComparison.Ordinal) || !telefono.All(char.IsAsciiDigit))
                 return Results.BadRequest(new { mensaje="Debes cotejar el codigo del mensaje y el telefono con WhatsApp." });
             
-            if(definitiva && (!ReferenciaMensajeValida(datos.MensajeReferencia) || datos.TextoMensaje?.Trim() != $"SYNCHRO ACEPTO {codigo} RECIBIR PIN DE RETIRO POR WHATSAPP"))
+            if (!ReferenciaMensajeValida(datos.MensajeReferencia) || datos.TextoMensaje?.Trim() != $"SYNCHRO ACEPTO {codigo} RECIBIR PIN DE RETIRO POR WHATSAPP")
                 return Results.BadRequest(new { mensaje="Comprueba el mensaje de consentimiento original y su referencia." });
             if (!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int operadorId)||operadorId<=0)
                 return Results.Unauthorized();
@@ -1399,10 +1399,19 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                     mensaje = "Confirma el envío manual del PIN."
                 });
 
+            string telefono = (datos.TelefonoCliente ?? "").Trim().TrimStart('+');
+            if (telefono.Length != 11 || !telefono.StartsWith("504", StringComparison.Ordinal) ||
+                !telefono.All(char.IsAsciiDigit) || !ReferenciaMensajeValida(datos.MensajeReferencia))
+                return Results.BadRequest(new { mensaje = "Comprueba el teléfono autorizado y la referencia del envío." });
+
+            if (!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out int operadorId) || operadorId <= 0)
+                return Results.Unauthorized();
+
             try
             {
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
+                await using var tx = (SqlTransaction)await db.BeginTransactionAsync(http.RequestAborted);
 
                 await using var cmd = new SqlCommand("""
                     UPDATE a
@@ -1412,24 +1421,30 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                     INNER JOIN dbo.UsosCasillero u
                         ON u.Id = a.UsoId
                     WHERE a.Id = @Id
+                      AND a.TelefonoCliente = @Telefono
                       AND a.Estado = N'PinEmitido'
                       AND a.VenceUtc > SYSUTCDATETIME()
                       AND u.Estado = N'Reservado'
                       AND u.FechaVencimiento > SYSUTCDATETIME();
 
                     SELECT @@ROWCOUNT;
-                    """, db);
+                    """, db, tx);
 
                 cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier)
                     .Value = datos.IntentoId;
+                cmd.Parameters.Add("@Telefono", SqlDbType.VarChar, 15).Value = telefono;
 
                 int actualizados = Convert.ToInt32(
                     await cmd.ExecuteScalarAsync(http.RequestAborted));
 
                 if (actualizados != 1)
                     return Results.Conflict(new {
-                        mensaje = "La solicitud ya no permite confirmar el envío. Comprueba que siga vigente."
+                        mensaje = "La solicitud no permite confirmar el envío. Comprueba el teléfono autorizado y la vigencia."
                     });
+
+                await AuditarComunicacionPersonal(db, tx, datos.IntentoId, operadorId,
+                    "WhatsAppPersonalEnviado", telefono, datos.MensajeReferencia!, http.RequestAborted);
+                await tx.CommitAsync(http.RequestAborted);
 
                 return Results.Ok(new {
                     envioDeclarado = true

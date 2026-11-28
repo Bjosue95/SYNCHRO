@@ -192,6 +192,8 @@ async function enviado(item) {
   try {
     await ejecutar("/api/admin/whatsapp-manual/marcar-enviado", {
       intentoId: item.intentoId,
+      telefonoCliente: pinActual.value.telefono,
+      mensajeReferencia: "DeclaracionManual:" + crypto.randomUUID(),
       envioComprobado: true
     });
 
