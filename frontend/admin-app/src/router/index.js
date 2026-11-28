@@ -17,7 +17,7 @@ const router = createRouter({
         { path: "encomiendas", name: "encomiendas", component: () => import("../views/EncomiendasView.vue") },
         { path: "cobros", name: "cobros", component: () => import("../views/CobrosView.vue") },
         { path: "casilleros", name: "casilleros", component: () => import("../views/CasillerosView.vue") },
-        { path: "terminales", name: "terminales", component: () => import("../views/TerminalesView.vue") },
+        { path: "terminales", name: "terminales", redirect: {name:"configuracion",query:{seccion:"estacion"}} },
         { path: "operaciones", name: "operaciones", component: () => import("../views/MovimientosView.vue") },
         { path: "reportes", name: "reportes", component: () => import("../views/ReportesView.vue") },
         { path: "configuracion", name: "configuracion", component: () => import("../views/ConfiguracionView.vue") },

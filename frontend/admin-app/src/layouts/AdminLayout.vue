@@ -19,7 +19,6 @@ const grupos = [
     { ruta: "/admin/whatsapp", titulo: "WhatsApp y PIN", icono: "message" },
     { ruta: "/admin/cobros", titulo: "Cobros", icono: "check" },
     { ruta: "/admin/casilleros", titulo: "Casilleros", icono: "lockers" },
-    { ruta: "/admin/terminales", titulo: "Terminales", icono: "lockers" },
     { ruta: "/admin/operaciones", titulo: "Movimientos", icono: "activity" },
   ] },
   { titulo: "GESTIÓN", enlaces: [

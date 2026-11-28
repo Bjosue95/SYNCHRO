@@ -1,9 +1,12 @@
 <script setup>
-import {computed,onMounted,ref} from "vue";
+import {computed,onMounted,ref,watch} from "vue";
+import {useRoute} from "vue-router";
 import {apiAdmin} from "../services/adminApi.js";
 import AdminIcon from "../components/AdminIcon.vue";
 const tabs=[["usuarios","Usuarios y permisos"],["datos","Gestión de datos"],["tarifas","Tarifas"],["respaldos","Respaldos"],["estacion","Estación y seguridad"]];
+const ruta=useRoute();
 const tab=ref("usuarios"),ocupado=ref(false),error=ref(""),aviso=ref("");
+const terminalPrincipal=ref(null),ubicacionEstacion=ref(""),errorEstacion=ref("");
 const usuarios=ref([]),nuevo=ref(false),nombre=ref(""),clave=ref(""),rolesNuevos=ref(["Operador"]);
 const editar=ref(null),activo=ref(true),rolesEditados=ref([]),passwordId=ref(null),password=ref("");
 const roles=["Administrador","Operador","Auditor"];
@@ -95,13 +98,28 @@ function respaldo(){return ejecutar(async()=>{
  if(!window.confirm("¿Crear una copia local de la base de pruebas? Puede contener información confidencial. No la compartas."))return;
  const r=await mutar("/api/admin/configuracion/respaldos","POST",{});await cargarRespaldos();aviso.value="Respaldo verificado: "+r.nombre;
 });}
+async function cargarEstacion(){
+ terminalPrincipal.value=null;ubicacionEstacion.value="";errorEstacion.value="";
+ const [registro,config]=await Promise.allSettled([
+   apiAdmin("/api/admin/terminales/vinculacion/listar"),
+   apiAdmin("/api/admin/configuracion/tarifas")
+ ]);
+ if(registro.status==="fulfilled"&&Array.isArray(registro.value?.terminales)){
+   const principales=registro.value.terminales.filter(t=>t.codigo==="SYNCHRO-DEMO-01");
+   if(principales.length===1)terminalPrincipal.value=principales[0];
+   else errorEstacion.value="No se encontró un registro único para la estación principal.";
+ }else errorEstacion.value="No fue posible consultar el registro de la estación.";
+ if(config.status==="fulfilled")ubicacionEstacion.value=config.value?.ubicacion||"";
+}
 function cambiar(id){if(ocupado.value)return;cancelar();tab.value=id;void ejecutar(async()=>{
  if(id==="usuarios")await cargarUsuarios();
- if(id==="tarifas"||id==="estacion")await cargarTarifas();
+ if(id==="tarifas")await cargarTarifas();
+ if(id==="estacion")await cargarEstacion();
  if(id==="datos")await revisarLimpieza();
  if(id==="respaldos")await cargarRespaldos();
 });}
-onMounted(()=>ejecutar(cargarUsuarios));
+onMounted(()=>{if(ruta.query.seccion==="estacion")cambiar("estacion");else void ejecutar(cargarUsuarios);});
+watch(()=>ruta.query.seccion,seccion=>{if(seccion==="estacion"&&tab.value!=="estacion")cambiar("estacion");});
 const fecha=v=>new Date(v).toLocaleString("es-HN",{timeZone:"America/Tegucigalpa"});
 const mb=v=>(v/1048576).toFixed(2)+" MB";
 </script>
@@ -158,7 +176,18 @@ const mb=v=>(v/1048576).toFixed(2)+" MB";
    </section>
   </template>
   <template v-else>
-   <section class="panel cfg-panel"><h2>Estación y seguridad</h2><div class="cfg-recuadro"><strong>Ubicación registrada</strong><p>{{tarifas?.ubicacion||"No disponible"}}</p></div><p>La configuración utiliza la base de pruebas y el inventario existente. Las autorizaciones de WhatsApp, la verificación facial y la vigencia de PIN mantienen sus controles actuales.</p><p class="cfg-muted">La modificación de la ubicación, disponibilidad de servicios y parámetros de seguridad todavía no está habilitada desde esta interfaz.</p></section>
+   <section class="panel cfg-panel">
+    <div class="cfg-cabecera"><div><h2>Estación principal</h2><p class="cfg-muted">Información del registro de la estación SYNCHRO.</p></div><button class="cfg-secundario" type="button" :disabled="ocupado" @click="ejecutar(cargarEstacion)">Actualizar</button></div>
+    <p v-if="errorEstacion" class="inline-error" role="alert">{{errorEstacion}}</p>
+    <article v-if="terminalPrincipal" class="cfg-estacion">
+      <div class="cfg-avatar"><AdminIcon name="lockers" :size="24"/></div>
+      <div class="cfg-identidad"><strong>{{terminalPrincipal.nombre}}</strong><small>Código: {{terminalPrincipal.codigo}} · ID: {{terminalPrincipal.id}}</small></div>
+      <span class="cfg-estado" :class="{vigente:terminalPrincipal.activa}">{{terminalPrincipal.activa?"Activa":"Inactiva"}}</span>
+    </article>
+    <p class="cfg-muted">El estado corresponde al registro de la estación, no a una medición de conexión en tiempo real.</p>
+    <div class="cfg-recuadro"><strong>Ubicación registrada</strong><p>{{ubicacionEstacion||"No disponible"}}</p></div>
+   </section>
+   <section class="panel cfg-panel"><h2>Seguridad</h2><p>Las autorizaciones de WhatsApp, la verificación facial y la vigencia de PIN mantienen sus controles actuales.</p><p class="cfg-muted">La modificación de la ubicación, disponibilidad de servicios y parámetros de seguridad todavía no está habilitada desde esta interfaz.</p></section>
   </template>
  </div>
 </template>
@@ -192,6 +221,7 @@ const mb=v=>(v/1048576).toFixed(2)+" MB";
 .cfg-form .cfg-check,.cfg-limpieza{display:flex;align-items:center;gap:12px;}
 .cfg-check input,.cfg-limpieza input{accent-color:#008d9d;width:18px;height:18px;flex-shrink:0;}
 .cfg-check small,.cfg-identidad small,.cfg-limpieza small,.cfg-archivo small{display:block;color:var(--muted);font-size:12px;font-weight:400;line-height:1.5;}
+.cfg-estacion{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:16px;border:1px solid var(--border);border-radius:12px;}
 .cfg-usuario{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);}
 .cfg-avatar{display:grid;place-items:center;width:44px;height:44px;background:var(--canvas);border:1px solid var(--border);border-radius:11px;color:#009cab;}
 .cfg-identidad{flex:1;min-width:140px;overflow-wrap:anywhere;}
