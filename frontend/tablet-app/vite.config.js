@@ -5,7 +5,6 @@ import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isIPv4 } from "node:net";
 
 const apiTarget = process.env.SYNCHRO_API_TARGET || "https://localhost:7278";
 
@@ -35,10 +34,9 @@ export default defineConfig(({ command, mode, isPreview }) => {
   const definitiva = process.env.SYNCHRO_TABLET_DEFINITIVA === "1";
   let host, clave;
   if (definitiva && command === "serve" && !isPreview) {
-    host = process.env.SYNCHRO_TABLET_HOST;
-    const octetos = (host || "").split(".").map(Number);
-    if (!isIPv4(host || "") || octetos[0] !== 100 || octetos[1] < 64 || octetos[1] > 127)
-      throw new Error("Indica la IPv4 privada de Tailscale en SYNCHRO_TABLET_HOST.");
+    // Tailscale Serve termina HTTPS en el nombre de la tailnet y reenvia
+    // al servidor local. No exponer el proxy autenticado directamente a la red.
+    host = "127.0.0.1";
     if (!https) throw new Error("La tablet definitiva exige HTTPS.");
     if (apiTarget !== "https://localhost:7278")
       throw new Error("La tablet definitiva requiere el backend local.");
