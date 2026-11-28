@@ -42,6 +42,14 @@ internal static class HostAdministracionDefinitiva
             ["AllowedHosts"]="localhost;127.0.0.1;[::1]",
             ["Administracion:UsuariosHabilitados"]="true",
             ["EncomiendasOperacion:Habilitado"]="true",
+            ["CobroRetiroPersonal:Obligatorio"]="true",
+            ["CobroRetiroPersonal:MinutosPorBloque"]="30",
+            ["CobroRetiroPersonal:Tarifas:Pequeno"]="10",
+            ["CobroRetiroPersonal:Tarifas:Mediano"]="15",
+            ["CobroRetiroPersonal:Tarifas:Grande"]="20",
+            ["CobroRetiroPersonal:Adicionales:Pequeno"]="5",
+            ["CobroRetiroPersonal:Adicionales:Mediano"]="8",
+            ["CobroRetiroPersonal:Adicionales:Grande"]="10",
             ["ReservasPrototipo:TarifasNormales:Pequeno:60"]="15",
             ["ReservasPrototipo:TarifasNormales:Pequeno:120"]="25",
             ["ReservasPrototipo:TarifasNormales:Pequeno:180"]="35",
@@ -139,6 +147,7 @@ internal static class HostAdministracionDefinitiva
             o.AddFixedWindowLimiter("LoginLimitado",l=>{l.PermitLimit=5;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
             foreach(string politica in new[]{"OperacionesTerminal","EncomiendasOperativas"})
                 o.AddFixedWindowLimiter(politica,l=>{l.PermitLimit=240;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
+            o.AddFixedWindowLimiter("RetiroPersonal",l=>{l.PermitLimit=15;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
             o.AddFixedWindowLimiter("IdentificarRetiroEncomienda",l=>{l.PermitLimit=5;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
         });
         var app=builder.Build();
@@ -154,6 +163,7 @@ internal static class HostAdministracionDefinitiva
             app.Configuration["WhatsAppManual:NumeroE164"]=normalizado;
             app.Configuration["WhatsAppManual:Habilitado"]="true";
             app.Configuration["RostroV3:RegistroHabilitado"]="true";
+            app.Configuration["RostroV3:RetiroHabilitado"]="true";
         }
         app.Use(async (ctx,next)=>{
             if(!ctx.Request.IsHttps||ctx.Connection.RemoteIpAddress is not IPAddress ip||!IPAddress.IsLoopback(ip))
@@ -186,7 +196,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Deposito presencial habilitado si WhatsApp configurado. Retiro personal y carga pendientes.");
+        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Resguardo presencial y cobros simulados habilitados si WhatsApp configurado. Carga pendiente.");
         await app.RunAsync();
     }
 }

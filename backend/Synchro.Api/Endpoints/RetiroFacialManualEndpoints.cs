@@ -73,11 +73,11 @@ internal static class RetiroFacialManualEndpoints
         finally { CryptographicOperations.ZeroMemory(plano); }
     }
 
-    internal static void MapRetiroFacialManualEndpoints(this WebApplication app, string cadena)
+    internal static void MapRetiroFacialManualEndpoints(this WebApplication app, string cadena,bool definitiva=false)
     {
         var grupo = app.MapGroup("/api/terminales/guardar/whatsapp/retiro")
-            .AllowAnonymous()
             .RequireRateLimiting("RetiroPersonal");
+        if(definitiva)grupo.RequireAuthorization("SoloTerminal");else grupo.AllowAnonymous();
 
         grupo.MapPost("/rostro", async (HttpContext http, IAntiforgery csrf,
             IDataProtectionProvider proveedor, IConfiguration config,
@@ -275,7 +275,7 @@ internal static class RetiroFacialManualEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!app.Environment.IsDevelopment() ||
+            if ((!definitiva && !app.Environment.IsDevelopment()) ||
                 !config.GetValue<bool>("RostroV3:RetiroHabilitado"))
                 return Results.NotFound();
 
@@ -789,6 +789,7 @@ internal static class RetiroFacialManualEndpoints
             finally { Interlocked.Exchange(ref control.EnCurso,0); }
         });
 
+        if(!definitiva) {
         grupo.MapPost("/pin", async (RetiroManualPinSolicitud solicitud, HttpContext http,
             IAntiforgery csrf, IDataProtectionProvider proveedor, IConfiguration config) =>
         {
@@ -1014,6 +1015,7 @@ internal static class RetiroFacialManualEndpoints
             catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo confirmar el retiro.");}
             finally {if(plano is not null)CryptographicOperations.ZeroMemory(plano);if(permiso?.Hash is not null)CryptographicOperations.ZeroMemory(permiso.Hash);if(permiso?.Salt is not null)CryptographicOperations.ZeroMemory(permiso.Salt);}
         });
+        }
         grupo.MapPost("/reserva/confirmar",async (ConfirmarRetiroWebSolicitud datos,HttpContext http,
             IAntiforgery csrf,EncomiendasOperativasSql servicio) =>
         {

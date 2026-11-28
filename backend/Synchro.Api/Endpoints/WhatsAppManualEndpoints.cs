@@ -69,8 +69,8 @@ public static class WhatsAppManualEndpoints
             .RequireRateLimiting("OperacionesTerminal");
 
         // Verificacion de rostro simulada + PIN; solo en el modulo manual aislado.
-        if(definitiva)terminal.RequireAuthorization("SoloTerminal");
-        else app.MapRetiroFacialManualEndpoints(cadena ?? throw new InvalidOperationException("Conexion SynchroDB no configurada."));
+        if(definitiva)terminal.RequireAuthorization("SoloTerminal");else terminal.AllowAnonymous();
+        app.MapRetiroFacialManualEndpoints(cadena ?? throw new InvalidOperationException("Conexion SynchroDB no configurada."),definitiva);
         app.MapValidacionDescriptorV3(definitiva);
 
         // SYNCHRO-COBRO-PERSONAL-PREPARAR-V1
@@ -78,7 +78,7 @@ public static class WhatsAppManualEndpoints
         // SYNCHRO-COBRO-ATOMICO-V1
         // Las tarifas vienen solo de la configuracion del servidor.
         // SQL calcula minutos e importe bajo bloqueo.
-        if(!definitiva) {
+        {
         terminal.MapPost("/retiro/cobro/preparar", async (
             PrepararCobroPersonalPeticion datos,
             HttpContext http,
@@ -290,7 +290,7 @@ public static class WhatsAppManualEndpoints
                     title: "Servicio de cobros no disponible.");
             }
         })
-        .AllowAnonymous()
+        
         .RequireRateLimiting("LoginLimitado");
         // Registrar la elección antes de mostrar la orden al operador; no confirmar el pago.
         terminal.MapPost("/retiro/cobro/metodo", async (
@@ -361,7 +361,7 @@ public static class WhatsAppManualEndpoints
             {
                 return Results.Problem(statusCode:503,title:"No se pudo registrar el metodo de pago.");
             }
-        }).AllowAnonymous().RequireRateLimiting("LoginLimitado");
+        }).RequireRateLimiting("LoginLimitado");
 
         // SYNCHRO-ESTADO-PAGO-TABLET-V1
         // Consulta protegida, sin confirmar pagos ni liberar casilleros.
@@ -468,7 +468,7 @@ public static class WhatsAppManualEndpoints
                     title: "No se pudo consultar el estado del pago.");
             }
         })
-        .AllowAnonymous()
+        
         .RequireRateLimiting("OperacionesTerminal");
         // Token CSRF sin exigir vinculacion de tablets.
         // SYNCHRO-RETIRO-PAGADO-HTTP-V1
@@ -629,7 +629,7 @@ public static class WhatsAppManualEndpoints
                     title: "No se pudo completar el retiro pagado.");
             }
         })
-        .AllowAnonymous()
+        
         .RequireRateLimiting("OperacionesTerminal");
         }
         var csrfRuta=terminal.MapGet("/csrf-token", (HttpContext http, IAntiforgery antiforgery) =>
@@ -946,7 +946,7 @@ public static class WhatsAppManualEndpoints
                 // SYNCHRO-AUDITORIA-COBRO-RETIRO-V1
         // SYNCHRO-ADMIN-LISTADO-COBROS-V1
         // Solo usuarios con permiso OperarServicios.
-        if(!definitiva) {
+        {
         admin.MapGet("/cobros/retiro/pendientes", async (
             HttpContext http) =>
         {
