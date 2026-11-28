@@ -60,6 +60,24 @@ public static class EncomiendasOperativasEndpoints
             .RequireAuthorization("OperarServicios").AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
     }
 
+    // Solo se registra desde el host de demostracion definitiva, con autenticacion del proxy privado.
+    public static void MapDepositosWebTabletDefinitiva(this WebApplication app)
+    {
+        const bool libre=false;
+        var prototipo=app.MapGroup("/api/terminales/reservas")
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("OperacionesTerminal");
+        if(!libre)prototipo.RequireAuthorization("SoloTerminal");
+
+        prototipo.MapGet("/csrf-token",(HttpContext h,IAntiforgery csrf)=>Results.Ok(new{csrfToken=csrf.GetAndStoreTokens(h).RequestToken}));
+        prototipo.MapGet("/estacion",(HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.EstadoTerminalDeReservas(terminal,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/depositar",(int id,DepositoDemostrativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>{Consentimiento(h);return s.DepositarDemostrativo(id,terminal,d,h.RequestAborted);},libre));
+        prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.IdentificarParaDeposito(d.Pin,terminal,h.RequestAborted),libre))
+            .RequireRateLimiting("IdentificarRetiroEncomienda");
+    }
+
     public static void MapEncomiendasOperativasEndpoints(this WebApplication app)
     {
         var politicaWeb = LimitesAccesoClientes.ModoFeria(app) ? "ClientesFeriaReservas" : "EncomiendasOperativas";

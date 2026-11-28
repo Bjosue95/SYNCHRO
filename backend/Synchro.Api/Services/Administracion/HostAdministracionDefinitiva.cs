@@ -121,7 +121,9 @@ internal static class HostAdministracionDefinitiva
                 catch(Exception e)when(e is SqlException or InvalidOperationException){c.RejectPrincipal();}
             };
         });
+        builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions,TerminalProxyDefinitivo>("Terminal",_=>{});
         builder.Services.AddAuthorization(o=>{
+            o.AddPolicy("SoloTerminal",p=>p.AddAuthenticationSchemes("Terminal").RequireAuthenticatedUser().RequireRole("Terminal"));
             o.AddPolicy("SoloClientes",p=>p.AddAuthenticationSchemes("Clientes").RequireAuthenticatedUser().RequireRole("Cliente"));
             o.AddPolicy("SesionAdministrativa",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador","Auditor"));
             o.AddPolicy("SoloAdministradores",p=>p.RequireAuthenticatedUser().RequireRole("Administrador"));
@@ -134,10 +136,12 @@ internal static class HostAdministracionDefinitiva
             o.AddFixedWindowLimiter("LoginLimitado",l=>{l.PermitLimit=5;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
             foreach(string politica in new[]{"OperacionesTerminal","EncomiendasOperativas"})
                 o.AddFixedWindowLimiter(politica,l=>{l.PermitLimit=240;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
+            o.AddFixedWindowLimiter("IdentificarRetiroEncomienda",l=>{l.PermitLimit=5;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
         });
         var app=builder.Build();
         // La clave se genera una sola vez y nunca se imprime ni se reutiliza desde LocalDB.
         await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
+        await TerminalProxyDefinitivo.PrepararAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
         var numero=Environment.GetEnvironmentVariable("SYNCHRO_WHATSAPP_DEFINITIVO");
         if(!string.IsNullOrWhiteSpace(numero))
         {
@@ -159,6 +163,8 @@ internal static class HostAdministracionDefinitiva
         app.MapAdministracionEndpoints();
         app.MapClientesWebEndpoints();
         app.MapReservasWebDefinitivasEndpoints();
+        app.MapDepositosWebTabletDefinitiva();
+        app.MapGet("/api/terminales/mi-sesion",(ClaimsPrincipal usuario)=>Results.Ok(new{terminalId=usuario.FindFirstValue(ClaimTypes.NameIdentifier),rol="Terminal"})).RequireAuthorization("SoloTerminal");
         app.MapCasillerosPrototipoEndpoints(definitiva:true);
         app.MapAdminEspaciosCargaEndpoints(definitiva:true);
         app.MapAdminMovimientosEndpoints(definitiva:true);
@@ -173,7 +179,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Reservas web, consentimiento manual, PIN y cobros ficticios habilitados. Terminal y biometria aun no habilitadas.");
+        Console.WriteLine("Reservas, PIN, cobros ficticios y deposito web de demostracion habilitados. Retiros y carga aun pendientes.");
         await app.RunAsync();
     }
 }
