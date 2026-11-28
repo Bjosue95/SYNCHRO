@@ -4,6 +4,7 @@ import { useRouter,useRoute } from 'vue-router';
 import { encomiendasApi } from '../services/encomiendasApi.js';
 import { normalizarTelefono,TAMANOS_ENCOMIENDA } from '../services/validaciones.js';
 import SeleccionReservaCard from '../components/ui/SeleccionReservaCard.vue';
+import MarcaSeleccion from '../components/ui/MarcaSeleccion.vue';
 import SynButton from '../components/ui/SynButton.vue';
 import IconoTablet from '../components/ui/IconoTablet.vue';
 import AppIcon from '../components/ui/AppIcon.vue';
@@ -291,9 +292,7 @@ onMounted(cargar);
                     <small v-if="ubicacionPendiente">Dirección pendiente de confirmación</small>
                     <small v-else>Seleccionar esta estación</small>
                   </span>
-                  <span class="reserva-opcion-ubicacion__marca" aria-hidden="true">
-                    <AppIcon nombre="check" :tamano="19" />
-                  </span>
+                  <MarcaSeleccion v-if="ubicacion===id" />
                 </button>
                 <button v-for="estacion in estacionesProximas" :key="estacion.id" type="button"
                   class="reserva-opcion-ubicacion reserva-opcion-ubicacion--proxima"
@@ -303,9 +302,7 @@ onMounted(cargar);
                     <strong>{{ estacion.nombre }}</strong>
                     <small>Próximamente · No disponible</small>
                   </span>
-                  <span class="reserva-opcion-ubicacion__marca" aria-hidden="true">
-                    <AppIcon nombre="ubicacion" :tamano="19" />
-                  </span>
+
                 </button>
                 <p v-if="!ubicaciones.length" class="env-help">No hay estaciones disponibles para reservar este tamaño. Las otras ubicaciones son solo referencias de futuras estaciones.</p>
               </div>
@@ -326,6 +323,7 @@ onMounted(cargar);
                 <button v-for="m in duraciones" :key="m" type="button"
                   class="reserva-duracion" :class="{ 'es-seleccionada': minutos===m }"
                   :aria-pressed="minutos===m" @click="minutos=m">
+                  <MarcaSeleccion v-if="minutos===m" />
                   <strong>{{ nombreDuracion(m) }}</strong>
                   <small>{{ minutos===m?'Seleccionado':'Seleccionar' }}</small>
                 </button>
@@ -394,7 +392,7 @@ onMounted(cargar);
               :class="{'es-seleccionada':pagador==='Remitente'}"
               :aria-pressed="pagador==='Remitente'" :disabled="enviando"
               @click="pagador='Remitente'">
-              <span v-if="pagador==='Remitente'" class="reserva-pagador__check" aria-hidden="true"><AppIcon nombre="check" :tamano="18" /></span>
+              <MarcaSeleccion v-if="pagador==='Remitente'" class="reserva-pagador__check" />
               <IconoTablet nombre="pago" :tamano="32" />
               <strong>Pagar desde la web</strong>
               <small>Pago con tarjeta · sujeto a confirmación.</small>
@@ -403,7 +401,7 @@ onMounted(cargar);
               :class="{'es-seleccionada':pagador==='Destinatario'}"
               :aria-pressed="pagador==='Destinatario'" :disabled="enviando"
               @click="pagador='Destinatario'">
-              <span v-if="pagador==='Destinatario'" class="reserva-pagador__check" aria-hidden="true"><AppIcon nombre="check" :tamano="18" /></span>
+              <MarcaSeleccion v-if="pagador==='Destinatario'" class="reserva-pagador__check" />
               <IconoTablet nombre="encomienda" :tamano="32" />
               <strong>{{ servicio==='Encomienda' ? 'Pagará el destinatario en la tablet' : 'Pagar en la estación' }}</strong>
               <small>{{ servicio==='Encomienda' ? 'Después del depósito, antes del retiro.' : 'Gestionar el pago presencial con el procedimiento de la tablet.' }}</small>
@@ -631,9 +629,9 @@ onMounted(cargar);
   color:var(--text-muted);
 }
 .reserva-opcion-ubicacion--proxima strong {color:var(--text-muted);}
-.reserva-opcion-ubicacion--proxima .reserva-opcion-ubicacion__marca {opacity:.55;}
 .reserva-opcion-ubicacion--proxima:hover {border-color:var(--border);background:var(--surface-soft);}
 .reserva-opcion-ubicacion {
+  position: relative;
   font: inherit;
   display: flex;
   align-items: center;
@@ -642,7 +640,7 @@ onMounted(cargar);
   width: 100%;
   min-height: 82px;
   min-width: 0;
-  padding: 14px 15px;
+  padding: 14px 43px 14px 15px;
   text-align: left;
   color: var(--text-strong);
   background: var(--surface);
@@ -654,38 +652,21 @@ onMounted(cargar);
 .reserva-opcion-ubicacion__contenido { min-width: 0; display: grid; gap: 5px; }
 .reserva-opcion-ubicacion strong { font-size: 14px; overflow-wrap: anywhere; }
 .reserva-opcion-ubicacion small { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
-.reserva-opcion-ubicacion__marca {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  border-radius: 50%;
-  background: var(--surface-soft);
-  border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-  opacity: .5;
-}
 .reserva-opcion-ubicacion.es-seleccionada {
   background: var(--surface-accent);
   border-color: var(--brand-accent);
 }
-.reserva-opcion-ubicacion.es-seleccionada .reserva-opcion-ubicacion__marca {
-  background: var(--brand-accent);
-  color: #01305c;
-  border-color: var(--brand-accent);
-  opacity: 1;
-}
 .reserva-bloque__nota { color: var(--text-muted); font-size: 12px !important; line-height: 1.6 !important; }
 .reserva-duraciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; align-content: start; }
 .reserva-duracion {
+  position: relative;
   display: grid;
   align-content: center;
   justify-items: center;
   gap: 9px;
   min-width: 0;
-  min-height: 82px;
-  padding: 12px 7px;
+  min-height: 98px;
+  padding: 34px 7px 12px;
   font: inherit;
   color: var(--text-strong);
   background: var(--surface);
@@ -813,22 +794,9 @@ onMounted(cargar);
   transition: border-color 150ms ease, background 150ms ease;
 }
 .reserva-pagador strong { font-size:15px; line-height:1.45; }
+.reserva-pagador > :deep(.icono-tablet) {margin-right:30px;}
 .reserva-pagador small { color:var(--text-muted);font-size:12px;line-height:1.55; }
 .reserva-pagador.es-seleccionada { border-color:var(--brand-accent);background:var(--surface-accent); }
-.reserva-pagador__check {
-  position:absolute;
-  top:9px;
-  right:9px;
-  display:grid;
-  place-items:center;
-  width:27px;
-  height:27px;
-  border-radius:50%;
-  background:#00b9c7;
-  color:#01305c;
-  box-shadow:0 1px 5px rgb(1 48 92 / 15%);
-}
-.reserva-pagador__check :deep(svg) {width:17px;height:17px;}
 .reserva-pagador:disabled { opacity:.6;cursor:wait; }
 .reserva-prueba {
   display:grid;gap:16px;padding:20px;

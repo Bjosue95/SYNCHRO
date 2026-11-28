@@ -51,7 +51,7 @@ test('las tarjetas tienen dimensiones fijas y muestran los iconos reales de Tabl
   assert.match(reserva, /:icono-tablet="t\.valor"/);
   assert.match(tarjeta, /height: 260px;/);
   assert.match(tarjeta, /grid-template-rows: 56px 54px 50px 20px 20px;/);
-  assert.match(tarjeta, /seleccionada::after/);
+  assert.match(tarjeta, /<MarcaSeleccion v-if="seleccionado"\s*\/>/);
   assert.match(icono, /32_guardar_pertenencias_personales/);
   assert.match(icono, /09_encomienda_paquete/);
   assert.match(icono, /casillero-tamano-S/);
@@ -506,4 +506,19 @@ test('reserva con pago del destinatario confirma y vuelve a bienvenida sin esper
   const admin=readFileSync(new URL('../../admin-app/src/views/WhatsAppView.vue',import.meta.url),'utf8');
   assert.match(admin,/x\.pagoEstado==='ConfirmadoManual'\|\|x\.pagoDiferidoDestinatario===true/);
   assert.match(admin,/if \(!pagoPermitePin\.value\)/);
+});
+
+
+test('todas las opciones de reserva comparten la misma marca de selección',()=>{
+  const vista=leer('PreReservaView');
+  const marca=readFileSync(new URL('../src/components/ui/MarcaSeleccion.vue',import.meta.url),'utf8');
+  assert.match(vista,/<MarcaSeleccion v-if="ubicacion===id"\s*\/>/);
+  assert.match(vista,/<MarcaSeleccion v-if="minutos===m"\s*\/>/);
+  assert.match(vista,/<MarcaSeleccion v-if="pagador==='Remitente'"/);
+  assert.match(vista,/<MarcaSeleccion v-if="pagador==='Destinatario'"/);
+  assert.doesNotMatch(vista,/reserva-opcion-ubicacion__marca/);
+  assert.match(marca,/width:\s*24px/);
+  assert.match(marca,/height:\s*24px/);
+  assert.match(marca,/background:\s*#00b9c7/);
+  assert.match(marca,/color:\s*#01305c/);
 });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue';
 import IconoTablet from './IconoTablet.vue';
+import MarcaSeleccion from './MarcaSeleccion.vue';
 defineProps<{
   titulo: string;
   descripcion?: string;
@@ -16,6 +17,7 @@ defineEmits<{ seleccionar: [] }>();
   <button type="button" class="seleccion-reserva"
     :class="{ seleccionada: seleccionado }" :aria-pressed="seleccionado"
     :disabled="disabled || disponibles === 0" @click="$emit('seleccionar')">
+    <MarcaSeleccion v-if="seleccionado" />
     <span class="seleccion-reserva__icono" aria-hidden="true">
       <IconoTablet v-if="iconoTablet" :nombre="iconoTablet" :tamano="58" />
       <AppIcon v-else-if="icono" :nombre="icono" :tamano="58" />
@@ -92,22 +94,6 @@ defineEmits<{ seleccionar: [] }>();
   border-color: var(--brand-accent);
   background: #e8f9fa;
   box-shadow: 0 0 0 2px rgb(0 185 199 / 12%);
-}
-.seleccion-reserva.seleccionada::after {
-  content: '✓';
-  display: grid;
-  place-items: center;
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #00b9c7;
-  color: #01305c;
-  font-size: 16px;
-  font-weight: 800;
-  pointer-events: none;
 }
 .seleccion-reserva:focus-visible {
   outline: 3px solid var(--brand-accent);
