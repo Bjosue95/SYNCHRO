@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Endpoints;
 using Synchro.Api.Models;
+using Synchro.Api.Services.Clientes;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -47,6 +48,10 @@ internal static class HostAdministracionDefinitiva
         builder.Services.AddScoped<IPasswordHasher<Administrador>,PasswordHasher<Administrador>>();
         builder.Services.AddScoped<IRepositorioUsuariosAdministrativos>(sp=>new RepositorioUsuariosAdministrativosSql(sp.GetRequiredService<IConfiguration>(),definitiva:true));
         builder.Services.AddScoped<GestionUsuariosAdministrativos>();
+        builder.Services.AddScoped<IRepositorioClientesWeb>(sp=>new RepositorioClientesWebSql(sp.GetRequiredService<IConfiguration>(),definitiva:true));
+        builder.Services.AddScoped<CuentasClientesWeb>();
+        builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>,PasswordHasher<CuentaClienteWeb>>();
+        builder.Services.AddSingleton<LimitesAccesoClientes>();
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o=>{
             o.Cookie.Name="Synchro.Admin.Definitivo";
             o.Cookie.HttpOnly=true;
@@ -74,7 +79,29 @@ internal static class HostAdministracionDefinitiva
                 catch(Exception e)when(e is SqlException or InvalidOperationException){contexto.RejectPrincipal();}
             };
         });
+        builder.Services.AddAuthentication().AddCookie("Clientes",o=>{
+            o.Cookie.Name="Synchro.ClienteWeb.Definitivo";
+            o.Cookie.HttpOnly=true;
+            o.Cookie.SecurePolicy=CookieSecurePolicy.Always;
+            o.Cookie.SameSite=SameSiteMode.Strict;
+            o.ExpireTimeSpan=TimeSpan.FromMinutes(30);
+            o.SlidingExpiration=false;
+            o.Events.OnRedirectToLogin=c=>{c.Response.StatusCode=401;return Task.CompletedTask;};
+            o.Events.OnRedirectToAccessDenied=c=>{c.Response.StatusCode=403;return Task.CompletedTask;};
+            o.Events.OnValidatePrincipal=async c=>{
+                if(!int.TryParse(c.Principal?.FindFirstValue(ClaimTypes.NameIdentifier),out int id)||id<=0)
+                {c.RejectPrincipal();return;}
+                try
+                {
+                    var cuenta=await c.HttpContext.RequestServices.GetRequiredService<CuentasClientesWeb>().ObtenerAsync(id,c.HttpContext.RequestAborted);
+                    if(cuenta is null||!cuenta.Activa||c.Principal?.FindFirstValue("cliente_version")!=cuenta.VersionSesion.ToString())
+                        c.RejectPrincipal();
+                }
+                catch(Exception e)when(e is SqlException or InvalidOperationException){c.RejectPrincipal();}
+            };
+        });
         builder.Services.AddAuthorization(o=>{
+            o.AddPolicy("SoloClientes",p=>p.AddAuthenticationSchemes("Clientes").RequireAuthenticatedUser().RequireRole("Cliente"));
             o.AddPolicy("SesionAdministrativa",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador","Auditor"));
             o.AddPolicy("SoloAdministradores",p=>p.RequireAuthenticatedUser().RequireRole("Administrador"));
             o.AddPolicy("OperarServicios",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador"));
@@ -100,6 +127,7 @@ internal static class HostAdministracionDefinitiva
         app.UseAuthorization();
         app.UseAntiforgery();
         app.MapAdministracionEndpoints();
+        app.MapClientesWebEndpoints();
         app.MapCasillerosPrototipoEndpoints(definitiva:true);
         app.MapAdminEspaciosCargaEndpoints(definitiva:true);
         app.MapAdminMovimientosEndpoints(definitiva:true);

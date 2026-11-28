@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
+using Synchro.Api.Services.Administracion;
 
 namespace Synchro.Api.Services.Clientes;
 
@@ -59,21 +60,28 @@ internal sealed class CuentasClientesWeb(IRepositorioClientesWeb repo, IPassword
         return true;
     }
 }
-internal sealed class RepositorioClientesWebSql(IConfiguration config) : IRepositorioClientesWeb
+internal sealed class RepositorioClientesWebSql(IConfiguration config, bool definitiva = false) : IRepositorioClientesWeb
 {
-    private string Cadena => ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
+    private string Cadena => definitiva ? DestinoAdministrativoDefinitivo.Exigir(config.GetConnectionString("SynchroDB")) : ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"), "SynchroDB_Pruebas");
+    private async Task ValidarDestinoAsync(SqlConnection c,CancellationToken token)
+    {
+        if(!definitiva)return;
+        await using var q=new SqlCommand(DestinoAdministrativoDefinitivo.ValidacionSql,c);
+        if(Convert.ToInt32(await q.ExecuteScalarAsync(token))!=1)
+            throw new InvalidOperationException("Base definitiva no autorizada.");
+    }
     public Task<CuentaClienteWeb?> BuscarAsync(string nombre, CancellationToken token) => BuscarInternoAsync(nombre, null, token);
     public Task<CuentaClienteWeb?> BuscarAsync(int persona, CancellationToken token) => BuscarInternoAsync(null, persona, token);
     private async Task<CuentaClienteWeb?> BuscarInternoAsync(string? nombre, int? persona, CancellationToken token)
     {
-        await using var c = new SqlConnection(Cadena); await c.OpenAsync(token);
+        await using var c = new SqlConnection(Cadena); await c.OpenAsync(token); await ValidarDestinoAsync(c,token);
         await using var q = new SqlCommand("SELECT PersonaId,NombreUsuario,Telefono,PasswordHash,Activa,VersionSesion FROM dbo.ClientesWebPrototipo WHERE (@id IS NOT NULL AND PersonaId=@id)OR(@nombre IS NOT NULL AND NombreUsuario=@nombre)", c);
         q.Parameters.Add("@id", SqlDbType.Int).Value = (object?)persona ?? DBNull.Value; q.Parameters.Add("@nombre", SqlDbType.NVarChar, 80).Value = (object?)nombre ?? DBNull.Value;
         await using var r = await q.ExecuteReaderAsync(token); return await r.ReadAsync(token) ? new() { PersonaId = r.GetInt32(0), NombreUsuario = r.GetString(1), Telefono = r.GetString(2), PasswordHash = r.GetString(3), Activa = r.GetBoolean(4), VersionSesion = r.GetInt32(5) } : null;
     }
     public async Task CrearAsync(CuentaClienteWeb cuenta, CancellationToken token)
     {
-        await using var c = new SqlConnection(Cadena); await c.OpenAsync(token); await using var t = (SqlTransaction)await c.BeginTransactionAsync(token);
+        await using var c = new SqlConnection(Cadena); await c.OpenAsync(token); await ValidarDestinoAsync(c,token); await using var t = (SqlTransaction)await c.BeginTransactionAsync(token);
         await using (var q = new SqlCommand("""
     INSERT INTO dbo.Personas (TelefonoWhatsapp, TieneCuenta)
     OUTPUT INSERTED.Id
@@ -97,7 +105,7 @@ internal sealed class RepositorioClientesWebSql(IConfiguration config) : IReposi
     public async Task<bool> EliminarSinVinculosAsync(CuentaClienteWeb cuenta, CancellationToken token)
     {
         await using var c = new SqlConnection(Cadena);
-        await c.OpenAsync(token);
+        await c.OpenAsync(token); await ValidarDestinoAsync(c,token);
         await using var tx = (SqlTransaction)await c.BeginTransactionAsync(IsolationLevel.Serializable, token);
         // Revalidar la identidad y credencial bajo bloqueo. Las referencias
         // existentes (incluido historial) no se borran ni se desvinculan.
