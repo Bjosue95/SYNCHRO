@@ -117,3 +117,14 @@ test("portada equilibrada: cuatro servicios y estación interactiva de ancho com
  assert.match(css,/\.syn-hero-top\s*\{[^}]*grid-template-columns:minmax\(0,1\.1fr\) minmax\(0,\.9fr\)/);
  assert.match(css,/@media\(max-width:820px\)/);
 });
+
+test("nosotros muestra el origen, la misión y la visión con identidad y diseño adaptable",()=>{
+ const s=leer("src/components/landing/AboutSynchro.vue");
+ assert.match(s,/<strong>2026<\/strong>/);
+ assert.match(s,/<strong>6<\/strong>/);
+ assert.match(s,/<h4>Nuestra misión<\/h4>/);
+ assert.match(s,/<h4>Nuestra visión<\/h4>/);
+ assert.match(s,/tema-forzado="oscuro"/);
+ assert.match(s,/@media\(max-width:820px\)/);
+ assert.match(s,/temperatura controlada/);
+});
