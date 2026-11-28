@@ -28,8 +28,8 @@ public sealed partial class EncomiendasOperativasSqlTests
 
     private static IConfiguration ConfiguracionReserva(Fixture f)=>new ConfigurationBuilder().AddConfiguration(Configuracion).AddInMemoryCollection(new Dictionary<string,string?>{
         ["ReservasPrototipo:TerminalId"]=f.Terminal.ToString(System.Globalization.CultureInfo.InvariantCulture),
-        ["ReservasPrototipo:Casilleros:0"]=f.Casillero,["ReservasPrototipo:Ubicacion"]="Inventario de pruebas",["ReservasPrototipo:DuracionesMinutos:0"]="30",
-        ["ReservasPrototipo:DuracionesMinutos:1"]="60"}).Build();
+        ["ReservasPrototipo:Casilleros:0"]=f.Casillero,["ReservasPrototipo:Ubicacion"]="Inventario de pruebas",["ReservasPrototipo:DuracionesMinutos:0"]="60",
+        ["ReservasPrototipo:DuracionesMinutos:1"]="120"}).Build();
     private static CapturaEncomiendaSolicitud CapturaDemostrativa(bool retiro=false)=>new(Convert.ToBase64String(RostroSimuladoTests.Png(retiro)),null,
         "SYNCHRO-CAPTURA-DEMOSTRATIVA-v1",EncomiendasOperativasSql.VersionCapturaDemostrativa);
 
@@ -41,24 +41,25 @@ public sealed partial class EncomiendasOperativasSqlTests
     {
         var f=await Preparar();var cfg=ConfiguracionReserva(f);var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);var ct=CancellationToken.None;
         if(tipo!="Normal") {
-            var termica=new ConfiguracionServicioTemporal(f.Casillero,tipo=="Refrigerado"?ClaseServicioTemporal.Frio:ClaseServicioTemporal.Calor,null,true,new(){{30,22}},
+            var termica=new ConfiguracionServicioTemporal(f.Casillero,tipo=="Refrigerado"?ClaseServicioTemporal.Frio:ClaseServicioTemporal.Calor,null,true,new(){{60,22}},
                 tipo=="Refrigerado"?2:50,tipo=="Refrigerado"?8:70,tipo=="Refrigerado"?4:60);
             await using var c=new SqlConnection(Cadena);await c.OpenAsync();await using var q=new SqlCommand("UPDATE dbo.Casilleros SET Tipo=@tipo WHERE Codigo=@codigo; INSERT dbo.CompartimentosServiciosTemporales(Codigo,ConfiguracionJson) VALUES(@codigo,@config);",c);
             q.Parameters.AddWithValue("@tipo",tipo);q.Parameters.AddWithValue("@codigo",f.Casillero);q.Parameters.AddWithValue("@config",JsonSerializer.Serialize(termica));await q.ExecuteNonQueryAsync();
         }
         var catalogo=Json(await s.CatalogoReservas(ct));Assert.Single(catalogo.GetProperty("opciones").EnumerateArray());
         Assert.Equal(tipo,catalogo.GetProperty("opciones")[0].GetProperty("tipo").GetString());
-        var solicitud=new CrearReservaPrototipoSolicitud(servicio,tipo,"Mediano","prototipo",30,servicio=="Encomienda"?"+999123456702":null);
+        var solicitud=new CrearReservaPrototipoSolicitud(servicio,tipo,"Mediano","prototipo",60,servicio=="Encomienda"?"+999123456702":null);
         int id=Json(await s.Crear(f.Persona,solicitud.TelefonoDestinatario??"","Mediano",ct,solicitud)).GetProperty("id").GetInt32();
         Assert.Empty(Json(await s.CatalogoReservas(ct)).GetProperty("opciones").EnumerateArray());
         var bandeja=Json(await s.BandejaWhatsApp(new(Servicio:"Encomiendas",Referencia:id.ToString()),ct));
-        Assert.Equal(servicio=="Personal"?1:2,bandeja.GetProperty("total").GetInt32());
+        Assert.Equal(1,bandeja.GetProperty("total").GetInt32());
         Assert.All(bandeja.GetProperty("solicitudes").EnumerateArray(),x=>{Assert.Equal(servicio,x.GetProperty("claseReserva").GetString());Assert.Equal(tipo,x.GetProperty("tipoCasillero").GetString());});
         if(tipo!="Normal"){
             var anterior=new ServicioTemporal(new RepositorioServicioTemporalSql(cfg),cfg,TimeProvider.System);
             await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>anterior.ReservarAsync(f.Casillero,30,null,ct,f.Persona));
         }
-        await Consentir(f,id,"Remitente");if(servicio=="Encomienda")await Consentir(f,id,"Destinatario");
+        await Consentir(f,id,"Remitente");
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>Consentir(f,id,"Destinatario"));
         await s.ConfirmarPago(id,new("Efectivo",22,"PAGO-PROTOTIPO-"+Guid.NewGuid().ToString("N"),true,null),f.Admin,ct);
         Assert.False(Json(await s.ConsultarReferencia(f.Persona,ct)).GetProperty("registrada").GetBoolean());
         var deposito=Json(await s.EmitirPin(id,"Deposito",false,f.Admin,ct));
@@ -83,6 +84,8 @@ public sealed partial class EncomiendasOperativasSqlTests
         await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.DepositarDemostrativo(id,f.Terminal,new(falso,CapturaDemostrativa(),true),ct));
         Assert.Equal("Preparacion",Json(await s.Detalle(id,f.Persona,ct)).GetProperty("estado").GetString());
         await s.DepositarDemostrativo(id,f.Terminal,new(pinDeposito,CapturaDemostrativa(),true),ct);
+        await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.EmitirPin(id,"Retiro",false,f.Admin,ct));
+        await Consentir(f,id,"Destinatario");
         var retiro=Json(await s.EmitirPin(id,"Retiro",false,f.Admin,ct));Assert.NotEqual(pinDeposito,retiro.GetProperty("pin").GetString());
         var telefonoRetiro=servicio=="Personal"?"+999123456701":"+999123456702";
         Assert.Equal(telefonoRetiro,retiro.GetProperty("telefono").GetString());
@@ -118,7 +121,7 @@ public sealed partial class EncomiendasOperativasSqlTests
     {
         var f=await Preparar();
         var s=new EncomiendasOperativasSql(ConfiguracionReserva(f),f.Proteccion,TimeProvider.System);
-        var solicitud=new CrearReservaPrototipoSolicitud("Personal",tipo,"Mediano","prototipo",30);
+        var solicitud=new CrearReservaPrototipoSolicitud("Personal",tipo,"Mediano","prototipo",60);
         var rechazo=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
             s.Crear(f.Persona,"","Mediano",CancellationToken.None,solicitud));
         Assert.Equal("CasilleroExclusivoEncomiendas",rechazo.Codigo);
@@ -126,7 +129,7 @@ public sealed partial class EncomiendasOperativasSqlTests
     }
 
     [Theory]
-    [InlineData("Personal","Remitente","WebTarjeta")]
+    [InlineData("Personal","Remitente","Tablet")]
     [InlineData("Personal","Destinatario","Tablet")]
     [InlineData("Encomienda","Remitente","Tablet")]
     public async Task RechazaCombinacionesDePagadorYCanalNoPermitidas(
@@ -135,7 +138,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         var f=await Preparar();
         var s=new EncomiendasOperativasSql(ConfiguracionReserva(f),f.Proteccion,TimeProvider.System);
         var d=new CrearReservaPrototipoSolicitud(servicio,"Normal","Mediano",
-            "prototipo",30,servicio=="Personal"?null:"+999123456702",pagador,canal);
+            "prototipo",60,servicio=="Personal"?null:"+999123456702",pagador,canal);
         var error=await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>
             s.Crear(f.Persona,d.TelefonoDestinatario??"","Mediano",CancellationToken.None,d));
         Assert.Equal("PreferenciaPagoInvalida",error.Codigo);
@@ -149,7 +152,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);
         var ct=CancellationToken.None;
         var seleccion=new CrearReservaPrototipoSolicitud(
-            "Encomienda","Normal","Mediano","prototipo",30,
+            "Encomienda","Normal","Mediano","prototipo",60,
             "+999123456702","Remitente","WebTarjeta");
         int id=Json(await s.Crear(f.Persona,seleccion.TelefonoDestinatario!,"Mediano",ct,seleccion))
             .GetProperty("id").GetInt32();
@@ -179,7 +182,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);
         var ct=CancellationToken.None;
         var seleccion=new CrearReservaPrototipoSolicitud(
-            "Encomienda","Normal","Mediano","prototipo",30,
+            "Encomienda","Normal","Mediano","prototipo",60,
             "+999123456702","Destinatario","Tablet");
         int id=Json(await s.Crear(f.Persona,seleccion.TelefonoDestinatario!,"Mediano",ct,seleccion))
             .GetProperty("id").GetInt32();
@@ -232,7 +235,7 @@ public sealed partial class EncomiendasOperativasSqlTests
     public async Task PrototipoNoSobreReservaYLiberaAlCancelarOVencer()
     {
         var f=await Preparar();var cfg=ConfiguracionReserva(f);var s=new EncomiendasOperativasSql(cfg,f.Proteccion,TimeProvider.System);var ct=CancellationToken.None;
-        var d=new CrearReservaPrototipoSolicitud("Personal","Normal","Mediano","prototipo",30);
+        var d=new CrearReservaPrototipoSolicitud("Personal","Normal","Mediano","prototipo",60);
         async Task<int?> Crear(){try{return Json(await s.Crear(f.Persona,"","Mediano",ct,d)).GetProperty("id").GetInt32();}catch(OperacionEncomiendaException){return null;}}
         var intentos=await Task.WhenAll(Crear(),Crear());Assert.Single(intentos,id=>id.HasValue);int id=intentos.First(i=>i.HasValue)!.Value;
         await s.Cancelar(id,f.Persona,new("Ya no desea utilizar el casillero",null,true,1),ct);
@@ -252,11 +255,11 @@ public sealed partial class EncomiendasOperativasSqlTests
         await using var c=new SqlConnection(Cadena);await c.OpenAsync();
         foreach(var (tipo,clase,habilitada,temperatura) in new[]{("Normal",ClaseServicioTemporal.Personal,false,(decimal?)null),("Refrigerado",ClaseServicioTemporal.Frio,false,(decimal?)4),("Refrigerado",ClaseServicioTemporal.Frio,true,(decimal?)20)}){
             var termica=clase==ClaseServicioTemporal.Frio;
-            var config=new ConfiguracionServicioTemporal(f.Casillero,clase,null,habilitada,new(){{30,22}},termica?2:null,termica?8:null,temperatura);
+            var config=new ConfiguracionServicioTemporal(f.Casillero,clase,null,habilitada,new(){{60,22}},termica?2:null,termica?8:null,temperatura);
             await using var q=new SqlCommand("UPDATE dbo.Casilleros SET Tipo=@tipo WHERE Codigo=@codigo; UPDATE dbo.CompartimentosServiciosTemporales SET ConfiguracionJson=@json WHERE Codigo=@codigo; IF @@ROWCOUNT=0 INSERT dbo.CompartimentosServiciosTemporales(Codigo,ConfiguracionJson)VALUES(@codigo,@json);",c);
             q.Parameters.AddWithValue("@tipo",tipo);q.Parameters.AddWithValue("@codigo",f.Casillero);q.Parameters.AddWithValue("@json",JsonSerializer.Serialize(config));await q.ExecuteNonQueryAsync();
             Assert.Empty(Json(await s.CatalogoReservas(ct)).GetProperty("opciones").EnumerateArray());
-            var d=new CrearReservaPrototipoSolicitud("Personal",tipo,"Mediano","prototipo",30);
+            var d=new CrearReservaPrototipoSolicitud("Personal",tipo,"Mediano","prototipo",60);
             await Assert.ThrowsAsync<OperacionEncomiendaException>(()=>s.Crear(f.Persona,"","Mediano",ct,d));
         }
     }
@@ -268,7 +271,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         using var cliente=fabrica.CreateClient(new(){BaseAddress=new Uri("https://localhost")});
         Assert.Equal(HttpStatusCode.Unauthorized,(await cliente.GetAsync("/api/web/reservas/disponibilidad",ct)).StatusCode);
         cliente.DefaultRequestHeaders.Add("X-Test-Rol","Cliente");cliente.DefaultRequestHeaders.Add("X-Test-Id",f.Persona.ToString());
-        var d=new CrearReservaPrototipoSolicitud("Personal","Normal","Mediano","prototipo",30);
+        var d=new CrearReservaPrototipoSolicitud("Personal","Normal","Mediano","prototipo",60);
         Assert.Equal(HttpStatusCode.BadRequest,(await cliente.PostAsJsonAsync("/api/web/reservas",d,ct)).StatusCode);
         var csrf=await cliente.GetFromJsonAsync<JsonElement>("/api/web/clientes/csrf-token",ct);cliente.DefaultRequestHeaders.Add("X-CSRF-TOKEN",csrf.GetProperty("csrfToken").GetString());
         var respuesta=await cliente.PostAsJsonAsync("/api/web/reservas",d,ct);Assert.Equal(HttpStatusCode.OK,respuesta.StatusCode);

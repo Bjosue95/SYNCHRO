@@ -289,7 +289,7 @@ public sealed class WhatsAppManualSqlHttpTests
 
             // El quinto PIN incorrecto debe aumentar el contador.
             using var incorrecto = await terminal.PostAsJsonAsync(
-                "/api/terminales/guardar/whatsapp/retiro/pin",
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
                 new { pin = pinIncorrecto, tokenFacial = token });
 
             Assert.Equal(HttpStatusCode.BadRequest,
@@ -301,7 +301,7 @@ public sealed class WhatsAppManualSqlHttpTests
             // Aunque el siguiente PIN sea correcto,
             // la operacion debe permanecer bloqueada.
             using var bloqueado = await terminal.PostAsJsonAsync(
-                "/api/terminales/guardar/whatsapp/retiro/pin",
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
                 new { pin = pinCorrecto, tokenFacial = token });
 
             Assert.NotEqual(HttpStatusCode.OK, bloqueado.StatusCode);
@@ -484,7 +484,7 @@ public sealed class WhatsAppManualSqlHttpTests
                 ? "111111" : "000000";
 
             using var incorrecto = await terminal.PostAsJsonAsync(
-                "/api/terminales/guardar/whatsapp/retiro/pin",
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
                 new { pin = pinIncorrecto, tokenFacial = token });
 
             Assert.Equal(HttpStatusCode.BadRequest,
@@ -501,9 +501,9 @@ public sealed class WhatsAppManualSqlHttpTests
                 "SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",
                 codigo));
 
-            // 7. PIN correcto: registrar retiro.
+            // 7. PIN correcto: autorizar cobro, sin liberar el espacio.
             using var retiro = await terminal.PostAsJsonAsync(
-                "/api/terminales/guardar/whatsapp/retiro/pin",
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
                 new { pin = pinCorrecto, tokenFacial = token });
 
             Assert.True(retiro.IsSuccessStatusCode,
@@ -512,18 +512,20 @@ public sealed class WhatsAppManualSqlHttpTests
             using var resultadoRetiro = JsonDocument.Parse(
                 await retiro.Content.ReadAsStringAsync());
 
-            Assert.True(resultadoRetiro.RootElement
+            Assert.False(resultadoRetiro.RootElement
                 .GetProperty("retiroConfirmado").GetBoolean());
+            Assert.True(resultadoRetiro.RootElement.GetProperty("pagoPendiente").GetBoolean());
+            Assert.False(string.IsNullOrEmpty(resultadoRetiro.RootElement.GetProperty("autorizacionPago").GetString()));
 
-            Assert.Equal("Disponible", await EscalarAsync(db,
+            Assert.Equal("Ocupado", await EscalarAsync(db,
                 "SELECT Estado FROM dbo.Casilleros WHERE Codigo=@codigo",
                 codigo));
 
-            Assert.Equal("Finalizado", await EscalarAsync(db,
+            Assert.Equal("Ocupado", await EscalarAsync(db,
                 "SELECT Estado FROM dbo.UsosCasillero WHERE CodigoCasillero=@codigo",
                 codigo));
 
-            Assert.Equal(1, Convert.ToInt32(await EscalarAsync(db, """
+            Assert.Equal(0, Convert.ToInt32(await EscalarAsync(db, """
                 SELECT COUNT(*)
                 FROM dbo.CodigosRetiroPersonal p
                 JOIN dbo.UsosCasillero u ON u.Id=p.UsoId
@@ -533,7 +535,7 @@ public sealed class WhatsAppManualSqlHttpTests
 
             // 8. El mismo retiro no puede confirmarse otra vez.
             using var repetido = await terminal.PostAsJsonAsync(
-                "/api/terminales/guardar/whatsapp/retiro/pin",
+                "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar",
                 new { pin = pinCorrecto, tokenFacial = token });
 
             Assert.NotEqual(HttpStatusCode.OK, repetido.StatusCode);
@@ -589,8 +591,13 @@ public sealed class WhatsAppManualSqlHttpTests
                     configuracion.AddInMemoryCollection(
                         new Dictionary<string, string?>
                         {
-                            ["CobroRetiroPersonal:MinutosPorBloque"] = "60",
+                            ["CobroRetiroPersonal:MinutosPorBloque"] = "30",
+                            ["CobroRetiroPersonal:Tarifas:Pequeno"] = "1.00",
                             ["CobroRetiroPersonal:Tarifas:Mediano"] = "1.00",
+                            ["CobroRetiroPersonal:Tarifas:Grande"] = "1.00",
+                            ["CobroRetiroPersonal:Adicionales:Pequeno"] = "1.00",
+                            ["CobroRetiroPersonal:Adicionales:Mediano"] = "1.00",
+                            ["CobroRetiroPersonal:Adicionales:Grande"] = "1.00",
                             ["CobroRetiroPersonal:Obligatorio"] = "true"
                         })));
 

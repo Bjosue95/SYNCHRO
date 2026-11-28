@@ -49,9 +49,16 @@ public sealed class PoliticaEncomiendaOperativaTests
         var consentimiento = Enum.Parse<EstadoConsentimientoEncomienda>(estado);
         var datos = rol == "Remitente" ? Encomienda with { ConsentimientoRemitente = consentimiento }
             : Encomienda with { ConsentimientoDestinatario = consentimiento };
-        var decision = Depositar(datos);
-        Assert.False(decision.Permitida);
-        Assert.Equal($"Consentimiento{rol}Pendiente", decision.Codigo);
+        if (rol == "Remitente") {
+            var decision = Depositar(datos);
+            Assert.False(decision.Permitida);
+            Assert.Equal("ConsentimientoRemitentePendiente", decision.Codigo);
+        } else {
+            Assert.True(Depositar(datos).Permitida);
+            var decision = Retirar(datos with { Estado = EstadoEncomiendaOperativa.Depositada });
+            Assert.False(decision.Permitida);
+            Assert.Equal("AceptacionDestinatarioPendiente", decision.Codigo);
+        }
     }
 
     [Theory]
@@ -87,7 +94,9 @@ public sealed class PoliticaEncomiendaOperativaTests
     [Fact]
     public void AceptacionDelDestinatarioNoSeDeduceDelConsentimientoDeMensajes()
     {
-        Assert.Equal("AceptacionDestinatarioPendiente", Depositar(Encomienda with { DestinatarioAceptoEncomienda = false }).Codigo);
+        var datos = Encomienda with { DestinatarioAceptoEncomienda = false };
+        Assert.True(Depositar(datos).Permitida);
+        Assert.Equal("AceptacionDestinatarioPendiente", Retirar(datos with { Estado = EstadoEncomiendaOperativa.Depositada }).Codigo);
     }
 
     [Fact]

@@ -15,7 +15,7 @@ public sealed class RetiroManualSeguridadHttpTests
         "/api/terminales/guardar/whatsapp/retiro/rostro";
 
     private const string RutaPin =
-        "/api/terminales/guardar/whatsapp/retiro/pin";
+        "/api/terminales/guardar/whatsapp/retiro/pin/prevalidar";
 
     private const string RutaCsrf =
         "/api/terminales/guardar/whatsapp/csrf-token";
