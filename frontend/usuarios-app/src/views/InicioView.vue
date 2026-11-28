@@ -10,6 +10,22 @@ import ContactSection from "../components/landing/ContactSection.vue";
 import AboutSynchro from "../components/landing/AboutSynchro.vue";
 import SmartSolutions from "../components/landing/SmartSolutions.vue";
 
+const feria = import.meta.env.MODE === "feria";
+const estadoPublico = ref("Comprobando conexión");
+async function comprobarConexionPublica() {
+  try {
+    const r = await fetch("/api/publico/estado", { cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(5000) });
+    estadoPublico.value = r.ok && (await r.json()).conectado === true
+      ? "Sistema de demostración conectado" : "Demostración temporalmente desconectada";
+  } catch {
+    estadoPublico.value = "Demostración temporalmente desconectada";
+  }
+}
+let relojPublico;
+onMounted(() => {
+  if (feria) { void comprobarConexionPublica(); relojPublico = setInterval(comprobarConexionPublica, 30000); }
+});
+onBeforeUnmount(() => clearInterval(relojPublico));
 const pagina = ref(null);
 let observador = null;
 
@@ -47,13 +63,14 @@ onBeforeUnmount(() => observador?.disconnect());
               y carga tus dispositivos. Todo en una estación inteligente.
             </p>
             <div class="syn-hero-actions">
-              <RouterLink to="/reservar" class="boton boton-primario">
+              <RouterLink v-if="!feria" to="/reservar" class="boton boton-primario">
                 Reservar casillero <AppIcon nombre="flecha" :tamano="21"/>
               </RouterLink>
               <a href="#servicios" class="syn-hero-secondary">
                 Explorar servicios <AppIcon nombre="flecha" :tamano="20"/>
               </a>
             </div>
+            <p v-if="feria" class="syn-hero-foot" role="status">{{ estadoPublico }} · Vista informativa de la feria, sin operaciones reales.</p>
             <p class="syn-hero-foot">
               <AppIcon nombre="seguridad" :tamano="22"/>
               Tecnología, accesibilidad y seguridad en una sola experiencia.
@@ -121,7 +138,7 @@ onBeforeUnmount(() => observador?.disconnect());
             <span><AppIcon nombre="seguridad" :tamano="23"/> Verificación</span>
           </div>
           <MiniLockerDemo tipo="encomiendas" />
-          <RouterLink to="/reservar?servicio=Encomienda" class="syn-feature-action">
+          <RouterLink v-if="!feria" to="/reservar?servicio=Encomienda" class="syn-feature-action">
             Preparar encomienda <AppIcon nombre="flecha" :tamano="20"/>
           </RouterLink>
         </article>
@@ -134,7 +151,7 @@ onBeforeUnmount(() => observador?.disconnect());
           <h3>Almacenamiento personal</h3>
           <p>Reserva un casillero para tus pertenencias. Recibirás un PIN de depósito y otro de retiro por WhatsApp.</p>
           <MiniLockerDemo tipo="personales" />
-          <RouterLink to="/reservar" class="syn-feature-action">Reservar casillero <AppIcon nombre="flecha" :tamano="20"/></RouterLink>
+          <RouterLink v-if="!feria" to="/reservar" class="syn-feature-action">Reservar casillero <AppIcon nombre="flecha" :tamano="20"/></RouterLink>
         </article>
 
         <article class="syn-feature syn-feature-thermal" data-reveal>
@@ -186,8 +203,9 @@ onBeforeUnmount(() => observador?.disconnect());
     <SmartSolutions />
     <AboutSynchro />
     <LocationsMap />
-    <QuoteForm />
-    <ContactSection />
+    <QuoteForm v-if="!feria" />
+    <ContactSection v-if="!feria" />
+    <section v-else id="contacto" class="contenedor syn-service-section"><h2>Conoce SYNCHRO en la feria</h2><p>Visita nuestro stand para una demostración guiada de los servicios.</p></section>
 
   </div>
 </template>

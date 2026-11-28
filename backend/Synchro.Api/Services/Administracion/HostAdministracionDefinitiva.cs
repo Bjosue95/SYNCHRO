@@ -178,6 +178,19 @@ internal static class HostAdministracionDefinitiva
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAntiforgery();
+        // Respuesta publica minima: solo confirma conectividad, sin datos de clientes ni inventario.
+        app.MapGet("/api/publico/estado",async (CancellationToken token)=>{
+            try {
+                await using var c=new SqlConnection(Conexion);
+                await c.OpenAsync(token);
+                await using var q=new SqlCommand("SELECT 1",c){CommandTimeout=3};
+                if (Convert.ToInt32(await q.ExecuteScalarAsync(token)) != 1)
+                    return Results.StatusCode(503);
+                return Results.Ok(new { conectado=true });
+            } catch (SqlException) {
+                return Results.StatusCode(503);
+            }
+        });
         app.MapAdministracionEndpoints();
         app.MapClientesWebEndpoints();
         app.MapReservasWebDefinitivasEndpoints();

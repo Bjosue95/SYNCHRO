@@ -61,7 +61,7 @@ const rutas = [
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes: rutas,
+  routes: import.meta.env.MODE === "feria" ? rutas.filter(r => ["inicio","politica-cookies"].includes(r.name) || r.path === "/:pathMatch(.*)*") : rutas,
   async scrollBehavior(to) {
     if (to.hash) {
       const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";

@@ -4,6 +4,7 @@ import BrandLogo from "../ui/BrandLogo.vue";
 import AppIcon from "../ui/AppIcon.vue";
 import { useCookies } from "../../composables/useCookies.js";
 const { abrirPreferencias } = useCookies();
+const feria = import.meta.env.MODE === "feria";
 import { empresa } from "../../data/empresa.js";
 </script>
 
@@ -44,15 +45,15 @@ import { empresa } from "../../data/empresa.js";
 
         <div class="syn-footer-column">
           <h3>Explorar</h3>
-          <RouterLink to="/acceso">Mi cuenta</RouterLink>
-          <RouterLink to="/reservar/encomienda">Pre-reservas</RouterLink>
+          <RouterLink v-if="!feria" to="/acceso">Mi cuenta</RouterLink>
+          <RouterLink v-if="!feria" to="/reservar/encomienda">Pre-reservas</RouterLink>
           <a href="/#nosotros">Quiénes somos</a>
           <a href="/#ubicaciones">Ubicaciones</a>
-          <a href="/#cotizacion">Solicitar cotización</a>
+          <a v-if="!feria" href="/#cotizacion">Solicitar cotización</a>
           <a href="/#contacto">Contacto</a>
         </div>
 
-        <div class="syn-footer-column syn-footer-contact">
+        <div v-if="!feria" class="syn-footer-column syn-footer-contact">
           <h3>Contacto</h3>
           <a :href="'mailto:' + empresa.correo"><AppIcon nombre="correo" :tamano="17"/>{{ empresa.correo }}</a>
           <a :href="'tel:' + empresa.whatsapp"><AppIcon nombre="telefono" :tamano="17"/>{{ empresa.whatsapp }}</a>

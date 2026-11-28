@@ -11,6 +11,7 @@ const layout = computed(() => route.meta.privada ? AppShell : PublicLayout);
 
 // Restaurar la identidad a partir de la cookie del backend, nunca desde localStorage.
 onMounted(() => {
+  if (import.meta.env.MODE === "feria") return;
   void comprobarSesion().catch(() => {
     // Las páginas privadas comprueban la sesión desde su guardia.
   });

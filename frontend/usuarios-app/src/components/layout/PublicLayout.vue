@@ -7,6 +7,7 @@ import ThemeToggle from "../ui/ThemeToggle.vue";
 import AppIcon from "../ui/AppIcon.vue";
 import SiteFooter from "../landing/SiteFooter.vue";
 
+const feria = import.meta.env.MODE === "feria";
 const route = useRoute();
 const cabecera = ref<HTMLElement | null>(null);
 const botonMenu = ref<HTMLButtonElement | null>(null);
@@ -66,7 +67,7 @@ onBeforeUnmount(() => {
         </nav>
         <div class="header-acciones">
           <ThemeToggle />
-          <RouterLink v-if="!esAcceso" :to="destino" class="acceso-enlace">
+          <RouterLink v-if="!esAcceso && !feria" :to="destino" class="acceso-enlace">
             {{ etiqueta }}
           </RouterLink>
         </div>
