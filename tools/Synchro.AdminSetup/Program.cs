@@ -5,10 +5,16 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Synchro.Api.Models;
 
+if (args.Length == 1 && args[0] == "--crear-administrador-inicial")
+{
+    Environment.ExitCode = await CrearAdministradorInicialAsync();
+    return;
+}
+
 if(args.Length>0)
 {
     if(args.Length!=1||args[0] is not("--plan-prototipo" or "--preparar-prototipo"))
-    {Console.Error.WriteLine("Modo no valido. Usar --plan-prototipo o --preparar-prototipo, sin argumentos adicionales.");Environment.ExitCode=2;return;}
+    {Console.Error.WriteLine("Modo no valido. Usar --plan-prototipo, --preparar-prototipo o --crear-administrador-inicial, sin argumentos adicionales.");Environment.ExitCode=2;return;}
     if(args[0]=="--plan-prototipo")
     {
         Console.WriteLine("Destino exclusivo: SynchroDB_Pruebas vacia o marcada. No crea ni reinicia bases.");
@@ -134,4 +140,84 @@ static string LeerContrasena()
 
     Console.WriteLine();
     return caracteres.ToString();
+}
+
+static async Task<int> CrearAdministradorInicialAsync()
+{
+    // Instalación local de la primera cuenta; nunca convierte cuentas de prueba.
+    const string destino = @"Server=.\SQLEXPRESS;Database=SynchroDB;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Connect Timeout=15";
+    try
+    {
+        await using var conexion = new SqlConnection(destino);
+        await conexion.OpenAsync();
+
+        const string verificar = """
+            IF DB_NAME() <> N'SynchroDB'
+               OR ISNULL(CONVERT(nvarchar(128), SERVERPROPERTY('InstanceName')), N'') <> N'SQLEXPRESS'
+               OR ISNULL(CONVERT(int, SERVERPROPERTY('IsLocalDB')),1) <> 0
+                THROW 59020, 'Destino no autorizado.', 1;
+            IF EXISTS(SELECT 1 FROM dbo.Administradores WITH(UPDLOCK,HOLDLOCK))
+               OR EXISTS(SELECT 1 FROM dbo.AccesosAdministrativosGestionados WITH(UPDLOCK,HOLDLOCK))
+               OR EXISTS(SELECT 1 FROM dbo.RolesAdministrativosPrototipo WITH(UPDLOCK,HOLDLOCK))
+                THROW 59021, 'La base ya tiene administradores o permisos.', 1;
+            """;
+
+        await using (var comprobar = new SqlCommand(verificar, conexion))
+            await comprobar.ExecuteNonQueryAsync();
+
+        Console.WriteLine("=== SYNCHRO | Administrador inicial de .\\SQLEXPRESS / SynchroDB ===");
+        Console.Write("Nombre de usuario (4 a 32 letras o números): ");
+        var nombre = Console.ReadLine()?.Trim();
+        if (nombre is null || !System.Text.RegularExpressions.Regex.IsMatch(nombre, @"\A[A-Za-z0-9]{4,32}\z"))
+        {
+            Console.Error.WriteLine("Nombre de usuario no válido.");
+            return 2;
+        }
+
+        Console.Write("Contraseña (12 a 128 caracteres): ");
+        var password = LeerContrasena();
+        if (password.Length < 12 || password.Length > 128 || string.IsNullOrWhiteSpace(password))
+        {
+            Console.Error.WriteLine("Contraseña no válida.");
+            return 2;
+        }
+        Console.Write("Confirmar contraseña: ");
+        if (password != LeerContrasena())
+        {
+            Console.Error.WriteLine("Las contraseñas no coinciden.");
+            return 2;
+        }
+
+        var cuenta = new Administrador { NombreUsuario = nombre };
+        var hash = new PasswordHasher<Administrador>().HashPassword(cuenta, password);
+        await using var tx = (SqlTransaction)await conexion.BeginTransactionAsync(IsolationLevel.Serializable);
+        await using var comando = new SqlCommand(verificar + """
+            
+            SET NOCOUNT ON;
+            INSERT dbo.Administradores(NombreUsuario,PasswordHash,Activo,FechaCreacion)
+            VALUES(@nombre,@hash,1,SYSUTCDATETIME());
+            DECLARE @id int = CONVERT(int,SCOPE_IDENTITY());
+            INSERT dbo.AccesosAdministrativosGestionados(AdministradorId,VersionSesion)
+            VALUES(@id,1);
+            INSERT dbo.RolesAdministrativosPrototipo(AdministradorId,Rol)
+            VALUES(@id,N'Administrador');
+            INSERT dbo.AuditoriaUsuariosAdministrativos(AdministradorId,ActorId,Accion,FechaUtc)
+            VALUES(@id,@id,N'Administrador inicial creado localmente',SYSUTCDATETIME());
+            SELECT @id;
+            """, conexion, tx);
+        comando.Parameters.Add("@nombre", SqlDbType.NVarChar, 80).Value = nombre;
+        comando.Parameters.Add("@hash", SqlDbType.NVarChar, 500).Value = hash;
+        var id = Convert.ToInt32(await comando.ExecuteScalarAsync());
+        if (id <= 0) throw new InvalidOperationException("No se creó la cuenta.");
+        await tx.CommitAsync();
+        Console.WriteLine($"[OK] Administrador inicial creado. ID: {id}; rol Administrador; versión de sesión 1.");
+        return 0;
+    }
+    catch (Exception e) when (e is SqlException or InvalidOperationException or IOException)
+    {
+        Console.Error.WriteLine(e is SqlException sql && sql.Number == 59021
+            ? "Ya existe una cuenta o permisos. No se creará otro administrador inicial."
+            : "Configuración detenida. Verifica la conexión local, permisos y esquema SQL.");
+        return 1;
+    }
 }
