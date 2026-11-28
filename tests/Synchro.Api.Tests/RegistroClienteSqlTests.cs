@@ -20,8 +20,8 @@ public sealed class RegistroClienteSqlTests
             "SynchroDB_Pruebas");
 
         // Esta prueba ahora incluye eliminación: únicamente la copia aislada.
-        Assert.True(string.Equals(new SqlConnectionStringBuilder(cadena).DataSource,
-            @"(localdb)\SYNCHRO_Suite_Test",StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(@"(localdb)\SYNCHRO_Suite_Test",
+            new SqlConnectionStringBuilder(cadena).DataSource, StringComparer.OrdinalIgnoreCase);
         var configuracion = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {

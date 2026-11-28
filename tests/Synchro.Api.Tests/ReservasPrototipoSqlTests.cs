@@ -160,7 +160,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.Equal("Remitente",detalle.GetProperty("reserva").GetProperty("pagador").GetString());
         Assert.Equal("WebTarjeta",detalle.GetProperty("reserva").GetProperty("modalidadPago").GetString());
         var cobros=Json(await s.CobrosReservaPendientes(ct)).GetProperty("cobros").EnumerateArray().ToArray();
-        var item=Assert.Single(cobros.Where(x=>x.GetProperty("reservaId").GetInt32()==id));
+        var item=Assert.Single(cobros,x=>x.GetProperty("reservaId").GetInt32()==id);
         Assert.Equal("Web",item.GetProperty("origen").GetString());
         Assert.Equal("Tarjeta",item.GetProperty("metodoPago").GetString());
         await Consentir(f,id,"Remitente");
@@ -220,7 +220,7 @@ public sealed partial class EncomiendasOperativasSqlTests
         Assert.False(solicitud.GetProperty("pagoConfirmado").GetBoolean());
         Assert.False(solicitud.GetProperty("pagoRealProcesado").GetBoolean());
         var pendiente=Assert.Single(Json(await s.CobrosReservaPendientes(ct))
-            .GetProperty("cobros").EnumerateArray().Where(x=>x.GetProperty("reservaId").GetInt32()==id));
+            .GetProperty("cobros").EnumerateArray(),x=>x.GetProperty("reservaId").GetInt32()==id);
         Assert.Equal("Tablet",pendiente.GetProperty("origen").GetString());
         await s.ConfirmarPagoReservaDemo(id,new(22,null,true),f.Admin,ct);
         var estado=Json(await s.EstadoPagoReservaTablet(id,f.Terminal,ct));
