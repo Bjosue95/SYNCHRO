@@ -2,7 +2,7 @@
    Mismo diseño en usuarios, administración y terminal.
    No modifica overflow, gestos táctiles ni dimensiones de contenedores. */
 :root {
-  --syn-scroll-thumb: #829eaf;
+  --syn-scroll-thumb: #63869a;
   --syn-scroll-hover: #006f7e;
   --syn-scroll-active: #01305c;
   --syn-scroll-track: transparent;
@@ -25,19 +25,29 @@
   }
 }
 
-/* Se respeta el ajuste de contraste forzado del sistema.
-   Solo se estilizan barras que el navegador necesita mostrar. */
+/* Chrome moderno y Firefox: las propiedades estándar tienen prioridad
+   sobre los pseudoelementos WebKit. Aplicar ambas propiedades a cada
+   contenedor, incluido el documento, diálogos, menús y tablas.
+   No cambiar overflow ni ocultar barras necesarias. */
 @media (forced-colors: none) {
-  @supports selector(::-webkit-scrollbar) {
-    ::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
+  @supports (scrollbar-width: thin) and (scrollbar-color: #63869a transparent) {
+    :root, :root * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--syn-scroll-thumb) var(--syn-scroll-track);
     }
-    ::-webkit-scrollbar-track,
-    ::-webkit-scrollbar-corner {
+  }
+
+  /* Chromium/WebKit anteriores y Safari sin ambas propiedades estándar. */
+  @supports not ((scrollbar-width: thin) and (scrollbar-color: #63869a transparent)) {
+    :root::-webkit-scrollbar, *::-webkit-scrollbar {
+      width: 9px;
+      height: 9px;
+    }
+    :root::-webkit-scrollbar-track, *::-webkit-scrollbar-track,
+    :root::-webkit-scrollbar-corner, *::-webkit-scrollbar-corner {
       background: var(--syn-scroll-track);
     }
-    ::-webkit-scrollbar-thumb {
+    :root::-webkit-scrollbar-thumb, *::-webkit-scrollbar-thumb {
       min-height: 28px;
       min-width: 28px;
       border: 2px solid transparent;
@@ -45,18 +55,11 @@
       background: var(--syn-scroll-thumb);
       background-clip: padding-box;
     }
-    ::-webkit-scrollbar-thumb:hover {
+    :root::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:hover {
       background-color: var(--syn-scroll-hover);
     }
-    ::-webkit-scrollbar-thumb:active {
+    :root::-webkit-scrollbar-thumb:active, *::-webkit-scrollbar-thumb:active {
       background-color: var(--syn-scroll-active);
-    }
-  }
-  /* Firefox y navegadores que solo admiten propiedades estándar. */
-  @supports not selector(::-webkit-scrollbar) {
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: var(--syn-scroll-thumb) var(--syn-scroll-track);
     }
   }
 }

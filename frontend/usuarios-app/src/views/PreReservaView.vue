@@ -501,7 +501,7 @@ onMounted(cargar);
 .env-page--asistente .env-heading h1 {font-size:clamp(20px,3vw,32px);}
 .env-page--asistente .env-heading p {font-size:12px;}
 .reserva-pasos {flex:0 0 auto;}
-.reserva-vista {flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;display:flex;flex-direction:column;gap:12px;align-items:stretch;}
+.reserva-vista {flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:12px;align-items:stretch;}
 .reserva-vista > .env-card {margin:0;flex:1 0 auto;padding:clamp(12px,1.7vh,24px);display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,1.7vh,20px);}
 .reserva-vista .reserva-opciones {width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(7px,1.5vw,14px);}
 .reserva-vista .reserva-opciones:not(.reserva-tres) {grid-template-columns:repeat(2,minmax(0,1fr));}

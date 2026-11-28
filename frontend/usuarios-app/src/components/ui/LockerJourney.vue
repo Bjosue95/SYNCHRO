@@ -211,7 +211,7 @@ function controlarTeclado(evento) {
 @media(max-width:790px) { .syn-v4-stage { grid-template-columns:1fr; padding:14px; } .syn-v4-note { max-width:100%; display:grid; grid-template-columns:30px auto 1fr; align-items:center; gap:6px 12px; } .syn-v4-note-icon { grid-row:span 2; margin:0; } .syn-v4-note p { grid-column:2/-1; } }
 @media(max-width:580px) { .syn-journey-controls { grid-template-columns:1fr; padding:16px; gap:14px; } .syn-journey-step { flex-direction:column; gap:3px; font-size:10px; padding:5px 2px; } .syn-v4-hint { font-size:10px; } .syn-v4-stage { padding:8px; } }
 @media(max-width:650px) {
-  .syn-v4-scene { display:block; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; }
+  .syn-v4-scene { display:block; overflow-x:auto; overscroll-behavior-x:contain;  }
   .syn-v4-station { min-width:calc(640px * 732 / 900); }
   .syn-v4-hint { display:block; margin:7px 0; }
   .syn-v4-hint-movil { display:inline; }
