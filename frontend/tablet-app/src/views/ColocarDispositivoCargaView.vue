@@ -2,6 +2,7 @@
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
+import { comprobarEspacioCarga } from "../services/catalogoEspaciosCarga.js";
 import {
   obtenerPreparacionCarga,
   confirmarColocacionCarga
@@ -100,31 +101,7 @@ function agregarMinuto() {
 }
 
 async function verificarDisponibilidad() {
-  const respuesta = await fetch("/api/espacios-carga", {
-    credentials: "same-origin",
-    cache: "no-store"
-  });
-
-  if (!respuesta.ok) {
-    throw new Error("No se pudo consultar el espacio de carga.");
-  }
-
-  const lista = await respuesta.json();
-
-  if (!Array.isArray(lista)) {
-    throw new Error("El backend devolvio datos inesperados.");
-  }
-
-  const encontrado = lista.some(item => {
-    const codigo = String(item.codigo ?? item.Codigo ?? "");
-    const estado = String(item.estado ?? item.Estado ?? "");
-    return codigo === datos.value.espacio &&
-      estado === "Disponible";
-  });
-
-  if (!encontrado) {
-    throw new Error("Este espacio ya no esta disponible.");
-  }
+  await comprobarEspacioCarga(datos.value.espacio);
 }
 
 async function iniciar() {

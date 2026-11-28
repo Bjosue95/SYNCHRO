@@ -6,7 +6,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
 import { registrarVerificacionCarga } from "../services/verificacionCargaTemporal.js";
-import { infoCarga } from "../services/catalogoEspaciosCarga.js";
+import { infoCarga, comprobarEspacioCarga } from "../services/catalogoEspaciosCarga.js";
 import { registrarCaptura } from "../services/retiroSesion";
 import { validarRostroSimuladoRetiro, validarDescriptorFacialV3Temporal, validarRostroV3Retiro } from "../services/retiroFacialManualApi";
 import { registrarDescriptorV3, borrarDescriptorV3, copiarDescriptorV3, consumirDescriptorV3 } from "../services/descriptorFacialV3Temporal.js";
@@ -648,22 +648,7 @@ async function continuar() {
     error.value = "";
 
     try {
-      const respuesta = await fetch("/api/espacios-carga", {
-        cache: "no-store"
-      });
-
-      if (!respuesta.ok) {
-        throw new Error("No se pudo comprobar el espacio de carga.");
-      }
-
-      const lista = await respuesta.json();
-
-      if (!Array.isArray(lista) || !lista.some(item =>
-        String(item.codigo ?? item.Codigo ?? "") === espacioCarga.value &&
-        String(item.estado ?? item.Estado ?? "") === "Disponible"
-      )) {
-        throw new Error("El espacio ya no esta disponible.");
-      }
+      await comprobarEspacioCarga(espacioCarga.value);
 
       // El registro de carga requiere una captura facial V3
       // consentida y vigente, no solamente una imagen.
@@ -695,7 +680,7 @@ async function continuar() {
       });
       const query = {
         dispositivo: String(route.query.dispositivo),
-        modalidad: String(route.query.modalidad ?? ""),
+        modalidad: route.query.dispositivo === "Laptop" ? "Laptop" : String(route.query.modalidad ?? ""),
         espacio: espacioCarga.value
       };
 

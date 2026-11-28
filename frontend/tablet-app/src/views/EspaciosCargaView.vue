@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useTema } from "../composables/useTema";
-import { espaciosPara } from "../services/catalogoEspaciosCarga.js";
+import { espaciosPara, consultarEspaciosCarga } from "../services/catalogoEspaciosCarga.js";
 const { oscuro } = useTema();
 const propsVistaPrevia = defineProps({
   modoVistaPrevia: { type: Boolean, default: false },
@@ -34,14 +34,7 @@ async function consultar() {
   cargando.value = true;
   error.value = "";
   try {
-    const respuesta = await fetch("/api/terminales/carga/espacios", { cache: "no-store" });
-    if (!respuesta.ok) throw new Error(`No se pudo consultar la disponibilidad (${respuesta.status}).`);
-    const datos = await respuesta.json();
-    if (!Array.isArray(datos)) throw new Error("Formato de espacios inesperado.");
-    espacios.value = datos.map(x => ({
-      codigo: String(x.codigo ?? x.Codigo ?? "").trim().toUpperCase(),
-      estado: String(x.estado ?? x.Estado ?? "").trim(),
-    })).filter(x => /^[A-Z0-9-]{1,10}$/.test(x.codigo));
+    espacios.value = await consultarEspaciosCarga();
     if (!disponibles.value.some(x => x.codigo === seleccionado.value)) seleccionado.value = "";
     if (pagina.value >= totalPaginas.value) pagina.value = 0;
   } catch(e) {
