@@ -4,7 +4,7 @@ namespace Synchro.Api.Services.RostroSimulado;
 
 internal sealed class LimpiezaRostrosRetiroV3Worker(
     IConfiguration configuracion,
-    ILogger<LimpiezaRostrosRetiroV3Worker> logger)
+    ILogger<LimpiezaRostrosRetiroV3Worker> logger,bool definitiva=false)
     : BackgroundService
 {
     internal const string ConsultaLimpieza = """
@@ -45,14 +45,14 @@ internal sealed class LimpiezaRostrosRetiroV3Worker(
 
         var destino = new SqlConnectionStringBuilder(cadena);
 
-        if (!string.Equals(
+        if (definitiva ? !Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Permitido(cadena) : (!string.Equals(
                 destino.InitialCatalog,
                 "SynchroDB_Pruebas",
                 StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(
                 destino.DataSource,
                 @"(localdb)\SYNCHRO_Aislado",
-                StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase)))
             return;
 
         using var temporizador = new PeriodicTimer(
@@ -69,7 +69,7 @@ internal sealed class LimpiezaRostrosRetiroV3Worker(
                     await db.OpenAsync(stoppingToken);
 
                     await using var cmd = new SqlCommand(
-                        ConsultaLimpieza, db)
+                        definitiva ? ConsultaLimpieza.Replace("IF DB_NAME() <> N'SynchroDB_Pruebas'", "IF DB_NAME() <> N'SynchroDB' OR ISNULL(CONVERT(nvarchar(128),SERVERPROPERTY('InstanceName')),N'')<>N'SQLEXPRESS' OR ISNULL(CONVERT(int,SERVERPROPERTY('IsLocalDB')),1)<>0 OR EXISTS(SELECT 1 FROM sys.extended_properties WHERE class=0 AND name=N'SynchroFixtureDeposito')") : ConsultaLimpieza, db)
                     {
                         CommandTimeout = 15
                     };

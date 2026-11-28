@@ -73,6 +73,7 @@ internal static class HostAdministracionDefinitiva
         builder.Services.AddSingleton<LimitesAccesoClientes>();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddHostedService<LimpiezaBiometriaEncomiendasWorker>();
+        builder.Services.AddHostedService<Synchro.Api.Services.RostroSimulado.LimpiezaRostrosRetiroV3Worker>(sp=>new(sp.GetRequiredService<IConfiguration>(),sp.GetRequiredService<ILogger<Synchro.Api.Services.RostroSimulado.LimpiezaRostrosRetiroV3Worker>>(),definitiva:true));
         builder.Services.AddScoped(sp=>new EncomiendasOperativasSql(sp.GetRequiredService<IConfiguration>(),sp.GetRequiredService<IDataProtectionProvider>(),sp.GetRequiredService<TimeProvider>(),definitiva:true));
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o=>{
             o.Cookie.Name="Synchro.Admin.Definitivo";
@@ -124,6 +125,7 @@ internal static class HostAdministracionDefinitiva
         });
         builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions,TerminalProxyDefinitivo>("Terminal",_=>{});
         builder.Services.AddAuthorization(o=>{
+            o.AddPolicy("ConsultarInventarioEstacion",p=>p.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme,"Terminal").RequireAuthenticatedUser().RequireRole("Terminal","Administrador","Operador"));
             o.AddPolicy("SoloTerminal",p=>p.AddAuthenticationSchemes("Terminal").RequireAuthenticatedUser().RequireRole("Terminal"));
             o.AddPolicy("SoloClientes",p=>p.AddAuthenticationSchemes("Clientes").RequireAuthenticatedUser().RequireRole("Cliente"));
             o.AddPolicy("SesionAdministrativa",p=>p.RequireAuthenticatedUser().RequireRole("Administrador","Operador","Auditor"));
@@ -142,6 +144,7 @@ internal static class HostAdministracionDefinitiva
         var app=builder.Build();
         // La clave se genera una sola vez y nunca se imprime ni se reutiliza desde LocalDB.
         await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
+        await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!,personal:true);
         await TerminalProxyDefinitivo.PrepararAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
         var numero=Environment.GetEnvironmentVariable("SYNCHRO_WHATSAPP_DEFINITIVO");
         if(!string.IsNullOrWhiteSpace(numero))
@@ -149,6 +152,8 @@ internal static class HostAdministracionDefinitiva
             var normalizado=WhatsAppEncomienda.Telefono(numero);
             if(normalizado is null)throw new InvalidOperationException("Numero de WhatsApp definitivo invalido.");
             app.Configuration["WhatsAppManual:NumeroE164"]=normalizado;
+            app.Configuration["WhatsAppManual:Habilitado"]="true";
+            app.Configuration["RostroV3:RegistroHabilitado"]="true";
         }
         app.Use(async (ctx,next)=>{
             if(!ctx.Request.IsHttps||ctx.Connection.RemoteIpAddress is not IPAddress ip||!IPAddress.IsLoopback(ip))
@@ -165,6 +170,7 @@ internal static class HostAdministracionDefinitiva
         app.MapClientesWebEndpoints();
         app.MapReservasWebDefinitivasEndpoints();
         app.MapReservasWebTabletDefinitiva();
+        app.MapWhatsAppManualEndpoints(definitiva:true);
         app.MapGet("/api/terminales/mi-sesion",(ClaimsPrincipal usuario)=>Results.Ok(new{terminalId=usuario.FindFirstValue(ClaimTypes.NameIdentifier),rol="Terminal"})).RequireAuthorization("SoloTerminal");
         app.MapCasillerosPrototipoEndpoints(definitiva:true);
         app.MapAdminEspaciosCargaEndpoints(definitiva:true);
@@ -180,7 +186,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Resguardo presencial y carga aun pendientes.");
+        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Deposito presencial habilitado si WhatsApp configurado. Retiro personal y carga pendientes.");
         await app.RunAsync();
     }
 }

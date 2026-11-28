@@ -9,11 +9,11 @@ internal sealed record SolicitudValidacionDescriptorV3(double[]? Descriptor);
 
 internal static class ValidacionDescriptorV3Endpoints
 {
-    internal static void MapValidacionDescriptorV3(this WebApplication app)
+    internal static void MapValidacionDescriptorV3(this WebApplication app,bool definitiva=false)
     {
         // Este metodo se registra solo desde WhatsAppManualEndpoints,
         // ya restringido a Development y SynchroDB_Pruebas.
-        app.MapPost(
+        var ruta=app.MapPost(
             "/api/terminales/guardar/whatsapp/v3/validar",
             async (HttpContext http, IAntiforgery csrf) =>
         {
@@ -87,7 +87,7 @@ internal static class ValidacionDescriptorV3Endpoints
                     Array.Clear(solicitud.Descriptor);
             }
         })
-        .AllowAnonymous()
         .RequireRateLimiting("OperacionesTerminal");
+        if(definitiva)ruta.RequireAuthorization("SoloTerminal");else ruta.AllowAnonymous();
     }
 }

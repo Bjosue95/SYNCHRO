@@ -102,6 +102,6 @@ public static class CasillerosPrototipoEndpoints
 
             return Results.Ok(lista);
         });
-        if (definitiva) ruta.RequireAuthorization("OperarServicios");
+        if (definitiva) ruta.RequireAuthorization("ConsultarInventarioEstacion");
     }
 }

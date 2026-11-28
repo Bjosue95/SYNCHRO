@@ -45,17 +45,17 @@ public static class WhatsAppManualEndpoints
         public override string ToString() => "Solicitud protegida de cobro";
     }
 
-    public static void MapWhatsAppManualEndpoints(this WebApplication app)
+    public static void MapWhatsAppManualEndpoints(this WebApplication app, bool definitiva = false)
     {
         // El modulo NO existe fuera de Development con BD aislada.
-        if (!app.Environment.IsDevelopment() ||
+        if ((!definitiva && !app.Environment.IsDevelopment()) ||
             !app.Configuration.GetValue<bool>("WhatsAppManual:Habilitado")) return;
 
         string? cadena = app.Configuration.GetConnectionString("SynchroDB");
         var cs = string.IsNullOrWhiteSpace(cadena) ? null : new SqlConnectionStringBuilder(cadena);
-        if (cs is null ||
+        if (definitiva ? !Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Permitido(cadena) : (cs is null ||
             !string.Equals(cs.InitialCatalog, "SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) ||
-            !Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(cs))
+            !Synchro.Api.Services.ConexionSqlAislada.EsWhatsAppPermitido(cs)))
             throw new InvalidOperationException("WhatsApp manual solo se permite en el entorno SQL aislado.");
 
         var numero = app.Configuration["WhatsAppManual:NumeroE164"]?.Trim().TrimStart('+');
@@ -69,14 +69,16 @@ public static class WhatsAppManualEndpoints
             .RequireRateLimiting("OperacionesTerminal");
 
         // Verificacion de rostro simulada + PIN; solo en el modulo manual aislado.
-        app.MapRetiroFacialManualEndpoints(cadena ?? throw new InvalidOperationException("Conexion SynchroDB no configurada."));
-        app.MapValidacionDescriptorV3();
+        if(definitiva)terminal.RequireAuthorization("SoloTerminal");
+        else app.MapRetiroFacialManualEndpoints(cadena ?? throw new InvalidOperationException("Conexion SynchroDB no configurada."));
+        app.MapValidacionDescriptorV3(definitiva);
 
         // SYNCHRO-COBRO-PERSONAL-PREPARAR-V1
         // Solo crea una orden pendiente. No confirma pagos.
         // SYNCHRO-COBRO-ATOMICO-V1
         // Las tarifas vienen solo de la configuracion del servidor.
         // SQL calcula minutos e importe bajo bloqueo.
+        if(!definitiva) {
         terminal.MapPost("/retiro/cobro/preparar", async (
             PrepararCobroPersonalPeticion datos,
             HttpContext http,
@@ -629,7 +631,8 @@ public static class WhatsAppManualEndpoints
         })
         .AllowAnonymous()
         .RequireRateLimiting("OperacionesTerminal");
-        terminal.MapGet("/csrf-token", (HttpContext http, IAntiforgery antiforgery) =>
+        }
+        var csrfRuta=terminal.MapGet("/csrf-token", (HttpContext http, IAntiforgery antiforgery) =>
         {
             if (!http.Request.IsHttps)
                 return Results.StatusCode(403);
@@ -641,9 +644,8 @@ public static class WhatsAppManualEndpoints
             return Results.Ok(new {
                 csrfToken = tokens.RequestToken
             });
-        })
-        .AllowAnonymous()
-        .RequireRateLimiting("OperacionesTerminal");
+        }).RequireRateLimiting("OperacionesTerminal");
+        if(!definitiva)csrfRuta.AllowAnonymous();
 
         terminal.MapPost("/iniciar", async (HttpContext http, IAntiforgery antiforgery, IDataProtectionProvider proteccion) =>
         {
@@ -944,6 +946,7 @@ public static class WhatsAppManualEndpoints
                 // SYNCHRO-AUDITORIA-COBRO-RETIRO-V1
         // SYNCHRO-ADMIN-LISTADO-COBROS-V1
         // Solo usuarios con permiso OperarServicios.
+        if(!definitiva) {
         admin.MapGet("/cobros/retiro/pendientes", async (
             HttpContext http) =>
         {
@@ -1136,6 +1139,7 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                     title: "No se pudo confirmar el pago simulado.");
             }
         });
+        }
         admin.MapGet("/pendientes",async (HttpContext http,Guid? intentoId) =>
         {
             if (!http.Request.IsHttps) return Results.StatusCode(403);
@@ -1185,6 +1189,8 @@ admin.MapPost("/cobros/retiro/confirmar", async (
                 !telefono.StartsWith("504",StringComparison.Ordinal) || !telefono.All(char.IsAsciiDigit))
                 return Results.BadRequest(new { mensaje="Debes cotejar el codigo del mensaje y el telefono con WhatsApp." });
             
+            if(definitiva && (!ReferenciaMensajeValida(datos.MensajeReferencia) || datos.TextoMensaje?.Trim() != $"SYNCHRO ACEPTO {codigo} RECIBIR PIN DE RETIRO POR WHATSAPP"))
+                return Results.BadRequest(new { mensaje="Comprueba el mensaje de consentimiento original y su referencia." });
             if (!int.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier),out int operadorId)||operadorId<=0)
                 return Results.Unauthorized();
             string pin=CodigoPinRetiroPersonal.Generar();
