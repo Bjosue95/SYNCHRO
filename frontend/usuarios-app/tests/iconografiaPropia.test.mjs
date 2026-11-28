@@ -57,7 +57,9 @@ test("la navegación y el contacto utilizan iconos en lugar de emojis o dibujos 
   }
   assert.match(contacto, /nombre="enlace-externo"/);
   assert.match(cotizacion, /nombre="enviar"/);
-  assert.match(cotizacion, /nombre="copiar"/);
+  assert.match(cotizacion, /<AppIcon[^>]*nombre="enviar"/);
+  assert.match(cotizacion, /@submit.prevent="enviarSolicitud"/);
+  assert.doesNotMatch(cotizacion, /nombre="copiar"|copiarSolicitud/);
 });
 
 

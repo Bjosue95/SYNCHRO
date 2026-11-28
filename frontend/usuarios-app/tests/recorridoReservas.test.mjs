@@ -277,9 +277,10 @@ test('las tarjetas y acciones usan la paleta de tablet con SVG visibles en claro
   assert.match(tarjeta,/border-color:#315573;/);
   assert.match(tarjeta,/background:#174b65;/);
   assert.match(tarjeta,/color:#5ec6e8;/);
-  assert.match(vista,/background:#f4feff;/);
-  assert.match(vista,/background:#123d5b;/);
-  assert.match(vista,/background:#204766;/);
+  assert.match(vista,/\.env-page--asistente\s*\{[^}]*--reserva-primary-bg:#f4feff;/);
+  assert.match(vista,/:global\(:root\[data-theme="oscuro"\] \.env-page--asistente\)\s*\{[^}]*--reserva-primary-bg:#123d5b;[^}]*--reserva-secondary-bg:#204766;/);
+  assert.match(vista,/\.env-page--asistente \.boton-primario,[\s\S]*?\{\s*background:var\(--reserva-primary-bg\);/);
+  assert.match(vista,/\.env-page--asistente \.boton-secundario,[\s\S]*?\{\s*background:var\(--reserva-secondary-bg\);/);
   assert.match(vista,/filter:none;/);
   assert.doesNotMatch(vista,/\.reserva-final__continuar :deep\(\.icono-tablet\) \{ filter: var\(--action-icon-filter\); \}/);
   assert.match(icono,/tema\.value === 'oscuro' \? '-oscuro' : ''/);
