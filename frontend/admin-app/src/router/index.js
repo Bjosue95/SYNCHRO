@@ -20,7 +20,7 @@ const router = createRouter({
         { path: "terminales", name: "terminales", component: () => import("../views/TerminalesView.vue") },
         { path: "operaciones", name: "operaciones", component: () => import("../views/MovimientosView.vue") },
         { path: "reportes", name: "reportes", component: () => import("../views/ReportesView.vue") },
-        { path: "configuracion", name: "configuracion", component: () => import("../views/ModuloPendienteView.vue"), props: { titulo: "Configuración", descripcion: "Las opciones administrativas se habilitarán después de conectar sus permisos y endpoints." } },
+        { path: "configuracion", name: "configuracion", component: () => import("../views/ConfiguracionView.vue") },
       ],
     },
     { path: "/:pathMatch(.*)*", redirect: "/admin" },
@@ -30,7 +30,14 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (to.meta.publica) return true;
   try {
-    await consultarSesion();
+    const sesion = await consultarSesion();
+    const roles = sesion.roles;
+    const admin = roles.includes('Administrador');
+    const operador = roles.includes('Operador');
+    const auditor = roles.includes('Auditor');
+    if (to.name === 'configuracion' && !admin) return {name: auditor ? 'reportes' : 'resumen'};
+    if (to.name === 'reportes' && !admin && !auditor) return {name:'resumen'};
+    if (!admin && !operador && auditor && to.name !== 'reportes') return {name:'reportes'};
     return true;
   } catch {
     return { name: "login", query: { volver: to.fullPath } };

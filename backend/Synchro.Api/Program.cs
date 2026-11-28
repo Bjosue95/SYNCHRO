@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Synchro.Api.Services.Encomiendas;
 
 var builder = WebApplication.CreateBuilder(args);
+AdminConfiguracionEndpoints.CargarTarifasLocales(builder);
 
 if (builder.Configuration.GetValue<bool>("EncomiendasOperacion:Habilitado"))
 {
@@ -702,6 +703,7 @@ if (app.Environment.IsDevelopment() &&
     app.MapAdminMovimientosEndpoints();
     app.MapAdminReportesEndpoints();
     app.MapUsuariosAdministrativosEndpoints();
+    app.MapAdminConfiguracionEndpoints();
     app.MapOpenApi().RequireAuthorization("SoloAdministradores");
 }
 

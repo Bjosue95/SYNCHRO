@@ -7,7 +7,8 @@ import AdminIcon from "../components/AdminIcon.vue";
 const router = useRouter();
 const route = useRoute();
 const menuAbierto = ref(false);
-const rol = ref("Operador");
+const rol = ref("");
+const roles = ref([]);
 const saliendo = ref(false);
 const error = ref("");
 
@@ -22,10 +23,14 @@ const grupos = [
   ] },
   { titulo: "GESTIÓN", enlaces: [
     { ruta: "/admin/reportes", titulo: "Reportes", icono: "report" },
-    { ruta: "/admin/configuracion", titulo: "Configuración", icono: "settings", pendiente: true },
+    { ruta: "/admin/configuracion", titulo: "Configuración", icono: "settings" },
   ] },
 ];
 
+const gruposVisibles = computed(()=>grupos.map(g=>({...g,enlaces:g.enlaces.filter(e=>{
+  const a=roles.value.includes("Administrador"),o=roles.value.includes("Operador"),v=roles.value.includes("Auditor");
+  return e.ruta==="/admin/configuracion"?a:e.ruta==="/admin/reportes"?a||v:a||o;
+})})).filter(g=>g.enlaces.length));
 const tituloActual = computed(() =>
   grupos.flatMap(x => x.enlaces).find(x => x.ruta === route.path)?.titulo ||
   (route.path === "/admin/encomiendas" ? "Ficha de encomienda" : "Administración")
@@ -37,7 +42,8 @@ onMounted(async () => {
   window.addEventListener("keydown", cerrarConEscape);
   try {
     const sesion = await consultarSesion();
-    rol.value = sesion?.rol || sesion?.roles?.[0] || "Operador";
+    roles.value = sesion.roles || [];
+    rol.value = sesion?.rol || roles.value[0] || "";
   } catch { await router.replace("/login"); }
 });
 onBeforeUnmount(() => window.removeEventListener("keydown", cerrarConEscape));
@@ -64,7 +70,7 @@ async function salir() {
       </RouterLink>
       <div class="sidebar-product"><span class="product-stripe"></span>ADMINISTRACIÓN</div>
       <nav class="sidebar-navigation" aria-label="Secciones del administrador">
-        <div v-for="grupo in grupos" :key="grupo.titulo" class="sidebar-group">
+        <div v-for="grupo in gruposVisibles" :key="grupo.titulo" class="sidebar-group">
           <p class="sidebar-section-label">{{ grupo.titulo }}</p>
           <RouterLink v-for="enlace in grupo.enlaces" :key="enlace.ruta" :to="enlace.ruta"
             class="sidebar-link" :class="{ activo: route.path === enlace.ruta }"

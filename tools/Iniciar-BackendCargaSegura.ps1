@@ -59,6 +59,16 @@ try {
 
     # Carga la configuracion de tarifas y verifica SQL, sin reescribir el catalogo.
     & (Join-Path $PSScriptRoot 'Configurar-TarifasFeria-Pruebas.ps1') -SoloVerificar
+    # Migración idempotente de roles; la verificación anterior limita la base a pruebas.
+    $dbRoles = [System.Data.SqlClient.SqlConnection]::new('Server=(localdb)\SYNCHRO_Aislado;Database=SynchroDB_Pruebas;Integrated Security=True;Encrypt=False;TrustServerCertificate=True')
+    try {
+        $dbRoles.Open()
+        $cmdRoles = $dbRoles.CreateCommand()
+        $cmdRoles.CommandText = Get-Content -LiteralPath (Join-Path $raiz 'backend\Synchro.Api\Database\Migrations\20261110_UsuariosRoles_Pruebas.sql') -Raw
+        [void]$cmdRoles.ExecuteNonQuery()
+    } finally { $dbRoles.Dispose() }
+    $env:Administracion__UsuariosHabilitados = 'true'
+    $env:Administracion__ConfiguracionHabilitada = 'true'
     $env:ProteccionDatos__DirectorioClaves = $directorioClaves
     $env:CargaDispositivos__ClaveHmac = $claveBase64
 

@@ -18,7 +18,7 @@ export async function apiAdmin(url, opciones = {}) {
 export async function consultarSesion() {
   const datos = await apiAdmin("/api/admin/mi-sesion");
   const roles = Array.isArray(datos?.roles) ? datos.roles : [];
-  if (!roles.some((rol) => rol === "Administrador" || rol === "Operador")) {
+  if (!roles.some((rol) => rol === "Administrador" || rol === "Operador" || rol === "Auditor")) {
     const error = new Error("Tu cuenta no dispone de permisos administrativos.");
     error.status = 403;
     throw error;
