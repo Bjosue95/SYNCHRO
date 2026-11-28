@@ -149,6 +149,16 @@ public sealed partial class EncomiendasOperativasSqlTests
         var s=new EncomiendasOperativasSql(ConfiguracionManual,f.Proteccion,TimeProvider.System);
         var encomiendas=Json(await s.BandejaWhatsApp(new(Servicio:"Encomiendas",Referencia:id.ToString()),ct));
         Assert.Equal(2,encomiendas.GetProperty("total").GetInt32());Assert.All(encomiendas.GetProperty("solicitudes").EnumerateArray(),x=>Assert.Equal("Encomiendas",x.GetProperty("servicio").GetString()));
+        var cfgEstacion=new ConfigurationBuilder().AddInMemoryCollection(ConfiguracionManual.AsEnumerable())
+            .AddInMemoryCollection(new Dictionary<string,string?>{["Administracion:ExcluirFixturesBandejaWhatsApp"]="true"}).Build();
+        var estacion=new EncomiendasOperativasSql(cfgEstacion,f.Proteccion,TimeProvider.System);
+        var sinFixtures=Json(await estacion.BandejaWhatsApp(new(Servicio:"Encomiendas",Referencia:id.ToString()),ct));
+        Assert.Equal(0,sinFixtures.GetProperty("total").GetInt32());
+        Assert.Equal(0,sinFixtures.GetProperty("porVerificar").GetInt32());
+        Assert.Equal(0,sinFixtures.GetProperty("pinPorEnviar").GetInt32());
+        Assert.Empty(sinFixtures.GetProperty("solicitudes").EnumerateArray());
+        var personalEstacion=Json(await estacion.BandejaWhatsApp(new(Servicio:"ResguardoPersonal",Referencia:personal.Intento.ToString()),ct));
+        Assert.Equal(1,personalEstacion.GetProperty("total").GetInt32());
         var resguardo=Json(await s.BandejaWhatsApp(new(Servicio:"ResguardoPersonal",Referencia:personal.Intento.ToString()),ct));
         Assert.Equal(1,resguardo.GetProperty("total").GetInt32());Assert.Equal("RetiroPersonal",resguardo.GetProperty("solicitudes")[0].GetProperty("finalidad").GetString());
         Assert.Equal(JsonValueKind.Null,resguardo.GetProperty("solicitudes")[0].GetProperty("encomiendaId").ValueKind);

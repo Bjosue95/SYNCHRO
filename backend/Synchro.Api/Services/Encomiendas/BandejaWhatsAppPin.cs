@@ -51,6 +51,16 @@ internal sealed partial class EncomiendasOperativasSql
               AND (JSON_VALUE(seleccion.Detalle,'$.Servicio')=N'Personal' OR pin.Finalidad=CASE p.Rol WHEN N'Remitente' THEN N'Deposito' ELSE N'Retiro' END) ORDER BY pin.CreadoUtc DESC) pin
             WHERE (JSON_VALUE(seleccion.Detalle,'$.Servicio') IS NULL OR JSON_VALUE(seleccion.Detalle,'$.Servicio')<>N'Personal' OR p.Rol=N'Remitente')
               AND (p.Rol=N'Remitente' OR (o.Estado=N'Depositada' AND o.UsoId IS NOT NULL))
+              -- El propietario del fixture tiene el mismo nombre que su actor administrativo
+              -- y una credencial centinela. No excluir por teléfono, estado o antigüedad solamente.
+              AND (@excluirFixtures=0 OR NOT (
+                LEN(cuenta.NombreUsuario)=48
+                AND LEFT(cuenta.NombreUsuario,16) COLLATE Latin1_General_100_BIN2=N'encomienda_test_'
+                AND SUBSTRING(cuenta.NombreUsuario,17,32) COLLATE Latin1_General_100_BIN2 NOT LIKE N'%[^0-9a-f]%'
+                AND EXISTS (SELECT 1 FROM dbo.Administradores fixture
+                  WHERE fixture.NombreUsuario=cuenta.NombreUsuario
+                    AND fixture.PasswordHash COLLATE Latin1_General_100_BIN2=N'FIXTURE_NO_LOGIN')
+              ))
             """);
         if(config.GetValue<bool>("WhatsAppManual:Habilitado")&&filtro.Servicio!="Encomiendas")fuentes.Add($"""
             SELECT N'ResguardoPersonal',CONVERT(nvarchar(40),a.Id),CAST(NULL AS int),a.Id,a.UsoId,N'Titular',N'Cliente de tablet',
@@ -80,7 +90,8 @@ internal sealed partial class EncomiendasOperativasSql
         // Cada búsqueda debe planificarse con sus filtros reales; evitar recorrer ambos servicios y auditorías cuando se busca una sola operación.
         await using var q=Comando(c,null,cte+"SELECT COUNT(*),COUNT(CASE WHEN Estado NOT IN(N'Cancelada',N'Cancelado',N'Retirada',N'Rechazada',N'Vencida',N'Vencido') AND Consentimiento=N'Pendiente' THEN 1 END),COUNT(CASE WHEN Estado NOT IN(N'Cancelada',N'Cancelado',N'Retirada',N'Rechazada',N'Vencida',N'Vencido') AND Emision=N'Emitido' AND Entrega=N'Pendiente' THEN 1 END) FROM Bandeja "+where+" OPTION(RECOMPILE);"+cte+"SELECT * FROM Bandeja "+where+" ORDER BY CreadoUtc DESC,Servicio,OperacionId,Rol OFFSET @salto ROWS FETCH NEXT @tamano ROWS ONLY OPTION(RECOMPILE);",
             ("@servicio",string.IsNullOrEmpty(filtro.Servicio)?null:filtro.Servicio),("@telefono",telefono),("@referencia",referencia),("@ahora",Ahora.UtcDateTime),
-            ("@salto",(filtro.Pagina-1)*filtro.TamanoPagina),("@tamano",filtro.TamanoPagina));
+            ("@salto",(filtro.Pagina-1)*filtro.TamanoPagina),("@tamano",filtro.TamanoPagina),
+            ("@excluirFixtures",config.GetValue<bool>("Administracion:ExcluirFixturesBandejaWhatsApp")?1:0));
         await using var r=await q.ExecuteReaderAsync(ct);await r.ReadAsync(ct);var total=r.GetInt32(0);var porVerificar=r.GetInt32(1);var pinPorEnviar=r.GetInt32(2);await r.NextResultAsync(ct);
         var items=new List<object>();while(await r.ReadAsync(ct))items.Add(new{
             servicio=r.GetString(0),operacionId=r.GetString(1),encomiendaId=r.IsDBNull(2)?(int?)null:r.GetInt32(2),intentoId=r.IsDBNull(3)?(Guid?)null:r.GetGuid(3),

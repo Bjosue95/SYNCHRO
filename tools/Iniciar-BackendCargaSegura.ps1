@@ -56,6 +56,8 @@ try {
     $env:RostroV3__RetiroHabilitado = 'true'
     $env:RostroV3__RegistroHabilitado = 'true'
     $env:WhatsAppManual__Habilitado = 'true'
+    # Separar las operaciones de los ensayos SQL de la bandeja de la estación.
+    $env:Administracion__ExcluirFixturesBandejaWhatsApp = 'true'
 
     # Carga la configuracion de tarifas y verifica SQL, sin reescribir el catalogo.
     & (Join-Path $PSScriptRoot 'Configurar-TarifasFeria-Pruebas.ps1') -SoloVerificar
