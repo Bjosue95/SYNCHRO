@@ -61,7 +61,7 @@ public static class EncomiendasOperativasEndpoints
     }
 
     // Solo se registra desde el host de demostracion definitiva, con autenticacion del proxy privado.
-    public static void MapDepositosWebTabletDefinitiva(this WebApplication app)
+    public static void MapReservasWebTabletDefinitiva(this WebApplication app)
     {
         const bool libre=false;
         var prototipo=app.MapGroup("/api/terminales/reservas")
@@ -76,6 +76,20 @@ public static class EncomiendasOperativasEndpoints
         prototipo.MapPost("/depositos/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>
             ReservaPrototipo(h,s,terminal=>s.IdentificarParaDeposito(d.Pin,terminal,h.RequestAborted),libre))
             .RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapPost("/retiros/identificar",(IdentificarRetiroOperativa d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.IdentificarParaRetiro(d.Pin,terminal,h.RequestAborted),libre))
+            .RequireRateLimiting("IdentificarRetiroEncomienda");
+        prototipo.MapGet("/{id:int}/pago/estado",(int id,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.EstadoPagoReservaTablet(id,terminal,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/pago/solicitar",(int id,SolicitudPagoReservaTablet d,
+            HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.SolicitarPagoReservaTablet(id,terminal,d,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/captura-retiro",(int id,CapturaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>{Consentimiento(h);return s.CapturarDestinatario(id,terminal,d,h.RequestAborted);},libre));
+        prototipo.MapPost("/{id:int}/autorizar-recogida",(int id,RetiroOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.AutorizarRecogidaEncomienda(id,terminal,d,h.RequestAborted),libre));
+        prototipo.MapPost("/{id:int}/confirmar-recogida",(int id,ConfirmarRecogidaEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>
+            ReservaPrototipo(h,s,terminal=>s.ConfirmarRecogidaEncomienda(id,terminal,d.AutorizacionRetiro,d.RetiroComprobado,h.RequestAborted),libre));
     }
 
     public static void MapEncomiendasOperativasEndpoints(this WebApplication app)

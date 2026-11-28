@@ -72,6 +72,7 @@ internal static class HostAdministracionDefinitiva
         builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>,PasswordHasher<CuentaClienteWeb>>();
         builder.Services.AddSingleton<LimitesAccesoClientes>();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddHostedService<LimpiezaBiometriaEncomiendasWorker>();
         builder.Services.AddScoped(sp=>new EncomiendasOperativasSql(sp.GetRequiredService<IConfiguration>(),sp.GetRequiredService<IDataProtectionProvider>(),sp.GetRequiredService<TimeProvider>(),definitiva:true));
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o=>{
             o.Cookie.Name="Synchro.Admin.Definitivo";
@@ -163,14 +164,14 @@ internal static class HostAdministracionDefinitiva
         app.MapAdministracionEndpoints();
         app.MapClientesWebEndpoints();
         app.MapReservasWebDefinitivasEndpoints();
-        app.MapDepositosWebTabletDefinitiva();
+        app.MapReservasWebTabletDefinitiva();
         app.MapGet("/api/terminales/mi-sesion",(ClaimsPrincipal usuario)=>Results.Ok(new{terminalId=usuario.FindFirstValue(ClaimTypes.NameIdentifier),rol="Terminal"})).RequireAuthorization("SoloTerminal");
         app.MapCasillerosPrototipoEndpoints(definitiva:true);
         app.MapAdminEspaciosCargaEndpoints(definitiva:true);
         app.MapAdminMovimientosEndpoints(definitiva:true);
         app.MapAdminReportesEndpoints(definitiva:true);
         app.MapUsuariosAdministrativosEndpoints(soloLectura:true);
-        app.MapGet("/api/estado",()=>new{proyecto="SYNCHRO",estado="integracion administrativa y reservas web locales",operaciones=false,reservasWeb=true});
+        app.MapGet("/api/estado",()=>new{proyecto="SYNCHRO",estado="integracion administrativa y reservas web locales",operaciones=false,reservasWeb=true,depositoWeb=true,retiroEncomiendas=true,cobrosReservaSimulados=true});
         app.MapGet("/api/admin/verificacion-base",async (CancellationToken token)=>{
             await using var c=new SqlConnection(Conexion);await c.OpenAsync(token);
             await using var q=new SqlCommand("SELECT (SELECT COUNT(*) FROM dbo.Casilleros),(SELECT COUNT(*) FROM dbo.EspaciosCarga),(SELECT COUNT(*) FROM dbo.TarifasCargaSynchro)",c);
@@ -179,7 +180,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Reservas, PIN, cobros ficticios y deposito web de demostracion habilitados. Retiros y carga aun pendientes.");
+        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Resguardo presencial y carga aun pendientes.");
         await app.RunAsync();
     }
 }
