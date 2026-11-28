@@ -30,7 +30,7 @@ public sealed record ConfiguracionServicioTemporal(string Codigo,ClaseServicioTe
         else if(Conector is not null)throw new ArgumentException("El servicio no admite conector de carga.");
         if(Clase is ClaseServicioTemporal.Frio or ClaseServicioTemporal.Calor)
         {
-            if(TemperaturaMinima is null||TemperaturaMaxima is null||TemperaturaSimulada is null||
+            if(TemperaturaMinima is null||TemperaturaMaxima is null||(Habilitado&&TemperaturaSimulada is null)||
                 TemperaturaMinima>=TemperaturaMaxima||TemperaturaMinima< -273.15m||TemperaturaMaxima>200)
                 throw new ArgumentException("Rango de temperatura invalido.");
         }
@@ -38,7 +38,8 @@ public sealed record ConfiguracionServicioTemporal(string Codigo,ClaseServicioTe
             throw new ArgumentException("Temperatura no aplicable al servicio.");
     }
     public bool TemperaturaApta=>Clase is not(ClaseServicioTemporal.Frio or ClaseServicioTemporal.Calor)||
-        TemperaturaSimulada>=TemperaturaMinima&&TemperaturaSimulada<=TemperaturaMaxima;
+        (TemperaturaSimulada is not null&&TemperaturaMinima is not null&&TemperaturaMaxima is not null&&
+        TemperaturaSimulada>=TemperaturaMinima&&TemperaturaSimulada<=TemperaturaMaxima);
 }
 
 internal sealed record OperacionServicioTemporal

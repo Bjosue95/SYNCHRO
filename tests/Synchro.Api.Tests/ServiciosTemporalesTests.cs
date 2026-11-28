@@ -78,6 +78,21 @@ public sealed class ServiciosTemporalesTests
         await servicio.ConfigurarAsync(Compartimento(clase),9,default);return(servicio,repo,reloj);
     }
     [Theory]
+    [InlineData(ClaseServicioTemporal.Frio)]
+    [InlineData(ClaseServicioTemporal.Calor)]
+    public async Task ConfiguracionTermicaSinLecturaSoloEsValidaDeshabilitada(ClaseServicioTemporal clase)
+    {
+        var config=Compartimento(clase) with{Habilitado=false,TemperaturaSimulada=null};
+        config.Validar();
+        Assert.False(config.TemperaturaApta);
+        Assert.Throws<ArgumentException>(()=>(config with{Habilitado=true}).Validar());
+        var repo=new RepositorioTemporalSimulado();
+        var servicio=new ServicioTemporal(repo,Config(),new RelojServicioTemporal());
+        await servicio.ConfigurarAsync(config,9,default);
+        Assert.Equal("Bloqueado",repo.Datos[config.Codigo].EstadoInventario);
+        await Assert.ThrowsAsync<ServicioTemporalNoDisponibleException>(()=>servicio.ReservarAsync(config.Codigo,60,null,default,41));
+    }
+    [Theory]
     [InlineData(ClaseServicioTemporal.CargaCelular)]
     [InlineData(ClaseServicioTemporal.CargaLaptop)]
     [InlineData(ClaseServicioTemporal.Frio)]
