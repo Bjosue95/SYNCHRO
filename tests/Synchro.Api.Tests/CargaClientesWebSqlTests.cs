@@ -45,7 +45,8 @@ public sealed class CargaClientesWebSqlTests(ITestOutputHelper salida)
         {
             string prefijo="carga_"+Guid.NewGuid().ToString("N")+"_";
             string[] nombres=Enumerable.Range(1,cantidad).Select(i=>prefijo+i.ToString("D4")).ToArray();
-            string telefono="+999"+Random.Shared.NextInt64(100000000L,999999999L).ToString();
+            string baseTelefono="+999"+Random.Shared.NextInt64(100000L,999999L).ToString();
+            var telefonos=nombres.Select((nombre,i)=>(nombre,telefono:baseTelefono+(i+1).ToString("D4"))).ToDictionary(x=>x.nombre,x=>x.telefono);
             using var cupos=new SemaphoreSlim(8);
             var total=Stopwatch.StartNew();
             try
@@ -56,7 +57,7 @@ public sealed class CargaClientesWebSqlTests(ITestOutputHelper salida)
                     try
                     {
                         var servicio=new CuentasClientesWeb(repo,new PasswordHasher<CuentaClienteWeb>());
-                        var creada=await servicio.RegistrarAsync(nombre,clave,telefono,CancellationToken.None);
+                        var creada=await servicio.RegistrarAsync(nombre,clave,telefonos[nombre],CancellationToken.None);
                         var login=await servicio.AutenticarAsync(nombre,clave,CancellationToken.None);
                         Assert.NotNull(login); Assert.Equal(creada.PersonaId,login!.PersonaId);
                         Assert.NotEqual(clave,creada.PasswordHash);
@@ -85,7 +86,7 @@ public sealed class CargaClientesWebSqlTests(ITestOutputHelper salida)
                         COMMIT TRANSACTION;
                         """,conexion);
                     limpiar.Parameters.Add("@nombre",SqlDbType.NVarChar,80).Value=nombre;
-                    limpiar.Parameters.Add("@telefono",SqlDbType.NVarChar,20).Value=telefono;
+                    limpiar.Parameters.Add("@telefono",SqlDbType.NVarChar,20).Value=telefonos[nombre];
                     await limpiar.ExecuteNonQueryAsync();
                 }
             }
