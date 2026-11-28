@@ -100,7 +100,7 @@
 .admin-page .kpi-top > span:first-child {
   color: #46667a;
   font-size: 12px;
-  font-weight: 740;
+  font-weight: 500;
 }
 .admin-page .kpi-icon {
   width: 45px;
@@ -115,7 +115,7 @@
   color: #01305c;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
+  font-weight: 600;
   font-size: clamp(32px, 3.7vw, 44px);
   letter-spacing: -.05em;
 }

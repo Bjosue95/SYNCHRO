@@ -153,12 +153,12 @@ onBeforeUnmount(()=>{montada=false;consultaActual++;clearInterval(reloj);});
 <style scoped>
 .reserva-detalle-simple{display:grid;align-content:start;gap:clamp(12px,2vw,18px);max-width:850px;margin-inline:auto;padding-bottom:24px;}
 .reserva-ficha,.reserva-operacion{display:grid;gap:clamp(14px,2.3vw,20px);padding:clamp(18px,3vw,28px);min-width:0;}
-.reserva-ficha__etiqueta{color:var(--accent-text);font-size:10px;letter-spacing:.12em;font-weight:850;}
+.reserva-ficha__etiqueta{color:var(--accent-text);font-size:10px;letter-spacing:.12em;font-weight: 600;}
 .reserva-ficha h1{font-size:clamp(24px,4vw,34px);letter-spacing:-.025em;color:var(--text-strong);line-height:1.15;}
 .reserva-ficha__datos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 16px;}
 .reserva-ficha__datos>div{display:grid;align-content:start;gap:7px;min-width:0;}
-.reserva-ficha__datos span{font-size:12px;color:var(--text-muted);}
-.reserva-ficha__datos strong{font-size:clamp(15px,2vw,20px);line-height:1.3;color:var(--text-strong);overflow-wrap:anywhere;}
+.reserva-ficha__datos span{font-size:12px;color:var(--text-muted); font-weight: 500; }
+.reserva-ficha__datos strong{font-size:clamp(15px,2vw,20px);line-height:1.3;color:var(--text-strong);overflow-wrap:anywhere; font-weight: 500; }
 .reserva-ficha__datos small{font-size:11px;color:var(--text-muted);}
 .reserva-ficha__ubicacion{grid-column:1/-1;padding-top:16px;border-top:1px solid var(--border);}
 .reserva-operacion{border-color:var(--border);margin-top:4px;}

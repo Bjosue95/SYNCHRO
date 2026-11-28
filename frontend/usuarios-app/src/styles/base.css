@@ -249,8 +249,8 @@ fieldset { min-width: 0; }
   background: var(--surface-soft); border-radius: 13px; padding: 17px 20px;
   display: grid; gap: 14px; }
 .resumen-reserva > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.resumen-reserva span { color: var(--text-muted); font-size: 13px; }
-.resumen-reserva strong { color: var(--text-strong); font-size: 13px; text-align: right; overflow-wrap: anywhere; }
+.resumen-reserva span { color: var(--text-muted); font-size: 13px; font-weight: 500; }
+.resumen-reserva strong { color: var(--text-strong); font-size: 13px; text-align: right; overflow-wrap: anywhere; font-weight: 500; }
 .separador-suave { height: 1px; background: var(--border); margin: 25px 0; }
 .resultado-consulta { padding-top: 24px; margin-top: 25px; border-top: 1px solid var(--border); }
 .resultado-consulta h3 { margin: 10px 0; }

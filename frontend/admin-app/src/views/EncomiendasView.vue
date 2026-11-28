@@ -984,8 +984,7 @@ onBeforeUnmount(() => {
 }
 .enc-facts dd {
   margin: 0;
-  overflow-wrap: anywhere;
-}
+  overflow-wrap: anywhere; font-weight: 500; }
 .enc-actions {
   justify-content: flex-start;
 }

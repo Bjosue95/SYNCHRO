@@ -607,7 +607,7 @@ onBeforeUnmount(()=>{
   padding: 12px 14px;
   border-radius: 10px;
   background: #e4f7fa;
-  font-weight: 800;
+  font-weight: 500;
   color: #01305c;
 }
 
@@ -661,7 +661,7 @@ onBeforeUnmount(()=>{
 
 .cobro-etiqueta {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 1.4px;
   color: #667f8e;
 }
@@ -696,19 +696,16 @@ onBeforeUnmount(()=>{
 
 .cobro-datos small {
   color: #647b89;
-  font-size: 12px;
-}
+  font-size: 12px; font-weight: 500; }
 
 .cobro-datos strong {
   font-size: 15px;
-  overflow-wrap: anywhere;
-}
+  overflow-wrap: anywhere; font-weight: 500; }
 
 .cobro-datos .cobro-importe {
   font-size: 26px;
   color: #008b9e;
-  font-variant-numeric: tabular-nums;
-}
+  font-variant-numeric: tabular-nums; font-weight: 700; }
 
 .cobro-tarifa {
   padding: 12px 14px;
@@ -814,7 +811,7 @@ onBeforeUnmount(()=>{
 .cobros-tab-contador {display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;padding:0 6px;border-radius:999px;background:var(--canvas);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;}
 .cobros-tab-contador.con-pendientes {background:#01305c;color:#fff;border-color:#01305c;}
 .cobro-dato-principal {padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--canvas);}
-.cobro-datos .cobro-metodo {font-size:26px;font-weight:800;color:var(--ink);}
+.cobro-datos .cobro-metodo {font-size:26px;font-weight: 500;color:var(--ink);}
 .cobro-cabecera h3 {font-size:30px;font-variant-numeric:tabular-nums;}
 .cobros-view {color:var(--ink);}
 .cobro-tarjeta {background:var(--white);border-color:var(--border);}

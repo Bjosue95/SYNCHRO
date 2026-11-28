@@ -169,8 +169,8 @@ onMounted(consultar);
 .rp-contexto{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted);}
 .rp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
 .rp-kpi{display:flex;flex-direction:column;gap:10px;padding:22px 19px;background:var(--white);border:1px solid var(--border);border-radius:18px;min-width:0;border-top:4px solid #00a7b7;}
-.rp-kpi span{font-size:13px;font-weight:750;color:var(--muted);}
-.rp-kpi strong{font-size:clamp(24px,2.5vw,40px);font-weight:850;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.rp-kpi span{font-size:13px;font-weight: 500;color:var(--muted);}
+.rp-kpi strong{font-size:clamp(24px,2.5vw,40px);font-weight: 600;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
 .rp-kpi small{color:var(--muted);font-size:12px;}
 .rp-destacado{background:linear-gradient(135deg,#01305c,#07576b);color:#fff;}
 .rp-destacado span,.rp-destacado small{color:#d4eef6;}

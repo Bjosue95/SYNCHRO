@@ -476,12 +476,12 @@ watch(() => route.query.encomienda, valor => {
 }
 .wa-shell .indicador span,
 .wa-shell :deep(.manual-admin .resumen-operaciones .indicador span) {
-  color: var(--wa-muted); font-weight: 750; font-size: 13px;
+  color: var(--wa-muted); font-weight: 500; font-size: 13px;
 }
 .wa-shell .indicador strong,
 .wa-shell :deep(.manual-admin .resumen-operaciones .indicador strong) {
   color: var(--wa-text); font-size: clamp(31px, 3.2vw, 41px);
-  font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums;
+  font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums;
 }
 .wa-shell .indicador small,
 .wa-shell :deep(.manual-admin .resumen-operaciones .indicador small) {

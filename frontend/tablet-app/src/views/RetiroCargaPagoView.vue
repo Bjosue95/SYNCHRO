@@ -569,7 +569,7 @@ header p {
 
   color: #526b7c;
   font-size: clamp(15px, 1.6vw, 18px);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -578,7 +578,7 @@ header p {
 
   color: #01305c;
   font-size: clamp(19px, 2.2vw, 25px);
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.2;
 
   text-align: right;
@@ -603,13 +603,13 @@ header p {
 .total span {
   color: #01305c;
   font-size: clamp(17px, 1.8vw, 20px);
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .total strong {
   color: #008b9e;
   font-size: clamp(30px, 3.7vw, 43px);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -.025em;
 }
 
@@ -1869,14 +1869,14 @@ and (min-height: 720px) {
 .consumo-encabezado span {
   color: #008b9e;
   font-size: clamp(12px, 1.4vw, 15px);
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 1px;
 }
 
 .consumo-encabezado strong {
   color: #01305c;
   font-size: clamp(15px, 1.7vw, 19px);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .consumo-cuadricula {
@@ -1910,7 +1910,7 @@ and (min-height: 720px) {
 .consumo-tarifa strong {
   color: #01305c;
   font-size: clamp(17px, 2vw, 23px);
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -2018,14 +2018,14 @@ and (min-height: 720px) {
 .resumen-intro-v5 span {
   color: #008b9e;
   font-size: clamp(12px, 1.4vw, 15px);
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: .7px;
 }
 
 .resumen-intro-v5 strong {
   color: #01305c;
   font-size: clamp(14px, 1.5vw, 18px);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .pantalla-pago .resumen-alto-v5 .dato {

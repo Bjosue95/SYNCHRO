@@ -121,13 +121,12 @@
 }
 .env-stats dt {
   font-size: 13px;
-  color: var(--text-muted);
-}
+  color: var(--text-muted); font-weight: 500; }
 .env-stats dd {
   margin: 8px 0 0;
   font-size: 36px;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }

@@ -551,14 +551,14 @@ button.secundario { color:#01305c; background:#e4edf2; }
 
 .indicador span {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   color: #526b7a;
 }
 
 .indicador strong {
   font-size: clamp(30px, 3.8vw, 43px);
   line-height: 1.1;
-  font-weight: 800;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 

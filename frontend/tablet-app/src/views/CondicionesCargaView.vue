@@ -319,8 +319,9 @@ function volverAlMenu() { router.push("/menu"); }
 
 .tarjeta-informativa { cursor:default; }
 .tarjeta-informativa:active { transform:none; }
-.etiqueta-info { font-size:clamp(13px,1.5vw,18px); font-weight:700; color:#5b6770; }
+.etiqueta-info { font-size:clamp(13px,1.5vw,18px); font-weight: 500; color:#5b6770; }
 .nota-info { font-size:clamp(11px,1.3vw,16px); color:#5b6770; }
 .tema-oscuro .etiqueta-info, .tema-oscuro .nota-info { color:#c6dfea; }
 
+.tarjeta-informativa .nombre-tarjeta { font-weight: 500; }
 </style>

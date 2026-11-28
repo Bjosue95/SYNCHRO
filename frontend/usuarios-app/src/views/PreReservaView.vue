@@ -558,7 +558,7 @@ onMounted(cargar);
 .reserva-pendiente {display:grid;justify-items:start;gap:16px;padding:clamp(22px,4vw,42px);}
 .reserva-pendiente__icono {display:grid;place-items:center;width:72px;height:72px;border-radius:20px;color:var(--text-strong);background:var(--surface-accent);}
 .reserva-pendiente__total {padding:16px 20px;background:var(--surface-accent);border:1px solid var(--border);border-radius:13px;}
-.reserva-pendiente__total strong {font-size:21px;}
+.reserva-pendiente__total strong {font-size:21px; font-weight: 700; }
 
 @media(prefers-reduced-motion:reduce){.reserva-pasos__barra span{transition:none}}
 .reserva-opciones {
@@ -736,7 +736,7 @@ onMounted(cargar);
   border: 1px solid var(--border);
   border-radius: 14px;
 }
-.reserva-final__resumen-titulo { font-size: 14px; font-weight: 800; color: var(--text-strong); }
+.reserva-final__resumen-titulo { font-size: 14px; font-weight: 600; color: var(--text-strong); }
 .reserva-final__resumen dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -744,8 +744,8 @@ onMounted(cargar);
   margin: 0;
 }
 .reserva-final__resumen dl > div { min-width: 0; display: grid; align-content: start; gap: 6px; }
-.reserva-final__resumen dt { font-size: 11px; font-weight: 700; color: var(--text-muted); }
-.reserva-final__resumen dd { margin: 0; font-size: 13px; font-weight: 750; color: var(--text-strong); overflow-wrap: anywhere; }
+.reserva-final__resumen dt { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+.reserva-final__resumen dd { margin: 0; font-size: 13px; font-weight: 500; color: var(--text-strong); overflow-wrap: anywhere; }
 .reserva-final__acciones { display: flex; align-items: stretch; justify-content: space-between; gap: 14px; }
 .reserva-final__acciones .boton {
   display: inline-flex;
@@ -799,10 +799,10 @@ onMounted(cargar);
 }
 .reserva-revision__datos > div { display:grid; gap:6px; min-width:0; }
 .reserva-revision__importe {grid-column:1/-1;padding:16px 18px;border:1px solid var(--border-strong);background:var(--surface-accent);border-radius:11px;}
-.reserva-revision__datos .reserva-revision__importe dd {font-size:clamp(20px,3vw,28px);color:var(--text-strong);overflow-wrap:normal;}
+.reserva-revision__datos .reserva-revision__importe dd {font-size:clamp(20px,3vw,28px);color:var(--text-strong);overflow-wrap:normal; font-weight: 700; }
 .reserva-revision__tarifa-aviso {font-size:13px;line-height:1.6;color:var(--text-muted);}
-.reserva-revision__datos dt { font-size:12px; color:var(--text-muted); font-weight:700; }
-.reserva-revision__datos dd { margin:0; color:var(--text-strong); font-weight:800; overflow-wrap:anywhere; }
+.reserva-revision__datos dt { font-size:12px; color:var(--text-muted); font-weight: 500; }
+.reserva-revision__datos dd { margin:0; color:var(--text-strong); font-weight: 500; overflow-wrap:anywhere; }
 .reserva-pagadores { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
  .reserva-pagador {
   position:relative;
@@ -1200,7 +1200,7 @@ onMounted(cargar);
 .reserva-pago__eleccion .reserva-pagadores {gap:10px;}
 .reserva-pago__eleccion .reserva-pagador {min-height:125px;padding:clamp(10px,1.5vw,17px);gap:8px;}
 .reserva-pago__total {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;background:var(--surface-accent);border-radius:12px;color:var(--text-strong);}
-.reserva-pago__total strong {white-space:nowrap;font-size:clamp(19px,3vw,24px);}
+.reserva-pago__total strong {white-space:nowrap;font-size:clamp(19px,3vw,24px); font-weight: 700; }
 .reserva-vista > .reserva-prueba {flex:0 0 auto;align-content:start;padding:clamp(12px,2vw,24px);gap:12px;}
 .reserva-prueba__titular {grid-column:1/-1;}
 .reserva-prueba__numero {grid-column:1/-1;}
