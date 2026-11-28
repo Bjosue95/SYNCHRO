@@ -20,8 +20,9 @@ public static class EncomiendasOperativasEndpoints
 {
     public static void MapEncomiendasOperativasEndpoints(this WebApplication app)
     {
+        var politicaWeb = LimitesAccesoClientes.ModoFeria(app) ? "ClientesFeriaReservas" : "EncomiendasOperativas";
         var reservas=app.MapGroup("/api/web/reservas").RequireAuthorization("SoloClientes")
-            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting(politicaWeb);
         reservas.MapGet("/disponibilidad",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.CatalogoReservas(h.RequestAborted),h));
         reservas.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),filtro,h.RequestAborted),h));
         reservas.MapPost("",(CrearReservaPrototipoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Crear(Identidad(h),d.TelefonoDestinatario??"",d.TamanoSolicitado,h.RequestAborted,d),h));
@@ -29,7 +30,7 @@ public static class EncomiendasOperativasEndpoints
         reservas.MapPost("/{id:int}/pin-deposito/solicitar",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.SolicitarPinDeposito(id,Identidad(h),h.RequestAborted),h));
         reservas.MapPost("/{id:int}/cancelar",(int id,CancelarEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Cancelar(id,Identidad(h),d,h.RequestAborted),h));
         var web=app.MapGroup("/api/web/encomiendas").RequireAuthorization("SoloClientes")
-            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting(politicaWeb);
         web.MapGet("/configuracion",(EncomiendasOperativasSql s)=>Results.Ok(s.Configuracion()));
         web.MapGet("/consentimiento-cuenta",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConsultarConsentimientoCuenta(Identidad(h),h.RequestAborted),h));
         web.MapDelete("/consentimiento-cuenta",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.RevocarConsentimientoCuenta(Identidad(h),h.RequestAborted),h));

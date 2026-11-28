@@ -38,6 +38,7 @@ builder.Services.AddScoped<IRepositorioUsuariosAdministrativos, RepositorioUsuar
 builder.Services.AddScoped<GestionUsuariosAdministrativos>();
 builder.Services.AddScoped<IRepositorioClientesWeb, RepositorioClientesWebSql>();
 builder.Services.AddScoped<CuentasClientesWeb>();
+builder.Services.AddSingleton<LimitesAccesoClientes>();
 builder.Services.AddScoped<IPasswordHasher<CuentaClienteWeb>, PasswordHasher<CuentaClienteWeb>>();
 builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
@@ -368,6 +369,27 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
+
+    // Presupuesto compartido detrás del proxy. Solo el portal de clientes en feria.
+    // No confiar en X-Forwarded-For enviado por visitantes.
+    foreach (var (nombre, cupo) in new[] {
+        ("ClientesFeriaCsrf", 1200), ("ClientesFeriaRegistro", 300),
+        ("ClientesFeriaLogin", 600), ("ClientesFeriaSesion", 2400),
+        ("ClientesFeriaLecturas", 2400), ("ClientesFeriaEscrituras", 600) })
+    {
+        options.AddPolicy(nombre, contexto =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                contexto.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+                _ => new FixedWindowRateLimiterOptions {
+                    PermitLimit = cupo, Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0, AutoReplenishment = true }));
+    }
+    options.AddPolicy("ClientesFeriaReservas", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{contexto.Connection.RemoteIpAddress}|{(HttpMethods.IsGet(contexto.Request.Method) ? "lectura" : "escritura")}",
+            _ => new FixedWindowRateLimiterOptions {
+                PermitLimit = HttpMethods.IsGet(contexto.Request.Method) ? 2400 : 600,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
 
     // Separar consultas periódicas de las operaciones protegidas y del acceso.
     options.AddPolicy("EncomiendasOperativas", contexto =>

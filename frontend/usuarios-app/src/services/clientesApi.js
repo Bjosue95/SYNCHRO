@@ -22,6 +22,7 @@ async function interpretar(respuesta) {
         respuesta.status === 403 ? "No tienes autorización para esta operación." :
           respuesta.status === 404 ? "No se encontró el registro solicitado." :
             respuesta.status === 409 ? "Esta operación ya no está disponible." :
+              respuesta.status === 429 ? "Hay muchas solicitudes en este momento. Espera un minuto e inténtalo nuevamente." :
               respuesta.status === 503 ? "El servicio no está disponible en este momento." :
                 "No se pudo completar la solicitud.");
     throw new ErrorApi(mensaje, respuesta.status);
