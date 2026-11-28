@@ -18,8 +18,8 @@ internal sealed record ExtenderEvidenciaOperativa(string Incidencia,string Motiv
 
 public static class EncomiendasOperativasEndpoints
 {
-    // Integracion local de reservas; no registrar rutas de pago, PIN,
-    // biometria, fotografias, envios WhatsApp ni operaciones de terminal.
+    // Reservas locales con consentimiento manual, PIN y cobros de demostracion.
+    // No registrar biometria, fotografias ni operaciones de terminal.
     public static void MapReservasWebDefinitivasEndpoints(this WebApplication app)
     {
         var reservas=app.MapGroup("/api/web/reservas").RequireAuthorization("SoloClientes")
@@ -28,12 +28,14 @@ public static class EncomiendasOperativasEndpoints
         reservas.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),filtro,h.RequestAborted),h));
         reservas.MapPost("",(CrearReservaPrototipoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Crear(Identidad(h),d.TelefonoDestinatario??"",d.TamanoSolicitado,h.RequestAborted,d),h));
         reservas.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,Identidad(h),h.RequestAborted),h));
+        reservas.MapPost("/{id:int}/pin-deposito/solicitar",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.SolicitarPinDeposito(id,Identidad(h),h.RequestAborted),h));
         reservas.MapPost("/{id:int}/cancelar",(int id,CancelarEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Cancelar(id,Identidad(h),d,h.RequestAborted),h));
 
         var web=app.MapGroup("/api/web/encomiendas").RequireAuthorization("SoloClientes")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
         web.MapGet("/configuracion",(EncomiendasOperativasSql s)=>Results.Ok(s.Configuracion()));
         web.MapGet("/consentimiento-cuenta",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConsultarConsentimientoCuenta(Identidad(h),h.RequestAborted),h));
+        web.MapDelete("/consentimiento-cuenta",(HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.RevocarConsentimientoCuenta(Identidad(h),h.RequestAborted),h));
         web.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(Identidad(h),filtro,h.RequestAborted),h));
         web.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,Identidad(h),h.RequestAborted),h));
         web.MapPost("/{id:int}/cancelar",(int id,CancelarEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Cancelar(id,Identidad(h),d,h.RequestAborted),h));
@@ -41,6 +43,21 @@ public static class EncomiendasOperativasEndpoints
             .AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
         admin.MapGet("",([AsParameters] ConsultaHistorialEncomienda filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Listar(null,filtro,h.RequestAborted),h));
         admin.MapGet("/{id:int}",(int id,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.Detalle(id,null,h.RequestAborted),h));
+        admin.MapPost("/{id:int}/consentimientos/{rol}/confirmar",(int id,string rol,ConsentimientoOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarConsentimiento(id,rol,d,Identidad(h),false,h.RequestAborted),h));
+        admin.MapPost("/{id:int}/consentimientos/{rol}/rechazar",(int id,string rol,ConsentimientoOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarConsentimiento(id,rol,d,Identidad(h),true,h.RequestAborted),h));
+        var cobrosReserva=app.MapGroup("/api/admin/encomiendas/cobros")
+            .RequireAuthorization("OperarServicios")
+            .AddEndpointFilter<OperacionTerminalSeguraFilter>()
+            .RequireRateLimiting("EncomiendasOperativas");
+        cobrosReserva.MapGet("/pendientes",(HttpContext h,EncomiendasOperativasSql s)=>
+            Ejecutar(()=>s.CobrosReservaPendientes(h.RequestAborted),h));
+        cobrosReserva.MapPost("/{id:int}/confirmar",(int id,ConfirmacionPagoReservaDemoSolicitud d,
+            HttpContext h,EncomiendasOperativasSql s)=>
+            Ejecutar(()=>s.ConfirmarPagoReservaDemo(id,d,Identidad(h),h.RequestAborted),h));
+        admin.MapPost("/{id:int}/pines/{finalidad}/emitir",(int id,string finalidad,EmitirPinOperativoSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.EmitirPin(id,finalidad,d.Reemplazar,Identidad(h),h.RequestAborted),h));
+        admin.MapPost("/{id:int}/pines/entrega",(int id,EntregaPinEncomiendaSolicitud d,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.ConfirmarEntregaPin(id,d,Identidad(h),h.RequestAborted),h));
+        app.MapGet("/api/admin/whatsapp-pin/solicitudes",([AsParameters] ConsultaBandejaWhatsApp filtro,HttpContext h,EncomiendasOperativasSql s)=>Ejecutar(()=>s.BandejaWhatsApp(filtro,h.RequestAborted),h))
+            .RequireAuthorization("OperarServicios").AddEndpointFilter<OperacionTerminalSeguraFilter>().RequireRateLimiting("EncomiendasOperativas");
     }
 
     public static void MapEncomiendasOperativasEndpoints(this WebApplication app)

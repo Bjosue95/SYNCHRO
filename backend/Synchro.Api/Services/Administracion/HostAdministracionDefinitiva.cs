@@ -136,6 +136,15 @@ internal static class HostAdministracionDefinitiva
                 o.AddFixedWindowLimiter(politica,l=>{l.PermitLimit=240;l.Window=TimeSpan.FromMinutes(1);l.QueueLimit=0;});
         });
         var app=builder.Build();
+        // La clave se genera una sola vez y nunca se imprime ni se reutiliza desde LocalDB.
+        await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
+        var numero=Environment.GetEnvironmentVariable("SYNCHRO_WHATSAPP_DEFINITIVO");
+        if(!string.IsNullOrWhiteSpace(numero))
+        {
+            var normalizado=WhatsAppEncomienda.Telefono(numero);
+            if(normalizado is null)throw new InvalidOperationException("Numero de WhatsApp definitivo invalido.");
+            app.Configuration["WhatsAppManual:NumeroE164"]=normalizado;
+        }
         app.Use(async (ctx,next)=>{
             if(!ctx.Request.IsHttps||ctx.Connection.RemoteIpAddress is not IPAddress ip||!IPAddress.IsLoopback(ip))
             {ctx.Response.StatusCode=403;return;}
@@ -164,7 +173,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Reservas web habilitadas para demostracion local. Pagos, WhatsApp y rutas de terminal no habilitados.");
+        Console.WriteLine("Reservas web, consentimiento manual, PIN y cobros ficticios habilitados. Terminal y biometria aun no habilitadas.");
         await app.RunAsync();
     }
 }
