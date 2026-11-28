@@ -38,3 +38,8 @@ export async function cerrarSesion() {
   await apiClientes.salir();
   estadoSesion.cliente = null;
 }
+
+export async function eliminarCuenta(contrasena) {
+  await apiClientes.eliminarCuenta(contrasena);
+  estadoSesion.cliente = null;
+}

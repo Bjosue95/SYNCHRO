@@ -90,6 +90,7 @@ export const apiClientes = Object.freeze({
     }),
   sesion: () => solicitar("/api/web/clientes/mi-sesion"),
   salir: () => solicitar("/api/web/clientes/logout", { metodo: "POST" }),
+  eliminarCuenta: (contrasena) => solicitar("/api/web/clientes/eliminar-cuenta", { metodo: "POST", datos: { contrasena } }),
 
   crearPreReserva: ({ telefonoDestinatario, tamanoSolicitado }) =>
     solicitar("/api/web/encomiendas/pre-reservas", {

@@ -12,6 +12,9 @@ public sealed record RegistrarClienteWebSolicitud(string NombreUsuario,string Co
 public sealed record LoginClienteWebSolicitud(string NombreUsuario,string Contrasena)
 {public override string ToString()=>"Acceso de cliente protegido";}
 
+public sealed record EliminarClienteWebSolicitud(string? Contrasena)
+{public override string ToString()=>"Eliminación de cuenta protegida";}
+
 public static class ClientesWebEndpoints
 {
     public static void MapClientesWebEndpoints(this WebApplication app)
@@ -63,6 +66,27 @@ public static class ClientesWebEndpoints
             var cuenta=await cuentas.ObtenerAsync(persona,http.RequestAborted);return cuenta is null?Results.Unauthorized():Results.Ok(CuentasClientesWeb.Perfil(cuenta));
         });
         var logout = privadas.MapPost("/logout",async(HttpContext http)=>{await http.SignOutAsync("Clientes");return Results.Ok(new{cerrada=true});});
+        privadas.MapPost("/eliminar-cuenta", async(EliminarClienteWebSolicitud datos,HttpContext http,CuentasClientesWeb cuentas,LimitesAccesoClientes limites) =>
+        {
+            int persona=int.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            using var intento = limites.IntentoLogin(http.User.Identity?.Name);
+            if(!intento.IsAcquired) return Results.StatusCode(429);
+            try
+            {
+                using var cupo = await limites.EntrarAsync(http.RequestAborted);
+                if(!cupo.IsAcquired) return Results.StatusCode(429);
+                if(!await cuentas.EliminarAsync(persona,datos.Contrasena,http.RequestAborted))
+                    return Results.BadRequest(new{mensaje="La contraseña no es correcta."});
+                await http.SignOutAsync("Clientes");
+                return Results.Ok(new{eliminada=true});
+            }
+            catch(CuentaClienteConHistorialException)
+            {return Results.Conflict(new{mensaje="Esta cuenta tiene datos vinculados o cambió durante la solicitud. Contacta con SYNCHRO para revisar su eliminación."});}
+            catch(SqlException ex) when(ex.Number==547)
+            {return Results.Conflict(new{mensaje="Esta cuenta tiene registros vinculados. Contacta con SYNCHRO para revisar su eliminación."});}
+            catch(SqlException){return Results.Problem(statusCode:503,title:"No se pudo eliminar la cuenta. Inténtalo nuevamente.");}
+            catch(InvalidOperationException){return Results.Problem(statusCode:503,title:"El servicio no está disponible.");}
+        }).RequireRateLimiting(feria ? "ClientesFeriaEscrituras" : "LoginLimitado");
         if (feria) { sesion.RequireRateLimiting("ClientesFeriaSesion"); logout.RequireRateLimiting("ClientesFeriaEscrituras"); }
     }
     private static async Task<bool> AccesoValidoAsync(HttpContext http,IAntiforgery csrf)

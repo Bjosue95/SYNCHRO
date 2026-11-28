@@ -132,6 +132,7 @@ async function enviar() {
           </p>
         </header>
 
+        <p v-if="route.query.cuentaEliminada === '1'" class="alerta" role="status">Tu cuenta se eliminó correctamente.</p>
         <p v-if="route.query.error === 'servidor'" class="alerta" role="status">
           No pudimos verificar el acceso. Inténtalo de nuevo.
         </p>

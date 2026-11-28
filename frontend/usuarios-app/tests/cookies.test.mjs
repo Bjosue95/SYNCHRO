@@ -26,7 +26,7 @@ test("aviso global, decisiones equivalentes y política accesible",()=>{
   assert.match(aviso,/guardarPreferencias\(opcionMapa\)/);
   assert.match(leer("router/index.js"),/path: "\/politica-de-cookies"/);
   assert.match(leer("components/landing/SiteFooter.vue"),/abrirPreferencias/);
-  assert.match(leer("components/layout/AppShell.vue"),/abrirPreferencias/);
+  assert.doesNotMatch(leer("components/layout/AppShell.vue"),/abrirPreferencias|Preferencias de cookies/);
 });
 test("mapa no se inicializa sin permiso y se desmonta al retirarlo",()=>{
   const mapa=leer("components/landing/LocationsMap.vue");

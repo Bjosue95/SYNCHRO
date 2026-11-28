@@ -19,6 +19,9 @@ public sealed class RegistroClienteSqlTests
             Environment.GetEnvironmentVariable("SYNCHRO_SQL_DEPOSITO_TEST"),
             "SynchroDB_Pruebas");
 
+        // Esta prueba ahora incluye eliminación: únicamente la copia aislada.
+        Assert.True(string.Equals(new SqlConnectionStringBuilder(cadena).DataSource,
+            @"(localdb)\SYNCHRO_Suite_Test",StringComparison.OrdinalIgnoreCase));
         var configuracion = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -93,6 +96,16 @@ public sealed class RegistroClienteSqlTests
             object? resultado = await comando.ExecuteScalarAsync();
 
             Assert.Equal(1, Convert.ToInt32(resultado));
+            // Eliminar la propia cuenta sin vínculos usando el repositorio real.
+            // No reutilizar esta prueba contra la base operativa.
+            Assert.False(await servicio.EliminarAsync(personaId, "Incorrecta-12345", CancellationToken.None));
+            Assert.NotNull(await servicio.ObtenerAsync(personaId, CancellationToken.None));
+            Assert.True(await servicio.EliminarAsync(personaId, contrasena, CancellationToken.None));
+            Assert.Null(await servicio.ObtenerAsync(personaId, CancellationToken.None));
+            await using var restante = new SqlCommand("SELECT COUNT(*) FROM dbo.Personas WHERE Id=@id",conexion);
+            restante.Parameters.Add("@id",SqlDbType.Int).Value=personaId;
+            Assert.Equal(0,Convert.ToInt32(await restante.ExecuteScalarAsync()));
+            personaId=0;
         }
         finally
         {
