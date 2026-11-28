@@ -17,7 +17,7 @@ internal sealed class UsuariosAdministrativosSimulados : IRepositorioUsuariosAdm
         lock(_sync)
         {
             if(!Usuarios.Any(u=>u.Id==actor&&u.Activo&&u.Roles.Contains("Administrador")))throw new AccesoAdministrativoRechazadoException();
-            var copia=Usuarios.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion}).ToList();
+            var copia=Usuarios.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion,EsPrueba=u.EsPrueba}).ToList();
             T resultado=cambio(copia);if(FallarConfirmacion)throw new InvalidOperationException("Fallo sintetico de confirmacion.");
             foreach(var u in copia.Where(u=>u.Modificado))
             {
@@ -25,7 +25,7 @@ internal sealed class UsuariosAdministrativosSimulados : IRepositorioUsuariosAdm
                 if(u.NuevoPasswordHash is not null)Hashes[u.Id]=u.NuevoPasswordHash;
                 Auditoria.Add(u.Accion);
             }
-            Usuarios=copia.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion}).ToList();
+            Usuarios=copia.Select(u=>new UsuarioAdministrativoEstado{Id=u.Id,Nombre=u.Nombre,Activo=u.Activo,Roles=u.Roles.ToArray(),VersionSesion=u.VersionSesion,EsPrueba=u.EsPrueba}).ToList();
             return Task.FromResult(resultado);
         }
     }
@@ -46,6 +46,20 @@ public sealed class UsuariosAdministrativosTests
         Assert.Equal(new[]{"Auditor"},usuario.Roles);Assert.NotEqual(PasswordPrueba,repo.Hashes[usuario.Id]);
         Assert.Equal(PasswordVerificationResult.Success,hasher.VerifyHashedPassword(new(),repo.Hashes[usuario.Id],PasswordPrueba));
         Assert.False(ValidadorSesionAdministrativa.Aplicar(Principal(version:1),new([],1)));
+    }
+    [Fact]
+    public async Task ArchivarFixturesConservaCuentaPrincipalYRevocaRoles()
+    {
+        var repo=new UsuariosAdministrativosSimulados();
+        repo.Usuarios.Add(new(){Id=8,Nombre="fixture",EsPrueba=true,Roles=["Administrador"]});
+        var servicio=new GestionUsuariosAdministrativos(repo,new PasswordHasher<Administrador>());
+        await Assert.ThrowsAsync<ConflictoUsuarioAdministrativoException>(()=>servicio.ArchivarPruebasAsync(7,0,default));
+        Assert.Equal(1,await servicio.ArchivarPruebasAsync(7,1,default));
+        Assert.True(repo.Usuarios.Single(u=>u.Id==7).Activo);
+        var archivada=repo.Usuarios.Single(u=>u.Id==8);
+        Assert.False(archivada.Activo);Assert.Empty(archivada.Roles);Assert.Equal(1,archivada.VersionSesion);
+        Assert.Single(await servicio.ListarAsync(7,default));
+        await Assert.ThrowsAsync<UsuarioAdministrativoNoEncontradoException>(()=>servicio.ActualizarAsync(7,8,true,["Administrador"],default));
     }
     [Fact]
     public async Task NoSeDesactivaNiSeEliminaRolDelUltimoAdministrador()

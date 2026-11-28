@@ -25,7 +25,15 @@ async function ejecutar(fn){
  if(ocupado.value)return;ocupado.value=true;error.value="";aviso.value="";
  try{await fn();}catch(e){error.value=e?.message||"No se pudo completar la operación.";}finally{ocupado.value=false;}
 }
+const usuariosNormales=computed(()=>usuarios.value.filter(u=>!u.esPrueba));
+const cuentasPrueba=computed(()=>usuarios.value.filter(u=>u.esPrueba).length);
 async function cargarUsuarios(){usuarios.value=await apiAdmin("/api/admin/usuarios/");}
+function archivarPruebas(){return ejecutar(async()=>{
+ const cantidad=cuentasPrueba.value;if(!cantidad)return;
+ if(!window.confirm("¿Retirar "+cantidad+" cuentas de pruebas? Se desactivarán y perderán todos sus permisos. Se conservarán únicamente sus referencias históricas. Las cuentas normales no se modificarán."))return;
+ const r=await mutar("/api/admin/usuarios/archivar-pruebas","POST",{cantidadEsperada:cantidad,confirmacion:"ARCHIVAR PRUEBAS"});
+ await cargarUsuarios();aviso.value=r.archivadas+" cuentas de pruebas retiradas.";
+});}
 function abrirUsuario(u){editar.value=u.id;activo.value=u.activo;rolesEditados.value=[...u.roles];passwordId.value=null;nuevo.value=false;clave.value="";password.value="";}
 function abrirNuevo(){nuevo.value=true;editar.value=null;passwordId.value=null;password.value="";nombre.value="";clave.value="";rolesNuevos.value=["Operador"];}
 function cancelar(){nuevo.value=false;editar.value=null;passwordId.value=null;clave.value="";password.value="";}
@@ -99,8 +107,9 @@ const mb=v=>(v/1048576).toFixed(2)+" MB";
      <fieldset><legend>Roles y permisos</legend><label v-for="r in roles" :key="r" class="cfg-check"><input type="checkbox" v-model="rolesNuevos" :value="r"/><span><strong>{{r}}</strong><small>{{explicacion[r]}}</small></span></label></fieldset>
      <div class="cfg-acciones"><button class="cfg-secundario" type="button" @click="cancelar">Cancelar</button><button class="cfg-primario" type="submit" :disabled="ocupado||!rolesNuevos.length">Crear usuario</button></div>
     </form>
-    <div v-if="!usuarios.length&&!ocupado&&!error" class="cfg-muted">No hay usuarios disponibles.</div>
-    <article v-for="u in usuarios" :key="u.id" class="cfg-usuario">
+    <div v-if="cuentasPrueba" class="cfg-recuadro cfg-form"><strong>{{cuentasPrueba}} cuentas administrativas de pruebas</strong><p class="cfg-muted">Son registros de pruebas automatizadas, no cuentas de trabajo. Retíralos para conservar solo los usuarios normales y su historial de auditoría.</p><div class="cfg-acciones"><button type="button" class="cfg-peligro" :disabled="ocupado" @click="archivarPruebas">Retirar cuentas de pruebas</button></div></div>
+    <div v-if="!usuariosNormales.length&&!ocupado&&!error" class="cfg-muted">No hay usuarios disponibles.</div>
+    <article v-for="u in usuariosNormales" :key="u.id" class="cfg-usuario">
      <div class="cfg-avatar"><AdminIcon name="user" :size="22"/></div><div class="cfg-identidad"><strong>{{u.nombreUsuario}}</strong><small>{{u.roles.join(" · ")||"Sin permisos"}}</small></div><span class="cfg-estado" :class="{vigente:u.activo}">{{u.activo?"Activo":"Inactivo"}}</span><div class="cfg-acciones"><button type="button" class="cfg-secundario" :disabled="ocupado" @click="abrirUsuario(u)">Editar acceso</button><button type="button" class="cfg-secundario" :disabled="ocupado" @click="abrirPassword(u)">Contraseña</button></div>
      <form v-if="editar===u.id" class="cfg-form cfg-edicion" @submit.prevent="guardarUsuario"><label class="cfg-check"><input v-model="activo" type="checkbox"/> Cuenta activa</label><fieldset><legend>Roles asignados</legend><label v-for="r in roles" :key="r" class="cfg-check"><input type="checkbox" v-model="rolesEditados" :value="r"/>{{r}}</label></fieldset><p class="cfg-muted">El sistema impide desactivar al último administrador activo.</p><div class="cfg-acciones"><button type="button" class="cfg-secundario" @click="cancelar">Cancelar</button><button type="submit" class="cfg-primario" :disabled="ocupado">Guardar cambios</button></div></form>
      <form v-if="passwordId===u.id" class="cfg-form cfg-edicion" @submit.prevent="restablecer"><label>Nueva contraseña<input v-model="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required/></label><div class="cfg-acciones"><button type="button" class="cfg-secundario" @click="cancelar">Cancelar</button><button type="submit" class="cfg-primario" :disabled="ocupado">Restablecer contraseña</button></div></form>

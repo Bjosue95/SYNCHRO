@@ -35,14 +35,18 @@ internal sealed class RepositorioUsuariosAdministrativosSql(IConfiguration confi
         string cadena=ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");
         await using var c=new SqlConnection(cadena);await c.OpenAsync(token);await using var t=(SqlTransaction)await c.BeginTransactionAsync(token);
         var usuarios=new List<UsuarioAdministrativoEstado>();
-        await using(var q=new SqlCommand("SELECT Id,NombreUsuario,Activo FROM dbo.Administradores WITH(UPDLOCK,HOLDLOCK) ORDER BY Id",c,t))
+        await using(var q=new SqlCommand("SELECT Id,NombreUsuario,Activo,CASE WHEN PasswordHash COLLATE Latin1_General_100_BIN2=N'FIXTURE_NO_LOGIN' THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END FROM dbo.Administradores WITH(UPDLOCK,HOLDLOCK) ORDER BY Id",c,t))
         {
             await using var r=await q.ExecuteReaderAsync(token);
-            while(await r.ReadAsync(token))usuarios.Add(new(){Id=r.GetInt32(0),Nombre=r.GetString(1),Activo=r.GetBoolean(2)});
+            while(await r.ReadAsync(token)){
+                var nombre=r.GetString(1);
+                var esPrueba=r.GetBoolean(3)&&nombre.StartsWith("encomienda_test_",StringComparison.Ordinal)&&Guid.TryParseExact(nombre["encomienda_test_".Length..],"N",out _);
+                usuarios.Add(new(){Id=r.GetInt32(0),Nombre=nombre,Activo=r.GetBoolean(2),EsPrueba=esPrueba});
+            }
         }
         foreach(var u in usuarios)
         {var acceso=await AccesoAdministrativoSql.ObtenerAsync(c,u.Id,token,t);u.Roles=acceso.Roles;u.VersionSesion=acceso.VersionSesion;}
-        if(!usuarios.Any(u=>u.Id==actor&&u.Activo&&u.Roles.Contains("Administrador",StringComparer.Ordinal)))
+        if(!usuarios.Any(u=>u.Id==actor&&!u.EsPrueba&&u.Activo&&u.Roles.Contains("Administrador",StringComparer.Ordinal)))
             throw new AccesoAdministrativoRechazadoException();
         T resultado=cambio(usuarios);
         foreach(var u in usuarios.Where(u=>u.Modificado))

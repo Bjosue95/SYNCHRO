@@ -7,6 +7,7 @@ namespace Synchro.Api.Endpoints;
 
 public sealed record CrearUsuarioAdministrativoSolicitud(string NombreUsuario,string Contrasena,string[] Roles)
 {public override string ToString()=>"Alta administrativa protegida";}
+public sealed record ArchivarUsuariosPruebaSolicitud(int CantidadEsperada,string Confirmacion);
 public sealed record CambiarAccesoAdministrativoSolicitud(bool Activo,string[] Roles);
 public sealed record RestablecerPasswordAdministrativoSolicitud(string Contrasena)
 {public override string ToString()=>"Restablecimiento de credenciales protegido";}
@@ -23,6 +24,11 @@ public static class UsuariosAdministrativosEndpoints
         rutas.MapPost("/",(CrearUsuarioAdministrativoSolicitud datos,HttpContext http,GestionUsuariosAdministrativos gestion)=>
             Ejecutar(()=>gestion.CrearAsync(Actor(http),datos.NombreUsuario,datos.Contrasena,datos.Roles,http.RequestAborted)))
             .AddEndpointFilter<OperacionTerminalSeguraFilter>();
+        rutas.MapPost("/archivar-pruebas",async(ArchivarUsuariosPruebaSolicitud datos,HttpContext http,GestionUsuariosAdministrativos gestion)=>
+        {
+            if(datos.Confirmacion!="ARCHIVAR PRUEBAS")return Results.BadRequest(new{mensaje="Confirma el retiro de las cuentas de prueba."});
+            return await Ejecutar(async()=>new{archivadas=await gestion.ArchivarPruebasAsync(Actor(http),datos.CantidadEsperada,http.RequestAborted)});
+        }).AddEndpointFilter<OperacionTerminalSeguraFilter>();
         rutas.MapPut("/{id:int}",(int id,CambiarAccesoAdministrativoSolicitud datos,HttpContext http,GestionUsuariosAdministrativos gestion)=>
             Ejecutar(()=>gestion.ActualizarAsync(Actor(http),id,datos.Activo,datos.Roles,http.RequestAborted)))
             .AddEndpointFilter<OperacionTerminalSeguraFilter>();
