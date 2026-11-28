@@ -1,16 +1,5 @@
 <script setup>
-import { ref } from "vue";
 import AdminIcon from "../components/AdminIcon.vue";
-const claveTema="synchro-admin-acceso-tema";
-function inicial() {
-  try { const t=localStorage.getItem(claveTema); if(t==="claro"||t==="oscuro")return t; } catch {}
-  return typeof window!=="undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro":"claro";
-}
-const tema=ref(inicial());
-function cambiarTema(){
-  tema.value=tema.value==="oscuro"?"claro":"oscuro";
-  try { localStorage.setItem(claveTema,tema.value); } catch {}
-}
 const modulos=[
   {icono:"lockers",titulo:"Control de estaciones",detalle:"Casilleros, disponibilidad y operaciones."},
   {icono:"activity",titulo:"Gestión operativa",detalle:"Reservas, encomiendas, retiros y cobros."},
@@ -18,7 +7,7 @@ const modulos=[
 ];
 </script>
 <template>
-  <div class="auth-shell" :data-acceso-tema="tema">
+  <div class="auth-shell">
     <header class="auth-header">
       <div class="auth-header-inner">
         <div class="auth-brand" aria-label="SYNCHRO">
@@ -27,11 +16,6 @@ const modulos=[
         </div>
         <div class="auth-header-actions">
           <span class="auth-product">Administración</span>
-          <button type="button" class="auth-theme" @click="cambiarTema"
-            :aria-label="tema==='oscuro'?'Activar modo claro':'Activar modo oscuro'"
-            :title="tema==='oscuro'?'Activar modo claro':'Activar modo oscuro'">
-            <AdminIcon :name="tema==='oscuro'?'sun':'moon'" :size="21"/>
-          </button>
         </div>
       </div>
     </header>
@@ -70,23 +54,12 @@ const modulos=[
   background-image:linear-gradient(var(--auth-grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--auth-grid-line) 1px,transparent 1px);
   background-size:56px 56px;
 }
-.auth-shell[data-acceso-tema="oscuro"] {
-  color-scheme:dark; --auth-page:#0a1725; --auth-card:#132638; --auth-soft:#18384b; --auth-text:#effaff;
-  --auth-muted:#aec2d0; --auth-border:#2c4255; --auth-input:#172d40; --auth-input-border:#405c70;
-  --auth-accent-text:#5ec6e8; --auth-ring:#5ec6e8; --auth-action:#5ec6e8; --auth-action-hover:#89ddf1; --auth-on-action:#061d31;
-  --auth-error-bg:#48272b; --auth-error-border:#86504f; --auth-error-text:#ffb9b1;
-  --auth-shadow:0 18px 54px #0004; --auth-grid-line:#5ec6e80b;
-  --syn-scroll-thumb:#698fa5;
-}
 .auth-header { flex:none; background:#01305c; color:#fff; border-bottom:1px solid #28516c; }
 .auth-header-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; max-width:1220px; min-height:70px; margin:auto; padding:10px 24px; }
 .auth-brand,.auth-header-actions { display:flex; align-items:center; gap:12px; min-width:0; }
 .auth-symbol { width:37px; height:37px; object-fit:contain; flex:none; }
 .auth-wordmark { width:158px; max-width:100%; height:38px; object-fit:contain; object-position:left center; }
 .auth-product { color:#d5ebf5; font-size:13px; }
-.auth-theme { display:grid; place-items:center; width:44px; height:44px; flex:none; border:1px solid #41627e; border-radius:11px; background:#164365; color:#e8f7ff; }
-.auth-theme:hover { background:#215779; }
-.auth-theme:focus-visible { outline:3px solid #5ec6e8; outline-offset:3px; }
 .auth-main { flex:1; display:grid; place-items:center; width:100%; padding:clamp(22px,5vh,58px) 24px; }
 .auth-grid { width:min(100%,1080px); display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); align-items:center; gap:clamp(22px,4vw,54px); }
 .auth-intro { min-width:0; align-self:stretch; display:flex; flex-direction:column; justify-content:center; gap:18px; position:relative; overflow:hidden; padding:clamp(25px,3.7vw,43px); border:1px solid #296b85; border-radius:24px; color:#f5fcff; background-color:#01305c; background-image:linear-gradient(#5ec6e812 1px,transparent 1px),linear-gradient(90deg,#5ec6e812 1px,transparent 1px),linear-gradient(145deg,#01305c,#084d6c 70%,#086876); background-size:40px 40px,40px 40px,100% 100%; box-shadow:0 20px 45px #01305c22; }
@@ -104,6 +77,6 @@ const modulos=[
 .auth-intro-footer { margin:0; color:#c5edf4; font-size:12px; padding-top:12px; border-top:1px solid #ffffff30; }
 .auth-footer { flex:none; display:flex; justify-content:center; flex-wrap:wrap; gap:6px; padding:10px 18px 17px; color:var(--auth-muted); font-size:12px; text-align:center; }
 @media(max-width:820px) { .auth-grid { max-width:460px; grid-template-columns:minmax(0,1fr); } .auth-intro { display:none; } }
-@media(max-width:480px) { .auth-header-inner { min-height:60px; padding:8px 15px; } .auth-symbol { width:31px; height:31px; } .auth-wordmark { width:126px; height:32px; } .auth-product { display:none; } .auth-main { padding:18px 13px; } }
+@media(max-width:480px) { .auth-header-inner { min-height:60px; padding:8px 15px; } .auth-symbol { width:31px; height:31px; } .auth-wordmark { width:126px; height:32px; } .auth-main { padding:18px 13px; } }
 @media(max-height:650px) and (min-width:821px) { .auth-main { padding-block:17px; } .auth-intro { gap:11px; padding:24px; } .auth-intro-symbol { width:48px; height:48px; } .auth-intro-symbol img { width:34px; height:34px; } .auth-modulo { padding:8px 11px; } .auth-intro h2 { font-size:30px; } }
 </style>

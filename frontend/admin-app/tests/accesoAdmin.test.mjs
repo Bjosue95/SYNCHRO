@@ -11,10 +11,10 @@ test("acceso conserva la autenticación y no almacena credenciales",()=>{
  assert.match(s,/aria-controls="admin-clave"/);
  assert.doesNotMatch(s,/localStorage|sessionStorage/);
 });
-test("diseño adaptable, tema local y favicon original",()=>{
+test("diseño adaptable, acceso claro y favicon original",()=>{
  const s=leer("src/layouts/AuthLayout.vue");
- assert.match(s,/data-acceso-tema="tema"/);
- assert.match(s,/synchro-admin-acceso-tema/);
+ assert.doesNotMatch(s,/data-acceso-tema|auth-theme|cambiarTema/);
+ assert.doesNotMatch(s,/localStorage|sessionStorage/);
  assert.match(s,/@media\(max-width:820px\)/);
  const h=leer("index.html");
  for(const archivo of ["isotipo-fondo-claro.png","isotipo-fondo-oscuro.png"]){
