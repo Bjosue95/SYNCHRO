@@ -23,3 +23,11 @@ test("la bandeja Tablet excluye solicitudes vencidas y envíos ya completados",(
  assert.match(tablet,/const pendientes=computed\(\(\)=>operaciones\.value\.filter\(x=>\["Pendiente","Reservado","PinEmitido"\]\.includes\(x\.estado\)\)\)/);
  assert.match(tablet,/operaciones\.filter\(x => x\.estado === "Enviado"\)/);
 });
+
+
+test("El deposito presencial envia texto y referencia interna al confirmar WhatsApp",()=>{
+  const vista=leer("views/WhatsAppManualAdminView.vue");
+  assert.match(vista,/textoMensaje: `SYNCHRO ACEPTO \$\{item\.codigoAutorizacion\} RECIBIR PIN DE RETIRO POR WHATSAPP`/);
+  assert.match(vista,/mensajeReferencia: "DeclaracionManual:" \+ crypto\.randomUUID\(\)/);
+  assert.match(vista,/mensajeComprobado: true/);
+});

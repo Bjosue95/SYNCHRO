@@ -126,6 +126,10 @@ async function confirmar(item) {
       intentoId: item.intentoId,
       codigoAutorizacion: item.codigoAutorizacion,
       telefonoCliente: telefono,
+      // El operador declara que comprobo el mensaje y su remitente en WhatsApp.
+      // Referencia interna de auditoria; no es un identificador de Meta.
+      textoMensaje: `SYNCHRO ACEPTO ${item.codigoAutorizacion} RECIBIR PIN DE RETIRO POR WHATSAPP`,
+      mensajeReferencia: "DeclaracionManual:" + crypto.randomUUID(),
       mensajeComprobado: true
     });
 
