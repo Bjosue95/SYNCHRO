@@ -25,9 +25,9 @@ public static class RetiroCargaCobroEndpoints
         int Minutos, decimal Importe, string Descripcion,
         string Estado, string? MetodoPago);
 
-    private static bool Permitido(WebApplication app, IConfiguration config)
+    private static bool Permitido(WebApplication app, IConfiguration config,bool definitiva)
     {
-        if (!app.Environment.IsDevelopment() ||
+        if ((!definitiva && !app.Environment.IsDevelopment()) ||
             !config.GetValue<bool>("CargaDispositivos:RegistroHabilitado"))
             return false;
 
@@ -35,7 +35,7 @@ public static class RetiroCargaCobroEndpoints
         if (string.IsNullOrWhiteSpace(cadena)) return false;
         try
         {
-            return ConexionSqlAislada.EsWhatsAppPermitido(
+            return definitiva ? Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Permitido(cadena) : ConexionSqlAislada.EsWhatsAppPermitido(
                 new SqlConnectionStringBuilder(cadena));
         }
         catch (ArgumentException) { return false; }
@@ -56,8 +56,9 @@ public static class RetiroCargaCobroEndpoints
     }
 
     private static async Task<bool> EsquemaValido(
-        SqlConnection db, CancellationToken cancel)
+        SqlConnection db, CancellationToken cancel,bool definitiva)
     {
+        if(definitiva)return await VerificarBaseCargaDefinitiva.ValidarAsync(db,cancel);
         await using var cmd = new SqlCommand("""
             SELECT CASE WHEN DB_NAME() = N'SynchroDB_Pruebas'
               AND EXISTS (
@@ -123,11 +124,11 @@ public static class RetiroCargaCobroEndpoints
             EstadoEspacio: "Ocupado"
         };
 
-    public static void MapRetiroCargaCobroEndpoints(this WebApplication app)
+    public static void MapRetiroCargaCobroEndpoints(this WebApplication app, bool definitiva = false)
     {
         var rutas = app.MapGroup("/api/terminales/carga/retiro/cobro")
-            .AllowAnonymous()
-            .RequireRateLimiting("RetiroPersonal");
+            .RequireRateLimiting("OperacionesTerminal");
+        if(definitiva)rutas.RequireAuthorization("SoloTerminal");else rutas.AllowAnonymous();
 
         // La cotizacion queda persistida una sola vez por sesion. Reintentar no
         // altera el importe ni recalcula minutos después de prepararla.
@@ -137,7 +138,7 @@ public static class RetiroCargaCobroEndpoints
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!Permitido(app, config)) return Results.NotFound();
+            if (!Permitido(app, config, definitiva)) return Results.NotFound();
             if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http))
                 return Results.StatusCode(403);
             if (!LeerId(solicitud.TokenCobro, proteccion, out var id))
@@ -147,7 +148,7 @@ public static class RetiroCargaCobroEndpoints
             {
                 await using var db = new SqlConnection(config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
-                if (!await EsquemaValido(db, http.RequestAborted))
+                if (!await EsquemaValido(db, http.RequestAborted,definitiva))
                     return Results.Problem(statusCode: 503,
                         title: "Falta preparar el modulo de cobro de carga en SQL de pruebas.");
 
@@ -262,7 +263,7 @@ public static class RetiroCargaCobroEndpoints
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!Permitido(app, config)) return Results.NotFound();
+            if (!Permitido(app, config, definitiva)) return Results.NotFound();
             if (!http.Request.IsHttps ||
                 !await csrf.IsRequestValidAsync(http))
                 return Results.StatusCode(403);
@@ -287,7 +288,7 @@ public static class RetiroCargaCobroEndpoints
                 await using var db = new SqlConnection(
                     config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
-                if (!await EsquemaValido(db, http.RequestAborted))
+                if (!await EsquemaValido(db, http.RequestAborted,definitiva))
                     return Results.Problem(statusCode: 503,
                         title: "Falta el modulo de cobro de carga.");
                 await using var tx = (SqlTransaction)
@@ -352,7 +353,7 @@ public static class RetiroCargaCobroEndpoints
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!Permitido(app, config)) return Results.NotFound();
+            if (!Permitido(app, config, definitiva)) return Results.NotFound();
             if (!http.Request.IsHttps ||
                 !await csrf.IsRequestValidAsync(http))
                 return Results.StatusCode(403);
@@ -365,7 +366,7 @@ public static class RetiroCargaCobroEndpoints
                 await using var db = new SqlConnection(
                     config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
-                if (!await EsquemaValido(db, http.RequestAborted))
+                if (!await EsquemaValido(db, http.RequestAborted,definitiva))
                     return Results.Problem(statusCode: 503,
                         title: "Falta el modulo de cobro de carga.");
 
@@ -425,7 +426,7 @@ public static class RetiroCargaCobroEndpoints
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!Permitido(app, config)) return Results.NotFound();
+            if (!Permitido(app, config, definitiva)) return Results.NotFound();
             if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http))
                 return Results.StatusCode(403);
             if (!solicitud.DispositivoRetirado)
@@ -437,7 +438,7 @@ public static class RetiroCargaCobroEndpoints
             {
                 await using var db = new SqlConnection(config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
-                if (!await EsquemaValido(db, http.RequestAborted))
+                if (!await EsquemaValido(db, http.RequestAborted,definitiva))
                     return Results.Problem(statusCode: 503, title: "Falta el modulo de cobro de carga.");
 
                 await using var tx = (SqlTransaction)await db.BeginTransactionAsync(
@@ -493,6 +494,10 @@ public static class RetiroCargaCobroEndpoints
                         return Results.Conflict(new { mensaje = "No se pudo finalizar el registro del cobro." });
                 }
 
+                if(definitiva){
+                    await using var borrar=Comando(db,tx,"DELETE FROM dbo.CredencialesCargaSynchro WHERE SesionId=@id",id);
+                    await borrar.ExecuteNonQueryAsync(http.RequestAborted);
+                }
                 tx.Commit();
                 return Results.Ok(new
                 {

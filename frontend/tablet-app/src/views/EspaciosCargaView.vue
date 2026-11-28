@@ -34,7 +34,7 @@ async function consultar() {
   cargando.value = true;
   error.value = "";
   try {
-    const respuesta = await fetch("/api/espacios-carga", { cache: "no-store" });
+    const respuesta = await fetch("/api/terminales/carga/espacios", { cache: "no-store" });
     if (!respuesta.ok) throw new Error(`No se pudo consultar la disponibilidad (${respuesta.status}).`);
     const datos = await respuesta.json();
     if (!Array.isArray(datos)) throw new Error("Formato de espacios inesperado.");

@@ -6,10 +6,10 @@ namespace Synchro.Api.Services.Administracion;
 
 internal static class ClavePinDefinitiva
 {
-    internal static async Task CargarAsync(WebApplication app,string conexion,string carpeta,bool personal=false)
+    internal static async Task CargarAsync(WebApplication app,string conexion,string carpeta,bool personal=false,bool carga=false)
     {
-        var protector=app.Services.GetRequiredService<IDataProtectionProvider>().CreateProtector(personal?"SYNCHRO.Definitivo.RetiroPersonal.v1":"SYNCHRO.Definitivo.RetiroPin.v1");
-        var archivo=Path.Combine(carpeta,personal?"RetiroPersonal.hmac.protegido":"RetiroPin.hmac.protegido");
+        var protector=app.Services.GetRequiredService<IDataProtectionProvider>().CreateProtector(carga?"SYNCHRO.Definitivo.Carga.v1":personal?"SYNCHRO.Definitivo.RetiroPersonal.v1":"SYNCHRO.Definitivo.RetiroPin.v1");
+        var archivo=Path.Combine(carpeta,carga?"Carga.hmac.protegido":personal?"RetiroPersonal.hmac.protegido":"RetiroPin.hmac.protegido");
         byte[]? clave=null;
         try
         {
@@ -21,7 +21,7 @@ internal static class ClavePinDefinitiva
             {
                 await using var c=new SqlConnection(conexion);
                 await c.OpenAsync();
-                await using var q=new SqlCommand(personal?"SELECT COUNT(*) FROM dbo.CodigosRetiroPersonal":"SELECT COUNT(*) FROM dbo.PinesEncomiendaOperativa",c);
+                await using var q=new SqlCommand(carga?"SELECT COUNT(*) FROM dbo.CredencialesCargaSynchro":personal?"SELECT COUNT(*) FROM dbo.CodigosRetiroPersonal":"SELECT COUNT(*) FROM dbo.PinesEncomiendaOperativa",c);
                 if(Convert.ToInt32(await q.ExecuteScalarAsync())!=0)
                     throw new InvalidOperationException("Falta la clave original de PIN. Recuperar el archivo protegido, no generar otro.");
                 clave=RandomNumberGenerator.GetBytes(32);
@@ -35,7 +35,7 @@ internal static class ClavePinDefinitiva
                 finally{CryptographicOperations.ZeroMemory(cifrado);}
             }
             if(clave.Length!=32)throw new InvalidOperationException("Longitud de clave de PIN invalida.");
-            app.Configuration[personal?"RetiroPersonal:ClaveHmac":"RetiroPin:ClaveHmac"]=Convert.ToBase64String(clave);
+            app.Configuration[carga?"CargaDispositivos:ClaveHmac":personal?"RetiroPersonal:ClaveHmac":"RetiroPin:ClaveHmac"]=Convert.ToBase64String(clave);
         }
         finally{if(clave is not null)CryptographicOperations.ZeroMemory(clave);}
     }

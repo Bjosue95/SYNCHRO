@@ -29,24 +29,25 @@ public static class AdminCobrosCargaEndpoints
         _ => null
     };
 
-    private static bool Permitido(WebApplication app, IConfiguration config)
+    private static bool Permitido(WebApplication app, IConfiguration config,bool definitiva)
     {
-        if (!app.Environment.IsDevelopment() ||
+        if ((!definitiva && !app.Environment.IsDevelopment()) ||
             !config.GetValue<bool>("CargaDispositivos:RegistroHabilitado"))
             return false;
         var cadena = config.GetConnectionString("SynchroDB");
         if (string.IsNullOrWhiteSpace(cadena)) return false;
         try
         {
-            return ConexionSqlAislada.EsWhatsAppPermitido(
+            return definitiva ? Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Permitido(cadena) : ConexionSqlAislada.EsWhatsAppPermitido(
                 new SqlConnectionStringBuilder(cadena));
         }
         catch (ArgumentException) { return false; }
     }
 
     private static async Task<bool> EsquemaValido(
-        SqlConnection db, CancellationToken ct)
+        SqlConnection db, CancellationToken ct,bool definitiva)
     {
+        if(definitiva)return await VerificarBaseCargaDefinitiva.ValidarAsync(db,ct);
         await using var cmd = new SqlCommand("""
             SELECT CASE WHEN DB_NAME()=N'SynchroDB_Pruebas'
               AND EXISTS (SELECT 1 FROM sys.extended_properties
@@ -60,7 +61,7 @@ public static class AdminCobrosCargaEndpoints
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct)) == 1;
     }
 
-    public static void MapAdminCobrosCargaEndpoints(this WebApplication app)
+    public static void MapAdminCobrosCargaEndpoints(this WebApplication app, bool definitiva = false)
     {
         var rutas = app.MapGroup("/api/admin/carga/cobros")
             .RequireAuthorization("OperarServicios")
@@ -70,14 +71,14 @@ public static class AdminCobrosCargaEndpoints
             HttpContext http, IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!Permitido(app, config)) return Results.NotFound();
+            if (!Permitido(app, config, definitiva)) return Results.NotFound();
             if (!http.Request.IsHttps) return Results.StatusCode(403);
             try
             {
                 await using var db = new SqlConnection(
                     config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
-                if (!await EsquemaValido(db, http.RequestAborted))
+                if (!await EsquemaValido(db, http.RequestAborted,definitiva))
                     return Results.Problem(statusCode: 503,
                         title: "Esquema de cobro de carga no preparado.");
 
@@ -138,7 +139,7 @@ public static class AdminCobrosCargaEndpoints
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!Permitido(app, config)) return Results.NotFound();
+            if (!Permitido(app, config, definitiva)) return Results.NotFound();
             if (!http.Request.IsHttps ||
                 !await csrf.IsRequestValidAsync(http))
                 return Results.StatusCode(403);
@@ -161,7 +162,7 @@ public static class AdminCobrosCargaEndpoints
                 await using var db = new SqlConnection(
                     config.GetConnectionString("SynchroDB"));
                 await db.OpenAsync(http.RequestAborted);
-                if (!await EsquemaValido(db, http.RequestAborted))
+                if (!await EsquemaValido(db, http.RequestAborted,definitiva))
                     return Results.Problem(statusCode: 503,
                         title: "Esquema de cobro de carga no preparado.");
 

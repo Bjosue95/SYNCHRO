@@ -42,6 +42,7 @@ internal static class HostAdministracionDefinitiva
             ["AllowedHosts"]="localhost;127.0.0.1;[::1]",
             ["Administracion:UsuariosHabilitados"]="true",
             ["EncomiendasOperacion:Habilitado"]="true",
+            ["CargaDispositivos:RegistroHabilitado"]="true",
             ["CobroRetiroPersonal:Obligatorio"]="true",
             ["CobroRetiroPersonal:MinutosPorBloque"]="30",
             ["CobroRetiroPersonal:Tarifas:Pequeno"]="10",
@@ -154,6 +155,7 @@ internal static class HostAdministracionDefinitiva
         // La clave se genera una sola vez y nunca se imprime ni se reutiliza desde LocalDB.
         await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
         await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!,personal:true);
+        await ClavePinDefinitiva.CargarAsync(app,Conexion,Path.GetDirectoryName(directorio)!,carga:true);
         await TerminalProxyDefinitivo.PrepararAsync(app,Conexion,Path.GetDirectoryName(directorio)!);
         var numero=Environment.GetEnvironmentVariable("SYNCHRO_WHATSAPP_DEFINITIVO");
         if(!string.IsNullOrWhiteSpace(numero))
@@ -181,6 +183,11 @@ internal static class HostAdministracionDefinitiva
         app.MapReservasWebDefinitivasEndpoints();
         app.MapReservasWebTabletDefinitiva();
         app.MapWhatsAppManualEndpoints(definitiva:true);
+        app.MapCargaSesionSeguraEndpoints(definitiva:true);
+        app.MapRetiroCargaAutoIdentificacionEndpoints(definitiva:true);
+        app.MapRetiroCargaIdentidadEndpoints(definitiva:true);
+        app.MapRetiroCargaCobroEndpoints(definitiva:true);
+        app.MapAdminCobrosCargaEndpoints(definitiva:true);
         app.MapGet("/api/terminales/mi-sesion",(ClaimsPrincipal usuario)=>Results.Ok(new{terminalId=usuario.FindFirstValue(ClaimTypes.NameIdentifier),rol="Terminal"})).RequireAuthorization("SoloTerminal");
         app.MapCasillerosPrototipoEndpoints(definitiva:true);
         app.MapAdminEspaciosCargaEndpoints(definitiva:true);
@@ -196,7 +203,7 @@ internal static class HostAdministracionDefinitiva
             return Results.Ok(new{baseDatos="SynchroDB",casilleros=r.GetInt32(0),espaciosCarga=r.GetInt32(1),tarifasCarga=r.GetInt32(2)});
         }).RequireAuthorization("SoloAdministradores");
         Console.WriteLine("SYNCHRO | Integracion administrativa local: https://localhost:7278");
-        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Resguardo presencial y cobros simulados habilitados si WhatsApp configurado. Carga pendiente.");
+        Console.WriteLine("Reservas, deposito, retiro de encomiendas y cobros ficticios habilitados. Resguardo presencial y cobros simulados habilitados si WhatsApp configurado. Carga y cobros de demostracion habilitados.");
         await app.RunAsync();
     }
 }

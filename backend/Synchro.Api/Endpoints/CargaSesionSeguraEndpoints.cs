@@ -82,12 +82,22 @@ public static class CargaSesionSeguraEndpoints
     }
 
     public static void MapCargaSesionSeguraEndpoints(
-        this WebApplication app)
+        this WebApplication app, bool definitiva = false)
     {
         var grupo = app.MapGroup("/api/terminales/carga")
-            .AllowAnonymous()
             .RequireRateLimiting("OperacionesTerminal")
             .AddEndpointFilter<OperacionTerminalSeguraFilter>();
+        if(definitiva)grupo.RequireAuthorization("SoloTerminal");else grupo.AllowAnonymous();
+        grupo.MapGet("/espacios",async (HttpContext http,IConfiguration config)=>{
+            if(!definitiva){if(!app.Environment.IsDevelopment())return Results.NotFound();ConexionSqlAislada.Exigir(config.GetConnectionString("SynchroDB"),"SynchroDB_Pruebas");}
+            await using var db=new SqlConnection(definitiva?Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Exigir(config.GetConnectionString("SynchroDB")):config.GetConnectionString("SynchroDB"));
+            await db.OpenAsync(http.RequestAborted);
+            if(definitiva && !await VerificarBaseCargaDefinitiva.ValidarAsync(db,http.RequestAborted))return Results.Problem(statusCode:503,title:"Base de carga no autorizada.");
+            await using var q=new SqlCommand("SELECT Codigo,Estado FROM dbo.EspaciosCarga WHERE Codigo IN(N'C1',N'C2',N'C3',N'C4',N'W1',N'W2',N'L1',N'L2') ORDER BY Codigo",db);
+            var lista=new List<object>();await using var r=await q.ExecuteReaderAsync(http.RequestAborted);
+            while(await r.ReadAsync(http.RequestAborted))lista.Add(new{codigo=r.GetString(0),estado=r.GetString(1)});
+            return lista.Count==8?Results.Ok(lista):Results.Problem(statusCode:503,title:"Inventario de carga incompleto.");
+        });
 
         grupo.MapPost("/preparar", async (
             PrepararCargaSeguraPeticion datos,
@@ -98,7 +108,7 @@ public static class CargaSesionSeguraEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!app.Environment.IsDevelopment() ||
+            if ((!definitiva && !app.Environment.IsDevelopment()) ||
                 !config.GetValue<bool>(
                     "CargaDispositivos:RegistroHabilitado"))
                 return Results.NotFound();
@@ -157,8 +167,8 @@ public static class CargaSesionSeguraEndpoints
                 var cadena =
                     config.GetConnectionString("SynchroDB");
 
-                ConexionSqlAislada.Exigir(
-                    cadena, "SynchroDB_Pruebas");
+                if(definitiva)Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Exigir(cadena);
+                else ConexionSqlAislada.Exigir(cadena,"SynchroDB_Pruebas");
 
                 Guid id = Guid.NewGuid();
                 DateTime ahora = DateTime.UtcNow;
@@ -182,6 +192,8 @@ public static class CargaSesionSeguraEndpoints
 
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
+                if(definitiva && !await VerificarBaseCargaDefinitiva.ValidarAsync(db,http.RequestAborted))
+                    return Results.Problem(statusCode:503,title:"Base definitiva de carga no autorizada.");
 
                 using var tx = db.BeginTransaction(
                     IsolationLevel.Serializable);
@@ -388,7 +400,7 @@ public static class CargaSesionSeguraEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!app.Environment.IsDevelopment() ||
+            if ((!definitiva && !app.Environment.IsDevelopment()) ||
                 !config.GetValue<bool>(
                     "CargaDispositivos:RegistroHabilitado"))
                 return Results.NotFound();
@@ -435,11 +447,13 @@ public static class CargaSesionSeguraEndpoints
                 var cadena =
                     config.GetConnectionString("SynchroDB");
 
-                ConexionSqlAislada.Exigir(
-                    cadena, "SynchroDB_Pruebas");
+                if(definitiva)Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Exigir(cadena);
+                else ConexionSqlAislada.Exigir(cadena,"SynchroDB_Pruebas");
 
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
+                if(definitiva && !await VerificarBaseCargaDefinitiva.ValidarAsync(db,http.RequestAborted))
+                    return Results.Problem(statusCode:503,title:"Base definitiva de carga no autorizada.");
 
                 using var tx = db.BeginTransaction(
                     IsolationLevel.Serializable);

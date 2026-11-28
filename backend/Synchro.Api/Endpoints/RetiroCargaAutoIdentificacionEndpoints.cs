@@ -11,15 +11,15 @@ namespace Synchro.Api.Endpoints;
 
 public static class RetiroCargaAutoIdentificacionEndpoints
 {
-    public static void MapRetiroCargaAutoIdentificacionEndpoints(this WebApplication app)
+    public static void MapRetiroCargaAutoIdentificacionEndpoints(this WebApplication app, bool definitiva = false)
     {
-        app.MapPost("/api/terminales/carga/retiro/identificar-v3", async (
+        var ruta=app.MapPost("/api/terminales/carga/retiro/identificar-v3", async (
             RostroRetiroCargaPeticion solicitud, HttpContext http,
             IAntiforgery csrf, IDataProtectionProvider proteccion,
             IConfiguration config) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            if (!app.Environment.IsDevelopment() ||
+            if ((!definitiva && !app.Environment.IsDevelopment()) ||
                 !config.GetValue<bool>("CargaDispositivos:RegistroHabilitado"))
                 return Results.NotFound();
             if (!http.Request.IsHttps || !await csrf.IsRequestValidAsync(http))
@@ -31,8 +31,8 @@ public static class RetiroCargaAutoIdentificacionEndpoints
             SqlConnectionStringBuilder datosConexion;
             try { datosConexion = new SqlConnectionStringBuilder(cadena); }
             catch (ArgumentException) { return Results.NotFound(); }
-            if (!string.Equals(datosConexion.InitialCatalog, "SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) ||
-                !ConexionSqlAislada.EsWhatsAppPermitido(datosConexion)) return Results.NotFound();
+            if (definitiva ? !Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Permitido(cadena) : (!string.Equals(datosConexion.InitialCatalog, "SynchroDB_Pruebas", StringComparison.OrdinalIgnoreCase) ||
+                !ConexionSqlAislada.EsWhatsAppPermitido(datosConexion))) return Results.NotFound();
 
             double[]? muestra = null;
             var candidatas = new List<(Guid Id, byte[] Cifrado)>();
@@ -46,6 +46,8 @@ public static class RetiroCargaAutoIdentificacionEndpoints
 
                 await using var db = new SqlConnection(cadena);
                 await db.OpenAsync(http.RequestAborted);
+                if(definitiva && !await VerificarBaseCargaDefinitiva.ValidarAsync(db,http.RequestAborted))
+                    return Results.Problem(statusCode:503,title:"Base definitiva de carga no autorizada.");
                 await using (var consulta = new SqlCommand("""
                     SELECT TOP (9) s.Id, c.RostroCifrado
                     FROM dbo.SesionesCargaSynchro AS s
@@ -141,7 +143,7 @@ public static class RetiroCargaAutoIdentificacionEndpoints
                 foreach (var c in candidatas) CryptographicOperations.ZeroMemory(c.Cifrado);
             }
         })
-        .AllowAnonymous()
         .RequireRateLimiting("RetiroPersonal");
+        if(definitiva)ruta.RequireAuthorization("SoloTerminal");else ruta.AllowAnonymous();
     }
 }

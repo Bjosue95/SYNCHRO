@@ -47,9 +47,9 @@ public static class RetiroCargaIdentidadEndpoints
 
     private static bool EntornoValido(
         WebApplication app,
-        IConfiguration config)
+        IConfiguration config,bool definitiva)
     {
-        if (!app.Environment.IsDevelopment() ||
+        if ((!definitiva && !app.Environment.IsDevelopment()) ||
             !config.GetValue<bool>(
                 "CargaDispositivos:RegistroHabilitado"))
             return false;
@@ -62,7 +62,7 @@ public static class RetiroCargaIdentidadEndpoints
 
         try
         {
-            return ConexionSqlAislada.EsWhatsAppPermitido(
+            return definitiva ? Synchro.Api.Services.Administracion.DestinoAdministrativoDefinitivo.Permitido(cadena) : ConexionSqlAislada.EsWhatsAppPermitido(
                 new SqlConnectionStringBuilder(cadena)
             );
         }
@@ -73,12 +73,12 @@ public static class RetiroCargaIdentidadEndpoints
     }
 
     public static void MapRetiroCargaIdentidadEndpoints(
-        this WebApplication app)
+        this WebApplication app, bool definitiva = false)
     {
         var grupo =
             app.MapGroup("/api/terminales/carga/retiro")
-               .AllowAnonymous()
                .RequireRateLimiting("RetiroPersonal");
+        if(definitiva)grupo.RequireAuthorization("SoloTerminal");else grupo.AllowAnonymous();
 
         // PASO 1: comparar el rostro de retiro V3.
         // No valida PIN, no cobra y no libera espacios.
@@ -91,7 +91,7 @@ public static class RetiroCargaIdentidadEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!EntornoValido(app, config))
+            if (!EntornoValido(app, config, definitiva))
                 return Results.NotFound();
 
             if (!http.Request.IsHttps ||
@@ -149,6 +149,8 @@ public static class RetiroCargaIdentidadEndpoints
                     new SqlConnection(cadena);
 
                 await db.OpenAsync(http.RequestAborted);
+                if(definitiva && !await VerificarBaseCargaDefinitiva.ValidarAsync(db,http.RequestAborted))
+                    return Results.Problem(statusCode:503,title:"Base definitiva de carga no autorizada.");
 
                 Guid sesionId = Guid.Empty;
 
@@ -279,7 +281,7 @@ public static class RetiroCargaIdentidadEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
 
-            if (!EntornoValido(app, config))
+            if (!EntornoValido(app, config, definitiva))
                 return Results.NotFound();
 
             if (!http.Request.IsHttps ||
@@ -359,6 +361,8 @@ public static class RetiroCargaIdentidadEndpoints
                     new SqlConnection(cadena);
 
                 await db.OpenAsync(http.RequestAborted);
+                if(definitiva && !await VerificarBaseCargaDefinitiva.ValidarAsync(db,http.RequestAborted))
+                    return Results.Problem(statusCode:503,title:"Base definitiva de carga no autorizada.");
 
                 using var transaccion =
                     db.BeginTransaction(IsolationLevel.Serializable);
